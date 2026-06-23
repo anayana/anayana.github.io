@@ -18,9 +18,9 @@ Environmental Data Science · Geodaten · interaktive Apps
 :::
 :::
 
-Ich arbeite an der Schnittstelle von **Umweltdaten, Geoinformatik und
-Datenvisualisierung**. Auf dieser Seite bündle ich meine Projekte – von
-kleinen Web-Apps über Quarto-Analysen bis zu einem QGIS-Plugin.
+Wissenschaftler mit Fokus auf Fernerkundung, GIS und Waldökosysteme.
+Ich entwickle reproduzierbare Analysen und Tools, die ökologische Prozesse
+sichtbar machen – von LiDAR-Datenverarbeitung bis zu interaktiven Shiny-Apps.
 
 [R]{.badge-skill}
 [Python]{.badge-skill}
