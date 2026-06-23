@@ -3,7 +3,7 @@ project:
   output-dir: _site
 
 website:
-  title: "Angel Naya"
+  title: "A. Naya"
   description: "Environmental Data Science – Apps, Analyses & Tools"
   site-url: https://anayana.github.io
   favicon: assets/favicon.png
@@ -26,7 +26,7 @@ website:
         href: mailto:steinchen16@posteo.de
         aria-label: E-Mail
   page-footer:
-    left: "© 2026 Angel Naya"
+    left: "© 2026 A. Naya"
     right: "Built with [Quarto](https://quarto.org)"
 
 format:

@@ -11,7 +11,7 @@ listing:
 ---
 
 ::: {.hero}
-# Angel Naya
+# A. Naya
 
 ::: {.lead}
 Environmental Data Science · Remote Sensing · Interactive Apps
