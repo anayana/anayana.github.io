@@ -1,0 +1,51 @@
+---
+title: "Über mich"
+about:
+  template: trestles
+  image: assets/profile.jpg
+  image-shape: round
+  links:
+    - icon: github
+      text: GitHub
+      href: https://github.com/DEIN-USERNAME
+    - icon: envelope
+      text: E-Mail
+      href: mailto:steinchen16@posteo.de
+    - icon: linkedin
+      text: LinkedIn
+      href: https://linkedin.com/in/DEIN-PROFIL
+---
+
+Kurzer Einleitungstext über dich: Hintergrund, Schwerpunkte und was dich
+an Environmental Data Science reizt. 2–4 Sätze, die einen Personaler
+neugierig machen.
+
+## Schwerpunkte
+
+- **Geodatenanalyse** – Verarbeitung und Visualisierung räumlicher Umweltdaten
+- **Reproduzierbare Analysen** – Quarto, R, Python
+- **Tool-Entwicklung** – Web-Apps und QGIS-Plugins für konkrete Anwendungsfälle
+
+## Werdegang
+
+**Position / Rolle** · Organisation · Jahr–heute
+: Ein bis zwei Zeilen zu Aufgaben und Ergebnissen.
+
+**Studium** · Universität · Jahr
+: Abschluss, Schwerpunkt, ggf. Thema der Abschlussarbeit.
+
+## Skills
+
+[R]{.badge-skill}
+[Python]{.badge-skill}
+[QGIS / PyQGIS]{.badge-skill}
+[Quarto]{.badge-skill}
+[Shiny / Streamlit]{.badge-skill}
+[PostGIS]{.badge-skill}
+[Git]{.badge-skill}
+
+## CV als PDF
+
+[CV herunterladen (PDF)](assets/cv.pdf){.btn .btn-outline-primary}
+
+<!-- Lege deine cv.pdf in den Ordner assets/ -->

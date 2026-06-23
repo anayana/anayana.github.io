@@ -1,0 +1,41 @@
+---
+title: ""
+toc: false
+listing:
+  id: listing-recent
+  contents: blog/posts
+  type: default
+  max-items: 3
+  sort: "date desc"
+  fields: [date, title, description]
+---
+
+::: {.hero}
+# A. Stein
+
+::: {.lead}
+Environmental Data Science · Geodaten · interaktive Apps
+:::
+:::
+
+Ich arbeite an der Schnittstelle von **Umweltdaten, Geoinformatik und
+Datenvisualisierung**. Auf dieser Seite bündle ich meine Projekte – von
+kleinen Web-Apps über Quarto-Analysen bis zu einem QGIS-Plugin.
+
+[R]{.badge-skill}
+[Python]{.badge-skill}
+[QGIS / PyQGIS]{.badge-skill}
+[Quarto]{.badge-skill}
+[Shiny]{.badge-skill}
+[Geospatial]{.badge-skill}
+[Datenvisualisierung]{.badge-skill}
+
+[Projekte ansehen](projects/index.qmd){.btn .btn-primary .mt-2}
+[CV / Über mich](about.qmd){.btn .btn-outline-secondary .mt-2}
+
+## Neueste Beiträge
+
+::: {#listing-recent}
+:::
+
+[Zum Blog →](blog/index.qmd)

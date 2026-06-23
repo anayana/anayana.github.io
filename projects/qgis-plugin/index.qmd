@@ -1,0 +1,31 @@
+---
+title: "QGIS-Plugin: [Name]"
+description: "PyQGIS-Plugin zur Automatisierung von [Aufgabe]."
+date: "2026-03-15"
+image: thumbnail.png
+categories: [Plugin, QGIS, Python]
+---
+
+## Was das Plugin macht
+
+Kurzbeschreibung: Welches Problem im GIS-Workflow löst es, für wen?
+
+## Installation
+
+```bash
+# Aus dem QGIS Plugin Repository
+# oder manuell: ZIP in QGIS → Erweiterungen → Aus ZIP installieren
+```
+
+## Screenshots
+
+![Plugin in Aktion](thumbnail.png){width="100%"}
+
+## Links
+
+[Quellcode auf GitHub](https://github.com/DEIN-USERNAME/qgis-plugin){.btn .btn-primary}
+[QGIS Plugin Repository](https://plugins.qgis.org/){.btn .btn-outline-secondary}
+
+## Technik
+
+[Python]{.badge-skill} [PyQGIS]{.badge-skill} [Qt]{.badge-skill}

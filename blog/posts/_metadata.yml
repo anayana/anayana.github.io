@@ -1,0 +1,4 @@
+# Gilt für alle Blog-Posts
+freeze: true
+title-block-banner: false
+toc: true

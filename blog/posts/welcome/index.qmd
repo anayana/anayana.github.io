@@ -1,0 +1,27 @@
+---
+title: "Diese Seite – warum und womit"
+description: "Kurzvorstellung des Portfolios und der verwendeten Tools."
+author: "A. Stein"
+date: "2026-06-23"
+categories: [Meta, Quarto]
+---
+
+Willkommen! Auf dieser Seite bündle ich meine Projekte aus der
+Environmental Data Science. Gebaut ist sie mit [Quarto](https://quarto.org),
+sodass sich meine bestehenden `.qmd`-Analysen direkt einbinden lassen.
+
+## Was dich hier erwartet
+
+- **Projekte** – Apps, Analysen und ein QGIS-Plugin
+- **Blog** – kurze Notizen zu Methoden und Werkzeugen
+
+So ersetzt du diesen Beitrag: Lege einen neuen Ordner unter
+`blog/posts/` an, kopiere diese `index.qmd` und passe den Inhalt an.
+
+### Code-Blöcke werden gerendert
+
+```{r}
+#| eval: false
+library(ggplot2)
+ggplot(mtcars, aes(wt, mpg)) + geom_point()
+```
