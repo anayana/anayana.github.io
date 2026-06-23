@@ -11,15 +11,11 @@ about:
     - icon: envelope
       text: E-Mail
       href: mailto:steinchen16@posteo.de
-    - icon: linkedin
-      text: LinkedIn
-      href: https://linkedin.com/in/DEIN-PROFIL
 ---
 
 I work at the intersection of remote sensing, GIS, and applied programming —
 with the goal of better understanding ecological processes and supporting
-sustainable decisions through data. Currently working as a researcher
-on 3D forest measurement and visualization.
+sustainable decisions through data.
 
 ## Experience
 
