@@ -1,5 +1,5 @@
 ---
-title: "Über mich"
+title: "About"
 about:
   template: trestles
   image: assets/profile.jpg
@@ -16,32 +16,32 @@ about:
       href: https://linkedin.com/in/DEIN-PROFIL
 ---
 
-Ich arbeite an der Schnittstelle von Fernerkundung, GIS und angewandter Programmierung –
-mit dem Ziel, ökologische Prozesse besser zu verstehen und nachhaltige Entscheidungen
-durch Daten zu unterstützen. Aktuell bin ich als Wissenschaftlicher Mitarbeiter an der
-Hochschule für Forstwirtschaft Rottenburg tätig, wo ich 3D-Aufnahmen und Visualisierungen
-von Wäldern entwickle.
+I work at the intersection of remote sensing, GIS, and applied programming —
+with the goal of better understanding ecological processes and supporting
+sustainable decisions through data. Currently working as a researcher
+on 3D forest measurement and visualization.
 
-## Berufserfahrung
+## Experience
 
-**Wissenschaftlicher Mitarbeiter** · Hochschule für Forstwirtschaft Rottenburg · 2025–heute
-: 3D-Aufnahmen und Visualisierung von Wäldern.
+**Researcher** · Forest 3D Measurement & Visualization
+: Acquisition and visualization of forest structure using 3D methods.
 
-**Wissenschaftlicher Mitarbeiter** · Julius Kühn Institut, Kleinmachnow · 2018–2025
-: Entwicklung eines Tools zur multikriteriellen Bewertungsanalyse.
+**Researcher** · Multi-Criteria Decision Analysis
+: Development of a tool for multi-criteria evaluation in an environmental context.
 
-**Wissenschaftlicher Assistent** · UFZ Leipzig · 2018
-: Weltweite Inventur der Biosphärenreservate mit GIS.
+**Research Assistant** · Biosphere Reserve Monitoring
+: Worldwide inventory of biosphere reserves using GIS.
 
-## Studium
+## Education
 
-**M. Sc. Forest Information Technology** · HNE Eberswalde · 2014–2018
-: Masterarbeit am UFZ; Praktikum am Reiner Lemoine Institut.
+**M. Sc. Forest Information Technology**
+: Thesis at a major environmental research institute; internship in renewable energy research.
 
-**M. Eng. Forestry** · SGGW Warschau · 2014–2018
+**M. Eng. Forestry**
+: International program with focus on forest management and policy.
 
-**B. Sc. Intl. Forest Ecosystem Management** · HNE Eberswalde · 2011–2014
-: Auslandssemester Uni Vigo; Studienprojekt im peruanischen Amazonastiefland.
+**B. Sc. International Forest Ecosystem Management**
+: Exchange semester abroad; field project in the Amazon lowlands of Peru.
 
 ## Skills
 
@@ -53,14 +53,10 @@ von Wäldern entwickle.
 [ArcGIS]{.badge-skill}
 [PostGIS]{.badge-skill}
 [SAGA GIS]{.badge-skill}
-[Fernerkundung]{.badge-skill}
+[Remote Sensing]{.badge-skill}
 [LiDAR]{.badge-skill}
 [Shiny]{.badge-skill}
 [Git]{.badge-skill}
 [Quarto]{.badge-skill}
 
-**Sprachen:** Deutsch · Englisch · Spanisch · Französisch · Portugiesisch
-
-## CV als PDF
-
-[CV herunterladen (PDF)](assets/cv.pdf){.btn .btn-outline-primary}
+**Languages:** German · English · Spanish · French · Portuguese

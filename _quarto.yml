@@ -3,8 +3,8 @@ project:
   output-dir: _site
 
 website:
-  title: "A. Stein"
-  description: "Environmental Data Science – Apps, Analysen & Tools"
+  title: "Angel Naya"
+  description: "Environmental Data Science – Apps, Analyses & Tools"
   site-url: https://anayana.github.io
   favicon: assets/favicon.png
   navbar:
@@ -13,11 +13,11 @@ website:
       - href: index.qmd
         text: Home
       - href: projects/index.qmd
-        text: Projekte
+        text: Projects
       - href: blog/index.qmd
         text: Blog
       - href: about.qmd
-        text: Über mich / CV
+        text: About
     right:
       - icon: github
         href: https://github.com/anayana
@@ -26,8 +26,8 @@ website:
         href: mailto:steinchen16@posteo.de
         aria-label: E-Mail
   page-footer:
-    left: "© 2026 A. Stein"
-    right: "Erstellt mit [Quarto](https://quarto.org)"
+    left: "© 2026 Angel Naya"
+    right: "Built with [Quarto](https://quarto.org)"
 
 format:
   html:

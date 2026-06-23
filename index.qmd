@@ -11,16 +11,16 @@ listing:
 ---
 
 ::: {.hero}
-# A. Stein
+# Angel Naya
 
 ::: {.lead}
-Environmental Data Science · Geodaten · interaktive Apps
+Environmental Data Science · Remote Sensing · Interactive Apps
 :::
 :::
 
-Wissenschaftler mit Fokus auf Fernerkundung, GIS und Waldökosysteme.
-Ich entwickle reproduzierbare Analysen und Tools, die ökologische Prozesse
-sichtbar machen – von LiDAR-Datenverarbeitung bis zu interaktiven Shiny-Apps.
+Researcher focused on remote sensing, GIS, and forest ecosystems.
+I build reproducible analyses and tools that make ecological processes visible —
+from LiDAR data processing to interactive Shiny apps.
 
 [R]{.badge-skill}
 [Python]{.badge-skill}
@@ -28,14 +28,14 @@ sichtbar machen – von LiDAR-Datenverarbeitung bis zu interaktiven Shiny-Apps.
 [Quarto]{.badge-skill}
 [Shiny]{.badge-skill}
 [Geospatial]{.badge-skill}
-[Datenvisualisierung]{.badge-skill}
+[Data Visualization]{.badge-skill}
 
-[Projekte ansehen](projects/index.qmd){.btn .btn-primary .mt-2}
-[CV / Über mich](about.qmd){.btn .btn-outline-secondary .mt-2}
+[View Projects](projects/index.qmd){.btn .btn-primary .mt-2}
+[About me](about.qmd){.btn .btn-outline-secondary .mt-2}
 
-## Neueste Beiträge
+## Latest Posts
 
 ::: {#listing-recent}
 :::
 
-[Zum Blog →](blog/index.qmd)
+[All posts →](blog/index.qmd)
