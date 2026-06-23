@@ -3,3 +3,5 @@
 *.html
 !**/analyse.html
 .DS_Store
+
+**/*.quarto_ipynb

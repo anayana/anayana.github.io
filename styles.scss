@@ -1,33 +1,96 @@
 /*-- scss:defaults --*/
 
-// Akzentfarben: Tiefblau + Cyan (Öko, Space, Fernerkundung)
-$primary:   #1a6fa8;
-$secondary: #00b4d8;
-$link-color: #1a6fa8;
+$primary:        #1d9e75;
+$body-bg:        #faf7f2;
+$body-color:     #1a202c;
+$link-color:     #9b4f2a;
+$headings-color: #1a202c;
 
-$font-family-sans-serif: "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+$font-family-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+$font-family-serif: "Lora", Georgia, serif;
+$headings-font-family: $font-family-serif;
+$headings-font-weight: 600;
 
 /*-- scss:rules --*/
 
-.navbar-title {
-  font-weight: 700;
-  letter-spacing: 0.5px;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;600&display=swap');
+
+// Navbar: weiß, dezent
+.navbar {
+  background-color: #faf7f2 !important;
+  border-bottom: 1px solid #e8e2d9;
 }
 
-// Hero auf der Startseite
+.navbar-title,
+.navbar .nav-link,
+.navbar-nav .nav-link {
+  color: #1a202c !important;
+}
+
+.navbar .nav-link:hover {
+  color: #9b4f2a !important;
+}
+
+.navbar-title {
+  font-family: $font-family-serif;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+// Titelbanner: dunkel mit Erdton
+.quarto-title-banner {
+  background-image: url('../assets/banner.jpg') !important;
+  background-size: cover;
+  background-position: center 40%;
+  position: relative;
+}
+
+.quarto-title-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 15, 8, 0.45);
+}
+
+.quarto-title-banner .quarto-title h1,
+.quarto-title-banner h1,
+.quarto-title-banner p {
+  color: #f5f0e8 !important;
+}
+
+// Seiteninhalt warm
+.page-layout-article,
+#quarto-content {
+  background-color: #faf7f2;
+}
+
+// TOC Akzent
+.sidebar nav[role=doc-toc] ul > li > a.active {
+  border-left-color: #9b4f2a;
+  color: #9b4f2a;
+}
+
+// Links
+a {
+  color: #9b4f2a;
+}
+a:hover {
+  color: #6b3318;
+}
+
+// Hero
 .hero {
   padding: 2.5rem 0 1.5rem 0;
 }
 .hero h1 {
-  font-weight: 700;
   margin-bottom: 0.25rem;
 }
 .hero .lead {
-  font-size: 1.25rem;
-  color: $secondary;
+  font-size: 1.2rem;
+  color: #6b7280;
 }
 
-// Projekt-Galerie Karten
+// Projekt-Galerie
 .quarto-grid-item .card-title {
   font-weight: 600;
 }
@@ -39,12 +102,12 @@ $font-family-sans-serif: "Source Sans Pro", -apple-system, BlinkMacSystemFont, "
 // Skill-Badges
 .badge-skill {
   display: inline-block;
-  background: rgba($primary, 0.12);
-  color: $primary;
-  border: 1px solid rgba($primary, 0.35);
+  background: rgba(#9b4f2a, 0.08);
+  color: #9b4f2a;
+  border: 1px solid rgba(#9b4f2a, 0.25);
   border-radius: 999px;
   padding: 0.2rem 0.7rem;
   margin: 0.15rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 500;
 }
