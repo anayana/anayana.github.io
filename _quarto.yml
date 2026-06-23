@@ -5,7 +5,7 @@ project:
 website:
   title: "A. Stein"
   description: "Environmental Data Science – Apps, Analysen & Tools"
-  site-url: https://DEIN-USERNAME.github.io/PersPage
+  site-url: https://anayana.github.io
   favicon: assets/favicon.png
   navbar:
     background: primary
@@ -20,7 +20,7 @@ website:
         text: Über mich / CV
     right:
       - icon: github
-        href: https://github.com/DEIN-USERNAME
+        href: https://github.com/anayana
         aria-label: GitHub
       - icon: envelope
         href: mailto:steinchen16@posteo.de
@@ -32,8 +32,12 @@ website:
 format:
   html:
     theme:
-      - cosmo
-      - styles.scss
+      light:
+        - cosmo
+        - styles.scss
+      dark:
+        - slate
+        - styles.scss
     toc: true
     toc-title: "Inhalt"
     code-copy: true
