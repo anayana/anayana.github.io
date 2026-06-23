@@ -15,20 +15,10 @@ $headings-font-weight: 600;
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;600&display=swap');
 
-// Navbar: weiß, dezent
+// ── Light mode ───────────────────────────────────────────────────────────────
+
 .navbar {
-  background-color: #faf7f2 !important;
   border-bottom: 1px solid #e8e2d9;
-}
-
-.navbar-title,
-.navbar .nav-link,
-.navbar-nav .nav-link {
-  color: #1a202c !important;
-}
-
-.navbar .nav-link:hover {
-  color: #9b4f2a !important;
 }
 
 .navbar-title {
@@ -37,7 +27,34 @@ $headings-font-weight: 600;
   letter-spacing: 0.3px;
 }
 
-// Titelbanner: dunkel mit Erdton
+.navbar .nav-link:hover {
+  color: #9b4f2a !important;
+}
+
+.page-layout-article,
+#quarto-content {
+  background-color: #faf7f2;
+}
+
+.sidebar nav[role=doc-toc] ul > li > a.active {
+  border-left-color: #9b4f2a;
+  color: #9b4f2a;
+}
+
+a { color: #9b4f2a; }
+a:hover { color: #6b3318; }
+
+.hero {
+  padding: 2.5rem 0 1.5rem 0;
+}
+.hero h1 { margin-bottom: 0.25rem; }
+.hero .lead {
+  font-size: 1.2rem;
+  color: #6b7280;
+}
+
+// ── Banner ───────────────────────────────────────────────────────────────────
+
 .quarto-title-banner {
   background-image: url('assets/banner_final.jpg') !important;
   background-size: cover;
@@ -59,57 +76,48 @@ $headings-font-weight: 600;
   color: #f5f0e8 !important;
 }
 
-// Seiteninhalt warm
-.page-layout-article,
-#quarto-content {
-  background-color: #faf7f2;
-}
+// ── Project grid ─────────────────────────────────────────────────────────────
 
-// TOC Akzent
-.sidebar nav[role=doc-toc] ul > li > a.active {
-  border-left-color: #9b4f2a;
-  color: #9b4f2a;
-}
-
-// Links
-a {
-  color: #9b4f2a;
-}
-a:hover {
-  color: #6b3318;
-}
-
-// Hero
-.hero {
-  padding: 2.5rem 0 1.5rem 0;
-}
-.hero h1 {
-  margin-bottom: 0.25rem;
-}
-.hero .lead {
-  font-size: 1.2rem;
-  color: #6b7280;
-}
-
-// Projekt-Galerie
-.quarto-grid-item .card-title {
-  font-weight: 600;
-}
+.quarto-grid-item .card-title { font-weight: 600; }
 .quarto-grid-item img.thumbnail-image {
   object-fit: cover;
   height: 180px;
 }
 
-// Dark mode overrides
+// ── Skill badges ─────────────────────────────────────────────────────────────
+
+.badge-skill {
+  display: inline-block;
+  background: rgba(155, 79, 42, 0.08);
+  color: #9b4f2a;
+  border: 1px solid rgba(155, 79, 42, 0.25);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  margin: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+// ── Dark mode ────────────────────────────────────────────────────────────────
+
 [data-bs-theme="dark"] {
+  background-color: #0d1117;
+  color: #e2e8f0;
+
+  body {
+    background-color: #0d1117 !important;
+    color: #e2e8f0 !important;
+  }
+
   .navbar {
-    background-color: #0f1117 !important;
-    border-bottom: 1px solid #2a2d35;
+    background-color: #161b22 !important;
+    border-bottom: 1px solid #30363d !important;
   }
 
   .navbar-title,
   .navbar .nav-link,
-  .navbar-nav .nav-link {
+  .navbar-nav .nav-link,
+  .navbar-brand {
     color: #e2e8f0 !important;
   }
 
@@ -118,52 +126,65 @@ a:hover {
   }
 
   .page-layout-article,
-  #quarto-content {
-    background-color: #0f1117;
+  #quarto-content,
+  .content,
+  main {
+    background-color: #0d1117 !important;
+    color: #e2e8f0 !important;
   }
 
-  body {
-    background-color: #0f1117;
-    color: #e2e8f0;
+  h1, h2, h3, h4, h5, h6 {
+    color: #f0f6fc !important;
+  }
+
+  p, li, td, th, label {
+    color: #c9d1d9 !important;
   }
 
   a {
-    color: #4dd9a0;
+    color: #4dd9a0 !important;
   }
   a:hover {
-    color: #2ab57d;
+    color: #2ab57d !important;
   }
 
+  .sidebar, #quarto-sidebar {
+    background-color: #161b22 !important;
+    border-right: 1px solid #30363d !important;
+  }
+
+  .sidebar nav[role=doc-toc] ul > li > a {
+    color: #8b949e !important;
+  }
   .sidebar nav[role=doc-toc] ul > li > a.active {
-    border-left-color: #4dd9a0;
-    color: #4dd9a0;
+    border-left-color: #4dd9a0 !important;
+    color: #4dd9a0 !important;
   }
 
-  .hero .lead {
-    color: #94a3b8;
-  }
+  .hero .lead { color: #8b949e !important; }
 
   .card {
-    background-color: #1a1d27;
-    border-color: #2a2d35;
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+    color: #e2e8f0 !important;
   }
+
+  .card-title, .card-text { color: #e2e8f0 !important; }
 
   .badge-skill {
-    background: rgba(77, 217, 160, 0.1);
-    color: #4dd9a0;
-    border-color: rgba(77, 217, 160, 0.3);
+    background: rgba(77, 217, 160, 0.1) !important;
+    color: #4dd9a0 !important;
+    border-color: rgba(77, 217, 160, 0.3) !important;
   }
-}
 
-// Skill-Badges
-.badge-skill {
-  display: inline-block;
-  background: rgba(#9b4f2a, 0.08);
-  color: #9b4f2a;
-  border: 1px solid rgba(#9b4f2a, 0.25);
-  border-radius: 999px;
-  padding: 0.2rem 0.7rem;
-  margin: 0.15rem;
-  font-size: 0.85rem;
-  font-weight: 500;
+  .page-footer {
+    background-color: #161b22 !important;
+    border-top: 1px solid #30363d !important;
+    color: #8b949e !important;
+  }
+
+  code, pre {
+    background-color: #161b22 !important;
+    color: #e2e8f0 !important;
+  }
 }

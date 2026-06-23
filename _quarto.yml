@@ -8,7 +8,7 @@ website:
   site-url: https://anayana.github.io
   favicon: assets/favicon.png
   navbar:
-    background: light
+    background: body
     left:
       - href: index.qmd
         text: Home
