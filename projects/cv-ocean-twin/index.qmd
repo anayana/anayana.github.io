@@ -1,0 +1,24 @@
+---
+title: "CV Ocean Twin"
+description: "A digital twin approach to coastal and ocean variability — interactive visualization of oceanographic data."
+date: "2025-03-01"
+categories: [App, Shiny, Remote Sensing]
+---
+
+## About
+
+An interactive app exploring ocean surface variability through a digital twin lens. Combines satellite-derived data with modelled fields to visualize coastal dynamics and long-term trends.
+
+## Live Demo
+
+```{=html}
+<iframe src="https://anayananayana.shinyapps.io/CVOceanTwin/"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](https://anayananayana.shinyapps.io/CVOceanTwin/){.btn .btn-primary}
+
+## Stack
+
+[R]{.badge-skill} [Shiny]{.badge-skill} [Remote Sensing]{.badge-skill}

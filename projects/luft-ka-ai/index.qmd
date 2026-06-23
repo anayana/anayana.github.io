@@ -1,0 +1,24 @@
+---
+title: "Air Quality AI"
+description: "Machine-learning assisted air quality analysis and visualization for urban environments."
+date: "2025-06-01"
+categories: [App, Shiny, Air Quality, ML]
+---
+
+## About
+
+A Shiny app applying AI-supported methods to analyse and visualize air quality data. Explore pollutant concentrations, spatial patterns, and model-derived insights for urban monitoring.
+
+## Live Demo
+
+```{=html}
+<iframe src="https://anayananayana.shinyapps.io/Luft_KA_AI/"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](https://anayananayana.shinyapps.io/Luft_KA_AI/){.btn .btn-primary}
+
+## Stack
+
+[R]{.badge-skill} [Shiny]{.badge-skill} [Machine Learning]{.badge-skill}
