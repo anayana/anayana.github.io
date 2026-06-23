@@ -1,0 +1,14 @@
+---
+title: "QGIS Plugin"
+description: "A custom PyQGIS plugin automating multi-criteria spatial analysis workflows."
+image: thumbnail.jpg
+categories: [Python, QGIS, PyQGIS]
+---
+
+## About
+
+A QGIS plugin built with PyQGIS that automates a multi-step spatial analysis workflow — reducing manual processing time and making complex GIS operations accessible through a simple GUI. Designed for reproducible, script-driven results inside QGIS.
+
+## Stack
+
+[Python]{.badge-skill} [PyQGIS]{.badge-skill} [QGIS]{.badge-skill} [GIS]{.badge-skill}

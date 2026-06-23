@@ -1,0 +1,14 @@
+---
+title: "Ocean & Coastal Analysis"
+description: "Remote sensing and data analysis of ocean surface dynamics and coastal change."
+image: thumbnail.jpg
+categories: [R, Remote Sensing, Ocean]
+---
+
+## About
+
+Analysis of ocean surface temperature, chlorophyll, and coastal land cover change using multi-temporal satellite data. Combines MODIS, Sentinel-2, and reanalysis products to track environmental variability in coastal zones.
+
+## Stack
+
+[R]{.badge-skill} [Remote Sensing]{.badge-skill} [ERDAS]{.badge-skill} [Geospatial]{.badge-skill}

@@ -1,0 +1,14 @@
+---
+title: "BayGIS"
+description: "Spatial data analysis and geoprocessing workflows for environmental monitoring in Bavaria."
+image: thumbnail.jpg
+categories: [GIS, R, Geospatial]
+---
+
+## About
+
+A collection of GIS-based analysis workflows for regional environmental monitoring. Combines spatial data processing, map production, and reproducible reporting for land use and ecosystem assessments.
+
+## Stack
+
+[R]{.badge-skill} [QGIS]{.badge-skill} [PostGIS]{.badge-skill} [Geospatial]{.badge-skill}

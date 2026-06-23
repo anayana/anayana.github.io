@@ -1,0 +1,14 @@
+---
+title: "Forest Data Science"
+description: "Reproducible forest inventory analysis combining field data, remote sensing, and statistical modelling."
+image: thumbnail.jpg
+categories: [R, Forest, Remote Sensing]
+---
+
+## About
+
+An end-to-end data science pipeline for forest inventory and monitoring — from raw field measurements and LiDAR point clouds to statistical models and publication-ready outputs. Designed for reproducibility.
+
+## Stack
+
+[R]{.badge-skill} [LiDAR]{.badge-skill} [Remote Sensing]{.badge-skill} [Quarto]{.badge-skill}

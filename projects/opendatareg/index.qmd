@@ -1,0 +1,14 @@
+---
+title: "Open Data Regional"
+description: "Processing and visualization of open government and environmental datasets at regional scale."
+image: thumbnail.jpg
+categories: [R, Open Data, Geospatial]
+---
+
+## About
+
+A toolset for accessing, harmonizing, and visualizing open environmental and administrative datasets. Focuses on making regional data usable for research and policy — with automated update pipelines and interactive outputs.
+
+## Stack
+
+[R]{.badge-skill} [Python]{.badge-skill} [QGIS]{.badge-skill} [Open Data]{.badge-skill}
