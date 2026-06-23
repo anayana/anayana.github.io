@@ -2,6 +2,7 @@
 title: "Air Quality AI"
 description: "Machine-learning assisted air quality analysis and visualization for urban environments."
 date: "2025-06-01"
+image: thumbnail.jpg
 categories: [App, Shiny, Air Quality, ML]
 ---
 

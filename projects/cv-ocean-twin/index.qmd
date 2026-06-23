@@ -2,6 +2,7 @@
 title: "CV Ocean Twin"
 description: "A digital twin approach to coastal and ocean variability — interactive visualization of oceanographic data."
 date: "2025-03-01"
+image: thumbnail.jpg
 categories: [App, Shiny, Remote Sensing]
 ---
 

@@ -2,6 +2,7 @@
 title: "ERA5 / CMIP6 Climate Explorer"
 description: "Interactive exploration of ERA5 reanalysis and CMIP6 climate model data for environmental research."
 date: "2024-12-01"
+image: thumbnail.jpg
 categories: [App, Shiny, Climate Data]
 ---
 

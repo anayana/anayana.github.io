@@ -2,6 +2,7 @@
 title: "ICP Forests Explorer"
 description: "Interactive dashboard for exploring ICP Forests monitoring data across European forest sites."
 date: "2025-01-01"
+image: thumbnail.jpg
 categories: [App, Shiny, Forest Monitoring]
 ---
 
