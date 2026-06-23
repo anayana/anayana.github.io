@@ -1,14 +1,14 @@
 ---
-title: "Open Data Regional"
-description: "Processing and visualization of open government and environmental datasets at regional scale."
+title: "Open Data Regensburg"
+description: "Mapping and analysis of public infrastructure in Regensburg: drinking fountains, decorative fountains, and glass recycling containers."
 image: thumbnail.jpg
 categories: [R, Open Data, Geospatial]
 ---
 
 ## About
 
-A toolset for accessing, harmonizing, and visualizing open environmental and administrative datasets. Focuses on making regional data usable for research and policy — with automated update pipelines and interactive outputs.
+A spatial analysis of open municipal data from Regensburg. Maps the distribution of drinking fountains, ornamental fountains, and glass recycling containers across the city — combining open government datasets with interactive visualizations to support urban planning and public accessibility.
 
 ## Stack
 
-[R]{.badge-skill} [Python]{.badge-skill} [QGIS]{.badge-skill} [Open Data]{.badge-skill}
+[R]{.badge-skill} [QGIS]{.badge-skill} [Open Data]{.badge-skill} [Geospatial]{.badge-skill}
