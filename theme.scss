@@ -1,0 +1,64 @@
+// Shared theme layer — loaded by BOTH light and dark modes.
+// Only mode-neutral things live here; colours are set in light.scss / dark.scss.
+
+/*-- scss:defaults --*/
+
+$font-family-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+$font-family-serif:      "Lora", Georgia, serif;
+$headings-font-family:   $font-family-serif;
+$headings-font-weight:   600;
+$primary:                #1d9e75;
+
+/*-- scss:rules --*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;600&display=swap');
+
+.navbar-title {
+  font-family: $headings-font-family;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.hero { padding: 2.5rem 0 1.5rem 0; }
+.hero h1 { margin-bottom: 0.25rem; }
+.hero .lead { font-size: 1.2rem; }
+
+// ── Banner: landscape photo with a dark scrim so the title is always legible ──
+.quarto-title-banner {
+  background-image: url('assets/banner_final.jpg') !important;
+  background-size: cover;
+  background-position: 50% 50%;
+  min-height: 240px;
+  position: relative;
+}
+.quarto-title-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(12, 17, 23, 0.62), rgba(12, 17, 23, 0.28));
+}
+.quarto-title-banner > * { position: relative; z-index: 1; }
+.quarto-title-banner h1,
+.quarto-title-banner .quarto-title h1,
+.quarto-title-banner .subtitle,
+.quarto-title-banner p {
+  color: #ffffff !important;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.6);
+}
+
+// ── Project grid ──────────────────────────────────────────────────────────────
+.quarto-grid-item .card-title { font-weight: 600; }
+.quarto-grid-item img.thumbnail-image {
+  object-fit: cover;
+  height: 180px;
+}
+
+// ── Skill badge: shape only — colours come from the active mode ────────────────
+.badge-skill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  margin: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}

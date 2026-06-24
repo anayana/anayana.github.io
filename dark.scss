@@ -1,0 +1,81 @@
+// DARK mode — deep charcoal/ink, slate base. Clearly the "night" theme.
+// This file is ONLY loaded in dark mode, so no [data-bs-theme] guards needed.
+
+/*-- scss:defaults --*/
+
+$body-bg:           #0d1117;
+$body-color:        #e6edf3;
+$link-color:        #4dd9a0;
+$headings-color:    #f0f6fc;
+
+$navbar-bg:         #161b22;
+$navbar-fg:         #e6edf3;
+$card-bg:           #161b22;
+$card-border-color: #30363d;
+$border-color:      #30363d;
+$code-bg:           #161b22;
+$code-color:        #79c0ff;
+$input-bg:          #161b22;
+$input-color:       #e6edf3;
+
+/*-- scss:rules --*/
+
+body { background-color: #0d1117; color: #e6edf3; }
+
+a:hover { color: #2ab57d; }
+
+.navbar { border-bottom: 1px solid #30363d; }
+.navbar .nav-link:hover { color: #4dd9a0 !important; }
+
+.page-layout-article,
+#quarto-content,
+main { background-color: #0d1117; }
+
+.hero .lead { color: #9aa5b1; }
+
+.sidebar,
+#quarto-sidebar,
+#quarto-margin-sidebar {
+  background-color: #161b22;
+  border-color: #30363d;
+}
+.sidebar nav[role=doc-toc] ul > li > a { color: #8b949e; }
+.sidebar nav[role=doc-toc] ul > li > a:hover { color: #c9d1d9; }
+.sidebar nav[role=doc-toc] ul > li > a.active {
+  border-left-color: #4dd9a0;
+  color: #4dd9a0;
+}
+
+.card { background-color: #161b22; border-color: #30363d; }
+.card-title { color: #f0f6fc; }
+.card-text, .card a { color: #e6edf3; }
+.listing-category, .quarto-category, .listing-date,
+.quarto-grid-item .listing-subtitle { color: #9aa5b1; }
+
+.badge-skill {
+  background: rgba(77, 217, 160, 0.12);
+  color: #4dd9a0;
+  border: 1px solid rgba(77, 217, 160, 0.35);
+}
+
+.btn-outline-secondary {
+  color: #c9d1d9;
+  border-color: #4a5568;
+}
+.btn-outline-secondary:hover {
+  background-color: #c9d1d9;
+  border-color: #c9d1d9;
+  color: #0d1117;
+}
+
+code, pre, .sourceCode { background-color: #161b22; }
+table, .table { color: #c9d1d9; }
+hr { border-color: #30363d; }
+blockquote { border-left-color: #4dd9a0; color: #9aa5b1; }
+
+.page-footer, .nav-footer {
+  background-color: #161b22;
+  border-top: 1px solid #30363d;
+  color: #9aa5b1;
+}
+.page-footer a, .nav-footer a { color: #4dd9a0; }

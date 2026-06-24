@@ -8,7 +8,6 @@ website:
   site-url: https://anayana.github.io
   favicon: assets/favicon.png
   navbar:
-    background: light
     left:
       - href: index.qmd
         text: Home
@@ -34,10 +33,12 @@ format:
     theme:
       light:
         - cosmo
-        - styles.scss
+        - theme.scss
+        - light.scss
       dark:
         - slate
-        - styles.scss
+        - theme.scss
+        - dark.scss
     toc: true
     toc-title: "Inhalt"
     code-copy: true

@@ -1,0 +1,46 @@
+// LIGHT mode — warm cream paper, cosmo base. Clearly the "day" theme.
+
+/*-- scss:defaults --*/
+
+$body-bg:        #faf7f2;
+$body-color:     #1f2733;
+$link-color:     #9b4f2a;
+$headings-color: #1a202c;
+
+$navbar-bg:      #ffffff;
+$navbar-fg:      #1a202c;
+$card-bg:        #ffffff;
+$border-color:   #e8e2d9;
+
+/*-- scss:rules --*/
+
+a:hover { color: #6b3318; }
+
+.navbar { border-bottom: 1px solid #e8e2d9; }
+.navbar .nav-link:hover { color: #9b4f2a !important; }
+
+.page-layout-article,
+#quarto-content { background-color: #faf7f2; }
+
+.hero .lead { color: #5b6470; }
+
+.sidebar nav[role=doc-toc] ul > li > a.active {
+  border-left-color: #9b4f2a;
+  color: #9b4f2a;
+}
+
+.badge-skill {
+  background: rgba(155, 79, 42, 0.08);
+  color: #9b4f2a;
+  border: 1px solid rgba(155, 79, 42, 0.25);
+}
+
+.btn-outline-secondary {
+  color: #5b4636;
+  border-color: #b9a892;
+}
+.btn-outline-secondary:hover {
+  background-color: #5b4636;
+  border-color: #5b4636;
+  color: #faf7f2;
+}
