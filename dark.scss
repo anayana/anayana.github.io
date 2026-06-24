@@ -33,6 +33,9 @@ a:hover { color: #2ab57d; }
 
 .navbar { border-bottom: 1px solid #30363d; }
 .navbar .nav-link:hover { color: #4dd9a0 !important; }
+// Slate draws vertical divider lines between navbar items — remove them.
+.navbar .nav-link { border-left: 0; border-right: 0; }
+.navbar .nav-item.active .nav-link { border-left: 0; }
 
 .page-layout-article,
 #quarto-content,
