@@ -1,0 +1,30 @@
+---
+title: "CV Ocean Twin"
+description: "A digital-twin dashboard for ocean dynamics around the Cabo Verde archipelago — sea-surface temperature, marine heatwaves and thermal fronts."
+date: "2025-03-01"
+image: thumbnail.jpg
+categories: [App, Shiny, Remote Sensing, Ocean]
+---
+
+## About
+
+**Cabo Verde Ocean Twin** is an interactive Shiny dashboard that turns satellite-derived
+ocean data into an explorable digital twin of the waters around the Cabo Verde archipelago.
+It brings together sea-surface temperature (SST) and its anomalies, marine heatwave metrics
+(duration, intensity and cumulative thermal stress), thermal fronts, and a coastal-versus-offshore
+zonation — with maps, seasonal cycles and time series to make ocean variability and warming
+trends visible at a glance.
+
+## Live Demo
+
+```{=html}
+<iframe src="https://anayananayana.shinyapps.io/CVOceanTwin/"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](https://anayananayana.shinyapps.io/CVOceanTwin/){.btn .btn-primary}
+
+## Stack
+
+[R]{.badge-skill} [Shiny]{.badge-skill} [terra]{.badge-skill} [leaflet]{.badge-skill} [Remote Sensing]{.badge-skill}
