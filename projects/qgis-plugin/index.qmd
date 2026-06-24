@@ -1,14 +1,23 @@
 ---
-title: "Urban Green QGIS Plugin"
-description: "PyQGIS plugin for analysing and planning neighbourhood green spaces on former industrial sites."
+title: "Carbon accounting QGIS plugin"
+description: "PyQGIS Processing plugin that estimates the CO₂ balance of neighbourhood green from open geodata."
 image: thumbnail.jpg
-categories: [Python, QGIS, PyQGIS, Urban Green]
+categories: [Python, QGIS, PyQGIS, Carbon]
 ---
 
 ## About
 
-A QGIS plugin developed for the analysis and planning of urban green spaces ("Quartiersgrün") on the former HuKla industrial site in Gengenbach. The plugin automates spatial workflows — tree inventory, green coverage analysis, and planning support — directly inside QGIS via a simple GUI.
+**GrünBilanz Quartier** is a QGIS Processing plugin that estimates the **CO₂ balance of
+neighbourhood green** from open geodata. It detects trees and green areas from aerial imagery —
+NDVI (CIR orthophotos) combined with a normalised surface model (nDOM = DOM − DGM), optionally
+via AI segmentation — derives crown metrics, and estimates carbon stock and CO₂e through
+allometry. A scenario step values the *planned* green of a development: carbon stock at
+maturity, annual sequestration via a growth curve, and monetary valuation.
+
+Four chainable Processing algorithms run headless via `qgis_process`, with a QGIS-independent,
+unit-tested analysis core. Case study: the former HuKla industrial site in Gengenbach, using
+open LGL Baden-Württemberg geodata.
 
 ## Stack
 
-[Python]{.badge-skill} [PyQGIS]{.badge-skill} [QGIS]{.badge-skill} [Urban Green]{.badge-skill}
+[Python]{.badge-skill} [PyQGIS]{.badge-skill} [QGIS]{.badge-skill} [Remote Sensing]{.badge-skill} [Carbon / CO₂]{.badge-skill}

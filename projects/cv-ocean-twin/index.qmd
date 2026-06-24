@@ -1,5 +1,5 @@
 ---
-title: "CV Ocean Twin"
+title: "Cabo Verde Ocean Twin"
 description: "A digital-twin dashboard for ocean dynamics around the Cabo Verde archipelago — sea-surface temperature, marine heatwaves and thermal fronts."
 date: "2025-03-01"
 image: thumbnail.jpg

@@ -1,14 +1,24 @@
 ---
-title: "BayGIS"
-description: "Spatial data analysis and geoprocessing workflows for environmental monitoring in Bavaria."
+title: "Web GIS Flurordnung"
+description: "A browser-based GIS for rural development built entirely on real, open geodata."
 image: thumbnail.jpg
-categories: [GIS, R, Geospatial]
+categories: [Web GIS, Leaflet, Geospatial]
 ---
 
 ## About
 
-A collection of GIS-based analysis workflows for regional environmental monitoring. Combines spatial data processing, map production, and reproducible reporting for land use and ecosystem assessments.
+**FlurGIS** is a self-contained web-GIS prototype for rural development and land consolidation
+(*Ländliche Entwicklung*), built entirely from **real, open geodata**. It shows official
+basemaps (BKG TopPlusOpen, basemap.de) alongside OpenStreetMap, and pulls live thematic data —
+land use, tracks, watercourses and the municipal boundary — from the **Overpass API**. Real
+**ALKIS** cadastral parcels can be imported as GeoJSON (auto-reprojected EPSG:25832 → WGS84).
+
+It offers an attribute table, filtering, area/length calculation in the official CRS, a
+measuring tool, and GeoJSON/CSV export. A query tab combines live Overpass with a client-side
+SQL/PostGIS emulation (`ST_Area`, `GROUP BY`). Example area: the municipality of Rudelzhausen
+(Hallertau, Bavaria). A small Python ETL prepares ALKIS data for a PostGIS backend in the
+production scenario.
 
 ## Stack
 
-[R]{.badge-skill} [QGIS]{.badge-skill} [PostGIS]{.badge-skill} [Geospatial]{.badge-skill}
+[JavaScript]{.badge-skill} [Leaflet]{.badge-skill} [proj4js]{.badge-skill} [Overpass / OSM]{.badge-skill} [PostGIS]{.badge-skill} [Python (ETL)]{.badge-skill}

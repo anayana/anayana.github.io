@@ -1,5 +1,5 @@
 ---
-title: "ERA5 / CMIP6 Climate Explorer"
+title: "Copernicus Climate Data Explorer"
 description: "Interactive exploration of ERA5 reanalysis and CMIP6 climate model data for environmental research."
 date: "2024-12-01"
 image: thumbnail.jpg
@@ -8,7 +8,10 @@ categories: [App, Shiny, Climate Data]
 
 ## About
 
-A Shiny app for browsing and comparing ERA5 reanalysis data with CMIP6 climate projections. Designed for researchers who need quick access to climate variables across regions and time periods without writing code.
+A Shiny app for browsing and comparing Copernicus climate data: **ERA5** reanalysis
+(the observed past climate) and **CMIP6** model projections (possible futures). Pick a
+region and time period and explore climate variables interactively — reanalysis against
+projections — without writing any code.
 
 ## Live Demo
 
@@ -22,4 +25,4 @@ A Shiny app for browsing and comparing ERA5 reanalysis data with CMIP6 climate p
 
 ## Stack
 
-[R]{.badge-skill} [Shiny]{.badge-skill} [Climate Data]{.badge-skill} [ERA5]{.badge-skill}
+[R]{.badge-skill} [Shiny]{.badge-skill} [Climate Data]{.badge-skill} [ERA5]{.badge-skill} [CMIP6]{.badge-skill}

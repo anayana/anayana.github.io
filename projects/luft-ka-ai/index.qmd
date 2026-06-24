@@ -1,5 +1,5 @@
 ---
-title: "Air Quality AI"
+title: "Air Quality Explorer"
 description: "Machine-learning assisted air quality analysis and visualization for urban environments."
 date: "2025-06-01"
 image: thumbnail.jpg
@@ -8,7 +8,11 @@ categories: [App, Shiny, Air Quality, ML]
 
 ## About
 
-A Shiny app applying AI-supported methods to analyse and visualize air quality data. Explore pollutant concentrations, spatial patterns, and model-derived insights for urban monitoring.
+An interactive Shiny app exploring urban air quality in **Karlsruhe**. It combines open
+[Open-Meteo](https://open-meteo.com) data — daily weather (temperature, precipitation, wind)
+and hourly air-quality observations (NO₂) for 2024 — and uses a machine-learning model to
+relate meteorology to pollutant levels. Explore concentrations, temporal patterns and
+model-derived insights for urban monitoring.
 
 ## Live Demo
 
@@ -22,4 +26,4 @@ A Shiny app applying AI-supported methods to analyse and visualize air quality d
 
 ## Stack
 
-[R]{.badge-skill} [Shiny]{.badge-skill} [Machine Learning]{.badge-skill}
+[R]{.badge-skill} [Shiny]{.badge-skill} [Open-Meteo]{.badge-skill} [Machine Learning]{.badge-skill}

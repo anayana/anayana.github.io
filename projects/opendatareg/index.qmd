@@ -7,8 +7,12 @@ categories: [R, Open Data, Geospatial]
 
 ## About
 
-A spatial analysis of the City of Regensburg's open municipal data. Maps where the city's drinking fountains, ornamental fountains, and glass recycling containers are located — combining the official open-government datasets with interactive maps to make urban infrastructure easier to find and to support city planning and public accessibility.
+Three of the City of Regensburg's open point datasets — drinking fountains, glass recycling
+containers and ornamental fountains — are harmonised to a common WGS84 GeoJSON form and
+assigned to the city's statistical districts by point-in-polygon. The analysis then evaluates
+each district's provision and the metadata quality of the source data. The workflow is fully
+reproducible: the same inputs yield the same map and tables every time.
 
 ## Stack
 
-[R]{.badge-skill} [QGIS]{.badge-skill} [Open Data]{.badge-skill} [Geospatial]{.badge-skill}
+[R]{.badge-skill} [sf]{.badge-skill} [Open Data]{.badge-skill} [Geospatial]{.badge-skill}

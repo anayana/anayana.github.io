@@ -8,7 +8,17 @@ categories: [App, Shiny, Forest Monitoring]
 
 ## About
 
-An interactive Shiny app for visualizing and exploring data from the ICP Forests programme — the largest systematic forest monitoring network in the world. Browse site-level observations, filter by country and indicator, and compare trends over time.
+An interactive Shiny app that walks through a full forest-monitoring workflow on the
+**ICP Forests Level II** plots in Brandenburg — focused on the Barnim / Schorfheide around
+the Thünen Institute of Forest Ecosystems in Eberswalde. Tabs cover an interactive plot map,
+data availability, quality control, gap-filling (linear / spline / climatology with
+cross-validation), a daily soil-water balance with a drought-stress indicator, a transparent
+emulation of the **4C** forest model (NPP, transpiration, soil water under climate scenarios),
+and a random-forest model that predicts drought-stress risk.
+
+Built entirely from free, real data — ICP Forests Level II open data, the DWD climate series
+for Angermünde, and SoilGrids-derived field capacity per plot. It runs from prepared CSVs out
+of the box and uses a PostgreSQL/PostGIS backend when one is available.
 
 ## Live Demo
 
@@ -22,4 +32,4 @@ An interactive Shiny app for visualizing and exploring data from the ICP Forests
 
 ## Stack
 
-[R]{.badge-skill} [Shiny]{.badge-skill} [Forest Monitoring]{.badge-skill}
+[R]{.badge-skill} [Shiny]{.badge-skill} [PostGIS]{.badge-skill} [Random Forest]{.badge-skill} [Forest Monitoring]{.badge-skill}
