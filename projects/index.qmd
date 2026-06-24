@@ -1,6 +1,6 @@
 ---
-title: "Projekte"
-subtitle: "Apps, Analysen und Tools rund um Umweltdaten"
+title: "Projects"
+subtitle: "Apps, analyses and tools for environmental data"
 listing:
   contents: "*/index.qmd"
   sort: "date desc"

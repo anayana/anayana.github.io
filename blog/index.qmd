@@ -1,6 +1,6 @@
 ---
 title: "Blog"
-subtitle: "Notizen zu Projekten, Methoden und Umweltdaten"
+subtitle: "Notes on projects, methods and environmental data"
 listing:
   contents: posts
   sort: "date desc"

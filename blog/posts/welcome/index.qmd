@@ -1,27 +1,26 @@
 ---
-title: "Diese Seite – warum und womit"
-description: "Kurzvorstellung des Portfolios und der verwendeten Tools."
+title: "This site — why and how"
+description: "A short intro to the portfolio and the tools behind it."
 author: "A. Naya"
 date: "2026-06-23"
 categories: [Meta, Quarto]
 ---
 
-Willkommen! Auf dieser Seite bündle ich meine Projekte aus der
-Environmental Data Science. Gebaut ist sie mit [Quarto](https://quarto.org),
-sodass sich meine bestehenden `.qmd`-Analysen direkt einbinden lassen.
+Welcome! This is where I gather my work in environmental data science.
+The site is built with [Quarto](https://quarto.org), so my existing
+`.qmd` analyses can be embedded directly.
 
-## Was dich hier erwartet
+## What you'll find here
 
-- **Projekte** – Apps, Analysen und ein QGIS-Plugin
-- **Blog** – kurze Notizen zu Methoden und Werkzeugen
+- **Projects** – apps, analyses and a QGIS plugin
+- **Blog** – short notes on methods and tools
 
-So ersetzt du diesen Beitrag: Lege einen neuen Ordner unter
-`blog/posts/` an, kopiere diese `index.qmd` und passe den Inhalt an.
+To replace this post: create a new folder under `blog/posts/`, copy this
+`index.qmd` and adapt its content.
 
-### Code-Blöcke werden gerendert
+### Code blocks are rendered
 
-```{r}
-#| eval: false
+```r
 library(ggplot2)
 ggplot(mtcars, aes(wt, mpg)) + geom_point()
 ```

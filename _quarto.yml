@@ -40,10 +40,10 @@ format:
         - theme.scss
         - dark.scss
     toc: true
-    toc-title: "Inhalt"
+    toc-title: "Contents"
     code-copy: true
     code-overflow: wrap
     grid:
       body-width: 900px
 
-lang: de
+lang: en
