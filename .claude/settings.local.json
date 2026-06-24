@@ -18,7 +18,11 @@
       "PowerShell(gh run list --limit 3)",
       "WebFetch(domain:github.com)",
       "Bash(quarto --version)",
-      "PowerShell($q = \\(Get-Command quarto -ErrorAction SilentlyContinue\\); if \\($q\\) { quarto render 2>&1 | Select-Object -Last 25 } else { \"quarto not found in PowerShell PATH either\" })"
+      "PowerShell($q = \\(Get-Command quarto -ErrorAction SilentlyContinue\\); if \\($q\\) { quarto render 2>&1 | Select-Object -Last 25 } else { \"quarto not found in PowerShell PATH either\" })",
+      "Bash(ls)",
+      "Bash(cat MEMORY.md)",
+      "Bash(gh run *)",
+      "Bash(gh api *)"
     ]
   }
 }
