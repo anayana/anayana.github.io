@@ -1,13 +1,13 @@
 ---
 title: "Open Data Regensburg"
-description: "Mapping and analysis of public infrastructure in Regensburg: drinking fountains, decorative fountains, and glass recycling containers."
+description: "Mapping public infrastructure in the city of Regensburg: drinking fountains, decorative fountains, and glass recycling containers."
 image: thumbnail.jpg
 categories: [R, Open Data, Geospatial]
 ---
 
 ## About
 
-A spatial analysis of open municipal data from Regensburg. Maps the distribution of drinking fountains, ornamental fountains, and glass recycling containers across the city — combining open government datasets with interactive visualizations to support urban planning and public accessibility.
+A spatial analysis of the City of Regensburg's open municipal data. Maps where the city's drinking fountains, ornamental fountains, and glass recycling containers are located — combining the official open-government datasets with interactive maps to make urban infrastructure easier to find and to support city planning and public accessibility.
 
 ## Stack
 

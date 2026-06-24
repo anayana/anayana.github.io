@@ -8,7 +8,17 @@
       "Skill(run:*)",
       "PowerShell(quarto --version 2>&1)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile\\(\"C:\\\\Users\\\\Admin\\\\R\\\\PersPage\\\\assets\\\\banner_final.jpg\"\\); \"Width: $\\($img.Width\\), Height: $\\($img.Height\\)\"; $img.Dispose\\(\\))",
+      "WebSearch",
+      "WebFetch(domain:commons.wikimedia.org)",
+      "WebFetch(domain:unsplash.com)",
+      "Bash(git rm *)",
+      "mcp__Claude_in_Chrome__navigate",
+      "PowerShell(gh run list --limit 3)",
+      "WebFetch(domain:github.com)",
+      "Bash(quarto --version)",
+      "PowerShell($q = \\(Get-Command quarto -ErrorAction SilentlyContinue\\); if \\($q\\) { quarto render 2>&1 | Select-Object -Last 25 } else { \"quarto not found in PowerShell PATH either\" })"
     ]
   }
 }

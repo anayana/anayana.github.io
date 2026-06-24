@@ -44,36 +44,63 @@ $headings-font-weight: 600;
 a { color: #9b4f2a; }
 a:hover { color: #6b3318; }
 
+// Make sure body copy is always dark on the light cream background.
+body, p, li, td, th, .card-text, .card-title {
+  color: #1a202c;
+}
+
 .hero {
   padding: 2.5rem 0 1.5rem 0;
 }
 .hero h1 { margin-bottom: 0.25rem; }
 .hero .lead {
   font-size: 1.2rem;
-  color: #6b7280;
+  color: #5b6470;
 }
 
-// ── Banner ───────────────────────────────────────────────────────────────────
+// Outline button needs a visible label in light mode too.
+.btn-outline-secondary {
+  color: #5b4636;
+  border-color: #b9a892;
+}
+.btn-outline-secondary:hover {
+  background-color: #5b4636;
+  border-color: #5b4636;
+  color: #faf7f2;
+}
+
+// ── Banner (sea → mountain landscape) ─────────────────────────────────────────
 
 .quarto-title-banner {
   background-image: url('assets/banner_final.jpg') !important;
   background-size: cover;
   background-position: 50% 50%;
-  min-height: 220px;
+  min-height: 240px;
   position: relative;
 }
 
+// Dark scrim so the title text is always legible over the photo.
 .quarto-title-banner::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(20, 15, 8, 0.45);
+  background: linear-gradient(90deg, rgba(20, 15, 8, 0.55), rgba(20, 15, 8, 0.35));
+}
+
+.quarto-title-banner .quarto-title-block,
+.quarto-title-banner .quarto-title,
+.quarto-title-banner > * {
+  position: relative;
+  z-index: 1;
 }
 
 .quarto-title-banner .quarto-title h1,
 .quarto-title-banner h1,
+.quarto-title-banner .quarto-title .subtitle,
+.quarto-title-banner .subtitle,
 .quarto-title-banner p {
   color: #f5f0e8 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 // ── Project grid ─────────────────────────────────────────────────────────────
@@ -98,93 +125,142 @@ a:hover { color: #6b3318; }
   font-weight: 500;
 }
 
-// ── Dark mode ────────────────────────────────────────────────────────────────
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+// Goal: every piece of text stays legible — never light text on a light surface.
 
 [data-bs-theme="dark"] {
+  --bs-body-bg: #0d1117;
+  --bs-body-color: #e6edf3;
   background-color: #0d1117;
-  color: #e2e8f0;
+  color: #e6edf3;
 
   body {
     background-color: #0d1117 !important;
-    color: #e2e8f0 !important;
+    color: #e6edf3 !important;
   }
 
-  .navbar {
-    background-color: #161b22 !important;
-    border-bottom: 1px solid #30363d !important;
-  }
-
-  .navbar-title,
-  .navbar .nav-link,
-  .navbar-nav .nav-link,
-  .navbar-brand {
-    color: #e2e8f0 !important;
-  }
-
-  .navbar .nav-link:hover {
-    color: #4dd9a0 !important;
-  }
-
-  .page-layout-article,
-  #quarto-content,
-  .content,
-  main {
-    background-color: #0d1117 !important;
-    color: #e2e8f0 !important;
+  // Generic text elements
+  p, li, td, th, label, dd, dt, figcaption, small, span, strong, em, blockquote {
+    color: #c9d1d9 !important;
   }
 
   h1, h2, h3, h4, h5, h6 {
     color: #f0f6fc !important;
   }
 
-  p, li, td, th, label {
-    color: #c9d1d9 !important;
+  // Surfaces
+  .page-layout-article,
+  #quarto-content,
+  .content,
+  main,
+  #quarto-document-content {
+    background-color: #0d1117 !important;
+    color: #e6edf3 !important;
   }
 
-  a {
-    color: #4dd9a0 !important;
+  // Navbar
+  .navbar {
+    background-color: #161b22 !important;
+    border-bottom: 1px solid #30363d !important;
   }
-  a:hover {
-    color: #2ab57d !important;
+  .navbar-title,
+  .navbar .nav-link,
+  .navbar-nav .nav-link,
+  .navbar-brand,
+  .navbar .navbar-toggler {
+    color: #e6edf3 !important;
   }
+  .navbar .nav-link:hover { color: #4dd9a0 !important; }
 
-  .sidebar, #quarto-sidebar {
+  // Links
+  a { color: #4dd9a0 !important; }
+  a:hover { color: #2ab57d !important; }
+  // …but links that are actually buttons keep their own colour.
+  a.btn-primary { color: #ffffff !important; }
+
+  // Sidebar / table of contents
+  .sidebar, #quarto-sidebar, #quarto-margin-sidebar {
     background-color: #161b22 !important;
     border-right: 1px solid #30363d !important;
   }
-
-  .sidebar nav[role=doc-toc] ul > li > a {
+  .sidebar nav[role=doc-toc] ul > li > a,
+  #toc-title {
     color: #8b949e !important;
   }
+  .sidebar nav[role=doc-toc] ul > li > a:hover { color: #c9d1d9 !important; }
   .sidebar nav[role=doc-toc] ul > li > a.active {
     border-left-color: #4dd9a0 !important;
     color: #4dd9a0 !important;
   }
 
-  .hero .lead { color: #8b949e !important; }
+  // Hero / lead
+  .hero .lead { color: #9aa5b1 !important; }
 
-  .card {
+  // Cards (project grid + listing)
+  .card, .quarto-grid-item {
     background-color: #161b22 !important;
     border-color: #30363d !important;
-    color: #e2e8f0 !important;
+    color: #e6edf3 !important;
   }
+  .card-title, .card-text, .card .listing-description, .card a {
+    color: #e6edf3 !important;
+  }
+  .quarto-grid-item .card-title { color: #f0f6fc !important; }
 
-  .card-title, .card-text { color: #e2e8f0 !important; }
+  // Listing categories / metadata
+  .listing-category, .quarto-category, .quarto-listing-category .category,
+  .listing-date, .quarto-grid-item .listing-subtitle {
+    color: #9aa5b1 !important;
+  }
+  .quarto-listing-category .category.active { color: #4dd9a0 !important; }
 
+  // Badges
   .badge-skill {
-    background: rgba(77, 217, 160, 0.1) !important;
+    background: rgba(77, 217, 160, 0.12) !important;
     color: #4dd9a0 !important;
-    border-color: rgba(77, 217, 160, 0.3) !important;
+    border-color: rgba(77, 217, 160, 0.35) !important;
   }
 
-  .page-footer {
+  // Buttons
+  .btn-outline-secondary {
+    color: #c9d1d9 !important;
+    border-color: #4a5568 !important;
+  }
+  .btn-outline-secondary:hover {
+    background-color: #c9d1d9 !important;
+    color: #0d1117 !important;
+    border-color: #c9d1d9 !important;
+  }
+
+  // Search box
+  .aa-Form, .aa-Input, input, .form-control, select, textarea {
+    background-color: #161b22 !important;
+    color: #e6edf3 !important;
+    border-color: #30363d !important;
+  }
+  ::placeholder { color: #8b949e !important; }
+
+  // Footer
+  .page-footer, .nav-footer {
     background-color: #161b22 !important;
     border-top: 1px solid #30363d !important;
-    color: #8b949e !important;
+    color: #9aa5b1 !important;
   }
+  .page-footer a, .nav-footer a { color: #4dd9a0 !important; }
 
-  code, pre {
+  // Code
+  code, pre, .sourceCode {
     background-color: #161b22 !important;
-    color: #e2e8f0 !important;
+    color: #e6edf3 !important;
+  }
+  code { color: #79c0ff !important; }
+  pre code { color: #e6edf3 !important; }
+
+  // Tables & rules
+  table, .table { color: #c9d1d9 !important; }
+  hr, .table > :not(caption) > * > * { border-color: #30363d !important; }
+  blockquote {
+    border-left-color: #4dd9a0 !important;
+    color: #9aa5b1 !important;
   }
 }
