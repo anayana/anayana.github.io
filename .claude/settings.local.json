@@ -22,7 +22,12 @@
       "Bash(ls)",
       "Bash(cat MEMORY.md)",
       "Bash(gh run *)",
-      "Bash(gh api *)"
-    ]
+      "Bash(gh api *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(python -c \"import json;json.load\\(open\\('.claude/settings.local.json'\\)\\);print\\('JSON valid'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('.claude/settings.local.json'\\)\\);console.log\\('JSON valid'\\)\")"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }
