@@ -22,6 +22,13 @@ $input-color:       #e6edf3;
 
 body { background-color: #0d1117; color: #e6edf3; }
 
+// The banner photo is dark and blends into the dark page — frame it with
+// light lines top and bottom so its edges are clearly visible.
+.quarto-title-banner {
+  border-top: 2px solid rgba(255, 255, 255, 0.7);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.7);
+}
+
 a:hover { color: #2ab57d; }
 
 .navbar { border-bottom: 1px solid #30363d; }
