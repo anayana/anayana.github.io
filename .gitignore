@@ -2,6 +2,7 @@
 /.quarto/
 *.html
 !**/analyse.html
+!GreenEquity_HN.html
 .DS_Store
 
 **/*.quarto_ipynb

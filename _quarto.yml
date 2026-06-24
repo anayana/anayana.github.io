@@ -1,6 +1,8 @@
 project:
   type: website
   output-dir: _site
+  resources:
+    - GreenEquity_HN.html
 
 website:
   title: "A. Naya"
