@@ -3,6 +3,7 @@
 *.html
 !**/analyse.html
 !GreenEquity_HN.html
+!BergWaldDynamik.html
 .DS_Store
 
 **/*.quarto_ipynb

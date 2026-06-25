@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BergWaldDynamik – Höhenstufen & Waldgrenze der Alpen im Klimawandel</title>
+<style>
+ :root{--bg:#0f1c14;--panel:#16261b;--panel2:#1d3325;--ink:#e9f1ea;--muted:#9fb6a6;--accent:#3fae6b;--accent2:#7fd4a0;--line:#2c4634;
+   --buche:#d08a3a;--tanne:#2f8f63;--fichte:#3f7d8f;--laerche:#d6b13a;--zirbe:#6fa06a;--latsche:#8a9a4a;--snow:#dfe9ee}
+ *{box-sizing:border-box}html,body{margin:0;height:100%;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+ #app{display:flex;height:100vh;width:100vw;overflow:hidden}
+ #sidebar{width:360px;min-width:360px;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto}
+ #main{flex:1;display:flex;flex-direction:column;min-width:0}
+ #stage{flex:1;min-height:0;position:relative;background:linear-gradient(180deg,#0c1812 0%,#0f1c14 60%)}
+ #charts{height:220px;min-height:220px;display:flex;gap:14px;padding:14px 16px;border-top:1px solid var(--line);background:var(--panel)}
+ header{padding:18px 18px 12px;border-bottom:1px solid var(--line)}
+ header .k{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent2)}
+ header h1{font-size:18px;margin:4px 0 2px;line-height:1.25}header p{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.45}
+ .section{padding:14px 18px;border-bottom:1px solid var(--line)}
+ .section h2{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--accent2);margin:0 0 12px}
+ .opt{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent;font-size:13px}
+ .opt:hover{background:var(--panel2)}.opt.active{background:var(--panel2);border-color:var(--accent)}
+ label.ctl{display:block;font-size:12px;color:var(--muted);margin:14px 0 5px}label.ctl:first-child{margin-top:0}
+ label.ctl b{color:var(--accent2);font-weight:600}
+ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+ .seg{display:flex;gap:6px;flex-wrap:wrap}
+ .seg button{flex:1;min-width:64px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);font-size:12px;padding:7px 6px;border-radius:8px;cursor:pointer}
+ .seg button.active{border-color:var(--accent);background:#214031;color:var(--accent2)}
+ .seg button:hover{border-color:var(--accent)}
+ .ind{display:flex;flex-direction:column;gap:9px}
+ .gauge .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+ .gauge .top b{color:var(--ink);font-weight:600}.gauge .top span{color:var(--accent2);font-weight:600}
+ .bar{height:9px;border-radius:6px;background:var(--panel2);overflow:hidden}
+ .bar i{display:block;height:100%;border-radius:6px;transition:width .35s ease,background .35s ease}
+ .legrow{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:var(--muted)}
+ .legrow i{width:16px;height:11px;border-radius:3px;flex:none}
+ .info p{font-size:12px;color:var(--muted);line-height:1.55;margin:0 0 9px}.info b.h{color:var(--accent2)}
+ .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;font-size:10px;color:var(--accent2);margin:3px 3px 0 0}
+ .foot{padding:12px 18px;font-size:10.5px;color:var(--muted);line-height:1.5}
+ .chartbox{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;min-width:0}
+ .chartbox h3{margin:0 0 2px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--accent2)}
+ .chartbox .sub{font-size:11px;color:var(--muted);margin:0 0 8px}
+ .chartbox svg{flex:1;width:100%}
+ .tline{position:absolute;left:0;right:0;pointer-events:none}
+ #readout{position:absolute;top:14px;right:16px;background:rgba(15,28,20,.86);border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:12px;min-width:190px;backdrop-filter:blur(3px)}
+ #readout .h{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--accent2);margin-bottom:6px}
+ #readout .row{display:flex;justify-content:space-between;gap:14px;margin:3px 0;color:var(--muted)}
+ #readout .row b{color:var(--ink);font-weight:600}
+ .hint{position:absolute;left:16px;bottom:12px;font-size:11px;color:var(--muted);background:rgba(15,28,20,.7);padding:5px 9px;border-radius:7px}
+ @media(max-width:980px){#app{flex-direction:column;height:auto;overflow:auto}#sidebar{width:100%;min-width:0}#stage{height:62vh}#charts{flex-wrap:wrap;height:auto}}
+</style></head>
+<body><div id="app">
+ <div id="sidebar">
+  <header>
+   <div class="k">BergWaldDynamik</div>
+   <h1>Höhenstufen, Waldgrenze &amp; Schutzwald im Klimawandel</h1>
+   <p>Interaktives Modell der Gebirgswald-Dynamik in den Alpen: Wie verschieben sich Vegetationsstufen,
+      Baumarten und die Schutzfunktion bei Erwärmung – und wie stark hinkt der Wald dem Klima hinterher?</p>
+  </header>
+
+  <div class="section">
+   <h2>Region</h2>
+   <div class="seg" id="siteSeg">
+    <button data-site="nord" class="active">Nordalpen</button>
+    <button data-site="zentral">Zentralalpen</button>
+    <button data-site="sued">Südalpen</button>
+   </div>
+   <p class="info" style="margin:10px 0 0"><span id="siteDesc" style="font-size:11.5px;color:var(--muted);line-height:1.5"></span></p>
+  </div>
+
+  <div class="section">
+   <h2>Klimaszenario</h2>
+   <label class="ctl">Sommer-Erwärmung gegenüber heute: <b id="warmVal">+0,0 °C</b></label>
+   <input type="range" id="warm" min="0" max="5" step="0.1" value="0"/>
+   <label class="ctl">Zeithorizont (Wald-Reaktionszeit): <b id="yearVal">heute</b></label>
+   <input type="range" id="years" min="0" max="200" step="5" value="0"/>
+   <label class="ctl">Analysierte Höhe: <b id="elevVal">1400 m</b></label>
+   <input type="range" id="elev" min="400" max="2800" step="20" value="1400"/>
+  </div>
+
+  <div class="section">
+   <h2>Indikatoren</h2>
+   <div class="ind" id="indicators"></div>
+  </div>
+
+  <div class="section">
+   <h2>Baumarten</h2>
+   <div id="legend"></div>
+  </div>
+
+  <div class="section info">
+   <h2>Was zeigt dieses Modell?</h2>
+   <p><b class="h">Höhenstufen.</b> Mit der Höhe sinkt die Temperatur (~0,65 °C je 100 m). Daraus folgt die
+      klassische alpine Stufung: collin/submontan (Buche) → montan (Buche-Tanne-Fichte) → hochmontan/subalpin
+      (Fichte, Lärche, Zirbe) → Kampfzone mit Krummholz → alpine Rasen oberhalb der Waldgrenze.</p>
+   <p><b class="h">Waldgrenze.</b> Sie folgt grob der <b class="h">7 °C-Juli-Isotherme</b>. Erwärmt sich der
+      Sommer, steigt diese klimatische Grenze – pro +0,65 °C rund 100 m höher.</p>
+   <p><b class="h">Der Wald hinkt nach.</b> Bäume wandern langsam: Über den Regler „Zeithorizont“ steuerst du,
+      wieviel der <i>möglichen</i> Verschiebung der Wald bis dahin realisiert hat (Migrations-Lag). Kurzfristig
+      klafft eine Lücke zwischen klimatisch möglicher und tatsächlicher Waldgrenze.</p>
+   <p><b class="h">Schutzwald-Paradox.</b> Mäßige Erwärmung vergrößert die bewaldete Fläche und kann die
+      Schutzfunktion (Steinschlag, Lawinen) stärken. Starke Erwärmung erhöht jedoch Trockenstress und
+      <b class="h">Borkenkäfer-Risiko</b> der Fichte in der Montanstufe – die Schutzwirkung dort kann kippen.</p>
+  </div>
+
+  <div class="section info">
+   <h2>Methodik &amp; Ehrlichkeit</h2>
+   <p>Schematisches, edukatives Modell – <b class="h">keine Echtzeit-Fernerkundung</b>. Parametrisiert nach
+      Grundlagen der alpinen Waldökologie: Lapse-Rate 0,65 °C/100 m, Waldgrenze ≈ 7 °C-Juli-Isotherme,
+      Baumarten als gaußsche Temperatur-Nischen, Migration als Sättigungskurve
+      (realisierter Anteil = 1 − e<sup>−Jahre/120</sup>).</p>
+   <p>Gedacht als anschauliche, reproduzierbare Demonstration – erweiterbar um echte Daten
+      (Copernicus-Höhenmodell, LFI/BWI-Inventur, Klima-Reanalysen, ICP-Forests).</p>
+   <div style="margin-top:4px">
+    <span class="badge">Waldökologie</span><span class="badge">Höhenstufen</span>
+    <span class="badge">Klimawandel</span><span class="badge">Schutzwald</span><span class="badge">JS / SVG</span>
+   </div>
+  </div>
+
+  <div class="foot">A. Naya · Environmental Data Science · BergWaldDynamik — Single-File-Web-App, vollständig clientseitig.</div>
+ </div>
+
+ <div id="main">
+  <div id="stage">
+   <svg id="scene" preserveAspectRatio="xMidYMid meet"></svg>
+   <div id="readout"></div>
+   <div class="hint">Klick auf den Hang setzt die analysierte Höhe · Regler links steuern Klima &amp; Zeit</div>
+  </div>
+  <div id="charts">
+   <div class="chartbox">
+    <h3>Baumarten-Mischung auf analysierter Höhe</h3>
+    <p class="sub" id="mixSub">—</p>
+    <svg id="mixChart" viewBox="0 0 320 120" preserveAspectRatio="none"></svg>
+   </div>
+   <div class="chartbox">
+    <h3>Bewaldungsgrad über die Höhe</h3>
+    <p class="sub">Kronenschluss je Höhenmeter · heute vs. Szenario</p>
+    <svg id="profChart" viewBox="0 0 320 120" preserveAspectRatio="none"></svg>
+   </div>
+  </div>
+ </div>
+</div>
+
+<script>
+"use strict";
+const LAPSE=0.0065; // °C per m
+const SPECIES=[
+  {key:"buche",   name:"Buche",   opt:13.0, sd:3.0, col:getCSS("--buche"),   krumm:false},
+  {key:"tanne",   name:"Tanne",   opt:11.0, sd:2.8, col:getCSS("--tanne"),   krumm:false},
+  {key:"fichte",  name:"Fichte",  opt:9.0,  sd:3.4, col:getCSS("--fichte"),  krumm:false},
+  {key:"laerche", name:"Lärche",  opt:7.6,  sd:2.4, col:getCSS("--laerche"), krumm:false},
+  {key:"zirbe",   name:"Zirbe",   opt:6.6,  sd:2.0, col:getCSS("--zirbe"),   krumm:false},
+  {key:"latsche", name:"Latsche", opt:5.4,  sd:1.8, col:getCSS("--latsche"), krumm:true}
+];
+const SITES={
+  nord:   {label:"Nordalpen",   t1000:14.6, desc:"Kühl-feucht, ozeanisch geprägt. Tanne und Fichte stark, Buche in der Montanstufe; Waldgrenze um ~1900 m.", mZir:0.55,mLar:0.85,mBuc:1.0,mTan:1.25,mFic:1.1},
+  zentral:{label:"Zentralalpen",t1000:13.4, desc:"Kontinental-trocken (inneralpine Trockentäler). Lärche-Zirben-Wälder, Buche/Tanne selten; Waldgrenze bis ~2300 m.", mZir:1.5,mLar:1.5,mBuc:0.25,mTan:0.4,mFic:0.95},
+  sued:   {label:"Südalpen",    t1000:16.2, desc:"Mild und sommerwarm, insubrisch. Buche bis weit hinauf, wärmeliebende Stufen tiefer; Waldgrenze ~2100 m.", mZir:0.7,mLar:0.9,mBuc:1.5,mTan:0.9,mFic:0.85}
+};
+const state={site:"nord",warm:0,years:0,elev:1400};
+
+function getCSS(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+function tempAt(z,s,warm){return SITES[s].t1000 - LAPSE*(z-1000) + warm;}
+// migration realized fraction of potential shift
+function migFrac(years){return 1-Math.exp(-years/120);}
+
+// dominant species weights at given temperature for a site
+function speciesWeights(temp,s){
+  const S=SITES[s];const mod={buche:S.mBuc,tanne:S.mTan,fichte:S.mFic,laerche:S.mLar,zirbe:S.mZir,latsche:1};
+  let w=SPECIES.map(sp=>{
+    const g=Math.exp(-Math.pow(temp-sp.opt,2)/(2*sp.sd*sp.sd));
+    return Math.max(0,g*(mod[sp.key]||1));
+  });
+  return w;
+}
+function speciesMix(temp,s){
+  const w=speciesWeights(temp,s);const sum=w.reduce((a,b)=>a+b,0)||1;
+  return w.map(x=>x/sum);
+}
+// climatic potential treeline (7°C July isotherm) for warming
+function potentialTreeline(s,warm){
+  // solve t1000 - LAPSE*(z-1000) + warm = 7
+  return 1000 + (SITES[s].t1000 + warm - 7)/LAPSE;
+}
+// realized treeline = base treeline + migFrac*(potential - base)
+function treeline(s,warm,years){
+  const base=potentialTreeline(s,0);
+  const pot=potentialTreeline(s,warm);
+  return base + migFrac(years)*(pot-base);
+}
+// canopy cover 0..1 at elevation z, accounting for realized treeline (forest below) and lower drought limit
+function canopy(z,s,warm,years){
+  const tl=treeline(s,warm,years);
+  // upper: logistic falling above realized treeline (kampfzone ~150m band)
+  const upper=1/(1+Math.exp((z-tl)/55));
+  // krummholz extends ~120m above treeline as partial cover
+  const krumm=0.45/(1+Math.exp((z-(tl+130))/45));
+  let cov=Math.max(upper,krumm*(z>tl?1:0));
+  // lower limit: warm/dry foothills lose closed forest (very low elev + strong warming)
+  const t=tempAt(z,s,warm);
+  const dry=1/(1+Math.exp((t-19.5)/1.2)); // drops where July temp >~19.5
+  return Math.max(0,Math.min(1,cov*dry));
+}
+function belt(temp){
+  if(temp>=15)return{name:"collin / submontan",col:"#7fae45"};
+  if(temp>=12)return{name:"montan",col:"#4f9152"};
+  if(temp>=9) return{name:"hochmontan",col:"#3f8061"};
+  if(temp>=7) return{name:"subalpin",col:"#4a7a6a"};
+  if(temp>=4.5)return{name:"Kampfzone / Krummholz",col:"#6d7f4a"};
+  return{name:"alpin (waldfrei)",col:"#8a8f6e"};
+}
+
+/* ---------- indicators ---------- */
+function indicators(){
+  const s=state.site,warm=state.warm,years=state.years;
+  // sample elevations
+  let forestArea=0, protect=0, carbon=0, beetle=0, n=0, pw=0;
+  for(let z=400;z<=3000;z+=20){
+    const c=canopy(z,s,warm,years);
+    const t=tempAt(z,s,warm);
+    forestArea+=c;
+    // protective weight: steep upper-montane/subalpine belts matter most (1200-2100m)
+    const sw=Math.exp(-Math.pow(z-1650,2)/(2*420*420));
+    protect+=c*sw; pw+=sw;
+    // carbon: biomass density peaks montane (~1100m), lower in subalpine
+    const dens=Math.exp(-Math.pow(z-1100,2)/(2*650*650));
+    carbon+=c*dens;
+    // beetle: spruce share * warming * dryness
+    const mix=speciesMix(t,s); const fich=mix[2];
+    const dry=1/(1+Math.exp((15.5-t)/2));
+    beetle+=c*fich*dry;
+    n++;
+  }
+  const tlNow=treeline(s,warm,years), tlBase=treeline(s,0,0), tlPot=potentialTreeline(s,warm);
+  const forestPct=forestArea/n;
+  const protIdx=protect/pw; // 0..1
+  const beetleIdx=Math.min(1,(beetle/n)*3.2*(0.4+warm/5));
+  // protection penalised by beetle outbreak risk
+  const protFinal=Math.max(0,Math.min(1,protIdx*(1-0.55*beetleIdx)));
+  const carbonRel=carbon/n;
+  return{
+    forestPct, protFinal, beetleIdx, carbonRel,
+    tlNow, tlBase, tlPot, lag:tlPot-tlNow
+  };
+}
+
+/* ---------- scene rendering ---------- */
+const ZTOP=3200, ZBOT=300; // elevation range mapped to canvas height
+const W=1000,H=620;
+const scene=document.getElementById("scene");
+scene.setAttribute("viewBox","0 0 "+W+" "+H);
+function zToY(z){return H - ((z-ZBOT)/(ZTOP-ZBOT))*(H-30) - 10;}
+// mountain ridge profile (elevation as function of x) – a twin-peak massif
+function ridge(x){
+  const u=x/W;
+  const a=Math.exp(-Math.pow(u-0.38,2)/0.045)*2950;
+  const b=Math.exp(-Math.pow(u-0.74,2)/0.030)*2650;
+  return 360 + Math.max(a,b)*0.92;
+}
+function drawScene(){
+  const s=state.site,warm=state.warm,years=state.years;
+  let svg="";
+  // sky already via CSS bg. Build mountain band fills as vertical strips coloured by belt & dotted with trees.
+  const STEP=10;
+  // ridge polygon (rock/base) for clip
+  let ridgePts="";
+  for(let x=0;x<=W;x+=STEP){ridgePts+=x+","+zToY(ridge(x))+" ";}
+  svg+=`<defs><clipPath id="mtn"><polygon points="0,${H} ${ridgePts} ${W},${H}"/></clipPath></defs>`;
+  // base rock
+  svg+=`<polygon points="0,${H} ${ridgePts} ${W},${H}" fill="#26342b"/>`;
+  // coloured belts as horizontal bands clipped to mountain
+  const tl=treeline(s,warm,years);
+  for(let z=ZBOT;z<=ZTOP;z+=40){
+    const t=tempAt(z,s,warm);const b=belt(t);
+    const y0=zToY(z+40),y1=zToY(z);
+    svg+=`<rect x="0" y="${y0.toFixed(1)}" width="${W}" height="${(y1-y0+1).toFixed(1)}" fill="${b.col}" opacity="0.5" clip-path="url(#mtn)"/>`;
+  }
+  // snow cap above ~ snowline (T=2°C July ~ permanent-ish)
+  const snowZ=1000+(SITES[s].t1000+warm-2)/LAPSE;
+  svg+=`<rect x="0" y="0" width="${W}" height="${zToY(snowZ).toFixed(1)}" fill="${getCSS('--snow')}" opacity="0.55" clip-path="url(#mtn)"/>`;
+  // trees: deterministic scatter
+  let rng=mulberry(12345+Math.round(warm*7)+Math.round(years));
+  svg+=`<g clip-path="url(#mtn)">`;
+  for(let x=12;x<W;x+=12){
+    const zr=ridge(x); // surface elevation here
+    for(let z=ZBOT;z<zr-30;z+=26){
+      const c=canopy(z,s,warm,years);
+      if(rng()>c*0.92)continue;
+      const t=tempAt(z,s,warm);const mix=speciesMix(t,s);
+      // pick species by mix
+      const r=rng();let acc=0,si=2;
+      for(let i=0;i<mix.length;i++){acc+=mix[i];if(r<=acc){si=i;break;}}
+      const sp=SPECIES[si];
+      const px=x+(rng()-0.5)*9, py=zToY(z)+(rng()-0.5)*10;
+      const isKr=sp.krumm||z>tl;
+      const sz=isKr?2.2:3.0+rng()*1.4;
+      if(isKr){svg+=`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${sz.toFixed(1)}" fill="${sp.col}" opacity="0.85"/>`;}
+      else{svg+=`<path d="M${px.toFixed(1)} ${(py+sz*1.7).toFixed(1)} l${(-sz).toFixed(1)} 0 l${sz.toFixed(1)} ${(-sz*2.4).toFixed(1)} l${sz.toFixed(1)} ${(sz*2.4).toFixed(1)} z" fill="${sp.col}"/>`;}
+    }
+  }
+  svg+=`</g>`;
+  // treeline lines: realized (solid) and climatic potential (dashed)
+  const yTL=zToY(tl), yPot=zToY(potentialTreeline(s,warm));
+  svg+=`<line x1="0" y1="${yTL.toFixed(1)}" x2="${W}" y2="${yTL.toFixed(1)}" stroke="${getCSS('--accent2')}" stroke-width="2" opacity="0.9"/>`;
+  svg+=`<text x="14" y="${(yTL-7).toFixed(1)}" fill="${getCSS('--accent2')}" font-size="13" font-family="Segoe UI">aktuelle Waldgrenze · ${Math.round(tl)} m</text>`;
+  if(Math.abs(tl-potentialTreeline(s,warm))>25){
+    svg+=`<line x1="0" y1="${yPot.toFixed(1)}" x2="${W}" y2="${yPot.toFixed(1)}" stroke="${getCSS('--accent2')}" stroke-width="1.4" stroke-dasharray="7 6" opacity="0.6"/>`;
+    svg+=`<text x="${W-14}" y="${(yPot-7).toFixed(1)}" text-anchor="end" fill="${getCSS('--accent2')}" font-size="12" opacity="0.85" font-family="Segoe UI">klimatisch möglich · ${Math.round(potentialTreeline(s,warm))} m</text>`;
+  }
+  // elevation axis ticks
+  for(let z=500;z<=3000;z+=500){
+    const y=zToY(z);
+    svg+=`<line x1="0" y1="${y}" x2="9" y2="${y}" stroke="${getCSS('--muted')}"/>`;
+    svg+=`<text x="13" y="${(y+4)}" fill="${getCSS('--muted')}" font-size="11" font-family="Segoe UI">${z} m</text>`;
+  }
+  // analysed-elevation marker
+  const yE=zToY(state.elev);
+  svg+=`<line x1="0" y1="${yE.toFixed(1)}" x2="${W}" y2="${yE.toFixed(1)}" stroke="#fff" stroke-width="1" stroke-dasharray="2 5" opacity="0.55"/>`;
+  svg+=`<circle cx="${W-30}" cy="${yE.toFixed(1)}" r="5" fill="#fff" opacity="0.9"/>`;
+  scene.innerHTML=svg;
+}
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+
+/* ---------- charts & readout ---------- */
+function drawMix(){
+  const t=tempAt(state.elev,state.site,state.warm);
+  const mix=speciesMix(t,state.site);
+  const cov=canopy(state.elev,state.site,state.warm,state.years);
+  document.getElementById("mixSub").textContent=
+    `${state.elev} m · Juli-Mittel ${t.toFixed(1)} °C · ${belt(t).name} · Kronenschluss ${Math.round(cov*100)}%`;
+  const c=document.getElementById("mixChart");
+  const pad=8,bw=(320-pad*2)/SPECIES.length-10;let x=pad+5,svg="";
+  const maxV=Math.max(...mix,0.01);
+  SPECIES.forEach((sp,i)=>{
+    const h=(mix[i]/Math.max(maxV,0.25))*78;
+    const y=100-h;
+    svg+=`<rect x="${x}" y="${y.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="3" fill="${sp.col}"/>`;
+    svg+=`<text x="${x+bw/2}" y="${(y-4).toFixed(1)}" text-anchor="middle" fill="${getCSS('--ink')}" font-size="9">${Math.round(mix[i]*100)}%</text>`;
+    svg+=`<text x="${x+bw/2}" y="114" text-anchor="middle" fill="${getCSS('--muted')}" font-size="9">${sp.name}</text>`;
+    x+=bw+10;
+  });
+  // greyscale if essentially unforested
+  if(cov<0.05)svg=`<text x="160" y="60" text-anchor="middle" fill="${getCSS('--muted')}" font-size="12">oberhalb der Waldgrenze – keine geschlossene Bestockung</text>`+svg;
+  c.innerHTML=svg;
+}
+function drawProfile(){
+  const c=document.getElementById("profChart");let svg="";
+  const z0=400,z1=2900;
+  function path(warm,years,col,w,dash){
+    let d="";
+    for(let z=z0;z<=z1;z+=20){
+      const x=((z-z0)/(z1-z0))*320;
+      const y=100-canopy(z,state.site,warm,years)*92;
+      d+=(z===z0?"M":"L")+x.toFixed(1)+" "+y.toFixed(1)+" ";
+    }
+    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}"${dash?` stroke-dasharray="${dash}"`:""}/>`;
+  }
+  // baseline grid
+  for(let z=500;z<=2500;z+=500){const x=((z-z0)/(z1-z0))*320;
+    svg+=`<line x1="${x}" y1="4" x2="${x}" y2="104" stroke="${getCSS('--line')}"/>`;
+    svg+=`<text x="${x}" y="118" text-anchor="middle" fill="${getCSS('--muted')}" font-size="8">${z}m</text>`;}
+  svg+=path(0,0,getCSS('--muted'),1.4,"5 4");          // today
+  svg+=path(state.warm,state.years,getCSS('--accent2'),2.2,null); // scenario
+  // marker line at analysed elevation
+  const xm=((state.elev-z0)/(z1-z0))*320;
+  if(state.elev>=z0&&state.elev<=z1)svg+=`<line x1="${xm}" y1="0" x2="${xm}" y2="104" stroke="#fff" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>`;
+  c.innerHTML=svg;
+}
+function drawReadout(){
+  const I=indicators();const s=state.site;
+  const r=document.getElementById("readout");
+  r.innerHTML=`<div class="h">${SITES[s].label} · +${state.warm.toFixed(1).replace('.',',')} °C</div>`+
+   `<div class="row"><span>Waldgrenze</span><b>${Math.round(I.tlNow)} m</b></div>`+
+   `<div class="row"><span>Δ ggü. heute</span><b>${(I.tlNow-I.tlBase>=0?'+':'')}${Math.round(I.tlNow-I.tlBase)} m</b></div>`+
+   `<div class="row"><span>klimat. möglich</span><b>${Math.round(I.tlPot)} m</b></div>`+
+   `<div class="row"><span>Migrations-Lag</span><b>${Math.round(I.lag)} m</b></div>`;
+}
+function drawIndicators(){
+  const I=indicators();
+  const items=[
+    {t:"Bewaldete Fläche",v:I.forestPct,fmt:Math.round(I.forestPct*100)+"%",col:getCSS('--accent')},
+    {t:"Schutzfunktion (Hang)",v:I.protFinal,fmt:Math.round(I.protFinal*100)+" / 100",col:I.protFinal>0.5?getCSS('--accent2'):"#d9a23a"},
+    {t:"Borkenkäfer-Risiko",v:I.beetleIdx,fmt:Math.round(I.beetleIdx*100)+" / 100",col:I.beetleIdx>0.5?"#d05a3a":(I.beetleIdx>0.3?"#d9a23a":getCSS('--accent'))},
+    {t:"Kohlenstoff-Vorrat (rel.)",v:I.carbonRel,fmt:Math.round(I.carbonRel*100)+"%",col:getCSS('--tanne')}
+  ];
+  document.getElementById("indicators").innerHTML=items.map(it=>
+    `<div class="gauge"><div class="top"><b>${it.t}</b><span>${it.fmt}</span></div>`+
+    `<div class="bar"><i style="width:${Math.min(100,it.v*100)}%;background:${it.col}"></i></div></div>`).join("");
+}
+function drawLegend(){
+  document.getElementById("legend").innerHTML=SPECIES.map(sp=>
+    `<div class="legrow"><i style="background:${sp.col}"></i>${sp.name}${sp.krumm?" (Krummholz)":""}</div>`).join("")+
+    `<div class="legrow" style="margin-top:8px"><i style="background:${getCSS('--accent2')};height:2px;border-radius:0"></i>aktuelle Waldgrenze</div>`+
+    `<div class="legrow"><i style="background:transparent;border-top:2px dashed ${getCSS('--accent2')};height:0"></i>klimatisch mögliche Grenze</div>`;
+}
+
+/* ---------- wiring ---------- */
+function renderAll(){drawScene();drawMix();drawProfile();drawReadout();drawIndicators();}
+function fmtWarm(v){return "+"+v.toFixed(1).replace('.',',')+" °C";}
+function fmtYears(v){return v==0?"heute":"+"+v+" Jahre";}
+
+document.getElementById("warm").addEventListener("input",e=>{state.warm=+e.target.value;document.getElementById("warmVal").textContent=fmtWarm(state.warm);renderAll();});
+document.getElementById("years").addEventListener("input",e=>{state.years=+e.target.value;document.getElementById("yearVal").textContent=fmtYears(state.years);renderAll();});
+document.getElementById("elev").addEventListener("input",e=>{state.elev=+e.target.value;document.getElementById("elevVal").textContent=state.elev+" m";drawScene();drawMix();drawProfile();});
+document.querySelectorAll("#siteSeg button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#siteSeg button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");state.site=b.dataset.site;
+  document.getElementById("siteDesc").textContent=SITES[state.site].desc;renderAll();
+}));
+// click on scene sets analysed elevation
+scene.addEventListener("click",ev=>{
+  const pt=scene.getBoundingClientRect();
+  const y=(ev.clientY-pt.top)/pt.height*H;
+  // invert zToY
+  const z=ZBOT+((H-10-y)/(H-30))*(ZTOP-ZBOT);
+  state.elev=Math.max(400,Math.min(2800,Math.round(z/20)*20));
+  document.getElementById("elev").value=state.elev;
+  document.getElementById("elevVal").textContent=state.elev+" m";
+  drawScene();drawMix();drawProfile();
+});
+window.addEventListener("resize",drawScene);
+
+document.getElementById("siteDesc").textContent=SITES[state.site].desc;
+drawLegend();renderAll();
+</script>
+</body></html>

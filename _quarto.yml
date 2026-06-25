@@ -3,6 +3,7 @@ project:
   output-dir: _site
   resources:
     - GreenEquity_HN.html
+    - BergWaldDynamik.html
 
 website:
   title: "A. Naya"
