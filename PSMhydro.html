@@ -158,7 +158,7 @@
     <div class="balken"><i></i><i></i><i></i><i></i></div>
     <div class="eyebrow">
       <span>Demonstrator · Hydrogeologie</span>
-      <span id="modeBadge" class="badge demo">Demo-Modus · fiktive Daten</span>
+      <span id="modeBadge" class="badge real">echte Daten</span>
     </div>
     <h1>Frühwarnsystem <em>PSM im Grundwasser</em></h1>
     <p class="lede">
@@ -206,9 +206,7 @@
         <input type="checkbox" id="showCand"> <b>Kandidaten-Layer</b> (Lücken-/Bedarfsanalyse)</label>
       <div class="ctl" style="margin-top:8px"><label>Vorgeschlagene neue Messstellen <b id="nCand_v">12</b></label>
         <input id="nCand" type="range" min="0" max="30" step="1" value="12"></div>
-      <div class="hint" id="srcHint">Datengrundlage: <b>fiktive, klar markierte Beispielregion</b>.
-        Mit der R-Pipeline (<code>psm_run_pipeline.R</code>) werden – soweit frei verfügbar – echte
-        EEA-Waterbase-Messstellen und BGR-Kennwerte eingespeist.</div>
+      <div class="hint" id="srcHint">Datengrundlage: <b>echte EEA-Waterbase-Messstellen</b> (Grundwasser, Deutschland) aus <code>psm_data.js</code>. Details siehe README_psm.md.</div>
     </div>
 
     <div class="panel mapwrap">
@@ -296,8 +294,9 @@
         Proxy für die Durchbruchszeit; in einer Ausbaustufe ließe sich ein 1D-Transportmodell mit
         Durchbruchskurve je Standort einhängen (Schwerpunkt Stofftransport).</p>
     </div>
-    <p class="note"><b>Abgrenzung.</b> Ausschließlich klar als <b>fiktiv</b> markierte bzw. öffentlich
-      lizenzierte Datengrundlagen; keine scharfen oder personenbezogenen Standortdaten. Gerade im Kontext
+    <p class="note"><b>Abgrenzung.</b> Datengrundlage sind <b>echte, öffentlich lizenzierte</b> EEA-Waterbase-Messstellen
+      (Koordinaten + PSM-Befund); die hydrogeologischen Faktoren sind als <b>typisiert</b> gekennzeichnet. Keine
+      scharfen oder personenbezogenen Standortdaten. Gerade im Kontext
       einer Bundesbehörde mit VS-NfD-Bezug wirkt dies professioneller als ein zu realistisch erscheinendes
       System. Das Werkzeug ist als <b>Demonstrator</b> gekennzeichnet und erhebt keinen Anspruch auf
       belastbare Ergebnisse oder regulatorische Konformität (z. B. EFSA/FOCUS nur konzeptionell).</p>
@@ -316,41 +315,16 @@
 <script>
 /* =====================================================================
    Frühwarnsystem PSM im Grundwasser — Demonstrator (BGR-Layout)
-   Eigenständig mit fiktiven Daten. Liegt psm_data.js (window.PSM_DATA,
-   mode:"real") vor, schaltet die Demo in den Real-Daten-Modus.
+   Zeigt ausschliesslich ECHTE Daten aus psm_data.js (window.PSM_DATA, EEA
+   Waterbase). Fehlt die Datei, erscheint ein Hinweis statt Demo-Daten.
    ===================================================================== */
 const RD = (typeof window!=="undefined" && window.PSM_DATA
             && window.PSM_DATA.mode==="real" && (window.PSM_DATA.stations||[]).length)
             ? window.PSM_DATA : null;
 
-const DEMO = {
-  region:"Beispielregion (fiktiv)",
-  bbox:[8.6,52.0,10.4,53.2],
-  stations:[
-    ["GWM Heidesand 1", 8.78,52.18,265, 3.2,-3.6,0.18,72,0.25,0.21],
-    ["GWM Moorrand 2",  9.10,52.05,150, 9.5,-5.2,0.55,38,0.70,0.02],
-    ["GWM Geestkante 3",9.42,52.34,300, 2.1,-3.2,0.12,81,0.10,0.34],
-    ["GWM Auenfeld 4",  9.05,52.62,210, 1.6,-3.9,0.22,64,0.55,0.11],
-    ["GWM Endmoräne 5", 9.78,52.50,180, 6.8,-4.6,0.40,47,0.45,0.05],
-    ["GWM Sanderflur 6",10.02,52.20,285,4.0,-3.4,0.15,77,0.15,0.28],
-    ["GWM Tonmergel 7", 8.92,52.90,120,14.0,-6.1,0.68,29,0.80,null],
-    ["GWM Talsperre 8", 9.55,52.78,240, 5.5,-4.1,0.30,58,0.35,0.08],
-    ["GWM Lössterrasse 9",10.18,52.62,160,11.0,-4.9,0.48,69,0.50,0.04],
-    ["GWM Niederung 10",8.70,52.46,195, 2.4,-3.7,0.26,52,0.60,0.14],
-    ["GWM Kiesinsel 11",9.88,52.96,310, 1.9,-3.0,0.10,74,0.05,0.41],
-    ["GWM Waldquelle 12",9.30,53.05,205,7.2,-4.7,0.52,18,0.65,null],
-    ["GWM Ackerschlag 13",9.62,52.12,255,3.0,-3.5,0.17,86,0.20,0.30],
-    ["GWM Pumpwerk 14", 10.25,52.92,175,8.5,-4.4,0.36,55,0.75,0.06]
-  ].map((r,i)=>({
-    id:"D-"+String(i+1).padStart(3,"0"), name:r[0], lon:r[1], lat:r[2],
-    gwn:r[3], flurabstand:r[4], kf:r[5], sorption:r[6], acker:r[7],
-    monitoring:r[8], befund:r[9]
-  }))
-};
-
-const SRC = RD || DEMO;
-const STATIONS = SRC.stations.map(s=>({...s}));
-const BBOX = SRC.bbox || [8.6,52.0,10.4,53.2];
+const SRC = RD;
+const STATIONS = RD ? RD.stations.map(s=>({...s})) : [];
+const BBOX = (RD && RD.bbox) ? RD.bbox : [5.9,47.3,15.0,55.0];
 
 /* Vereinfachte Deutschland-Kontur (lon,lat) — Quelle: world.geo.json (public domain) */
 const GERMANY=[[9.921906,54.983104],[9.93958,54.596642],[10.950112,54.363607],[10.939467,54.008693],[11.956252,54.196486],[12.51844,54.470371],[13.647467,54.075511],[14.119686,53.757029],[14.353315,53.248171],[14.074521,52.981263],[14.4376,52.62485],[14.685026,52.089947],[14.607098,51.745188],[15.016996,51.106674],[14.570718,51.002339],[14.307013,51.117268],[14.056228,50.926918],[13.338132,50.733234],[12.966837,50.484076],[12.240111,50.266338],[12.415191,49.969121],[12.521024,49.547415],[13.031329,49.307068],[13.595946,48.877172],[13.243357,48.416115],[12.884103,48.289146],[13.025851,47.637584],[12.932627,47.467646],[12.62076,47.672388],[12.141357,47.703083],[11.426414,47.523766],[10.544504,47.566399],[10.402084,47.302488],[9.896068,47.580197],[9.594226,47.525058],[8.522612,47.830828],[8.317301,47.61358],[7.466759,47.620582],[7.593676,48.333019],[8.099279,49.017784],[6.65823,49.201958],[6.18632,49.463803],[6.242751,49.902226],[6.043073,50.128052],[6.156658,50.803721],[5.988658,51.851616],[6.589397,51.852029],[6.84287,52.22844],[7.092053,53.144043],[6.90514,53.482162],[7.100425,53.693932],[7.936239,53.748296],[8.121706,53.527792],[8.800734,54.020786],[8.572118,54.395646],[8.526229,54.962744],[9.282049,54.830865],[9.921906,54.983104]];
@@ -619,15 +593,19 @@ document.getElementById("reset").addEventListener("click",()=>{
 });
 (function init(){
   const badge=document.getElementById("modeBadge");
-  document.getElementById("regionName").textContent="· "+(SRC.region||"Beispielregion");
-  if(RD){
-    badge.className="badge real";
-    badge.textContent="Real-Modus · "+(RD.source||"EEA/BGR")+" · n="+STATIONS.length;
-    document.getElementById("srcHint").innerHTML="Datengrundlage: <b>echte Open Data</b> ("+
-      (RD.source||"EEA Waterbase / BGR")+"). Stand: "+(RD.built||"—")+". "+
-      (RD.note?("<br>"+RD.note):"")+" Lizenzhinweise siehe README_psm.md.";
-  } else {
+  if(!RD){
+    badge.className="badge demo"; badge.textContent="Keine Daten geladen";
+    document.getElementById("regionName").textContent="";
+    document.getElementById("srcHint").innerHTML="<b>Keine Daten.</b> Es wurde keine <code>psm_data.js</code> mit echten Daten gefunden. Mit der R-Pipeline erzeugen (psm_from_csv.R \u2192 psm_build_data.R) und die Seite neu laden.";
+    document.getElementById("steckHint").textContent="Keine Daten geladen \u2014 siehe Hinweis links.";
+    return;
   }
+  badge.className="badge real";
+  badge.textContent="Echte Daten \u00b7 "+(RD.source||"EEA Waterbase")+" \u00b7 n="+STATIONS.length;
+  document.getElementById("regionName").textContent="\u00b7 "+(RD.region||"Deutschland");
+  document.getElementById("srcHint").innerHTML="Datengrundlage: <b>echte Open Data</b> ("+
+    (RD.source||"EEA Waterbase")+"). Stand: "+(RD.built||"\u2014")+". "+
+    (RD.note?("<br>"+RD.note):"")+" Lizenzhinweise siehe README_psm.md.";
   refresh();
   const top=rankRows()[0]; if(top) select(top.s.id);
 })();
