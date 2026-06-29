@@ -6,6 +6,7 @@ project:
     - BergWaldDynamik.html
     - PSMhydro.html
     - emissionsinversion-demo.html
+    - psm_data.js
 
 website:
   title: "A. Naya"
