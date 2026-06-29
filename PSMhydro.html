@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frühwarnsystem PSM im Grundwasser · Demo zur Bewerbung (A. Naya)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Display:wght@500;600;700&family=Noto+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff; --bg2:#f3f7fa; --panel:#ffffff; --panel-bd:#d6e0e8; --panel-bd2:#c3d2dd;
+    --ink:#11242f; --mut:#48606e; --mut2:#7890a0;
+    --bgr:#0064a7;          /* BGR-Blau (Primaer) */
+    --bgr-dark:#0a3f60;     /* dunkles Blau, Kopfband / Ueberschriften */
+    --bgr-soft:#e6f0f8;     /* Blau-Tint */
+    --teal:#0e8ea3;         /* Themenfarbe Grundwasser */
+    --green:#1f8a55; --amber:#bf8316; --red:#c93a4a; --violet:#5d49a6;
+    --r:10px;
+    --mono:'Noto Sans Mono',ui-monospace,Consolas,monospace;
+    --disp:'Noto Sans Display','Noto Sans',system-ui,sans-serif;
+    --body:'Noto Sans',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.55;-webkit-font-smoothing:antialiased;}
+  a{color:var(--bgr)}
+
+  /* Kopfband im Behoerden-Stil */
+  .topbar{background:var(--bgr-dark);color:#fff}
+  .topbar .inner{max-width:1180px;margin:0 auto;padding:12px clamp(16px,3vw,40px);
+    display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .mark{font-family:var(--disp);font-weight:700;letter-spacing:.02em;font-size:20px;
+    background:#fff;color:var(--bgr-dark);padding:4px 9px;border-radius:6px}
+  .brand .name{font-size:13px;line-height:1.25;opacity:.95}
+  .brand .name b{display:block;font-weight:600;font-size:13.5px}
+  .topbar .ref{font-family:var(--mono);font-size:12px;opacity:.9;text-align:right}
+  .flagrule{height:4px;display:flex}
+  .flagrule i{flex:1}
+  .flagrule i:nth-child(1){background:#000}
+  .flagrule i:nth-child(2){background:#dd0000}
+  .flagrule i:nth-child(3){background:#ffce00}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:clamp(18px,3vw,40px)}
+
+  /* Balken-Motiv */
+  .balken{display:flex;gap:5px;margin-bottom:16px}
+  .balken i{height:6px;width:38px;border-radius:2px}
+  .balken i:nth-child(1){background:var(--bgr)}
+  .balken i:nth-child(2){background:var(--teal)}
+  .balken i:nth-child(3){background:var(--amber)}
+  .balken i:nth-child(4){background:var(--green)}
+
+  header{margin-bottom:6px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.10em;text-transform:uppercase;
+    color:var(--bgr);display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+  h1{font-family:var(--disp);font-weight:700;letter-spacing:-.01em;color:var(--bgr-dark);
+     font-size:clamp(26px,4.4vw,44px);line-height:1.08;margin:0 0 14px;}
+  h1 em{font-style:normal;color:var(--teal)}
+  .lede{max-width:74ch;color:var(--mut);font-size:clamp(15px,1.5vw,17px)}
+  .lede b{color:var(--ink);font-weight:600}
+  .tagrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.02em;color:var(--bgr-dark);
+    border:1px solid var(--panel-bd2);border-radius:999px;padding:4px 11px;background:var(--bgr-soft)}
+  .badge{font-family:var(--mono);font-size:11px;letter-spacing:.03em;padding:5px 11px;border-radius:999px;border:1px solid}
+  .badge.demo{color:#8a5a00;border-color:#e2c189;background:#fbf2dd}
+  .badge.real{color:#15633c;border-color:#9cd0b5;background:#e3f4ea}
+
+  .chain{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 6px}
+  .step{flex:1 1 160px;border:1px solid var(--panel-bd);border-left:4px solid var(--bgr);border-radius:8px;padding:12px 14px;background:var(--panel)}
+  .step .n{font-family:var(--mono);font-size:11px;color:var(--bgr);letter-spacing:.10em}
+  .step .t{font-family:var(--disp);font-weight:600;font-size:15px;margin-top:3px;color:var(--bgr-dark)}
+  .step .d{color:var(--mut);font-size:12px;margin-top:3px}
+
+  .grid{display:grid;grid-template-columns:330px 1fr;gap:18px;margin-top:24px}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--panel-bd);border-radius:var(--r);padding:18px}
+  .panel h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.10em;text-transform:uppercase;color:var(--bgr);margin:0 0 4px;font-weight:600}
+  .panel .sub{color:var(--mut);font-size:12.5px;margin:0 0 14px}
+  .section-title{font-family:var(--disp);font-weight:700;font-size:22px;margin:38px 0 4px;color:var(--bgr-dark);
+    padding-left:12px;border-left:4px solid var(--teal)}
+  .section-lede{color:var(--mut);font-size:14px;max-width:80ch;margin:6px 0 16px}
+  .ctl{margin-bottom:15px}
+  .ctl label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut);margin-bottom:6px}
+  .ctl label b{color:var(--bgr-dark);font-family:var(--mono);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--bgr);height:4px}
+  select{width:100%;background:#fff;color:var(--ink);border:1px solid var(--panel-bd2);border-radius:8px;padding:8px 10px;font-family:var(--body);font-size:13px}
+  .btn{display:inline-block;background:var(--bgr-soft);color:var(--bgr-dark);border:1px solid var(--panel-bd2);border-radius:8px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-family:var(--body)}
+  .btn:hover{border-color:var(--bgr);background:#dbe9f5}
+  .hint{font-size:11.5px;color:var(--mut2);margin-top:8px;line-height:1.45}
+
+  .mapwrap{position:relative}
+  svg.map{width:100%;height:auto;display:block;border-radius:8px;background:#eef4f8;border:1px solid var(--panel-bd)}
+  .inset{position:absolute;top:54px;right:26px;background:rgba(255,255,255,.94);border:1px solid var(--panel-bd2);
+    border-radius:8px;padding:8px 8px 6px;box-shadow:0 2px 8px rgba(13,57,90,.12);width:148px}
+  .inset .ititle{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--bgr-dark);text-transform:uppercase;margin-bottom:4px;text-align:center}
+  .inset svg{width:100%;height:auto;display:block}
+  .inset .ic{font-size:9px;color:var(--mut2);text-align:center;margin-top:3px;line-height:1.3}
+  @media(max-width:560px){.inset{position:static;width:auto;margin-top:10px}}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12px;color:var(--mut)}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+  .steck{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:6px}
+  .kv{font-size:13px}
+  .kv .k{color:var(--mut2);font-size:11px;font-family:var(--mono);letter-spacing:.02em;text-transform:uppercase}
+  .kv .v{color:var(--ink);font-weight:600}
+  .scorebig{font-family:var(--disp);font-weight:700;font-size:40px;line-height:1}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid;font-weight:600}
+  .pill.g{color:#15633c;border-color:#9cd0b5;background:#e3f4ea}
+  .pill.a{color:#8a5a00;border-color:#e2c189;background:#fbf2dd}
+  .pill.r{color:#9b2230;border-color:#e6aab1;background:#fae3e6}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--panel-bd)}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--bgr-dark);text-transform:uppercase;cursor:pointer;user-select:none;white-space:nowrap;background:var(--bg2)}
+  th:hover{color:var(--bgr)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--bgr-soft)}
+  tbody tr.sel{background:#d9e9f5}
+  .bar{height:7px;border-radius:4px;background:#e3eaef;overflow:hidden;min-width:60px}
+  .bar>span{display:block;height:100%}
+  .num{font-family:var(--mono);font-size:12.5px}
+  .scen{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:760px){.scen{grid-template-columns:1fr}}
+  .scard{border:1px solid var(--panel-bd);border-top:4px solid var(--mut2);border-radius:8px;padding:16px;background:var(--panel);position:relative}
+  .scard.best{border-top-color:var(--green);box-shadow:0 0 0 1px rgba(31,138,85,.25)}
+  .scard h3{font-family:var(--disp);font-size:16px;margin:0 0 2px;color:var(--bgr-dark)}
+  .scard .who{font-size:12px;color:var(--mut);margin-bottom:12px;min-height:48px}
+  .metric{margin:10px 0}
+  .metric .ml{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-bottom:4px}
+  .metric .ml b{color:var(--ink);font-family:var(--mono);font-weight:600}
+  .reco{font-size:11px;font-family:var(--mono);color:var(--green);margin-bottom:6px;font-weight:600}
+  .cols{columns:2;column-gap:28px}
+  @media(max-width:760px){.cols{columns:1}}
+  .cols p{margin:0 0 12px;break-inside:avoid;color:var(--mut);font-size:13.5px}
+  .cols p b{color:var(--ink)}
+  .note{border-left:4px solid var(--amber);padding:10px 14px;background:#fbf6ea;border-radius:0 8px 8px 0;font-size:13px;color:var(--mut);margin:6px 0 0}
+  footer{margin-top:40px;border-top:1px solid var(--panel-bd);padding-top:18px;color:var(--mut2);font-size:12px}
+  code{font-family:var(--mono);font-size:12px;color:var(--bgr-dark);background:var(--bgr-soft);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <div class="brand">
+      <span class="mark">PSM</span>
+      <span class="name"><b>Demonstrator · Frühwarnsystem PSM im Grundwasser</b>
+        Eigenständige Demo zur Bewerbung von A. Naya</span>
+    </div>
+    <div class="ref">Bezug: Ausschreibung B 53/26 (B2.2)<br>Frühwarnsystem PSM – Hydrogeologie (BGR)</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header>
+    <div class="balken"><i></i><i></i><i></i><i></i></div>
+    <div class="eyebrow">
+      <span>Demonstrator · Hydrogeologie</span>
+      <span id="modeBadge" class="badge demo">Demo-Modus · fiktive Daten</span>
+    </div>
+    <h1>Frühwarnsystem <em>PSM im Grundwasser</em></h1>
+    <p class="lede">
+      Ein schlanker, interaktiver Prototyp eines bundesweiten Frühwarnsystems für
+      <b>Pflanzenschutzmittel (PSM) im Grundwasser</b>. Der rote Faden ist die fachliche Kette
+      <b>Standort → Vulnerabilität → Priorisierung → Monitoring-Empfehlung</b>. Im Vordergrund steht
+      nicht der Oberflächeneffekt, sondern eine <b>offengelegte, nachvollziehbare Bewertungsmethodik</b>.
+    </p>
+    <div class="tagrow">
+      <span class="tag">Hydrogeologische Bewertung</span>
+      <span class="tag">Ungesättigte / gesättigte Zone</span>
+      <span class="tag">Regionalisierung</span>
+      <span class="tag">Risikobasiertes Monitoring</span>
+      <span class="tag">Transparenter Index</span>
+    </div>
+  </header>
+
+  <div class="chain">
+    <div class="step"><div class="n">01</div><div class="t">Standort</div><div class="d">Messstellen mit hydrogeologischem Steckbrief</div></div>
+    <div class="step"><div class="n">02</div><div class="t">Vulnerabilität</div><div class="d">Transparenter Index aus wenigen Faktoren</div></div>
+    <div class="step"><div class="n">03</div><div class="t">Priorisierung</div><div class="d">Frühwarn-Ranking inkl. Monitoring-Lücke</div></div>
+    <div class="step"><div class="n">04</div><div class="t">Empfehlung</div><div class="d">Vergleich technischer Monitoring-Szenarien</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Steuerung · Vulnerabilitäts-Gewichte</h2>
+      <p class="sub">Die Gewichte des Index sind <b>offen einstellbar</b>. Karte, Steckbrief, Ranking und Szenarien
+        reagieren live — die Methodik ist keine Blackbox.</p>
+      <div class="ctl"><label>Grundwasserneubildung <b id="wR_v">0.20</b></label><input id="wR" type="range" min="0" max="1" step="0.05" value="0.20"></div>
+      <div class="ctl"><label>Geringe GW-Überdeckung (Flurabstand) <b id="wD_v">0.25</b></label><input id="wD" type="range" min="0" max="1" step="0.05" value="0.25"></div>
+      <div class="ctl"><label>Durchlässigkeit k<sub>f</sub> <b id="wK_v">0.20</b></label><input id="wK" type="range" min="0" max="1" step="0.05" value="0.20"></div>
+      <div class="ctl"><label>Eintragsdisposition (Landnutzung) <b id="wL_v">0.20</b></label><input id="wL" type="range" min="0" max="1" step="0.05" value="0.20"></div>
+      <div class="ctl"><label>Sorptions-/Schutzpotenzial (mindernd) <b id="wS_v">0.15</b></label><input id="wS" type="range" min="0" max="1" step="0.05" value="0.15"></div>
+      <div class="ctl" style="margin-top:6px"><label>Karten-Einfärbung</label>
+        <select id="colorBy">
+          <option value="V">Vulnerabilität</option>
+          <option value="FP">Frühwarn-Priorität</option>
+          <option value="befund">PSM-Befund (Messwert)</option>
+          <option value="gap">Monitoring-Lücke</option>
+        </select>
+      </div>
+      <button class="btn" id="reset">Gewichte zurücksetzen</button>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12.5px;color:var(--ink);cursor:pointer">
+        <input type="checkbox" id="showCand"> <b>Kandidaten-Layer</b> (Lücken-/Bedarfsanalyse)</label>
+      <div class="ctl" style="margin-top:8px"><label>Vorgeschlagene neue Messstellen <b id="nCand_v">12</b></label>
+        <input id="nCand" type="range" min="0" max="30" step="1" value="12"></div>
+      <div class="hint" id="srcHint">Datengrundlage: <b>fiktive, klar markierte Beispielregion</b>.
+        Mit der R-Pipeline (<code>psm_run_pipeline.R</code>) werden – soweit frei verfügbar – echte
+        EEA-Waterbase-Messstellen und BGR-Kennwerte eingespeist.</div>
+    </div>
+
+    <div class="panel mapwrap">
+      <h2>Kartenansicht · Monitoringstandorte <span id="regionName" style="color:var(--teal)"></span></h2>
+      <p class="sub">Klick auf eine Messstelle öffnet den hydrogeologischen Steckbrief. Punktgröße = Eintragsdisposition,
+        Ring = bestehende Monitoring-Abdeckung. Die Inset-Karte zeigt die geografische Lage in Deutschland.</p>
+      <svg class="map" id="map" viewBox="0 0 720 460" role="img" aria-label="Karte der Monitoringstandorte"></svg>
+      <div class="legend">
+        <span><i style="background:#1f8a55"></i>gering</span>
+        <span><i style="background:#bf8316"></i>mittel</span>
+        <span><i style="background:#c93a4a"></i>hoch</span>
+        <span><i style="background:transparent;border:1px solid #0064a7"></i>Ring = vorhandenes Monitoring</span>
+        <span style="color:#5d49a6">&#9671; Kandidat (Lücke × Belastung)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:18px">
+    <h2>Standort-Steckbrief <span id="steckId" style="color:var(--teal)"></span></h2>
+    <p class="sub" id="steckHint">Wähle eine Messstelle in der Karte oder im Ranking.</p>
+    <div id="steckBody" style="display:none">
+      <div style="display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+        <div><div class="scorebig" id="sScore">–</div><div class="kv"><span class="k">Vulnerabilität (0–100)</span></div></div>
+        <div><span class="pill" id="sPill">–</span></div>
+        <div class="kv"><span class="k">Frühwarn-Priorität</span><div class="v num" id="sFP">–</div></div>
+        <div class="kv"><span class="k">PSM-Befund</span><div class="v num" id="sBefund">–</div></div>
+      </div>
+      <div class="steck" id="steckKV"></div>
+      <div class="hint" id="steckExplain" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <h2 class="section-title">Vulnerabilitäts- und Bewertungsmodul</h2>
+  <p class="section-lede">Ein bewusst transparenter Index aus wenigen, fachlich begründeten Faktoren der
+    ungesättigten und gesättigten Zone. Jeder Faktor wird auf 0–1 normiert (Methodik unten), das
+    Sorptions-/Schutzpotenzial wirkt <b>mindernd</b>. Entscheidend ist die Offenlegung der Formel statt
+    einer scheingenauen Blackbox.</p>
+  <div class="panel">
+    <div class="num" id="formula" style="font-size:14px;color:var(--ink);line-height:1.7"></div>
+    <div class="hint" style="margin-top:8px">Ampel: <span class="pill g">gering &lt; 40</span>
+      <span class="pill a">mittel 40–65</span> <span class="pill r">hoch &gt; 65</span>.
+      Die Schwellen sind als Demonstrator gesetzt und erheben keinen regulatorischen Anspruch.</div>
+  </div>
+
+  <h2 class="section-title">Priorisierungs- und Ranking-Ansicht</h2>
+  <p class="section-lede">Standorte werden vergleichend eingeordnet. Die <b>Frühwarn-Priorität</b> kombiniert die
+    intrinsische Vulnerabilität mit dem Eintragsdruck und – als eigenständiger Frühwarn-Gedanke – der
+    <b>Monitoring-Lücke</b>: hohe Gefährdung bei geringer bestehender Überwachung. Spaltenkopf klicken zum Sortieren.</p>
+  <div class="panel" style="overflow-x:auto">
+    <table id="rankTable">
+      <thead><tr>
+        <th data-k="rank">#</th>
+        <th data-k="name">Messstelle</th>
+        <th data-k="V">Vulnerab.</th>
+        <th data-k="L">Eintrag</th>
+        <th data-k="gap">Mon.-Lücke</th>
+        <th data-k="FP">Frühwarn-Priorität</th>
+        <th data-k="befund">PSM µg/L</th>
+      </tr></thead>
+      <tbody id="rankBody"></tbody>
+    </table>
+  </div>
+
+  <h2 class="section-title">Szenario-Vergleich · Monitoringkonzepte</h2>
+  <p class="section-lede">Drei Monitoringkonzepte werden hinsichtlich <b>Risikoabdeckung</b>, <b>Aufwand</b> und
+    <b>Frühwarn-Aussagekraft</b> gegenübergestellt. Dieser Baustein adressiert die Entwicklung und
+    vergleichende Bewertung technischer Szenarien (Ausstattung, Betrieb, Organisation).</p>
+  <div class="scen" id="scen"></div>
+  <p class="note" id="scenReco"></p>
+
+  <h2 class="section-title">Methodik &amp; bewusste Abgrenzung</h2>
+  <div class="panel">
+    <div class="cols">
+      <p><b>Faktorlogik.</b> Höhere Grundwasserneubildung und höhere Durchlässigkeit beschleunigen den
+        Stofftransport in die gesättigte Zone → höhere Vulnerabilität. Ein geringer Flurabstand bedeutet eine
+        dünne, schnell durchlaufene ungesättigte Zone. Ein hohes Sorptions-/Schutzpotenzial der Deckschichten
+        (Ton, Humus, organischer Kohlenstoff) wirkt rückhaltend und <b>senkt</b> die Vulnerabilität.</p>
+      <p><b>Normierung.</b> GWN 50–350 mm/a; Flurabstand 1–25 m (invertiert); k<sub>f</sub> 10⁻⁷–10⁻³ m/s
+        (logarithmisch); Eintragsdisposition aus Ackerflächenanteil 0–90 %; Sorption 0–1. So sind alle
+        Faktoren dimensionslos und vergleichbar – Grundlage jeder Regionalisierung.</p>
+      <p><b>Frühwarn-Gedanke.</b> Reine Vulnerabilität genügt nicht: ein Frühwarnsystem muss dort verdichten,
+        wo hohe Gefährdung auf <b>geringe bestehende Überwachung</b> trifft. Genau diese Lücke treibt das
+        Ranking und das risikobasierte Szenario.</p>
+      <p><b>Anschluss an die ungesättigte Zone.</b> Der Term Flurabstand⁻¹ × k<sub>f</sub> ist ein schlanker
+        Proxy für die Durchbruchszeit; in einer Ausbaustufe ließe sich ein 1D-Transportmodell mit
+        Durchbruchskurve je Standort einhängen (Schwerpunkt Stofftransport).</p>
+    </div>
+    <p class="note"><b>Abgrenzung.</b> Ausschließlich klar als <b>fiktiv</b> markierte bzw. öffentlich
+      lizenzierte Datengrundlagen; keine scharfen oder personenbezogenen Standortdaten. Gerade im Kontext
+      einer Bundesbehörde mit VS-NfD-Bezug wirkt dies professioneller als ein zu realistisch erscheinendes
+      System. Das Werkzeug ist als <b>Demonstrator</b> gekennzeichnet und erhebt keinen Anspruch auf
+      belastbare Ergebnisse oder regulatorische Konformität (z. B. EFSA/FOCUS nur konzeptionell).</p>
+  </div>
+
+  <footer>
+    <b>Demonstrator</b> von A. Naya zur Bewerbung auf die Stelle „Frühwarnsystem PSM – Hydrogeologie" (BGR, B 53/26).
+    Trennung von Logik und Darstellung: Bewertungslogik in R, Ergebnis als self-contained HTML.
+    Echte Daten – soweit frei verfügbar – über die R-Pipeline (EEA Waterbase via DISCODATA, BGR GWN1000,
+    Copernicus CORINE Land Cover). Eigenständige Demo, keine offizielle BGR-Publikation. Schrift: Noto Sans.
+    Quellen &amp; Lizenzen siehe <code>README_psm.md</code>.
+  </footer>
+</div>
+
+<script src="psm_data.js" onerror="window.__noPSM=1"></script>
+<script>
+/* =====================================================================
+   Frühwarnsystem PSM im Grundwasser — Demonstrator (BGR-Layout)
+   Eigenständig mit fiktiven Daten. Liegt psm_data.js (window.PSM_DATA,
+   mode:"real") vor, schaltet die Demo in den Real-Daten-Modus.
+   ===================================================================== */
+const RD = (typeof window!=="undefined" && window.PSM_DATA
+            && window.PSM_DATA.mode==="real" && (window.PSM_DATA.stations||[]).length)
+            ? window.PSM_DATA : null;
+
+const DEMO = {
+  region:"Beispielregion (fiktiv)",
+  bbox:[8.6,52.0,10.4,53.2],
+  stations:[
+    ["GWM Heidesand 1", 8.78,52.18,265, 3.2,-3.6,0.18,72,0.25,0.21],
+    ["GWM Moorrand 2",  9.10,52.05,150, 9.5,-5.2,0.55,38,0.70,0.02],
+    ["GWM Geestkante 3",9.42,52.34,300, 2.1,-3.2,0.12,81,0.10,0.34],
+    ["GWM Auenfeld 4",  9.05,52.62,210, 1.6,-3.9,0.22,64,0.55,0.11],
+    ["GWM Endmoräne 5", 9.78,52.50,180, 6.8,-4.6,0.40,47,0.45,0.05],
+    ["GWM Sanderflur 6",10.02,52.20,285,4.0,-3.4,0.15,77,0.15,0.28],
+    ["GWM Tonmergel 7", 8.92,52.90,120,14.0,-6.1,0.68,29,0.80,null],
+    ["GWM Talsperre 8", 9.55,52.78,240, 5.5,-4.1,0.30,58,0.35,0.08],
+    ["GWM Lössterrasse 9",10.18,52.62,160,11.0,-4.9,0.48,69,0.50,0.04],
+    ["GWM Niederung 10",8.70,52.46,195, 2.4,-3.7,0.26,52,0.60,0.14],
+    ["GWM Kiesinsel 11",9.88,52.96,310, 1.9,-3.0,0.10,74,0.05,0.41],
+    ["GWM Waldquelle 12",9.30,53.05,205,7.2,-4.7,0.52,18,0.65,null],
+    ["GWM Ackerschlag 13",9.62,52.12,255,3.0,-3.5,0.17,86,0.20,0.30],
+    ["GWM Pumpwerk 14", 10.25,52.92,175,8.5,-4.4,0.36,55,0.75,0.06]
+  ].map((r,i)=>({
+    id:"D-"+String(i+1).padStart(3,"0"), name:r[0], lon:r[1], lat:r[2],
+    gwn:r[3], flurabstand:r[4], kf:r[5], sorption:r[6], acker:r[7],
+    monitoring:r[8], befund:r[9]
+  }))
+};
+
+const SRC = RD || DEMO;
+const STATIONS = SRC.stations.map(s=>({...s}));
+const BBOX = SRC.bbox || [8.6,52.0,10.4,53.2];
+
+/* Vereinfachte Deutschland-Kontur (lon,lat) — Quelle: world.geo.json (public domain) */
+const GERMANY=[[9.921906,54.983104],[9.93958,54.596642],[10.950112,54.363607],[10.939467,54.008693],[11.956252,54.196486],[12.51844,54.470371],[13.647467,54.075511],[14.119686,53.757029],[14.353315,53.248171],[14.074521,52.981263],[14.4376,52.62485],[14.685026,52.089947],[14.607098,51.745188],[15.016996,51.106674],[14.570718,51.002339],[14.307013,51.117268],[14.056228,50.926918],[13.338132,50.733234],[12.966837,50.484076],[12.240111,50.266338],[12.415191,49.969121],[12.521024,49.547415],[13.031329,49.307068],[13.595946,48.877172],[13.243357,48.416115],[12.884103,48.289146],[13.025851,47.637584],[12.932627,47.467646],[12.62076,47.672388],[12.141357,47.703083],[11.426414,47.523766],[10.544504,47.566399],[10.402084,47.302488],[9.896068,47.580197],[9.594226,47.525058],[8.522612,47.830828],[8.317301,47.61358],[7.466759,47.620582],[7.593676,48.333019],[8.099279,49.017784],[6.65823,49.201958],[6.18632,49.463803],[6.242751,49.902226],[6.043073,50.128052],[6.156658,50.803721],[5.988658,51.851616],[6.589397,51.852029],[6.84287,52.22844],[7.092053,53.144043],[6.90514,53.482162],[7.100425,53.693932],[7.936239,53.748296],[8.121706,53.527792],[8.800734,54.020786],[8.572118,54.395646],[8.526229,54.962744],[9.282049,54.830865],[9.921906,54.983104]];
+
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+function factors(s){
+  const R = clamp((s.gwn-50)/(350-50));
+  const D = clamp((25-s.flurabstand)/(25-1));
+  const K = clamp((s.kf-(-7))/((-3)-(-7)));
+  const L = clamp(s.acker/90);
+  const S = clamp(s.sorption);
+  return {R,D,K,L,S};
+}
+const W0={wR:0.20,wD:0.25,wK:0.20,wL:0.20,wS:0.15};
+let W={...W0};
+function vulnerability(s){
+  const f=factors(s);
+  const num = W.wR*f.R + W.wD*f.D + W.wK*f.K + W.wL*f.L + W.wS*(1-f.S);
+  const den = W.wR+W.wD+W.wK+W.wL+W.wS || 1;
+  return {V:100*num/den, f};
+}
+function metrics(s){
+  const {V,f}=vulnerability(s);
+  const gap = 1 - clamp(s.monitoring);
+  const FP = clamp(0.6*V + 0.25*(100*f.L) + 15*gap, 0, 100);
+  return {V,FP,gap,L:f.L,befund:s.befund};
+}
+const band=v=> v>65?"r": v>=40?"a":"g";
+const bandLabel={g:"gering",a:"mittel",r:"hoch"};
+const C={green:"#1f8a55",amber:"#bf8316",red:"#c93a4a",bgr:"#0064a7",bgrDark:"#0a3f60",violet:"#5d49a6",teal:"#0e8ea3"};
+const bandColor={g:C.green,a:C.amber,r:C.red};
+
+const map=document.getElementById("map");
+const VW=720,VH=460,PAD=34;
+// Projektion auf die Deutschland-Flaeche (mit Seitenverhaeltnis-Korrektur)
+const DEB=(function(){let a=180,b=90,c=-180,e=-90;
+  GERMANY.forEach(function(q){a=Math.min(a,q[0]);c=Math.max(c,q[0]);b=Math.min(b,q[1]);e=Math.max(e,q[1]);});
+  return [a,b,c,e];})();
+const DE_ASP=Math.cos((DEB[1]+DEB[3])/2*Math.PI/180);
+const DE_LONR=(DEB[2]-DEB[0])*DE_ASP, DE_LATR=(DEB[3]-DEB[1]);
+const DE_S=Math.min((VW-2*PAD)/DE_LONR,(VH-2*PAD)/DE_LATR);
+const DE_OX=(VW-DE_LONR*DE_S)/2, DE_OY=(VH-DE_LATR*DE_S)/2;
+function proj(lon,lat){ return [DE_OX+(lon-DEB[0])*DE_ASP*DE_S, VH-DE_OY-(lat-DEB[1])*DE_S]; }
+let selId=null;
+function colorVal(s,m){
+  const mode=document.getElementById("colorBy").value;
+  if(mode==="V")   return {band:band(m.V), label:m.V.toFixed(0)};
+  if(mode==="FP")  return {band:band(m.FP), label:m.FP.toFixed(0)};
+  if(mode==="gap") return {band: m.gap>0.6?"r":m.gap>=0.35?"a":"g", label:(m.gap*100).toFixed(0)+"%"};
+  const b=s.befund;
+  if(b==null) return {band:"g",label:"–",none:true};
+  return {band: b>0.1?"r": b>=0.05?"a":"g", label:b.toFixed(2)};
+}
+function el(tag,attrs){const e=document.createElementNS("http://www.w3.org/2000/svg",tag);
+  for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+/* ---------- Kandidaten-/Lueckenanalyse: wo waeren neue Messstellen sinnvoll? ----------
+   Grundlage (Demo): Monitoring-LUECKE (Abstand zum bestehenden Netz, ECHT) gewichtet
+   mit einem BELASTUNGS-Hinweis (IDW der gemessenen PSM-Befunde, Ausreisser gekappt).
+   Vollausbaustufe: echte Gefaehrdungskarte (BGR HUEK250/GWN1000 x CORINE) statt Proxy. */
+function pointInDE(lon,lat){
+  let inside=false;
+  for(let i=0,j=GERMANY.length-1;i<GERMANY.length;j=i++){
+    const xi=GERMANY[i][0],yi=GERMANY[i][1],xj=GERMANY[j][0],yj=GERMANY[j][1];
+    if(((yi>lat)!=(yj>lat)) && (lon < (xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+const DEdist=(aLon,aLat,bLon,bLat)=>{const dx=(aLon-bLon)*DE_ASP,dy=(aLat-bLat);return Math.sqrt(dx*dx+dy*dy);};
+let _cgrid=null;
+function candidateGrid(){
+  if(_cgrid) return _cgrid;
+  const step=0.25, pts=[];
+  for(let la=DEB[1];la<=DEB[3];la+=step)
+    for(let lo=DEB[0];lo<=DEB[2];lo+=step)
+      if(pointInDE(lo,la)) pts.push({lon:lo,lat:la});
+  let dmax=0,hmax=0;
+  pts.forEach(pt=>{
+    let dmin=1e9,hz=0;
+    STATIONS.forEach(s=>{
+      const dd=DEdist(pt.lon,pt.lat,s.lon,s.lat);
+      if(dd<dmin)dmin=dd;
+      const b=(s.befund==null)?0:Math.min(s.befund,1.0);
+      hz+=b/(dd*dd+0.01);
+    });
+    pt.gap=dmin; pt.hz=hz;
+    if(dmin>dmax)dmax=dmin; if(hz>hmax)hmax=hz;
+  });
+  pts.forEach(pt=>{
+    const g=clamp(pt.gap/(dmax||1)), h=clamp(pt.hz/(hmax||1));
+    pt.prio=clamp(g*(0.45+0.55*h));
+  });
+  _cgrid=pts; return pts;
+}
+function topCandidates(n){
+  const g=candidateGrid().slice().sort((a,b)=>b.prio-a.prio), chosen=[], minsep=0.6;
+  for(const c of g){ if(chosen.length>=n)break;
+    if(chosen.every(o=>DEdist(o.lon,o.lat,c.lon,c.lat)>=minsep)) chosen.push(c); }
+  return chosen;
+}
+function drawGapUnderlay(){
+  if(!document.getElementById("showCand").checked) return;
+  candidateGrid().forEach(pt=>{ const q=proj(pt.lon,pt.lat);
+    map.appendChild(el("rect",{x:q[0]-3,y:q[1]-3,width:6,height:6,fill:"#5d49a6",
+      opacity:(0.05+0.30*pt.prio).toFixed(3),stroke:"none"})); });
+}
+function drawProposals(){
+  if(!document.getElementById("showCand").checked) return;
+  const n=+document.getElementById("nCand").value;
+  topCandidates(n).forEach(pt=>{ const q=proj(pt.lon,pt.lat), x=q[0], y=q[1];
+    map.appendChild(el("rect",{x:x-5,y:y-5,width:10,height:10,fill:"#ffffff","fill-opacity":0.65,
+      stroke:"#5d49a6","stroke-width":1.8,transform:"rotate(45 "+x.toFixed(1)+" "+y.toFixed(1)+")"}));
+    const t=el("text",{x:x,y:y+3.2,"text-anchor":"middle","font-size":9,"font-family":"monospace",
+      fill:"#5d49a6","font-weight":700}); t.textContent="+"; map.appendChild(t);
+  });
+}
+function drawMap(){
+  map.innerHTML="";
+  // Hintergrund: Deutschland-Landflaeche (Messstellen sitzen geografisch darauf)
+  const dpath="M"+GERMANY.map(function(q){var z=proj(q[0],q[1]);return z[0].toFixed(1)+","+z[1].toFixed(1);}).join(" L")+" Z";
+  map.appendChild(el("path",{d:dpath,fill:"#e7eee4",stroke:"#7d99a8","stroke-width":1.4,"stroke-linejoin":"round"}));
+  drawGapUnderlay();
+
+  STATIONS.forEach(s=>{
+    const m=metrics(s); const [x,y]=proj(s.lon,s.lat); const cv=colorVal(s,m); const f=factors(s);
+    const rad=5+f.L*6;
+    const g=el("g",{}); g.style.cursor="pointer"; g.addEventListener("click",()=>select(s.id));
+    if(s.monitoring>0.5) g.appendChild(el("circle",{cx:x,cy:y,r:rad+4,fill:"none",stroke:C.bgr,"stroke-width":1.5,opacity:.85}));
+    g.appendChild(el("circle",{cx:x,cy:y,r:rad,fill:bandColor[cv.band],opacity:cv.none?.30:.92,
+      stroke:s.id===selId?"#0a3f60":"rgba(255,255,255,.85)","stroke-width":s.id===selId?2.5:1.2}));
+    const t=el("text",{x:x,y:y+3,"text-anchor":"middle","font-size":9,"font-family":"monospace",fill:"#fff","font-weight":700});
+    t.textContent=cv.label; g.appendChild(t);
+    map.appendChild(g);
+  });
+  drawProposals();
+}
+
+function select(id){
+  selId=id;
+  const s=STATIONS.find(x=>x.id===id); if(!s)return;
+  const m=metrics(s); const f=factors(s); const b=band(m.V);
+  document.getElementById("steckHint").style.display="none";
+  document.getElementById("steckBody").style.display="block";
+  document.getElementById("steckId").textContent="· "+s.name;
+  const sc=document.getElementById("sScore");
+  sc.textContent=m.V.toFixed(0); sc.style.color=bandColor[b];
+  const pill=document.getElementById("sPill");
+  pill.className="pill "+b; pill.textContent=bandLabel[b].toUpperCase();
+  document.getElementById("sFP").textContent=m.FP.toFixed(0)+" / 100";
+  document.getElementById("sBefund").textContent = (s.befund==null) ? "kein Messwert" :
+     s.befund.toFixed(3)+" µg/L"+(s.befund>0.1?"  ⚠ > 0,1":"");
+  const kf_si=Math.pow(10,s.kf);
+  const rows=[
+    ["Kennung",s.id],
+    ["Lage (Lon/Lat)",(+s.lon).toFixed(3)+" / "+(+s.lat).toFixed(3)],
+    ["Grundwasserneubildung",s.gwn+" mm/a"],
+    ["Flurabstand (GW-Überdeckung)",(+s.flurabstand).toFixed(1)+" m"],
+    ["Durchlässigkeit k_f",kf_si.toExponential(1)+" m/s"],
+    ["Sorptions-/Schutzpotenzial",(s.sorption*100).toFixed(0)+" %"],
+    ["Ackerflächenanteil",s.acker+" %"],
+    ["Bestehendes Monitoring",(s.monitoring*100).toFixed(0)+" %"]
+  ];
+  document.getElementById("steckKV").innerHTML=rows.map(r=>
+    `<div class="kv"><div class="k">${r[0]}</div><div class="v">${r[1]}</div></div>`).join("");
+  document.getElementById("steckExplain").innerHTML=
+    `Beitrag der Faktoren (gewichtet, normiert): Neubildung ${(W.wR*f.R).toFixed(2)} · `+
+    `Überdeckung ${(W.wD*f.D).toFixed(2)} · k_f ${(W.wK*f.K).toFixed(2)} · `+
+    `Eintrag ${(W.wL*f.L).toFixed(2)} · Schutz −${(W.wS*f.S).toFixed(2)}. `+
+    `Monitoring-Lücke ${(m.gap*100).toFixed(0)} %. Die Durchbruchsneigung steigt mit Flurabstand⁻¹ × k_f.`;
+  drawMap(); renderRank();
+}
+
+let sortK="FP", sortDir=-1;
+function rankRows(){
+  return STATIONS.map(s=>{const m=metrics(s);return {s,...m,name:s.name};})
+    .sort((a,b)=>{
+      if(sortK==="name"){return sortDir*a.name.localeCompare(b.name);}
+      let av=a[sortK], bv=b[sortK];
+      if(sortK==="rank"){av=a.FP;bv=b.FP;}
+      if(sortK==="befund"){av=(av==null?-1:av); bv=(bv==null?-1:bv);}
+      return sortDir*((av>bv)-(av<bv));
+    });
+}
+function barCell(val,max,col){return `<div class="bar"><span style="width:${clamp(val/max)*100}%;background:${col}"></span></div>`;}
+function renderRank(){
+  const rows=rankRows();
+  document.getElementById("rankBody").innerHTML=rows.map((r,i)=>{
+    const b=band(r.V), bf=band(r.FP);
+    const bef = (r.befund==null)? '<span style="color:var(--mut2)">–</span>'
+      : `<span style="color:${r.befund>0.1?C.red:r.befund>=0.05?C.amber:C.green};font-weight:600">${r.befund.toFixed(2)}</span>`;
+    return `<tr data-id="${r.s.id}" class="${r.s.id===selId?'sel':''}">
+      <td class="num">${i+1}</td><td>${r.name}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><span class="num">${r.V.toFixed(0)}</span>${barCell(r.V,100,bandColor[b])}</div></td>
+      <td class="num">${(r.L*100).toFixed(0)}%</td>
+      <td class="num">${(r.gap*100).toFixed(0)}%</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><span class="num">${r.FP.toFixed(0)}</span>${barCell(r.FP,100,bandColor[bf])}</div></td>
+      <td>${bef}</td></tr>`;
+  }).join("");
+  document.querySelectorAll("#rankBody tr").forEach(tr=>tr.addEventListener("click",()=>select(tr.dataset.id)));
+}
+document.querySelectorAll("#rankTable th").forEach(th=>th.addEventListener("click",()=>{
+  const k=th.dataset.k;
+  if(sortK===k){sortDir*=-1;} else {sortK=k; sortDir=(k==="name")?1:-1;}
+  renderRank();
+}));
+
+function scenarios(){
+  const all=STATIONS.map(s=>({s,...metrics(s)}));
+  const totalRisk=all.reduce((a,b)=>a+b.FP,0)||1;
+  const byFP=[...all].sort((a,b)=>b.FP-a.FP);
+  const cov=(arr)=>({n:arr.length, risk:arr.reduce((a,b)=>a+b.FP,0)/totalRisk});
+  const s1=cov(all);
+  const k=Math.max(1,Math.round(all.length*0.45));
+  const s2=cov(byFP.slice(0,k));
+  const s3=cov(all.filter(a=>a.s.monitoring>0.5));
+  const cost=(n)=>n/all.length;
+  const eff=(o)=>o.risk/Math.max(0.15,cost(o.n));
+  return [
+    {key:"S1",title:"Flächendeckendes Messnetz",who:"Alle Standorte gleich dicht überwacht. Maximale Abdeckung, aber geringe Effizienz.",o:s1,cost:cost(s1.n),eff:eff(s1)},
+    {key:"S2",title:"Risikobasiertes Schwerpunktnetz",who:"Verdichtung an Standorten mit höchster Frühwarn-Priorität (Top 45 %).",o:s2,cost:cost(s2.n),eff:eff(s2)},
+    {key:"S3",title:"Bestandsnetz / Minimal",who:"Nur bestehende Messstellen. Geringer Aufwand, aber Frühwarn-Lücken.",o:s3,cost:cost(s3.n),eff:eff(s3)}
+  ];
+}
+function renderScen(){
+  const sc=scenarios();
+  const bestEff=Math.max(...sc.map(x=>x.eff));
+  const fmtBar=(v,col)=>`<div class="bar"><span style="width:${clamp(v)*100}%;background:${col}"></span></div>`;
+  document.getElementById("scen").innerHTML=sc.map(x=>{
+    const isBest=x.eff===bestEff;
+    return `<div class="scard ${isBest?'best':''}">
+      ${isBest?'<div class="reco">▲ beste Frühwarn-Effizienz</div>':''}
+      <h3>${x.title}</h3><div class="who">${x.who}</div>
+      <div class="metric"><div class="ml"><span>Stationen</span><b>${x.o.n} / ${STATIONS.length}</b></div>${fmtBar(x.o.n/STATIONS.length,C.bgr)}</div>
+      <div class="metric"><div class="ml"><span>Risikoabdeckung</span><b>${(x.o.risk*100).toFixed(0)}%</b></div>${fmtBar(x.o.risk,C.green)}</div>
+      <div class="metric"><div class="ml"><span>Relativer Aufwand</span><b>${(x.cost*100).toFixed(0)}%</b></div>${fmtBar(x.cost,C.amber)}</div>
+      <div class="metric"><div class="ml"><span>Effizienz (Risiko/Aufwand)</span><b>${x.eff.toFixed(2)}×</b></div>${fmtBar(x.eff/(bestEff||1),C.violet)}</div>
+    </div>`;
+  }).join("");
+  const best=sc.find(x=>x.eff===bestEff);
+  document.getElementById("scenReco").innerHTML=
+    `<b>Ableitung.</b> Das Szenario „${best.title}" erreicht hier die höchste Frühwarn-Effizienz: `+
+    `${(best.o.risk*100).toFixed(0)} % der Gesamtgefährdung werden mit nur ${best.o.n} von ${STATIONS.length} `+
+    `Stationen abgedeckt. Empfehlung für ein nationales Frühwarnsystem: <b>risikobasierte Verdichtung</b> `+
+    `statt gleichförmiger Flächendeckung, mit periodischer Re-Priorisierung bei neuen Befunden.`;
+}
+function showFormula(){
+  document.getElementById("formula").innerHTML=
+    `V = 100 · [ ${W.wR.toFixed(2)}·R<sub>Neubildung</sub> + ${W.wD.toFixed(2)}·D<sub>Überdeckung</sub> `+
+    `+ ${W.wK.toFixed(2)}·K<sub>kf</sub> + ${W.wL.toFixed(2)}·L<sub>Eintrag</sub> `+
+    `+ ${W.wS.toFixed(2)}·(1−S<sub>Schutz</sub>) ] / Σw &nbsp;&nbsp;|&nbsp;&nbsp; `+
+    `Frühwarn-Priorität = 0.6·V + 0.25·(100·L<sub>Eintrag</sub>) + 15·Monitoring-Lücke &nbsp;(0–100)`;
+}
+function readWeights(){
+  W.wR=+wR.value;W.wD=+wD.value;W.wK=+wK.value;W.wL=+wL.value;W.wS=+wS.value;
+  wR_v.textContent=W.wR.toFixed(2);wD_v.textContent=W.wD.toFixed(2);
+  wK_v.textContent=W.wK.toFixed(2);wL_v.textContent=W.wL.toFixed(2);wS_v.textContent=W.wS.toFixed(2);
+}
+function refresh(){ readWeights(); showFormula(); drawMap(); renderRank(); renderScen(); if(selId) select(selId); }
+["wR","wD","wK","wL","wS","colorBy"].forEach(id=>document.getElementById(id).addEventListener("input",refresh));
+document.getElementById("showCand").addEventListener("change",drawMap);
+document.getElementById("nCand").addEventListener("input",function(){document.getElementById("nCand_v").textContent=this.value; drawMap();});
+document.getElementById("reset").addEventListener("click",()=>{
+  W={...W0};
+  document.getElementById("wR").value=W0.wR;document.getElementById("wD").value=W0.wD;
+  document.getElementById("wK").value=W0.wK;document.getElementById("wL").value=W0.wL;
+  document.getElementById("wS").value=W0.wS; refresh();
+});
+(function init(){
+  const badge=document.getElementById("modeBadge");
+  document.getElementById("regionName").textContent="· "+(SRC.region||"Beispielregion");
+  if(RD){
+    badge.className="badge real";
+    badge.textContent="Real-Modus · "+(RD.source||"EEA/BGR")+" · n="+STATIONS.length;
+    document.getElementById("srcHint").innerHTML="Datengrundlage: <b>echte Open Data</b> ("+
+      (RD.source||"EEA Waterbase / BGR")+"). Stand: "+(RD.built||"—")+". "+
+      (RD.note?("<br>"+RD.note):"")+" Lizenzhinweise siehe README_psm.md.";
+  } else {
+  }
+  refresh();
+  const top=rankRows()[0]; if(top) select(top.s.id);
+})();
+</script>
+</body>
+</html>
