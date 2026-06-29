@@ -4,6 +4,7 @@ project:
   resources:
     - GreenEquity_HN.html
     - BergWaldDynamik.html
+    - PSMhydro.html
 
 website:
   title: "A. Naya"
