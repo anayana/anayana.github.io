@@ -5,6 +5,7 @@
 !GreenEquity_HN.html
 !BergWaldDynamik.html
 !PSMhydro.html
+!emissionsinversion-demo.html
 .DS_Store
 
 **/*.quarto_ipynb

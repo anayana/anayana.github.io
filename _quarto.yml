@@ -5,6 +5,7 @@ project:
     - GreenEquity_HN.html
     - BergWaldDynamik.html
     - PSMhydro.html
+    - emissionsinversion-demo.html
 
 website:
   title: "A. Naya"

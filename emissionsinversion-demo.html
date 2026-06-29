@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emissionsinversion · Gegittertes Zwillingsexperiment DE–NL–BE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* DWD-orientiertes Hell-Layout (Behördenblau + Grün-Akzent) */
+    --bg:#eef3f8;
+    --bg2:#ffffff;
+    --panel:#ffffff;
+    --panel2:#f1f6fb;
+    --line:#d4dee8;
+    --line2:#bccddc;
+    --ink:#102a3f;
+    --mut:#5a7286;
+    --mut2:#7f93a3;
+    --dwd:#0a5aa6;    /* DWD-Blau */
+    --dwd-dark:#003c7d;
+    --dwd-green:#5c9a3a;
+    --emit:#e8590c;   /* Emissionen / Posterior */
+    --obs:#0a5aa6;    /* Beobachtungen / DWD-Blau */
+    --truth:#c2185b;  /* Referenz / Wahrheit */
+    --good:#2e8b57;
+    --de:#e8590c;
+    --nl:#0a5aa6;
+    --be:#7b4fb0;
+    --r:12px;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Consolas,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--bg);
+    color:var(--ink);font-family:var(--body);line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* DWD-artige Kopfleiste */
+  .gov-bar{background:var(--dwd-dark);color:#fff}
+  .gov-bar .inner{max-width:1180px;margin:0 auto;padding:8px clamp(18px,3vw,40px);
+    display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+  .gov-bar .dot{width:22px;height:22px;border-radius:50%;
+    background:conic-gradient(from 210deg,var(--dwd),var(--dwd-green) 60%,var(--dwd));flex:0 0 auto}
+  .gov-bar b{font-family:var(--body);font-weight:600;letter-spacing:0}
+  .gov-bar .demo{margin-left:auto;opacity:.8}
+  .wrap{max-width:1180px;margin:0 auto;padding:clamp(18px,3vw,40px)}
+
+  /* Header */
+  header{margin-bottom:26px}
+  .eyebrow{
+    font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--obs);display:flex;align-items:center;gap:12px;margin-bottom:18px;
+  }
+  .eyebrow::before{content:"";width:34px;height:1px;background:linear-gradient(90deg,var(--obs),transparent)}
+  h1{
+    font-family:var(--disp);font-weight:700;letter-spacing:-.02em;
+    font-size:clamp(30px,5.4vw,56px);line-height:1.02;margin:0 0 14px;
+  }
+  h1 em{font-style:normal;color:var(--emit)}
+  .lede{max-width:64ch;color:var(--mut);font-size:clamp(15px,1.6vw,17px)}
+  .lede b{color:var(--ink);font-weight:600}
+  .tagrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+  .tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--mut);
+    border:1px solid var(--line);border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.015)}
+
+  /* Layout */
+  .grid{display:grid;grid-template-columns:330px 1fr;gap:18px;margin-top:30px}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:var(--r);padding:18px}
+  .panel h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--mut);margin:0 0 4px;font-weight:600}
+  .panel .sub{color:var(--mut);font-size:12.5px;margin:0 0 16px}
+
+  /* Controls */
+  .ctl{margin-bottom:15px}
+  .ctl:last-child{margin-bottom:0}
+  .ctl .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+  .ctl label{font-size:13px;color:var(--ink);font-weight:500}
+  .ctl .val{font-family:var(--mono);font-size:12.5px;color:var(--emit)}
+  .ctl.global .val{color:var(--obs)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:99px;
+    background:var(--line2);outline:none;margin:0}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:var(--emit);border:2px solid #102a3f;cursor:pointer;box-shadow:0 0 0 1px var(--emit)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--emit);
+    border:2px solid #102a3f;cursor:pointer;box-shadow:0 0 0 1px var(--emit)}
+  .ctl.global input[type=range]::-webkit-slider-thumb{background:var(--obs);box-shadow:0 0 0 1px var(--obs)}
+  .ctl.global input[type=range]::-moz-range-thumb{background:var(--obs);box-shadow:0 0 0 1px var(--obs)}
+  input[type=range]:focus-visible{box-shadow:0 0 0 3px rgba(70,211,230,.35)}
+  .divider{height:1px;background:var(--line);margin:18px -18px;border:0}
+
+  .btn{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;width:100%;
+    border:1px solid var(--line2);background:var(--panel2);color:var(--ink);
+    padding:11px;border-radius:9px;cursor:pointer;transition:background .15s,border-color .15s}
+  .btn:hover{background:#e4eef7;border-color:var(--obs)}
+  .btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(10,90,166,.30)}
+  .btn.primary{background:var(--dwd);border-color:var(--dwd-dark);color:#fff;margin-top:10px}
+  .btn.primary:hover{background:var(--dwd-dark);border-color:var(--dwd-dark)}
+  .btn.toggle{margin-top:4px}
+  .btn.toggle.on{background:#e1edf8;border-color:var(--obs);color:var(--dwd)}
+
+  /* Field + view switch */
+  .viewbar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .vbtn{font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--mut);
+    border:1px solid var(--line);background:rgba(255,255,255,.015);border-radius:7px;
+    padding:6px 10px;cursor:pointer;transition:all .14s}
+  .vbtn:hover{border-color:var(--line2);color:var(--ink)}
+  .vbtn.on{background:var(--panel2);border-color:var(--obs);color:var(--obs)}
+  .fieldwrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);
+    background:var(--bg);aspect-ratio:1/.92}
+  canvas{display:block;width:100%;height:100%}
+  .fieldlabel{position:absolute;top:11px;left:13px;font-family:var(--mono);font-size:11px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--dwd-dark);pointer-events:none;
+    background:rgba(255,255,255,.82);border:1px solid var(--line);
+    padding:3px 8px;border-radius:6px;backdrop-filter:blur(3px)}
+  .legend{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .cbar{height:9px;flex:1;min-width:120px;border-radius:99px;
+    background:linear-gradient(90deg,#440154,#414487,#2a788e,#22a884,#7ad151,#fde725)}
+  .legtxt{font-family:var(--mono);font-size:11px;color:var(--mut)}
+  .keys{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
+  .key{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mut)}
+  .key .m{width:12px;height:12px;border-radius:3px}
+  .key .mO{background:none;border:2px solid var(--obs);border-radius:50%}
+  .key .mP{background:none;border:1px dashed var(--mut);border-radius:50%}
+  .key .mE{background:var(--emit);transform:rotate(45deg);border-radius:2px}
+  .key .mS{background:rgba(192,139,255,.25);border:1px solid var(--be)}
+
+  /* Results */
+  .results{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+  .chartcard h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--mut);margin:0 0 2px;font-weight:600}
+  .chartcard .sub{color:var(--mut);font-size:12px;margin:0 0 14px}
+  .chartcard svg{width:100%;height:auto;display:block;overflow:visible}
+
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+  .metric{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:12px;padding:15px 16px}
+  .metric .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+  .metric .v{font-family:var(--disp);font-weight:600;font-size:28px;margin-top:6px;letter-spacing:-.01em}
+  .metric .u{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:2px}
+
+  /* Method */
+  .method{margin-top:26px;border:1px solid var(--line);border-radius:var(--r);
+    background:linear-gradient(180deg,var(--panel),var(--bg2));padding:clamp(18px,2.5vw,28px)}
+  .method h2{font-family:var(--disp);font-weight:600;font-size:20px;margin:0 0 14px}
+  .method p{color:var(--mut);font-size:14px;max-width:78ch;margin:0 0 12px}
+  .method b{color:var(--ink);font-weight:600}
+  .eq{font-family:var(--mono);font-size:clamp(13px,1.7vw,16px);color:var(--ink);
+    background:var(--bg);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;margin:16px 0;overflow-x:auto;white-space:nowrap}
+  .eq .c{color:var(--obs)}
+  .pillrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .pill{font-family:var(--mono);font-size:11.5px;color:var(--mut);border:1px solid var(--line);
+    border-radius:8px;padding:6px 10px}
+  .pill b{color:var(--ink)}
+
+  footer{margin-top:26px;color:var(--mut2,#5a7286);font-size:12px;font-family:var(--mono);
+    border-top:1px solid var(--line);padding-top:16px;line-height:1.7}
+  footer .em{color:var(--emit)}
+
+  @media (max-width:880px){
+    .grid{grid-template-columns:1fr}
+    .results{grid-template-columns:1fr}
+    .metrics{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:480px){.metrics{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  .reveal{opacity:0;transform:translateY(10px);animation:rise .6s cubic-bezier(.2,.7,.2,1) forwards}
+  .reveal.d1{animation-delay:.05s}.reveal.d2{animation-delay:.12s}.reveal.d3{animation-delay:.19s}
+  @keyframes rise{to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="gov-bar"><div class="inner">
+  <span class="dot" aria-hidden="true"></span>
+  <b>Emissionsinversion</b><span>· Gegittertes Zwillingsexperiment DE·NL·BE</span>
+  <span class="demo">Bewerbungsdemo · kein DWD-Produkt</span>
+</div></div>
+<div class="wrap">
+
+  <header class="reveal">
+    <div class="eyebrow">Bayes'sche Emissionsinversion · Gegittertes Zwillingsexperiment</div>
+    <h1>Treibhausgase <em>rückwärts</em> rechnen — auf der echten Karte.</h1>
+    <p class="lede">Inverse Modellierung über der Grenzregion <b>Deutschland–Niederlande–Belgien</b>: Das Zustandsfeld ist nicht mehr eine Handvoll Punktquellen, sondern ein <b>Gitter realer Emissionen</b> — Braunkohle-Kraftwerke im Rheinland, die Häfen Rotterdam und Antwerpen, Stahl an Rhein und Schelde. Ein Footprint-Vorwärtsmodell trägt sie per Wind zu realen <b>ICOS-Messtürmen</b> (und optional <b>CO2M-Satellitenpixeln</b>); die analytische Inversion rekonstruiert das Feld samt <b>Länderbilanz und Restunsicherheit</b>.</p>
+    <div class="tagrow">
+      <span class="tag">Gegitterte Inversion</span>
+      <span class="tag">Footprint / Jacobi-Matrix</span>
+      <span class="tag">Korrelierter Prior (B)</span>
+      <span class="tag">Länder-Attribution DE·NL·BE</span>
+      <span class="tag">CO2M-Mehrwert</span>
+      <span class="tag">Vanilla JS · 0 Abhängigkeiten</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- Controls -->
+    <aside class="panel reveal d1">
+      <h2>Inventar &amp; Szenario</h2>
+      <p class="sub">Der A-priori (das Inventar) ist die geglättete, skalierbare Schätzung. Die „Wahrheit" kennt die Inversion nicht.</p>
+      <div id="invCtls"></div>
+      <button class="btn toggle on" id="satToggle">CO2M-Satellit: AN</button>
+
+      <hr class="divider">
+      <h2>Atmosphäre &amp; Messnetz</h2>
+      <p class="sub">Transport- und Fehlerannahmen.</p>
+      <div id="globalCtls"></div>
+
+      <button class="btn" id="reroll">Neue Messrealisierung (Rauschen)</button>
+      <button class="btn primary" id="reset">Zurücksetzen</button>
+    </aside>
+
+    <!-- Field -->
+    <section class="panel reveal d2">
+      <div class="viewbar" id="viewbar">
+        <button class="vbtn" data-v="truth">Wahrheit</button>
+        <button class="vbtn" data-v="prior">A-priori</button>
+        <button class="vbtn on" data-v="post">A-posteriori</button>
+        <button class="vbtn" data-v="red">σ-Reduktion</button>
+      </div>
+      <div class="fieldwrap">
+        <canvas id="field"></canvas>
+        <div class="fieldlabel" id="fieldlabel">A-posteriori · Mt CO₂ / Jahr je Zelle</div>
+      </div>
+      <div class="legend">
+        <span class="legtxt" id="legLo">niedrig</span>
+        <span class="cbar"></span>
+        <span class="legtxt" id="legHi">hoch</span>
+      </div>
+      <div class="keys">
+        <span class="key"><span class="m mE"></span>Großemittent (Inventar)</span>
+        <span class="key"><span class="m mO"></span>ICOS-Turm</span>
+        <span class="key"><span class="m mP"></span>geplant (MERGE)</span>
+        <span class="key"><span class="m mS"></span>CO2M-Pixel</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- Results -->
+  <div class="results">
+    <div class="panel chartcard reveal">
+      <h2>Länder-Attribution</h2>
+      <p class="sub">Wahr · A-priori · A-posteriori (Mt CO₂/a, Fehlerbalken = ±1σ Posterior)</p>
+      <svg id="countryChart" viewBox="0 0 520 280" role="img" aria-label="Länderbilanz der Emissionsschätzung"></svg>
+    </div>
+    <div class="panel chartcard reveal">
+      <h2>Messanpassung</h2>
+      <p class="sub">Beobachtet vs. mit Posterior modelliert (ideal: auf der Diagonalen)</p>
+      <svg id="scatter" viewBox="0 0 520 280" role="img" aria-label="Streudiagramm beobachtet gegen modelliert"></svg>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="k">RMSE Gitterfeld</div><div class="v" id="mRmse">–</div><div class="u">a-posteriori vs. wahr · Mt/Zelle</div></div>
+    <div class="metric"><div class="k">Unsicherheits­reduktion</div><div class="v" id="mRed">–</div><div class="u">1 − σ_post/σ_prior · emissionsgewichtet</div></div>
+    <div class="metric"><div class="k">Reduziertes χ²</div><div class="v" id="mChi">–</div><div class="u">χ²/(m − DFS) · Fehlermodell-Konsistenz ≈ 1</div></div>
+  </div>
+
+  <!-- Method -->
+  <section class="method reveal">
+    <h2>Die Methode in einer Gleichung</h2>
+    <p>Das Problem ist <b>linear und unterbestimmt</b>: viele Emissionsfelder erklären dieselben wenigen Messungen. Der Bayes'sche Ansatz gewichtet Messungen <b>y</b> und Vorwissen <b>x<sub>a</sub></b> (das Inventar) nach ihrer Unsicherheit. Mit dem Vorwärtsoperator <b>K</b> (Empfindlichkeit jeder Beobachtung auf jede Gitterzelle — hier aus windabhängigen Footprints), der A-priori-Kovarianz <b>B</b> (räumlich <b>korreliert</b> über eine Korrelationslänge) und der Messfehler-Kovarianz <b>R</b> ergibt sich die analytische Lösung:</p>
+    <div class="eq">x̂ = x<sub>a</sub> + B·Kᵀ·<span class="c">(K·B·Kᵀ + R)⁻¹</span>·(y − K·x<sub>a</sub>)</div>
+    <p>Die <b>A-posteriori-Kovarianz</b> liefert die Restunsicherheit jeder Zelle <i>und</i> — über einen Aggregationsoperator <b>a</b> (Summe aller Zellen eines Landes) — die Unsicherheit der <b>Länderbilanz</b> σ²<sub>Land</sub> = aᵀ·A·a, inklusive der räumlichen Fehlerkorrelationen.</p>
+    <div class="eq">A = B − B·Kᵀ·<span class="c">(K·B·Kᵀ + R)⁻¹</span>·K·B &nbsp;&nbsp;→&nbsp;&nbsp; σ<sub>post,i</sub> = √A<sub>ii</sub> &nbsp;·&nbsp; σ<sub>Land</sub> = √(aᵀA a)</div>
+    <div class="pillrow">
+      <span class="pill"><b>Zustand</b> · gegittertes Emissionsfeld (~100 Zellen)</span>
+      <span class="pill"><b>Vorwärtsmodell</b> · Footprints, windabhängig</span>
+      <span class="pill"><b>Schätzer</b> · analytisch (Kalman-Form)</span>
+      <span class="pill"><b>Unsicherheit</b> · volle Posterior-Kovarianz + Länderbilanz</span>
+      <span class="pill"><b>Diagnostik</b> · χ²-Konsistenz, RMSE, σ-Reduktionskarte</span>
+    </div>
+  </section>
+
+  <footer>
+    <span class="em">Was hier echt ist:</span> Geografie und Koordinaten der ICOS-Türme (Cabauw, Lutjewad, Loobos, Jülich, Vielsalm …) sowie Lage und realistische Größenordnung der Großemittenten (RWE Neurath/Niederaußem/Weisweiler, Häfen Rotterdam &amp; Antwerpen, Stahl Duisburg/Gent/IJmond, Chemelot Geleen). <span class="em">Was parametrisiert ist:</span> die Footprints (statt FLEXPART/STILT) und die synthetischen Messungen (Zwillingsexperiment). In einer operationellen Inversion ersetzen über dieselben Schnittstellen das <b>TNO_GHGco</b>-Inventar den Prior, reale <b>ICOS-Level-2-Zeitreihen</b> die Beobachtungen, <b>FLEXPART/STILT</b>-Footprints den Operator K und <b>CO2M/TROPOMI</b> die Satellitenpixel. Länderzuordnung approximativ. Eigenständige Demonstration zur Bewerbung (Ref. 20261043_0002) · kein DWD-Produkt · alle Berechnungen lokal im Browser.
+  </footer>
+
+</div>
+
+<!-- Optional: echte Daten aus der R-Pipeline (Rscript run_pipeline.R).
+     Fehlt die Datei, laeuft die Demo unveraendert im parametrisierten Modus. -->
+<script src="merge_data.js" onerror="window.__noMerge=1"></script>
+<script>
+"use strict";
+/* =========================================================================
+   Gegittertes Zwillingsexperiment · Region DE–NL–BE
+   ========================================================================= */
+
+/* ---------- Echte Daten (optional, aus merge_data.js) ---------- */
+const RD = (typeof window!=="undefined" && window.MERGE_DATA
+            && window.MERGE_DATA.mode==="real") ? window.MERGE_DATA : null;
+
+/* ---------- Geografische Box & Projektion ---------- */
+const BOX={lonMin:3.0,lonMax:8.5,latMin:49.4,latMax:54.0};
+const LAT0=(BOX.latMin+BOX.latMax)/2;
+const KXX=Math.cos(LAT0*Math.PI/180);
+const kmX=lon=>(lon-BOX.lonMin)*111.0*KXX;            // km von West-Rand
+const kmY=lat=>(BOX.latMax-lat)*111.0;                // km von Nord-Rand (y nach Süden)
+const WKM=kmX(BOX.lonMax), HKM=kmY(BOX.latMin);
+
+/* ---------- Reale Messstationen (lon,lat) ---------- */
+let STATIONS=[
+  {name:"Cabauw",   lon:4.93, lat:51.97, real:true},
+  {name:"Lutjewad", lon:6.35, lat:53.40, real:true},
+  {name:"Loobos",   lon:5.74, lat:52.17, real:true},
+  {name:"Jülich",   lon:6.41, lat:50.91, real:true},
+  {name:"Vielsalm", lon:5.99, lat:50.30, real:true},
+  {name:"Geleen",   lon:5.82, lat:50.97, real:true},
+  {name:"Steinkimmen",lon:8.46,lat:53.04, real:true},
+  {name:"Aachen",   lon:6.08, lat:50.78, real:false}, // geplant / MERGE-Lücke
+];
+// Real-Modus: Stationsliste (samt Koordinaten) aus der Pipeline übernehmen.
+if(RD && Array.isArray(RD.stations) && RD.stations.length){
+  STATIONS = RD.stations.map(s=>({name:s.name, lon:+s.lon, lat:+s.lat, real:!!s.real}));
+}
+
+/* ---------- Reale Großemittenten (lon,lat, Mt CO2/a, Land) ---------- */
+const SOURCES=[
+  {name:"RWE Neurath",      lon:6.62, lat:51.04, E:30, c:"DE"},
+  {name:"RWE Niederaußem",  lon:6.67, lat:50.99, E:18, c:"DE"},
+  {name:"RWE Weisweiler",   lon:6.32, lat:50.84, E:11, c:"DE"},
+  {name:"Duisburg Stahl",   lon:6.73, lat:51.45, E:8,  c:"DE"},
+  {name:"Köln Raffinerien", lon:6.97, lat:50.83, E:6,  c:"DE"},
+  {name:"Ruhr Ballung",     lon:7.20, lat:51.50, E:6,  c:"DE"},
+  {name:"Rotterdam Hafen",  lon:4.30, lat:51.92, E:22, c:"NL"},
+  {name:"Eemshaven",        lon:6.84, lat:53.44, E:6,  c:"NL"},
+  {name:"IJmond Stahl",     lon:4.60, lat:52.46, E:7,  c:"NL"},
+  {name:"Chemelot Geleen",  lon:5.82, lat:50.97, E:5,  c:"NL"},
+  {name:"Antwerpen Hafen",  lon:4.35, lat:51.25, E:16, c:"BE"},
+  {name:"Gent Stahl",       lon:3.75, lat:51.10, E:7,  c:"BE"},
+  {name:"Brüssel",          lon:4.35, lat:50.85, E:4,  c:"BE"},
+];
+
+/* ---------- Echte Ländergrenzen (vereinfachte Polygone, Natural Earth 110m) ---------- */
+const BORDERS={
+  NL:[[[6.074183,53.510403],[6.90514,53.482162],[7.092053,53.144043],[6.84287,52.22844],[6.589397,51.852029],[5.988658,51.851616],[6.156658,50.803721],[5.606976,51.037298],[4.973991,51.475024],[4.047071,51.267259],[3.314971,51.345755],[3.830289,51.620545],[4.705997,53.091798],[6.074183,53.510403]]],
+  BE:[[[3.314971,51.345781],[4.047071,51.267259],[4.973991,51.475024],[5.606976,51.037298],[6.156658,50.803721],[6.043073,50.128052],[5.782417,50.090328],[5.674052,49.529484],[4.799222,49.985373],[4.286023,49.907497],[3.588184,50.378992],[3.123252,50.780363],[2.658422,50.796848],[2.513573,51.148506],[3.314971,51.345781]]],
+  DE:[[[9.921906,54.983104],[9.93958,54.596642],[10.950112,54.363607],[10.939467,54.008693],[11.956252,54.196486],[12.51844,54.470371],[13.647467,54.075511],[14.119686,53.757029],[14.353315,53.248171],[14.074521,52.981263],[14.4376,52.62485],[14.685026,52.089947],[14.607098,51.745188],[15.016996,51.106674],[14.570718,51.002339],[14.307013,51.117268],[14.056228,50.926918],[13.338132,50.733234],[12.966837,50.484076],[12.240111,50.266338],[12.415191,49.969121],[12.521024,49.547415],[13.031329,49.307068],[13.595946,48.877172],[13.243357,48.416115],[12.884103,48.289146],[13.025851,47.637584],[12.932627,47.467646],[12.62076,47.672388],[12.141357,47.703083],[11.426414,47.523766],[10.544504,47.566399],[10.402084,47.302488],[9.896068,47.580197],[9.594226,47.525058],[8.522612,47.830828],[8.317301,47.61358],[7.466759,47.620582],[7.593676,48.333019],[8.099279,49.017784],[6.65823,49.201958],[6.18632,49.463803],[6.242751,49.902226],[6.043073,50.128052],[6.156658,50.803721],[5.988658,51.851616],[6.589397,51.852029],[6.84287,52.22844],[7.092053,53.144043],[6.90514,53.482162],[7.100425,53.693932],[7.936239,53.748296],[8.121706,53.527792],[8.800734,54.020786],[8.572118,54.395646],[8.526229,54.962744],[9.282049,54.830865],[9.921906,54.983104]]],
+};
+function pointInRing(lon,lat,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>lat)!==(yj>lat)) && (lon < (xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function countryOf(lon,lat){
+  // NL und BE zuerst (kleiner); Rest DE. Grenznahe Zellen approximativ.
+  if(BORDERS.NL.some(p=>pointInRing(lon,lat,p))) return "NL";
+  if(BORDERS.BE.some(p=>pointInRing(lon,lat,p))) return "BE";
+  if(BORDERS.DE.some(p=>pointInRing(lon,lat,p))) return "DE";
+  // Fallback (Nordsee/ausserhalb): nach Längengrad grob zuordnen
+  if(lat<51.0 && lon<5.0) return "BE";
+  if(lon<6.0) return "NL";
+  return "DE";
+}
+
+/* ---------- Gitter ---------- */
+const GC=9, GR=12, N=GC*GR;
+const cells=[];
+for(let j=0;j<GR;j++)for(let i=0;i<GC;i++){
+  const lon=BOX.lonMin+(i+0.5)/GC*(BOX.lonMax-BOX.lonMin);
+  const lat=BOX.latMax-(j+0.5)/GR*(BOX.latMax-BOX.latMin);
+  cells.push({i,j,lon,lat,x:kmX(lon),y:kmY(lat),c:countryOf(lon,lat)});
+}
+const COUNTRIES=["DE","NL","BE"];
+const cMask=COUNTRIES.map(C=>cells.map(c=>c.c===C?1:0));
+
+/* ---------- CO2M-Satellitenpixel (Überflug-Gitter) ---------- */
+const SAT=[];
+for(let a=0;a<7;a++)for(let b=0;b<6;b++){
+  const lon=3.35+a*0.80, lat=49.8+b*0.78;
+  if(lon>BOX.lonMax||lat>BOX.latMax) continue;
+  SAT.push({lon,lat,x:kmX(lon),y:kmY(lat)});
+}
+
+/* ---------- Synthetisches Wahrfeld aus realen Quellen (Demo-Fallback) ---------- */
+const SGSRC=24; // km, räumliche Ausdehnung pro Quelle
+const synthTruth=new Array(N).fill(0);
+for(const s of SOURCES){
+  const sx=kmX(s.lon), sy=kmY(s.lat);
+  const w=cells.map(c=>Math.exp(-((c.x-sx)**2+(c.y-sy)**2)/(2*SGSRC*SGSRC)));
+  const sum=w.reduce((p,q)=>p+q,0)||1;
+  for(let k=0;k<N;k++) synthTruth[k]+=s.E*w[k]/sum;
+}
+for(let k=0;k<N;k++) synthTruth[k]+=0.25;  // diffuser Hintergrund
+
+/* ---------- Bezugsfeld + Prior (im Real-Modus aus EDGAR; sonst synthetisch) ---------- */
+const SGBLUR=55; // km
+let truth=synthTruth.slice();
+let TOT_TRUTH=1, meanPrior=1, priorShape=new Array(N).fill(0);
+
+// Wählt das EDGAR-Feld passend zu Spezies / Sektor / Jahr aus.
+function selectedField(){
+  if(!RD || !RD.priors) return null;
+  const P=RD.priors[state.species]; if(!P) return null;
+  if(state.sector && state.sector!=="TOTALS" && P.sectors && P.sectors[state.sector])
+    return P.sectors[state.sector];
+  if(P.totals){
+    const yr=String(state.year);
+    if(P.totals[yr]) return P.totals[yr];
+    const ys=Object.keys(P.totals).map(Number).sort((a,b)=>a-b);
+    if(ys.length){const n=ys.reduce((p,c)=>Math.abs(c-state.year)<Math.abs(p-state.year)?c:p);return P.totals[String(n)];}
+  }
+  return (P.sectors&&P.sectors.TOTALS)||null;
+}
+function recomputePrior(){
+  TOT_TRUTH=truth.reduce((p,q)=>p+q,0)||1e-9;
+  priorShape=cells.map(c=>{let num=0,den=0;
+    for(let k=0;k<N;k++){const w=Math.exp(-((c.x-cells[k].x)**2+(c.y-cells[k].y)**2)/(2*SGBLUR*SGBLUR));num+=w*truth[k];den+=w;}
+    return num/den;});
+  const psSum=priorShape.reduce((p,q)=>p+q,0)||1e-9;
+  for(let k=0;k<N;k++) priorShape[k]*=TOT_TRUTH/psSum;   // gleiche Gesamtmasse
+  meanPrior=TOT_TRUTH/N;
+}
+function rebuildField(){
+  if(RD){const f=selectedField(); if(f&&f.length===N){for(let k=0;k<N;k++) truth[k]=Math.max(0,+f[k]||0);} else truth=synthTruth.slice();}
+  else truth=synthTruth.slice();
+  recomputePrior();
+}
+recomputePrior();
+
+/* ---------- Zustand ---------- */
+const state={
+  species: (RD && RD.species && RD.species[0]) || "CO2",
+  year: (RD && RD.refYear) || 2022,
+  sector: "TOTALS",
+  priorBias:1.0,   // Inventar-Skalierung (0.6 .. 1.4)
+  windDeg:215, windSpd:1.0,
+  sigObs:2.0,      // ppb (Türme)
+  sigPriorFrac:0.6,// Prior-Unsicherheit als Anteil der Prior-Emission
+  corrLen:60,      // km, räumliche Korrelationslänge von B
+  satOn:true,
+  sigSat:1.2,      // arbitr. Spaltensäulen-Rauschen
+  obsSource:"both",// "tower" | "sat" | "both" - Boden vs. Satellit getrennt nutzbar
+  demErr:0,        // m - Höhenfehler des DEM -> systematischer Satelliten-Säulenbias
+  noise:[],        // Rausch-Realisierung (lang genug für alle Beobachtungen)
+};
+
+/* ---------- Lineare Algebra ---------- */
+const T=A=>A[0].map((_,j)=>A.map(r=>r[j]));
+const mul=(A,B)=>{const m=A.length,n=B[0].length,p=B.length,O=new Array(m);
+  for(let i=0;i<m;i++){const Ai=A[i],Oi=new Array(n).fill(0);
+    for(let k=0;k<p;k++){const a=Ai[k];if(a){const Bk=B[k];for(let j=0;j<n;j++)Oi[j]+=a*Bk[j];}}O[i]=Oi;}return O;};
+const mv=(A,v)=>A.map(r=>r.reduce((s,x,k)=>s+x*v[k],0));
+const addV=(a,b)=>a.map((x,i)=>x+b[i]);
+const subV=(a,b)=>a.map((x,i)=>x-b[i]);
+function inv(A){
+  const n=A.length, M=A.map((r,i)=>[...r,...r.map((_,j)=>i===j?1:0)]);
+  for(let c=0;c<n;c++){
+    let p=c; for(let r=c+1;r<n;r++) if(Math.abs(M[r][c])>Math.abs(M[p][c])) p=r;
+    [M[c],M[p]]=[M[p],M[c]];
+    const pv=M[c][c]||1e-12;
+    for(let j=0;j<2*n;j++) M[c][j]/=pv;
+    for(let r=0;r<n;r++) if(r!==c){const f=M[r][c]; for(let j=0;j<2*n;j++) M[r][j]-=f*M[c][j];}
+  }
+  return M.map(r=>r.slice(n));
+}
+
+/* ---------- Wind-Geometrie ---------- */
+function windVecs(deg){
+  const t=deg*Math.PI/180;
+  const from=[Math.sin(t),-Math.cos(t)];   // x rechts, y runter(Süden); Nord=oben
+  const down=[-from[0],-from[1]];           // Abwind-Richtung
+  const cross=[-down[1],down[0]];
+  return {down,cross,from};
+}
+
+/* ---------- Empfindlichkeit: Beobachtung <- Gitterzelle (km) ---------- */
+const AMP=8.0, AMPS=2.2;
+function sensT(rx,ry,sx,sy,W){      // Turm: windabhängige Fahne
+  const dx=rx-sx, dy=ry-sy;
+  const a=dx*W.down[0]+dy*W.down[1];   // entlang Wind (Abwind +)
+  const c=dx*W.cross[0]+dy*W.cross[1]; // quer
+  const s0=12, ky=0.22, Ldil=120;
+  if(a<=0){const r2=a*a+c*c;return AMP*0.10/state.windSpd*Math.exp(-r2/(2*s0*s0));}
+  const sig=s0+ky*a;
+  return AMP/(state.windSpd*sig)*Math.exp(-(c*c)/(2*sig*sig))*Math.exp(-a/Ldil);
+}
+function sensS(rx,ry,sx,sy,W){      // Satellit: Säulenpixel, leicht windverschmiert (Plume)
+  const dx=rx-sx, dy=ry-sy;
+  if(!W){const r2=dx*dx+dy*dy,s=34;return AMPS*Math.exp(-r2/(2*s*s));}
+  const a=dx*W.down[0]+dy*W.down[1];   // entlang Wind
+  const c=dx*W.cross[0]+dy*W.cross[1]; // quer
+  const sA=62, sC=50;                  // breit & ueberlappend -> glatte Saeulen-Empfindlichkeit
+  const off=a<0?1.0:0.6;               // stromaufwärts etwas stärker (Säule integriert)
+  return AMPS*off*Math.exp(-(a*a)/(2*sA*sA))*Math.exp(-(c*c)/(2*sC*sC));
+}
+
+/* ---------- A-priori-Kovarianz B (räumlich korreliert) ---------- */
+function buildB(xa){
+  const floor=0.3*meanPrior;
+  const sg=xa.map(v=>state.sigPriorFrac*(v+floor));
+  const L=state.corrLen;
+  const B=new Array(N);
+  for(let i=0;i<N;i++){const Bi=new Array(N);
+    for(let j=0;j<N;j++){
+      const d=Math.hypot(cells[i].x-cells[j].x,cells[i].y-cells[j].y);
+      Bi[j]=sg[i]*sg[j]*Math.exp(-d/L);
+    }B[i]=Bi;}
+  return {B,sgPrior:sg};
+}
+
+/* ---------- Rauschen ---------- */
+function rng(seed){let s=seed>>>0;return ()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+function gauss(rnd){const u=Math.max(1e-9,rnd()),v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function freshNoise(){
+  const rnd=rng((Date.now()&0xffffff)>>>0);
+  state.noise=Array.from({length:256},()=>gauss(rnd));   // genug für alle Beobachtungen
+}
+
+/* ---------- Inversion ---------- */
+function invert(){
+  const W=windVecs(state.windDeg);
+  const O = RD ? (RD.obs && RD.obs[state.species]) : null;
+  // Beobachtungs-Deskriptoren: Türme (+ Satellitenpixel).
+  // Jede Beobachtung kann eine echte K-Zeile (STILT) und/oder echten Messwert tragen.
+  const rows=[];
+  // Quellen-Auswahl: "tower" | "sat" | "both" -> Boden- und Satellitenobs getrennt nutzbar.
+  const useT = state.obsSource!=="sat";
+  const useS = state.obsSource!=="tower" && state.satOn;
+  const pushTowers = ()=>STATIONS.forEach((st,i)=>rows.push({
+    kind:"T", x:kmX(st.lon), y:kmY(st.lat),
+    sig:(O&&O.sig_tower&&isFinite(O.sig_tower[i]))?O.sig_tower[i]:state.sigObs,
+    Krow:(O&&O.K_tower&&Array.isArray(O.K_tower[i])&&O.K_tower[i].length===N&&isFinite(O.K_tower[i][0]))?O.K_tower[i]:null,
+    yreal:(O&&O.y_tower&&isFinite(O.y_tower[i]))?O.y_tower[i]:null
+  }));
+  if(useT) pushTowers();
+  if(useS){
+    if(O&&Array.isArray(O.sat)&&O.sat.length){
+      O.sat.forEach(p=>rows.push({kind:"S", x:kmX(p.lon), y:kmY(p.lat),
+        sig:(isFinite(p.sig)?p.sig:state.sigSat), Krow:null, yreal:(isFinite(p.val)?p.val:null)}));
+    } else {
+      SAT.forEach(p=>rows.push({kind:"S", x:p.x, y:p.y, sig:state.sigSat, Krow:null, yreal:null}));
+    }
+  }
+  if(rows.length===0) pushTowers();   // Schutz: nie ohne Beobachtungen invertieren
+  const M=rows.length;
+  const obs=rows;
+  // Operator K: echte Zeile falls vorhanden, sonst parametrisiertes Modell.
+  const K=rows.map(o=> o.Krow ? o.Krow
+        : cells.map(c=> o.kind==="T" ? sensT(o.x,o.y,c.x,c.y,W) : sensS(o.x,o.y,c.x,c.y,W)));
+  const xa=priorShape.map(v=>v*state.priorBias);
+  const {B,sgPrior}=buildB(xa);
+  // y: echter Messwert wo vorhanden, sonst synthetisch aus der Wahrheit (Zwillingsexp.).
+  const ytwin=mv(K,truth);
+  // DEM-Höhenfehler -> systematischer Säulen-Bias (~0,4 ppm je 10 m), nur Satellit.
+  const satBias=state.demErr*0.04;
+  const y=rows.map((o,i)=>{
+    let v=(o.yreal!=null) ? o.yreal : ytwin[i] + o.sig*(state.noise[i]||0);
+    if(o.kind==="S") v += satBias;
+    return v;
+  });
+  // R diagonal
+  const Kt=T(K);
+  const KB=mul(K,B);                       // M x N
+  const S=mul(KB,Kt);                       // M x M
+  for(let i=0;i<M;i++) S[i][i]+=obs[i].sig*obs[i].sig;
+  const Si=inv(S);
+  const BKt=mul(B,Kt);                      // N x M
+  const G=mul(BKt,Si);                      // N x M  (Gain)
+  const innov=subV(y,mv(K,xa));
+  const xhat=addV(xa,mv(G,innov));
+  // A = B - (B Kt Si)(K B) = B - G·KB
+  const GKB=mul(G,KB);                      // N x N
+  const A=B.map((r,i)=>r.map((v,j)=>v-GKB[i][j]));
+  const sgPost=A.map((r,i)=>Math.sqrt(Math.max(0,r[i])));
+  const ymod=mv(K,xhat);
+  // Freiheitsgrade fürs Signal (DFS = Spur der Mittelungskern-Matrix K·G)
+  const KG=mul(K,G);
+  let dfs=0; for(let i=0;i<M;i++) dfs+=KG[i][i];
+  // Länderbilanzen
+  const land=COUNTRIES.map((C,ci)=>{
+    const a=cMask[ci];
+    const tT=truth.reduce((s,v,k)=>s+v*a[k],0);
+    const tA=xa.reduce((s,v,k)=>s+v*a[k],0);
+    const tP=xhat.reduce((s,v,k)=>s+v*a[k],0);
+    const Aa=mv(A,a);
+    const varP=a.reduce((s,v,k)=>s+v*Aa[k],0);
+    return {C,truth:tT,prior:tA,post:tP,sig:Math.sqrt(Math.max(0,varP))};
+  });
+  return {obs,M,dfs,K,xa,xhat,sgPrior,sgPost,y,ymod,land};
+}
+
+/* ---------- Viridis ---------- */
+const VIR=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];
+function viridis(t){t=(t>0)?(t<1?t:1):0;const f=t*4,i=Math.min(3,Math.floor(f)),u=f-i;
+  const a=VIR[i],b=VIR[i+1];return [a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u,a[2]+(b[2]-a[2])*u];}
+
+/* ---------- Karte zeichnen ---------- */
+const cv=document.getElementById('field'), cx=cv.getContext('2d');
+let VIEW="post", LAST=null;
+function fieldFor(res){
+  if(VIEW==="truth") return {f:truth,red:false};
+  if(VIEW==="prior") return {f:res.xa,red:false};
+  if(VIEW==="red")   return {f:res.sgPrior.map((sp,k)=>sp>1e-9?1-res.sgPost[k]/sp:0),red:true};
+  return {f:res.xhat,red:false};
+}
+function drawField(){
+  if(!LAST) return;
+  const {f,red}=fieldFor(LAST);
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const w=cv.clientWidth||520, h=cv.clientHeight||470;
+  cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  cx.clearRect(0,0,w,h);
+  // Fit der km-Domäne in den Canvas (Aspekt erhalten)
+  const sc=Math.min(w/WKM,h/HKM);
+  const ox=(w-WKM*sc)/2, oy=(h-HKM*sc)/2;
+  const PX=kx=>ox+kx*sc, PY=ky=>oy+ky*sc;
+  // Heatmap auf Gitter
+  const mx=red?1:Math.max(1e-6,...f);
+  const off=document.createElement('canvas'); off.width=GC; off.height=GR;
+  const octx=off.getContext('2d'); const img=octx.createImageData(GC,GR); const d=img.data;
+  for(let k=0;k<N;k++){
+    const t=red?f[k]:Math.pow(Math.max(0,f[k])/mx,0.75);
+    const col=viridis(t);
+    const al=red?(0.35+0.6*t):Math.min(1,Math.pow(t,0.7)*1.2);
+    const bg=[255,255,255];
+    d[k*4]  =col[0]*al+bg[0]*(1-al);
+    d[k*4+1]=col[1]*al+bg[1]*(1-al);
+    d[k*4+2]=col[2]*al+bg[2]*(1-al);
+    d[k*4+3]=255;
+  }
+  octx.putImageData(img,0,0);
+  cx.imageSmoothingEnabled=true;
+  cx.drawImage(off,PX(0),PY(0),WKM*sc,HKM*sc);
+
+  // Echte Ländergrenzen
+  const LL=(lon,lat)=>[PX(kmX(lon)),PY(kmY(lat))];
+  cx.lineWidth=1.2; cx.strokeStyle='rgba(16,42,63,.35)';
+  for(const C of COUNTRIES) for(const ring of BORDERS[C]){
+    cx.beginPath();
+    ring.forEach((pt,idx)=>{const q=LL(pt[0],pt[1]); idx?cx.lineTo(q[0],q[1]):cx.moveTo(q[0],q[1]);});
+    cx.stroke();
+  }
+
+  // Windpfeil
+  const W=windVecs(state.windDeg);
+  const cxp=PX(0)+34, cyp=PY(0)+30, L=30;
+  cx.strokeStyle='rgba(16,42,63,.85)';cx.fillStyle='rgba(16,42,63,.85)';cx.lineWidth=2;
+  const ex=cxp+W.down[0]*L, ey=cyp+W.down[1]*L;
+  cx.beginPath();cx.moveTo(cxp,cyp);cx.lineTo(ex,ey);cx.stroke();
+  const ang=Math.atan2(W.down[1],W.down[0]);
+  cx.beginPath();cx.moveTo(ex,ey);
+  cx.lineTo(ex-9*Math.cos(ang-0.4),ey-9*Math.sin(ang-0.4));
+  cx.lineTo(ex-9*Math.cos(ang+0.4),ey-9*Math.sin(ang+0.4));
+  cx.closePath();cx.fill();
+  cx.font='11px IBM Plex Mono, monospace';cx.fillText('Wind',cxp-8,cyp-9);
+
+  // Satellitenpixel (dezent, damit das regelmäßige Überflugraster nicht dominiert)
+  if(state.satOn){
+    cx.fillStyle='rgba(123,79,176,.04)';cx.strokeStyle='rgba(123,79,176,.20)';cx.lineWidth=0.75;
+    const pw=0.80*111*KXX*sc, ph=0.78*111*sc;
+    for(const p of SAT){cx.strokeRect(PX(p.x)-pw/2,PY(p.y)-ph/2,pw,ph);}
+  }
+  // Quellen (Rauten, Größe ~ Emission)
+  for(const s of SOURCES){
+    const r=3+s.E/8;
+    cx.save();cx.translate(PX(kmX(s.lon)),PY(kmY(s.lat)));cx.rotate(Math.PI/4);
+    cx.fillStyle='#e8590c';cx.strokeStyle='#ffffff';cx.lineWidth=1.4;
+    cx.fillRect(-r,-r,2*r,2*r);cx.strokeRect(-r,-r,2*r,2*r);cx.restore();
+  }
+  // Stationen
+  for(const st of STATIONS){
+    const px=PX(kmX(st.lon)),py=PY(kmY(st.lat));
+    cx.beginPath();cx.arc(px,py,5,0,7);cx.fillStyle='#ffffff';cx.fill();
+    cx.lineWidth=2;cx.strokeStyle='#0a5aa6';
+    if(!st.real){cx.setLineDash([3,2]);cx.strokeStyle='#5a7286';}
+    cx.stroke();cx.setLineDash([]);
+    cx.fillStyle='rgba(16,42,63,.9)';cx.font='9.5px IBM Plex Mono, monospace';
+    cx.fillText(st.name,px+8,py+3);
+  }
+}
+
+/* ---------- Diagramme (SVG) ---------- */
+const PAD={l:46,r:14,t:20,b:46};
+const CHART_GRID='#e3eaf1', CHART_AXIS='#c4d2df', CHART_TXT='#5a7286', CHART_INK='#102a3f';
+const CCOL={DE:'#e8590c',NL:'#0a5aa6',BE:'#7b4fb0'};
+function countryChart(res){
+  const svg=document.getElementById('countryChart');
+  const w=520,h=280, iw=w-PAD.l-PAD.r, ih=h-PAD.t-PAD.b;
+  const all=res.land.flatMap(l=>[l.truth,l.prior,l.post+l.sig]);
+  const maxV=Math.max(...all)*1.12;
+  const Y=v=>PAD.t+ih-(v/maxV)*ih;
+  const groups=res.land.length, gw=iw/groups;
+  let g=`<line x1="${PAD.l}" y1="${Y(0)}" x2="${w-PAD.r}" y2="${Y(0)}" stroke="#c4d2df"/>`;
+  for(let t=0;t<=4;t++){const v=maxV*t/4;
+    g+=`<line x1="${PAD.l}" y1="${Y(v)}" x2="${w-PAD.r}" y2="${Y(v)}" stroke="#e3eaf1"/>`+
+       `<text x="${PAD.l-8}" y="${Y(v)+4}" fill="#5a7286" font-size="11" font-family="IBM Plex Mono" text-anchor="end">${Math.round(v)}</text>`;}
+  res.land.forEach((l,gi)=>{
+    const x0=PAD.l+gi*gw, bw=gw*0.20, pad=gw*0.07;
+    const xs=[x0+pad, x0+pad+bw+2, x0+pad+2*bw+4];
+    // wahr
+    g+=`<rect x="${xs[0]}" y="${Y(l.truth)}" width="${bw}" height="${Y(0)-Y(l.truth)}" fill="#c2185b" opacity=".85" rx="2"/>`;
+    // prior
+    g+=`<rect x="${xs[1]}" y="${Y(l.prior)}" width="${bw}" height="${Y(0)-Y(l.prior)}" fill="#aab9c7" rx="2"/>`;
+    // posterior
+    g+=`<rect x="${xs[2]}" y="${Y(l.post)}" width="${bw}" height="${Y(0)-Y(l.post)}" fill="${CCOL[l.C]}" rx="2"/>`;
+    const cxb=xs[2]+bw/2, yt=Y(l.post+l.sig), yb=Y(Math.max(0,l.post-l.sig));
+    g+=`<line x1="${cxb}" y1="${yt}" x2="${cxb}" y2="${yb}" stroke="#102a3f" stroke-width="2"/>`+
+       `<line x1="${cxb-4}" y1="${yt}" x2="${cxb+4}" y2="${yt}" stroke="#102a3f" stroke-width="2"/>`+
+       `<line x1="${cxb-4}" y1="${yb}" x2="${cxb+4}" y2="${yb}" stroke="#102a3f" stroke-width="2"/>`;
+    g+=`<text x="${x0+gw/2}" y="${h-PAD.b+18}" fill="#102a3f" font-size="12" font-family="IBM Plex Mono" text-anchor="middle">${l.C}</text>`;
+  });
+  // Legende
+  g+=`<rect x="${PAD.l}" y="2" width="9" height="9" fill="#c2185b"/><text x="${PAD.l+13}" y="10" fill="#5a7286" font-size="10" font-family="IBM Plex Mono">wahr</text>`+
+     `<rect x="${PAD.l+58}" y="2" width="9" height="9" fill="#aab9c7"/><text x="${PAD.l+71}" y="10" fill="#5a7286" font-size="10" font-family="IBM Plex Mono">a-priori</text>`+
+     `<rect x="${PAD.l+130}" y="2" width="9" height="9" fill="#e8590c"/><text x="${PAD.l+143}" y="10" fill="#5a7286" font-size="10" font-family="IBM Plex Mono">a-posteriori ±1σ</text>`;
+  svg.innerHTML=g;
+}
+function scatter(res){
+  const svg=document.getElementById('scatter');
+  const w=520,h=280, iw=w-PAD.l-PAD.r, ih=h-PAD.t-PAD.b;
+  const mx=Math.max(...res.y,...res.ymod)*1.1, mn=Math.min(0,...res.y,...res.ymod);
+  const X=v=>PAD.l+((v-mn)/(mx-mn))*iw, Y=v=>PAD.t+ih-((v-mn)/(mx-mn))*ih;
+  let g='';
+  for(let t=0;t<=4;t++){const v=mn+(mx-mn)*t/4;
+    g+=`<line x1="${X(v)}" y1="${PAD.t}" x2="${X(v)}" y2="${PAD.t+ih}" stroke="#e3eaf1"/>`+
+       `<line x1="${PAD.l}" y1="${Y(v)}" x2="${PAD.l+iw}" y2="${Y(v)}" stroke="#e3eaf1"/>`+
+       `<text x="${X(v)}" y="${h-PAD.b+16}" fill="#5a7286" font-size="10" font-family="IBM Plex Mono" text-anchor="middle">${Math.round(v)}</text>`+
+       `<text x="${PAD.l-8}" y="${Y(v)+4}" fill="#5a7286" font-size="10" font-family="IBM Plex Mono" text-anchor="end">${Math.round(v)}</text>`;}
+  g+=`<line x1="${X(mn)}" y1="${Y(mn)}" x2="${X(mx)}" y2="${Y(mx)}" stroke="#0a5aa6" stroke-dasharray="5 4" opacity=".7"/>`;
+  res.obs.forEach((o,i)=>{
+    const col=o.kind==="T"?'#0a5aa6':'#7b4fb0';
+    g+=`<circle cx="${X(res.y[i])}" cy="${Y(res.ymod[i])}" r="${o.kind==="T"?5:3.4}" fill="${col}" opacity=".85" stroke="#102a3f"/>`;
+  });
+  g+=`<circle cx="${PAD.l+iw-110}" cy="${PAD.t-8}" r="5" fill="#0a5aa6"/><text x="${PAD.l+iw-100}" y="${PAD.t-4}" fill="#5a7286" font-size="10" font-family="IBM Plex Mono">Turm</text>`+
+     `<circle cx="${PAD.l+iw-55}" cy="${PAD.t-8}" r="3.4" fill="#7b4fb0"/><text x="${PAD.l+iw-46}" y="${PAD.t-4}" fill="#5a7286" font-size="10" font-family="IBM Plex Mono">CO2M</text>`;
+  g+=`<text x="${PAD.l+iw/2}" y="${h-6}" fill="#5a7286" font-size="11" font-family="IBM Plex Mono" text-anchor="middle">beobachtet [ppb]</text>`+
+     `<text transform="translate(13,${PAD.t+ih/2}) rotate(-90)" fill="#5a7286" font-size="11" font-family="IBM Plex Mono" text-anchor="middle">modelliert [ppb]</text>`;
+  svg.innerHTML=g;
+}
+
+/* ---------- Kennzahlen ---------- */
+function metrics(res){
+  const rmse=Math.sqrt(res.xhat.reduce((s,v,k)=>s+(v-truth[k])**2,0)/N);
+  let wr=0,ws=0;
+  for(let k=0;k<N;k++){const wt=res.xa[k];if(res.sgPrior[k]>1e-9){wr+=wt*(1-res.sgPost[k]/res.sgPrior[k]);ws+=wt;}}
+  const red=ws>0?wr/ws:0;
+  const chiRaw=res.y.reduce((s,yo,i)=>s+((yo-res.ymod[i])/res.obs[i].sig)**2,0);
+  const chi=chiRaw/Math.max(1,res.M-res.dfs);   // reduzierte χ² (Abzug DFS)
+  document.getElementById('mRmse').textContent=rmse.toFixed(2);
+  document.getElementById('mRed').textContent=(red*100).toFixed(0)+'%';
+  document.getElementById('mChi').textContent=chi.toFixed(2);
+  document.getElementById('mRed').style.color=red>0.5?'#7ee0a4':red>0.28?'#e8590c':'#c2185b';
+}
+
+/* ---------- Orchestrierung ---------- */
+function spLabel(){return state.species==="CH4"?"CH₄":"CO₂";}
+function unit(){return "Mt "+spLabel()+" / Jahr je Zelle";}
+const baseTruthName=()=>RD?"EDGAR-Inventar":"Wahrheit";
+function labelFor(v){
+  if(v==="truth") return baseTruthName()+" · "+unit();
+  if(v==="prior") return "A-priori (Inventar) · "+unit();
+  if(v==="post")  return "A-posteriori · "+unit();
+  return "Unsicherheitsreduktion 1 − σ_post/σ_prior";
+}
+let raf=null;
+function update(){
+  if(raf)cancelAnimationFrame(raf);
+  raf=requestAnimationFrame(()=>{
+    rebuildField();          // Spezies/Jahr/Sektor -> Bezugsfeld + Prior
+    LAST=invert();
+    drawField();
+    document.getElementById('fieldlabel').textContent=labelFor(VIEW);
+    countryChart(LAST); scatter(LAST); metrics(LAST);
+  });
+}
+function setView(v){
+  VIEW=v;
+  document.querySelectorAll('.vbtn').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('fieldlabel').textContent=labelFor(v);
+  const red=v==="red";
+  document.getElementById('legLo').textContent=red?'keine':'niedrig';
+  document.getElementById('legHi').textContent=red?'voll':'hoch';
+  drawField();
+}
+
+/* ---------- UI ---------- */
+function makeSlider(parent,{cls,label,min,max,step,value,unit,fmtFn,onInput}){
+  const wrap=document.createElement('div'); wrap.className='ctl'+(cls?(' '+cls):'');
+  wrap.innerHTML=`<div class="top"><label>${label}</label><span class="val"></span></div>`;
+  const inp=document.createElement('input'); inp.type='range';
+  inp.min=min;inp.max=max;inp.step=step;inp.value=value;
+  wrap.appendChild(inp);
+  const val=wrap.querySelector('.val');
+  const show=()=>val.textContent=(fmtFn?fmtFn(+inp.value):(+inp.value).toFixed(0))+(unit?(' '+unit):'');
+  inp.addEventListener('input',()=>{onInput(+inp.value);show();update();});
+  parent.appendChild(wrap); show();
+  return inp;
+}
+const invBox=document.getElementById('invCtls');
+const pbInput=makeSlider(invBox,{label:'Inventar-Skalierung (Bias)',min:0.6,max:1.4,step:0.02,value:state.priorBias,
+  fmtFn:v=>v.toFixed(2)+'×',onInput:v=>state.priorBias=v});
+const clInput=makeSlider(invBox,{cls:'global',label:'Korrelationslänge B',min:20,max:140,step:5,value:state.corrLen,
+  unit:'km',onInput:v=>state.corrLen=v});
+
+const gBox=document.getElementById('globalCtls');
+const wInput=makeSlider(gBox,{cls:'global',label:'Windrichtung (aus)',min:0,max:360,step:5,value:state.windDeg,
+  fmtFn:v=>v+'°',onInput:v=>state.windDeg=v});
+const wsInput=makeSlider(gBox,{cls:'global',label:'Windgeschwindigkeit',min:0.5,max:2,step:0.05,value:state.windSpd,
+  fmtFn:v=>v.toFixed(2)+'×',onInput:v=>state.windSpd=v});
+const soInput=makeSlider(gBox,{cls:'global',label:'Messunsicherheit σ_obs (Türme)',min:0.5,max:8,step:0.5,value:state.sigObs,
+  unit:'ppb',fmtFn:v=>v.toFixed(1),onInput:v=>state.sigObs=v});
+const spInput=makeSlider(gBox,{cls:'global',label:'A-priori-Unsicherheit',min:0.2,max:1.0,step:0.05,value:state.sigPriorFrac,
+  fmtFn:v=>(v*100).toFixed(0)+'%',onInput:v=>state.sigPriorFrac=v});
+
+/* ---------- Real-Modus: Spezies / Sektor / Jahr + Export ---------- */
+let speciesSel=null, sectorSel=null, yearInput=null;
+if(RD){
+  const host=invBox;
+  const mkRow=(labelTxt)=>{const w=document.createElement('div');w.className='ctl';
+    w.innerHTML=`<div class="top"><label>${labelTxt}</label><span class="val"></span></div>`;host.insertBefore(w,host.firstChild);return w;};
+
+  // Jahr-Slider (nur wirksam bei Sektor = Alle)
+  if(Array.isArray(RD.years)&&RD.years.length>1){
+    const ys=RD.years.slice().sort((a,b)=>a-b);
+    const w=mkRow('Jahr'); const val=w.querySelector('.val');
+    yearInput=document.createElement('input');yearInput.type='range';
+    yearInput.min=ys[0];yearInput.max=ys[ys.length-1];yearInput.step=1;yearInput.value=state.year;
+    w.appendChild(yearInput);
+    const snap=v=>ys.reduce((p,c)=>Math.abs(c-v)<Math.abs(p-v)?c:p,ys[0]);
+    const show=()=>val.textContent=state.year+(state.sector!=="TOTALS"?" (Sektor: Ref.)":"");
+    yearInput.addEventListener('input',()=>{state.year=snap(+yearInput.value);show();update();});
+    show();
+  }
+  // Sektor-Dropdown
+  if(Array.isArray(RD.sectors)&&RD.sectors.length>1){
+    const w=mkRow('Sektor');
+    sectorSel=document.createElement('select');
+    sectorSel.style.cssText='width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:8px;font-family:var(--mono);font-size:12.5px';
+    RD.sectors.forEach(s=>{const o=document.createElement('option');o.value=s.code;o.textContent=s.label;sectorSel.appendChild(o);});
+    sectorSel.value=state.sector;
+    w.appendChild(sectorSel);
+    sectorSel.addEventListener('change',()=>{state.sector=sectorSel.value;update();});
+  }
+  // Spezies-Umschalter
+  if(Array.isArray(RD.species)&&RD.species.length>1){
+    const w=mkRow('Spezies'); const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:6px';
+    RD.species.forEach(sp=>{const b=document.createElement('button');b.className='vbtn';
+      b.textContent=sp==="CH4"?"CH₄":"CO₂";b.dataset.sp=sp;
+      if(sp===state.species)b.classList.add('on');
+      b.addEventListener('click',()=>{state.species=sp;
+        row.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.sp===sp));update();});
+      row.appendChild(b);});
+    w.appendChild(row);
+  }
+}
+
+/* ---------- Export CSV / PNG ---------- */
+function exportCSV(){
+  if(!LAST)return; const r=LAST;
+  let s="lon,lat,country,truth_"+state.species+",prior,posterior,sigma_post\n";
+  cells.forEach((c,k)=>{s+=[c.lon.toFixed(4),c.lat.toFixed(4),c.c,truth[k].toFixed(5),
+    r.xa[k].toFixed(5),r.xhat[k].toFixed(5),r.sgPost[k].toFixed(5)].join(",")+"\n";});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));
+  a.download=`inversion_${state.species}_${state.sector}_${state.year}.csv`;a.click();
+}
+function exportPNG(){
+  const a=document.createElement('a');a.href=cv.toDataURL('image/png');
+  a.download=`feld_${VIEW}_${state.species}_${state.year}.png`;a.click();
+}
+(function(){const aside=invBox.closest('aside');
+  const mk=(t,fn)=>{const b=document.createElement('button');b.className='btn';b.textContent=t;
+    b.style.marginTop='8px';b.addEventListener('click',fn);return b;};
+  aside.appendChild(mk('Ergebnis als CSV',exportCSV));
+  aside.appendChild(mk('Karte als PNG',exportPNG));
+})();
+
+/* ---------- Beobachtungsquelle (Boden vs. Satellit getrennt) + DEM-Bias ---------- */
+(function(){
+  const w=document.createElement('div'); w.className='ctl';
+  w.innerHTML=`<div class="top"><label>Beobachtungen (Inversion)</label><span class="val"></span></div>`;
+  const row=document.createElement('div'); row.style.cssText='display:flex;gap:6px';
+  [['tower','Türme'],['sat','Satellit'],['both','Beide']].forEach(([v,t])=>{
+    const b=document.createElement('button'); b.className='vbtn'; b.textContent=t; b.dataset.src=v;
+    if(v===state.obsSource) b.classList.add('on');
+    b.addEventListener('click',()=>{state.obsSource=v;
+      row.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.src===v));update();});
+    row.appendChild(b);
+  });
+  w.appendChild(row); gBox.appendChild(w);
+})();
+const demInput=makeSlider(gBox,{cls:'global',label:'DEM-Höhenfehler (Satellit-Säule)',min:-30,max:30,step:1,
+  value:state.demErr,unit:'m',fmtFn:v=>(v>0?'+':'')+v,onInput:v=>state.demErr=v});
+
+const satBtn=document.getElementById('satToggle');
+satBtn.addEventListener('click',()=>{
+  state.satOn=!state.satOn;
+  satBtn.textContent='CO2M-Satellit: '+(state.satOn?'AN':'AUS');
+  satBtn.classList.toggle('on',state.satOn);
+  update();
+});
+document.getElementById('viewbar').addEventListener('click',e=>{
+  const b=e.target.closest('.vbtn'); if(b) setView(b.dataset.v);
+});
+document.getElementById('reroll').addEventListener('click',()=>{freshNoise();update();});
+document.getElementById('reset').addEventListener('click',()=>{
+  Object.assign(state,{priorBias:1.0,windDeg:215,windSpd:1.0,sigObs:2.0,sigPriorFrac:0.6,corrLen:60,satOn:true,obsSource:"both",demErr:0});
+  if(typeof demInput!=="undefined"){demInput.value=0;}
+  document.querySelectorAll('[data-src]').forEach(b=>b.classList.toggle('on',b.dataset.src==="both"));
+  if(RD){state.species=(RD.species&&RD.species[0])||"CO2";state.sector="TOTALS";state.year=RD.refYear||2022;}
+  pbInput.value=1.0;clInput.value=60;wInput.value=215;wsInput.value=1.0;soInput.value=2.0;spInput.value=0.6;
+  [pbInput,clInput,wInput,wsInput,soInput,spInput].forEach(inp=>inp.dispatchEvent(new Event('input')));
+  if(sectorSel) sectorSel.value=state.sector;
+  if(yearInput) yearInput.value=state.year;
+  if(speciesSel) {} // Spezies-Buttons:
+  document.querySelectorAll('[data-sp]').forEach(b=>b.classList.toggle('on',b.dataset.sp===state.species));
+  satBtn.textContent='CO2M-Satellit: AN';satBtn.classList.add('on');
+  freshNoise();setView('post');update();
+});
+
+/* ---------- Real-Modus: Hinweis-Badge ---------- */
+if(RD){
+  const ry=(RD.meta&&RD.meta.ref_year)||RD.refYear||"";
+  const hasPrior=RD.priors&&Object.keys(RD.priors).length;
+  const anyObs=RD.obs&&Object.values(RD.obs).some(o=>o&&(o.y_tower||o.sat));
+  const anyK=RD.obs&&Object.values(RD.obs).some(o=>o&&o.K_tower);
+  const parts=[];
+  if(hasPrior) parts.push("EDGAR-Prior");
+  if(anyObs) parts.push("ICOS/Satellit-Obs");
+  if(anyK) parts.push("STILT-Operator");
+  if(hasPrior){const wb=document.querySelector('.vbtn[data-v="truth"]'); if(wb) wb.textContent="EDGAR-Inventar";}
+  const tr=document.querySelector('.tagrow');
+  if(tr && parts.length){
+    const t=document.createElement('span');
+    t.className='tag'; t.style.color='#7ee0a4'; t.style.borderColor='#2c6b4a';
+    t.textContent='● Echte Daten (Ref. '+ry+'): '+parts.join(' · ');
+    tr.prepend(t);
+  }
+}
+
+window.addEventListener('resize',drawField);
+freshNoise();
+setView('post');
+update();
+</script>
+</body>
+</html>
