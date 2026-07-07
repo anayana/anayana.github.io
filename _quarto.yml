@@ -6,6 +6,7 @@ project:
     - BergWaldDynamik.html
     - PSMhydro.html
     - emissionsinversion-demo.html
+    - bfn-gdi-cockpit.html
     - psm_data.js
 
 website:
