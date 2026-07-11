@@ -30,5 +30,5 @@ via zonal statistics into the per-district GEP score. Built as an application de
 [JavaScript]{.badge-skill} [Leaflet]{.badge-skill} [Sentinel-2]{.badge-skill} [OpenStreetMap]{.badge-skill} [Urban Ecology]{.badge-skill}
 
 ::: {.text-muted style="font-size:0.85em;margin-top:2rem;"}
-Header photo: [Magda Ehlers](https://www.pexels.com/@magda-ehlers-pexels/) on [Pexels](https://www.pexels.com/de-de/foto/31929422/)
+Header photo: Bundesgartenschau 2019, Heilbronn (Neckarbogen) — [little_Monk](https://commons.wikimedia.org/wiki/File:Bundesgartenschau_2019_Heilbronn_Panorama_BUGA-Gel%C3%A4nde.jpg), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/), via Wikimedia Commons
 :::
