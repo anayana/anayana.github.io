@@ -1,5 +1,5 @@
 ---
-title: "Geodata & Applications Cockpit (BfN)"
+title: "Geodata & Applications Cockpit"
 description: "Interactive prototype linking requirements management, spatial data infrastructure, federal/state/EU coordination and remote-sensing analysis for nature conservation."
 date: "2026-07-07"
 image: thumbnail.jpg
@@ -27,3 +27,7 @@ mock content.
 ## Stack
 
 [JavaScript]{.badge-skill} [Spatial Data Infrastructure]{.badge-skill} [Nature Conservation]{.badge-skill} [Remote Sensing]{.badge-skill}
+
+::: {.text-muted style="font-size:0.85em;margin-top:2rem;"}
+Header photo: North Sea coastal landscape — [Ra Boe / Wikipedia](https://commons.wikimedia.org/wiki/File:Luftaufnahmen_Nordseekueste_2013-09_by-RaBoe_342.jpg), [CC BY-SA 3.0 DE](https://creativecommons.org/licenses/by-sa/3.0/de/deed.en), via Wikimedia Commons
+:::
