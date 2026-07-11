@@ -28,3 +28,7 @@ via zonal statistics into the per-district GEP score. Built as an application de
 ## Stack
 
 [JavaScript]{.badge-skill} [Leaflet]{.badge-skill} [Sentinel-2]{.badge-skill} [OpenStreetMap]{.badge-skill} [Urban Ecology]{.badge-skill}
+
+::: {.text-muted style="font-size:0.85em;margin-top:2rem;"}
+Header photo: [Magda Ehlers](https://www.pexels.com/@magda-ehlers-pexels/) on [Pexels](https://www.pexels.com/de-de/foto/31929422/)
+:::

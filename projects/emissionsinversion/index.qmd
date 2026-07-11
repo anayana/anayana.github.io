@@ -30,3 +30,7 @@ scalable estimate — the inversion doesn't get to see the "truth". Switchable b
 ## Stack
 
 [R]{.badge-skill} [JavaScript]{.badge-skill} [Inverse Modelling]{.badge-skill} [ICOS]{.badge-skill} [Atmospheric Transport]{.badge-skill}
+
+::: {.text-muted style="font-size:0.85em;margin-top:2rem;"}
+Header photo: [Sergey Nesterov](https://www.pexels.com/@84332939/) on [Pexels](https://www.pexels.com/de-de/foto/dunkel-nebel-rauch-verschmutzung-8884963/)
+:::

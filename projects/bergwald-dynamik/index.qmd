@@ -26,3 +26,7 @@ and the drivers behind it — explorable rather than tabular.
 ## Stack
 
 [JavaScript]{.badge-skill} [Leaflet]{.badge-skill} [Forest Monitoring]{.badge-skill} [Geospatial]{.badge-skill}
+
+::: {.text-muted style="font-size:0.85em;margin-top:2rem;"}
+Header photo: [Ales Krivec](https://unsplash.com/@aleskrivec) on [Unsplash](https://unsplash.com/photos/CgGu2C3RjDc)
+:::

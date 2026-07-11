@@ -1,0 +1,49 @@
+---
+title: "GEP Simulator — Ecosystem Services & Vertical Structure"
+description: "Interactive Shiny app that builds a Gross Ecosystem Product index from remote-sensing and LiDAR layers, rewarding structural quality over sheer area."
+date: "2026-07-11"
+image: thumbnail.jpg
+categories: [App, Shiny, Remote Sensing, LiDAR, Urban Ecology]
+---
+
+## About
+
+The **GEP Simulator** turns satellite and LiDAR layers into an interactive **Gross Ecosystem
+Product (GEP)** index for ecosystem services. Its guiding idea is *structural quality instead
+of area maximisation*: structure- and condition indicators are weighted, so a species-rich,
+well-connected patch scores higher than an equally large but structurally poor one — and a
+naïve reduction of nature to a single tradable monetary value is deliberately avoided.
+
+Each supply-side ecosystem service (cooling from land-surface temperature, carbon and biomass
+from NDVI, stormwater retention from sealing, plus air-quality, noise mitigation, landscape
+aesthetics and production services) is combined with a **Vertical Structure Index (VSI)**
+derived from LiDAR (canopy height, rugosity, cover, foliage-height diversity). An interactive
+slider sets how strongly structure boosts or penalises the score:
+
+```
+GEP = clamp( Σ (weightᵢ · ESSᵢ) · (1 + w·(VSI − 0.5)·2),  0, 1 )
+```
+
+Built as the **P1 (supply-side)** application demo for the **GEP@HHN** project (Hochschule
+Heilbronn); spatial context (rarity, connectivity, demand → P2) and monetisation (P3) are
+intentionally not yet folded in. The demo region is **Utrecht / Wilhelminapark (NL)**, where
+open AHN LiDAR point clouds are freely available; Sentinel-2, Landsat and WorldCover round out
+the free, globally reproducible data basis.
+
+## Live Demo
+
+```{=html}
+<iframe src="https://anayananayana.shinyapps.io/gep_simulator/"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](https://anayananayana.shinyapps.io/gep_simulator/){.btn .btn-primary}
+
+## Stack
+
+[R]{.badge-skill} [Shiny]{.badge-skill} [terra]{.badge-skill} [lidR]{.badge-skill} [leaflet]{.badge-skill} [Sentinel-2]{.badge-skill} [AHN LiDAR]{.badge-skill}
+
+::: {.text-muted style="font-size:0.85em;margin-top:2rem;"}
+Header photo: [Tom Fisk](https://www.pexels.com/@tomfisk/) on [Pexels](https://www.pexels.com/de-de/foto/landschaftsfotografie-von-grunen-inseln-2283496/)
+:::

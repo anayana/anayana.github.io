@@ -27,7 +27,19 @@
       "Skill(update-config:*)",
       "Bash(python -c \"import json;json.load\\(open\\('.claude/settings.local.json'\\)\\);print\\('JSON valid'\\)\")",
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('.claude/settings.local.json'\\)\\);console.log\\('JSON valid'\\)\")",
-      "Bash(git credential *)"
+      "Bash(git credential *)",
+      "Bash(cp \"C:\\\\Users\\\\Admin\\\\R\\\\PSMhydro\\\\psm-fruehwarnsystem-demo.html\" \"C:\\\\Users\\\\Admin\\\\R\\\\PersPage\\\\PSMhydro.html\")",
+      "Bash(find . -iname \"*.log\" -newer README.md)",
+      "Bash(ls -la deploy_app/R deploy_app/data)",
+      "Bash(where Rscript)",
+      "Bash(R --version)",
+      "Bash(\"/c/Program Files/R/R-4.6.0/bin/x64/Rscript.exe\" -e 'cat\\(R.version.string, \"\\\\n\"\\); if \\(requireNamespace\\(\"terra\", quietly=TRUE\\)\\) cat\\(\"terra version:\", as.character\\(packageVersion\\(\"terra\"\\)\\), \"\\\\n\"\\) else cat\\(\"terra NOT installed\\\\n\"\\); if \\(requireNamespace\\(\"rsconnect\", quietly=TRUE\\)\\) cat\\(\"rsconnect version:\", as.character\\(packageVersion\\(\"rsconnect\"\\)\\), \"\\\\n\"\\) else cat\\(\"rsconnect NOT installed\\\\n\"\\)')",
+      "Bash(\"/c/Program Files/R/R-4.6.0/bin/x64/Rscript.exe\" -e 'library\\(rsconnect\\); print\\(accounts\\(\\)\\)')",
+      "Bash('/c/Program Files/R/R-4.6.0/bin/x64/Rscript.exe' -e ' *)",
+      "Bash(tasklist //FI \"IMAGENAME eq Rscript.exe\" //FI \"IMAGENAME eq R.exe\")",
+      "Bash(tasklist)",
+      "Bash(mkdir -p \"/c/Users/Admin/R/deploy_libs\")",
+      "Bash(cp \"/c/Users/Admin/R/NtrSchtz_UIS/bfn-gdi-cockpit.html\" \"/c/Users/Admin/R/PersPage/bfn-gdi-cockpit.html\" && ls -la /c/Users/Admin/R/PersPage/bfn-gdi-cockpit.html)"
     ],
     "defaultMode": "bypassPermissions"
   }

@@ -28,3 +28,7 @@ methodology stays legible instead of being a black box.
 ## Stack
 
 [JavaScript]{.badge-skill} [Leaflet]{.badge-skill} [Groundwater]{.badge-skill} [Vulnerability Index]{.badge-skill}
+
+::: {.text-muted style="font-size:0.85em;margin-top:2rem;"}
+Header photo: [sayari bechir](https://www.pexels.com/@bechir/) on [Pexels](https://www.pexels.com/de-de/foto/luftaufnahme-landwirtschaftlicher-felder-in-beja-tunesien-30675443/)
+:::

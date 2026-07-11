@@ -1,0 +1,37 @@
+---
+title: "360Pano3D — Forest 3D Suite"
+description: "Self-hosting platform that turns fisheye photos and TLS point clouds into an explorable 360°/3D viewer with automatically derived forest-inventory markers."
+date: "2026-07-11"
+image: thumbnail.svg
+categories: [Web App, Three.js, Point Cloud, Forest Inventory]
+---
+
+## About
+
+**360Pano3D** is an open-source, self-hostable workflow that turns raw scan data into a
+walkable 3D forest twin in the browser. Six fisheye photos are stitched into an
+equirectangular panorama (Hugin) and served through a Pannellum viewer; terrestrial laser
+scans (E57) are converted into RGB point clouds and streamed as Potree octrees. A processing
+step derives individual-tree inventory markers (position, height, DBH proxy) directly from
+the point cloud and overlays them on both the panorama and the 3D view, so photographic and
+structural data stay linked to the same scan positions.
+
+The demo below is a static export of the gallery: a Renon TLS scene (Italian Alps, evergreen
+spruce stand) with 87 automatically derived tree markers and a full point cloud, plus a
+fisheye panorama scene from Hechingen. Upload and processing of new scenes run on the
+self-hosted stack (Caddy + Garage object storage + FastAPI), which isn't part of this static
+demo.
+
+## Live Demo
+
+```{=html}
+<iframe src="https://anayana.github.io/For3Dsuite/"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](https://anayana.github.io/For3Dsuite/){.btn .btn-primary}
+
+## Stack
+
+[Three.js]{.badge-skill} [Potree]{.badge-skill} [Pannellum]{.badge-skill} [Hugin]{.badge-skill} [Python]{.badge-skill} [Point Cloud]{.badge-skill} [Forest Inventory]{.badge-skill}
