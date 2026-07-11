@@ -1,0 +1,28 @@
+---
+title: "GreenEquity HN"
+description: "Urban ecology and GIS dashboard for Heilbronn: green space, water, NDVI and soil sealing from OpenStreetMap and Sentinel-2."
+date: "2026-06-24"
+image: thumbnail.svg
+categories: [Web App, Leaflet, Urban Ecology, Remote Sensing]
+---
+
+## About
+
+**GreenEquity HN** maps urban ecology and green equity across Heilbronn's districts.
+District boundaries, green space and water come from OpenStreetMap; NDVI and soil sealing
+are derived from Sentinel-2 (Copernicus). Built as an application demo for the **GEP@HHN**
+project (Hochschule Heilbronn, ref. 314-IB) on GIS and urban ecology.
+
+## Live Demo
+
+```{=html}
+<iframe src="/GreenEquity_HN.html"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](/GreenEquity_HN.html){.btn .btn-primary}
+
+## Stack
+
+[JavaScript]{.badge-skill} [Leaflet]{.badge-skill} [Sentinel-2]{.badge-skill} [OpenStreetMap]{.badge-skill} [Urban Ecology]{.badge-skill}

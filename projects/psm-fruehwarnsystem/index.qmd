@@ -1,0 +1,30 @@
+---
+title: "PSM Early-Warning System (Groundwater)"
+description: "Interactive prototype for a nationwide early-warning system for pesticides in groundwater, with a transparent, adjustable vulnerability index."
+date: "2026-06-29"
+image: thumbnail.svg
+categories: [Web App, Groundwater, Environmental Monitoring]
+---
+
+## About
+
+A lean, interactive prototype of a nationwide early-warning system for pesticides (PSM) in
+groundwater. The throughline is the analytical chain **site → vulnerability →
+prioritisation → monitoring recommendation**, with the emphasis on a transparent,
+traceable assessment methodology rather than a polished surface effect. Index weights are
+openly adjustable — map, site profile, ranking and scenarios respond live, so the
+methodology stays legible instead of being a black box.
+
+## Live Demo
+
+```{=html}
+<iframe src="/PSMhydro.html"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](/PSMhydro.html){.btn .btn-primary}
+
+## Stack
+
+[JavaScript]{.badge-skill} [Leaflet]{.badge-skill} [Groundwater]{.badge-skill} [Vulnerability Index]{.badge-skill}

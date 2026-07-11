@@ -1,0 +1,16 @@
+<svg viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#12331f"/>
+      <stop offset="100%" stop-color="#1d9e75"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1050" cy="120" r="220" fill="#faf7f2" opacity="0.05"/>
+  <circle cx="120" cy="560" r="160" fill="#faf7f2" opacity="0.05"/>
+  <rect x="60" y="60" width="64" height="6" fill="#c97a4a"/>
+  <text x="60" y="261" font-family="Georgia, 'Lora', serif" font-size="44" font-weight="600" fill="#faf7f2">Geodata &amp;</text>
+<text x="60" y="315" font-family="Georgia, 'Lora', serif" font-size="44" font-weight="600" fill="#faf7f2">Applications</text>
+<text x="60" y="369" font-family="Georgia, 'Lora', serif" font-size="44" font-weight="600" fill="#faf7f2">Cockpit</text>
+  <text x="60" y="580" font-family="Inter, sans-serif" font-size="24" fill="#c97a4a">BfN</text>
+</svg>

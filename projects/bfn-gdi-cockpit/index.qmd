@@ -1,0 +1,29 @@
+---
+title: "Geodata & Applications Cockpit (BfN)"
+description: "Interactive prototype linking requirements management, spatial data infrastructure, federal/state/EU coordination and remote-sensing analysis for nature conservation."
+date: "2026-07-07"
+image: thumbnail.svg
+categories: [Web App, SDI, Nature Conservation, Remote Sensing]
+---
+
+## About
+
+An interactive prototype built for a *Referent/in (Geo)Informatik* application at the
+**Bundesamt für Naturschutz (BfN)**. It ties together requirements management, spatial data
+infrastructure, federal/state/EU coordination, and remote-sensing analysis in a single
+cockpit — throughout using real open data drawn from the author's own projects rather than
+mock content.
+
+## Live Demo
+
+```{=html}
+<iframe src="/bfn-gdi-cockpit.html"
+        width="100%" height="650" style="border:1px solid #ddd;border-radius:8px;">
+</iframe>
+```
+
+[Open app in new tab](/bfn-gdi-cockpit.html){.btn .btn-primary}
+
+## Stack
+
+[JavaScript]{.badge-skill} [Spatial Data Infrastructure]{.badge-skill} [Nature Conservation]{.badge-skill} [Remote Sensing]{.badge-skill}
