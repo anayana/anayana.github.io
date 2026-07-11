@@ -2,7 +2,7 @@
 title: "Emission Inversion — DE–NL–BE"
 description: "Gridded twin-experiment inverse model of greenhouse-gas emissions across the Germany–Netherlands–Belgium border region."
 date: "2026-06-29"
-image: thumbnail.svg
+image: thumbnail.jpg
 categories: [Web App, Atmospheric Modeling, GHG]
 ---
 

@@ -2,7 +2,7 @@
 title: "PSM Early-Warning System (Groundwater)"
 description: "Interactive prototype for a nationwide early-warning system for pesticides in groundwater, with a transparent, adjustable vulnerability index."
 date: "2026-06-29"
-image: thumbnail.svg
+image: thumbnail.jpg
 categories: [Web App, Groundwater, Environmental Monitoring]
 ---
 

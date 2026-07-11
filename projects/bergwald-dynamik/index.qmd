@@ -2,7 +2,7 @@
 title: "Mountain Forest Dynamics — Berchtesgaden"
 description: "Interactive prototype exploring the structural dynamics of mountain forests in Berchtesgaden National Park."
 date: "2026-06-25"
-image: thumbnail.svg
+image: thumbnail.jpg
 categories: [Web App, Leaflet, Forest Monitoring]
 ---
 
