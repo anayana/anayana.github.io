@@ -7,6 +7,7 @@
 !PSMhydro.html
 !emissionsinversion-demo.html
 !bfn-gdi-cockpit.html
+!KieferMistel.html
 .DS_Store
 
 **/*.quarto_ipynb

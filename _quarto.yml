@@ -8,6 +8,7 @@ project:
     - emissionsinversion-demo.html
     - bfn-gdi-cockpit.html
     - psm_data.js
+    - KieferMistel.html
 
 website:
   title: "A. Naya"
