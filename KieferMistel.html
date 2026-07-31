@@ -306,49 +306,18 @@ Multispektral-Orthomosaik in Zentimeterauflösung, Kronenpolygone <em>und</em>
 binäre Feldansprache — bei praktisch identischem Sensor und Maßstab.</p>
 
 <h3>Zur Bezugsgröße der Kronenauswertung</h3>
-<p>63 der 131 ausgewerteten Kronen wurden als positiv klassifiziert (48,1 %). Die
-Geopackage-Datei enthält alle 556 Kronen aus vier Flugflächen, das ausgewertete
-Orthomosaik deckt nur eine davon ab; die übrigen 425 Kronen liegen außerhalb der
-Rasterausdehnung und gehen nicht in den Nenner ein.</p>
+<p>Die 131 ausgewerteten Kronen sind nicht alle Bäume der Fläche, sondern die im
+Feld angesprochenen. Die Geopackage-Datei enthält 556 Kronen aus vier Flugflächen;
+das Orthomosaik deckt mit Männikkötie genau eine davon ab, die übrigen 425 liegen
+außerhalb der Rasterausdehnung.</p>
 
-<h2>Reproduzieren</h2>
-
-<pre><span class="c"># Daten holen (1,8 GB, kein Konto nötig, MD5-geprüft)</span>
-source("download_daten.R")
-zenodo_download("minimal")
-
-<span class="c"># Orthomosaik + Feldreferenz in Pipeline-Eingaben überführen</span>
-source("uav_referenzdaten.R")
-prepare_reference()
-
-<span class="c"># Trainieren, Karte rechnen, auf Einzelbäume aggregieren</span>
-source("mistel_pipeline.R")
-CFG$crowns &lt;- "FieldReferenceSpruceTreeHealth.gpkg"
-run_pipeline(CFG)</pre>
-
-<h3>Fallstricke, die im Code abgefangen sind</h3>
-<ul>
-  <li><strong>Bandreihenfolge.</strong> RedEdge-M liefert <code>B G R NIR RE</code>,
-      Altum dagegen <code>B G R RE NIR</code>. Vertauscht man beide, laufen alle
-      Indizes fehlerfrei durch und sind still falsch. Die Zuordnung wird deshalb
-      physikalisch geprüft: NIR muss über Vegetation das hellste Band sein.</li>
-  <li><strong>Inf in Quotienten-Indizes.</strong> <code>CIG</code> und
-      <code>CVI</code> dividieren durch Grün; in Nodata-Rändern ist Grün exakt 0.
-      <code>na.rm</code> entfernt NA, aber nicht Inf — randomForest bricht dann
-      ohne verwertbare Meldung ab.</li>
-  <li><strong>Optimistische Gütezahlen.</strong> Ohne kronenweise Gruppierung
-      teilen sich Trainings- und Testfold Pixel desselben Baums.</li>
-  <li><strong>Stille Fehlextraktion.</strong> Abweichende Koordinatensysteme
-      zwischen Kronen und Raster liefern kommentarlos NA statt eines Fehlers.</li>
-</ul>
-
-<h2>Nächster Schritt</h2>
-<p>Die Kette ist an echten Daten mit echter Feldreferenz belegt. Was fehlt, sind
-Mistel-Labels — ein offen verfügbarer, gelabelter UAV-Mistel-Datensatz existiert
-nach derzeitiger Recherche nicht; die einschlägigen Studien veröffentlichen ihre
-Annotationen nicht. Diese Labels entstehen aus eigenen Messkampagnen. Parallel
-liegt ein getrenntes Sentinel-2-Modul vor, das Vitalitätstrends auf Bestandsebene
-auswertet und damit die Skalierung vom Einzelbaum zur Landschaft adressiert.</p>
+<p>Innerhalb dieser Stichprobe weist die <em>Feldreferenz</em> 66 der 131 Kronen als
+geschädigt aus — 50,4 %, davon 64 stehend abgestorben (Verfärbungsgrad 5 bei
+fehlender Nadelverlustansprache). Der Datensatz wurde zur Untersuchung
+borkenkäferbedingten Absterbens erhoben; die Ansprache konzentriert sich
+entsprechend auf betroffene Bestandesteile und ist keine Zufallsstichprobe des
+Bestands. Dass das Modell 63 Kronen über die Schwelle 0,5 hebt, ist deshalb keine
+Übererkennung, sondern die Reproduktion einer im Feld belegten Rate.</p>
 
 <footer>
   Datensatz: Junttila et al., <em>Data for estimating spruce tree health using
