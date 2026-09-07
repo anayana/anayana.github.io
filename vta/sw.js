@@ -1,7 +1,7 @@
 /* Service worker: keep the whole app available offline.
    Navigation requests are network-first so fixes reach the field as soon as there
    is a connection; assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'vta-v3';
+const CACHE = 'vta-v4';
 const ASSETS = [
   './',
   'index.html',
@@ -15,7 +15,14 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache:'reload' bypasses the browser HTTP cache. GitHub Pages serves assets
+  // with max-age=600, so without it a fresh worker can pre-cache stale files
+  // and pin an old build for the next ten minutes.
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -34,7 +41,7 @@ self.addEventListener('fetch', e => {
 
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      fetch(new Request(req.url, { cache: 'no-cache' }))   // revalidate, never serve a stale page
         .then(r => { caches.open(CACHE).then(c => c.put(req, r.clone())); return r; })
         .catch(() => caches.match(req).then(r => r || caches.match('index.html')))
     );
