@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -569,6 +569,153 @@ function fieldRow(k, lab, typ, opt, p) {
   return r;
 }
 
+/* ------------------ position editor (stem base) ------------------
+   The shipped coordinates are crown centres digitised from aerial imagery, so
+   every stem needs correcting once. Three ways in, all writing straight to the
+   catalogue: type the coordinate, average a series of GPS fixes while standing
+   at the stem, or nudge the point in metres. */
+function setCoords(i, lon, lat, source, acc) {
+  const f = CAT.features[i];
+  if (!f.properties.orig_coordinates) f.properties.orig_coordinates = f.geometry.coordinates.slice();
+  f.geometry.coordinates = [+(+lon).toFixed(7), +(+lat).toFixed(7)];
+  if (source) f.properties.geometry_source = source;
+  if (acc != null) {
+    f.properties.position_accuracy_m = Math.round(acc * 10) / 10;
+    // a stale accuracy in the field record would shadow the new one
+    if (edits[tid(i)] && 'position_accuracy_m' in edits[tid(i)]) {
+      delete edits[tid(i)].position_accuracy_m; saveEdits();
+    }
+  }
+  saveCat(); placeMarkers(); renderList(); syncGeo(i);
+}
+function syncGeo(i) {
+  if (!panelEl || openIdx !== i) return;
+  const f = CAT.features[i], c = f.geometry.coordinates;
+  const lonI = panelEl.querySelector('[data-geo="lon"]'), latI = panelEl.querySelector('[data-geo="lat"]');
+  if (lonI && document.activeElement !== lonI) lonI.value = c[0];
+  if (latI && document.activeElement !== latI) latI.value = c[1];
+  const info = panelEl.querySelector('#geoInfo');
+  if (!info) return;
+  const o = f.properties.orig_coordinates;
+  const moved = o ? distBear(c[1], c[0], o[1], o[0]).d : 0;
+  info.innerHTML =
+    '<div class="kv"><span>Source</span><span>' + (f.properties.geometry_source || '–') + '</span></div>' +
+    '<div class="kv"><span>Accuracy</span><span>±' + (f.properties.position_accuracy_m == null ? '?' : f.properties.position_accuracy_m) + ' m</span></div>' +
+    (o ? '<div class="kv"><span>Moved from catalogue</span><span>' + moved.toFixed(2) + ' m</span></div>' : '');
+}
+function gpsAverage(i, btn) {
+  if (!navigator.geolocation) return toast('No geolocation on this device.');
+  const samples = [];
+  const label = btn.textContent;
+  btn.disabled = true;
+  const id = navigator.geolocation.watchPosition(p => {
+    samples.push({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy });
+    btn.textContent = 'averaging … ' + samples.length + ' fixes';
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 25000 });
+  setTimeout(() => {
+    navigator.geolocation.clearWatch(id);
+    btn.disabled = false; btn.textContent = label;
+    if (!samples.length) return toast('No GPS fix while averaging.');
+    let sw = 0, la = 0, lo = 0, am = 0;
+    samples.forEach(s => {                       // weighted by 1/acc^2
+      const w = 1 / Math.max(1, s.acc * s.acc);
+      sw += w; la += s.lat * w; lo += s.lon * w; am += s.acc;
+    });
+    // GNSS errors are correlated between fixes, so the reported accuracy is the
+    // mean of the fixes - averaging does not divide it by sqrt(n).
+    setCoords(i, lo / sw, la / sw, 'GPS averaged, ' + samples.length + ' fixes', am / samples.length);
+    toast('Position set from ' + samples.length + ' fixes (±' + (am / samples.length).toFixed(0) + ' m).');
+  }, 10000);
+}
+function geoEditor(i) {
+  const wrap = document.createElement('div');
+  const f = CAT.features[i], c = f.geometry.coordinates;
+  const h = document.createElement('h3'); h.textContent = 'Position (stem base)';
+  wrap.appendChild(h);
+
+  [['lon', 'Longitude (WGS84)', c[0]], ['lat', 'Latitude (WGS84)', c[1]]].forEach(g => {
+    const r = document.createElement('div'); r.className = 'row';
+    const l = document.createElement('label'); l.textContent = g[1];
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.step = '0.0000001'; inp.value = g[2];
+    inp.setAttribute('inputmode', 'decimal'); inp.dataset.geo = g[0];
+    inp.onchange = () => {
+      const lon = parseFloat(wrap.querySelector('[data-geo="lon"]').value);
+      const lat = parseFloat(wrap.querySelector('[data-geo="lat"]').value);
+      if (!isFinite(lon) || !isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        toast('Coordinate out of range.'); syncGeo(i); return;
+      }
+      setCoords(i, lon, lat, 'entered by hand');
+      toast('Coordinate applied.');
+    };
+    r.appendChild(l); r.appendChild(inp); wrap.appendChild(r);
+  });
+
+  const info = document.createElement('div'); info.id = 'geoInfo'; info.style.margin = '8px 0';
+  wrap.appendChild(info);
+
+  const row1 = document.createElement('div'); row1.className = 'btnrow';
+  const bnow = document.createElement('button'); bnow.className = 'sm'; bnow.textContent = 'GPS now';
+  bnow.onclick = () => {
+    if (!lastFix) return toast('No GPS fix.');
+    setCoords(i, lastFix.lon, lastFix.lat, 'single GPS fix', lastFix.acc);
+    toast('Position set (±' + lastFix.acc.toFixed(0) + ' m).');
+  };
+  const bavg = document.createElement('button'); bavg.className = 'sm p'; bavg.textContent = 'GPS average (10 s)';
+  bavg.onclick = () => gpsAverage(i, bavg);
+  row1.appendChild(bnow); row1.appendChild(bavg);
+  wrap.appendChild(row1);
+
+  const hint = document.createElement('p'); hint.className = 'small';
+  hint.textContent = 'Stand at the stem, hold the phone still, then average. Nudging moves the point in metres – ' +
+    'north/south/east/west, independent of where you are facing.';
+  wrap.appendChild(hint);
+
+  let step = 0.5;
+  const pad = document.createElement('div'); pad.className = 'pad';
+  const mk = (txt, de, dn) => {
+    const b = document.createElement('button'); b.className = 'sm'; b.textContent = txt;
+    if (de === 0 && dn === 0) { b.className = 'sm mid'; }
+    b.onclick = () => {
+      const cc = CAT.features[i].geometry.coordinates;
+      const dLat = (dn * step) / R1LAT;
+      const dLon = (de * step) / (R1LON * Math.cos(cc[1] * Math.PI / 180));
+      setCoords(i, cc[0] + dLon, cc[1] + dLat, 'adjusted in the field');
+    };
+    return b;
+  };
+  const spacer = () => { const d = document.createElement('span'); return d; };
+  const stepSel = document.createElement('select');
+  [0.1, 0.25, 0.5, 1, 2, 5].forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s + ' m'; stepSel.appendChild(o);
+  });
+  stepSel.value = '0.5';
+  stepSel.style.cssText = 'width:100%;background:#131b17;border:1px solid #2f4137;color:#e8ece9;border-radius:8px;padding:7px 4px;text-align:center';
+  stepSel.onchange = () => { step = parseFloat(stepSel.value); };
+  pad.appendChild(spacer()); pad.appendChild(mk('N ↑', 0, 1)); pad.appendChild(spacer());
+  pad.appendChild(mk('← W', -1, 0)); pad.appendChild(stepSel); pad.appendChild(mk('E →', 1, 0));
+  pad.appendChild(spacer()); pad.appendChild(mk('S ↓', 0, -1)); pad.appendChild(spacer());
+  wrap.appendChild(pad);
+
+  const row2 = document.createElement('div'); row2.className = 'btnrow';
+  const bres = document.createElement('button'); bres.className = 'sm'; bres.textContent = 'Restore catalogue position';
+  bres.onclick = () => {
+    const o = CAT.features[i].properties.orig_coordinates;
+    if (!o) return toast('Position was never changed.');
+    CAT.features[i].geometry.coordinates = o.slice();
+    delete CAT.features[i].properties.orig_coordinates;
+    CAT.features[i].properties.geometry_source = (TREES_DEFAULT.features.some(x => x.properties.tree_id === tid(i)))
+      ? 'OpenStreetMap node' : 'catalogue';
+    saveCat(); placeMarkers(); renderList(); syncGeo(i);
+    toast('Catalogue position restored.');
+  };
+  row2.appendChild(bres);
+  wrap.appendChild(row2);
+
+  setTimeout(() => syncGeo(i), 0);
+  return wrap;
+}
+
 function openPanel(i) {
   openIdx = i; panelTab = 'vta';
   const p = props(i);
@@ -631,25 +778,7 @@ function openPanel(i) {
 
   /* --- base data --- */
   F_BASE.forEach(f => secs.base.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
-  const geo = document.createElement('div');
-  const c = CAT.features[i].geometry.coordinates;
-  geo.innerHTML = '<h3>Geometry</h3>' +
-    '<div class="kv"><span>Longitude / latitude</span><span>' + c[0].toFixed(7) + ' / ' + c[1].toFixed(7) + '</span></div>' +
-    '<div class="kv"><span>Source</span><span>' + (p.geometry_source || '–') + '</span></div>';
-  const bmove = document.createElement('button');
-  bmove.className = 'sm'; bmove.style.marginTop = '8px';
-  bmove.textContent = 'Set position from current GPS';
-  bmove.onclick = () => {
-    if (!lastFix) return toast('No GPS fix.');
-    CAT.features[i].geometry.coordinates = [lastFix.lon, lastFix.lat];
-    CAT.features[i].properties.position_accuracy_m = Math.round(lastFix.acc * 10) / 10;
-    CAT.features[i].properties.geometry_source = 'GPS in the field';
-    saveCat(); placeMarkers(); renderList();
-    toast('Position updated (±' + lastFix.acc.toFixed(0) + ' m).');
-    openPanel(i);
-  };
-  geo.appendChild(bmove);
-  secs.base.appendChild(geo);
+  secs.base.appendChild(geoEditor(i));
 
   /* --- history --- */
   const hs = secs.hist;
