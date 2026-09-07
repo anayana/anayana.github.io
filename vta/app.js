@@ -1,0 +1,1037 @@
+/* =====================================================================
+   VTA Field - visual tree assessment with AR
+   No build step. three.js r128 (served locally), WebXR immersive-ar with a
+   camera + compass fallback. All data stays on the device.
+   ===================================================================== */
+'use strict';
+const APP_VERSION = '1.0.0';
+const $ = id => document.getElementById(id);
+
+/* ============================ SCHEMA ============================ */
+
+const SYMPTOMS = [
+  ['Trunk / root collar', [
+    ['t_longcrack', 'Longitudinal crack'],
+    ['t_transcrack', 'Transverse crack (breakage risk)'],
+    ['t_rib', 'Rib or bulge (reaction wood)'],
+    ['t_swelling', 'Swelling, deformation'],
+    ['t_cavity', 'Cavity or open decay'],
+    ['t_bark', 'Bark or cambium damage'],
+    ['t_lightning', 'Lightning scar'],
+    ['t_bleeding', 'Resin or slime flux'],
+    ['t_fork', 'Fork with included bark'],
+    ['t_fungi', 'Fruiting bodies of wood-decay fungi'],
+    ['t_lean', 'Lean or change of inclination']
+  ]],
+  ['Root zone / rooting space', [
+    ['r_damage', 'Root damage, excavation, trenching'],
+    ['r_heave', 'Soil heave, tension cracks in the soil'],
+    ['r_flare', 'Root flare missing or one-sided'],
+    ['r_compaction', 'Soil compaction or sealing'],
+    ['r_fungi', 'Fruiting bodies in the root zone']
+  ]],
+  ['Crown', [
+    ['c_deadwood', 'Deadwood > 3 cm'],
+    ['c_hanger', 'Hangers, loose branches'],
+    ['c_breakage', 'Branch failures, breakage points'],
+    ['c_dieback', 'Crown dieback'],
+    ['c_watershoots', 'Water shoots, crown restructuring'],
+    ['c_topping', 'Topping cuts, decay at pruning wounds']
+  ]]
+];
+const SYM_LABEL = {};
+SYMPTOMS.forEach(g => g[1].forEach(s => { SYM_LABEL[s[0]] = s[1]; }));
+
+const SAFE = ['adequate', 'restricted', 'not given'];
+const F_VTA = [
+  ['inspection_type', 'Inspection type', 'select', ['Routine inspection', 'Visual inspection', 'Detailed assessment', 'Post-storm inspection']],
+  ['last_inspection', 'Inspection date', 'date'],
+  ['inspector', 'Inspector', 'text'],
+  ['vitality_roloff', 'Vitality (Roloff 0–3)', 'select', [0, 1, 2, 3]],
+  ['crown_dieback_pct', 'Crown dieback (%)', 'number'],
+  ['damage_class', 'Damage class', 'select', ['none', 'slight', 'moderate', 'severe']],
+  ['cavity', 'Cavity / decay pocket', 'select', ['no', 'yes']],
+  ['wall_t_cm', 'Residual wall t (cm)', 'number'],
+  ['radius_r_cm', 'Stem radius R (cm)', 'number'],
+  ['stability', 'Stability (uprooting)', 'select', SAFE],
+  ['breakage_resistance', 'Breakage resistance', 'select', SAFE],
+  ['traffic_safety', 'Traffic safety', 'select', SAFE],
+  ['urgency', 'Urgency', 'select', ['none', 'next growing season', '3 months', '1 month', 'immediate']],
+  ['actions', 'Actions', 'list'],
+  ['interval_months', 'Interval (months)', 'number'],
+  ['next_inspection', 'Next inspection', 'date'],
+  ['remarks', 'Remarks', 'area']
+];
+const F_BASE = [
+  ['tree_id', 'Tree ID', 'text'],
+  ['species', 'Species (scientific)', 'text'],
+  ['name_en', 'Common name', 'text'],
+  ['name_fi', 'Name (Finnish)', 'text'],
+  ['planted', 'Year planted', 'number'],
+  ['girth_cm', 'Girth at 1.0 m (cm)', 'number'],
+  ['dbh_cm', 'DBH at 1.3 m (cm)', 'number'],
+  ['height_m', 'Height (m)', 'number'],
+  ['crown_d_m', 'Crown diameter (m)', 'number'],
+  ['crown_base_m', 'Crown base (m)', 'number'],
+  ['tree_pit_m2', 'Tree pit (m²)', 'number'],
+  ['location', 'Location', 'text'],
+  ['position_accuracy_m', 'Position accuracy (m)', 'number']
+];
+const LVLCOL = ['#4caf7d', '#9ccc52', '#e8c15a', '#e2704a'];
+const LVLTXT = ['inconspicuous', 'minor findings', 'conspicuous – review measures', 'urgent – detailed assessment'];
+
+/* ============================ STORAGE ============================ */
+
+const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1';
+let mem = {};                                  // fallback when localStorage is blocked
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { delete mem[k]; } }
+
+let CAT, edits;
+function loadAll() {
+  CAT = null;
+  const raw = lsGet(K_CAT);
+  if (raw) { try { CAT = JSON.parse(raw); } catch (e) { CAT = null; } }
+  if (!CAT || !CAT.features) CAT = JSON.parse(JSON.stringify(TREES_DEFAULT));
+  edits = {};
+  const re = lsGet(K_EDIT);
+  if (re) { try { edits = JSON.parse(re) || {}; } catch (e) { edits = {}; } }
+}
+function saveCat() { lsSet(K_CAT, JSON.stringify(CAT)); }
+function saveEdits() { lsSet(K_EDIT, JSON.stringify(edits)); }
+function tid(i) { return (CAT.features[i].properties || {}).tree_id || ('#' + i); }
+function props(i) { return Object.assign({}, CAT.features[i].properties, edits[tid(i)] || {}); }
+function isEdited(i) { return !!edits[tid(i)]; }
+
+/* --------- photos in IndexedDB --------- */
+let PDB = null, photosOk = ('indexedDB' in window);
+function pdb() {
+  return new Promise((res, rej) => {
+    if (PDB) return res(PDB);
+    const r = indexedDB.open('vta-photos', 1);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains('photos')) {
+        const s = db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('tree', 'tree');
+      }
+    };
+    r.onsuccess = () => { PDB = r.result; res(PDB); };
+    r.onerror = () => rej(r.error);
+  });
+}
+async function photoAdd(tree, url) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('photos', 'readwrite');
+    tx.objectStore('photos').add({ tree: tree, url: url, ts: new Date().toISOString() });
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function photoList(tree) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const q = db.transaction('photos').objectStore('photos').index('tree').getAll(tree);
+    q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error);
+  });
+}
+async function photoAll() {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const q = db.transaction('photos').objectStore('photos').getAll();
+    q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error);
+  });
+}
+async function photoDel(id) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('photos', 'readwrite');
+    tx.objectStore('photos').delete(id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+function shrink(file, max, q) {
+  return new Promise(res => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+    img.src = url;
+  });
+}
+
+/* ========================= VTA EVALUATION ========================= */
+
+function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
+function assess(p) {
+  const notes = [], sym = p.symptoms || [];
+  const has = k => sym.indexOf(k) >= 0;
+  let lvl = 0;
+  const up = (n, txt) => { lvl = Math.max(lvl, n); if (txt) notes.push(txt); };
+
+  const t = num(p.wall_t_cm), R = num(p.radius_r_cm);
+  let tr = null;
+  if (t > 0 && R > 0) {
+    tr = t / R;
+    if (tr < 0.30) up(3, 't/R = ' + tr.toFixed(2) + ' – below 0.30. Critical residual wall thickness after Mattheck; detailed assessment required.');
+    else if (tr < 0.35) up(2, 't/R = ' + tr.toFixed(2) + ' – close to the 0.30 threshold, track the development.');
+    else notes.push('t/R = ' + tr.toFixed(2) + ' – above the 0.30 threshold.');
+  } else if (p.cavity === 'yes') {
+    up(2, 'Cavity recorded but t and R are missing – t/R cannot be checked. Measure the residual wall.');
+  }
+
+  const h = num(p.height_m), d = num(p.dbh_cm);
+  let hd = null;
+  if (h > 0 && d > 0) {
+    hd = h * 100 / d;
+    if (hd > 80) up(1, 'h/d = ' + hd.toFixed(0) + ' – slender stem, raised sensitivity to wind and snow load.');
+  }
+
+  if (has('t_fungi') || has('r_fungi'))
+    up(3, 'Fruiting bodies of wood-decay fungi – assume wood decay in the stem or root zone.');
+  if (has('r_heave')) up(3, 'Soil heave or tension cracks – indication of root failure, check stability now.');
+  if (has('t_lean')) up(3, 'Lean or change of inclination – check stability now.');
+  if (has('c_hanger')) up(3, 'Hangers or loose branches – immediate hazard, remove without delay.');
+  if (has('t_transcrack')) up(2, 'Transverse crack – risk of stem failure.');
+  if (has('t_cavity')) up(2, 'Open cavity – loss of cross-section, determine the residual wall thickness.');
+  if (has('t_fork')) up(1, 'Fork with included bark – risk of splitting, consider a crown brace.');
+  if (has('r_damage')) up(2, 'Root damage – loss of anchorage, establish the extent.');
+  if (has('t_rib') || has('t_swelling')) up(1, 'Reaction wood (rib or swelling) – the tree is compensating for a weak spot underneath.');
+
+  const vit = num(p.vitality_roloff);
+  if (vit === 3) up(2, 'Vitality stage 3 (resignation) – regenerative capacity exhausted.');
+  else if (vit === 2) up(1, 'Vitality stage 2 (stagnation).');
+  const cd = num(p.crown_dieback_pct);
+  if (cd >= 60) up(2, 'Crown dieback ' + cd + ' % – severely damaged crown.');
+  else if (cd >= 30) up(1, 'Crown dieback ' + cd + ' %.');
+
+  if (p.traffic_safety === 'not given') up(3, 'Traffic safety rated as not given.');
+  else if (p.traffic_safety === 'restricted') up(2, 'Traffic safety rated as restricted.');
+  if (p.stability === 'not given' || p.breakage_resistance === 'not given') up(3, null);
+
+  if (p.next_inspection) {
+    const dd = new Date(p.next_inspection);
+    if (!isNaN(dd) && dd < new Date()) up(1, 'Inspection overdue (was due ' + p.next_inspection + ').');
+  }
+  return { lvl: lvl, tr: tr, hd: hd, notes: notes };
+}
+
+/* ========================== GEODESY ========================== */
+
+const R1LAT = 110540, R1LON = 111320;
+function enu(lat, lon, lat0, lon0) {
+  return { e: (lon - lon0) * R1LON * Math.cos(lat0 * Math.PI / 180), n: (lat - lat0) * R1LAT };
+}
+function distBear(lat, lon, lat0, lon0) {
+  const d = enu(lat, lon, lat0, lon0);
+  return { d: Math.hypot(d.e, d.n), b: (Math.atan2(d.e, d.n) * 180 / Math.PI + 360) % 360 };
+}
+
+/* ====================== SENSORS: GPS / COMPASS ====================== */
+
+let lastFix = null, gpsAcc = null, watchId = null;
+function startGPS() {
+  if (!navigator.geolocation || watchId !== null) return;
+  watchId = navigator.geolocation.watchPosition(p => {
+    gpsAcc = p.coords.accuracy;
+    lastFix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: gpsAcc };
+    $('hAcc').textContent = gpsAcc.toFixed(0);
+    $('gpsBadge').textContent = 'GPS ±' + gpsAcc.toFixed(0) + ' m';
+    if (!origin) { origin = { lat: lastFix.lat, lon: lastFix.lon }; placeMarkers(); }
+  }, e => {
+    $('gpsBadge').textContent = 'GPS off';
+    msg('GPS: ' + e.message);
+  }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+}
+
+let devQuat = new THREE.Quaternion(), haveOrient = false, heading = null;
+let hSin = 0, hCos = 0;                                  // smoothed heading
+const _e = new THREE.Euler(),
+      _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)),
+      _zAx = new THREE.Vector3(0, 0, 1), _q0 = new THREE.Quaternion(),
+      _yAx = new THREE.Vector3(0, 1, 0);
+function orientQuat(q, a, b, g, o) {
+  _e.set(b, a, -g, 'YXZ');
+  q.setFromEuler(_e);
+  q.multiply(_q1);
+  q.multiply(_q0.setFromAxisAngle(_zAx, -o));
+}
+function onOrient(ev) {
+  if (ev.alpha == null) return;
+  haveOrient = true;
+  const o = THREE.MathUtils.degToRad(screen.orientation ? screen.orientation.angle : (window.orientation || 0));
+  orientQuat(devQuat, THREE.MathUtils.degToRad(ev.alpha), THREE.MathUtils.degToRad(ev.beta),
+             THREE.MathUtils.degToRad(ev.gamma), o);
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(devQuat);
+  const raw = (Math.atan2(f.x, -f.z) * 180 / Math.PI + 360) % 360;
+  const r = raw * Math.PI / 180, k = 0.25;
+  hSin = hSin + (Math.sin(r) - hSin) * k;
+  hCos = hCos + (Math.cos(r) - hCos) * k;
+  heading = (Math.atan2(hSin, hCos) * 180 / Math.PI + 360) % 360;
+  $('hHead').textContent = heading.toFixed(0);
+}
+async function startOrient() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+    try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
+  }
+  addEventListener('deviceorientationabsolute', onOrient, true);
+  addEventListener('deviceorientation', onOrient, true);
+}
+
+/* ============================ SCENE ============================ */
+
+let renderer, scene, camera, world, sprites = [], ray = new THREE.Raycaster();
+let origin = null, headOff = 0, worldYaw = 0, mode = null, xrSession = null, xrRef = null, lastFrame = null;
+let camGps = new THREE.Vector3(0, 1.55, 0);
+
+function buildScene() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 500);
+  world = new THREE.Group(); scene.add(world);
+  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.domElement.className = 'ar';
+  renderer.domElement.style.display = 'none';   // three writes inline display:block, which beats the class
+  document.body.appendChild(renderer.domElement);
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function labelTexture(i) {
+  const p = props(i), a = assess(p), col = LVLCOL[a.lvl];
+  const c = document.createElement('canvas'); c.width = 640; c.height = 320;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(10,16,13,.88)'; roundRect(g, 4, 4, 632, 312, 26); g.fill();
+  g.lineWidth = 8; g.strokeStyle = col; roundRect(g, 4, 4, 632, 312, 26); g.stroke();
+  g.fillStyle = col; g.beginPath(); g.arc(62, 74, 26, 0, 7); g.fill();
+  g.fillStyle = '#fff'; g.font = 'bold 46px system-ui,sans-serif';
+  g.fillText(p.tree_id || '?', 104, 90);
+  g.fillStyle = '#cfe0d5'; g.font = 'italic 36px system-ui,sans-serif';
+  g.fillText(p.species || '', 32, 152);
+  g.fillStyle = '#9fb3a6'; g.font = '32px system-ui,sans-serif';
+  g.fillText('DBH ' + (p.dbh_cm == null ? '–' : p.dbh_cm) + ' cm · H ' + (p.height_m == null ? '–' : p.height_m) + ' m', 32, 204);
+  g.fillText('Vitality ' + (p.vitality_roloff == null ? '–' : p.vitality_roloff) + ' · ' + (p.damage_class || '–'), 32, 250);
+  g.fillStyle = col; g.font = '28px system-ui,sans-serif';
+  g.fillText('▸ ' + LVLTXT[a.lvl], 32, 296);
+  const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
+}
+
+function buildMarkers() {
+  while (world.children.length) world.remove(world.children[0]);
+  sprites = [];
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const p = props(i), col = LVLCOL[assess(p).lvl];
+    const g = new THREE.Group();
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(i), depthTest: false, transparent: true }));
+    sp.scale.set(1.7, 0.85, 1); sp.position.y = 1.30; sp.renderOrder = 10;   // breast height
+    sp.userData.idx = i; g.add(sp); sprites.push(sp);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1.30, 0)]),
+      new THREE.LineBasicMaterial({ color: col, depthTest: false }));
+    line.renderOrder = 9; g.add(line);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 40),
+      new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthTest: false }));
+    ring.rotation.x = -Math.PI / 2; ring.renderOrder = 9; g.add(ring);
+    g.userData.idx = i; world.add(g);
+  });
+  placeMarkers();
+}
+function placeMarkers() {
+  if (!origin || !world) return;
+  world.children.forEach(g => {
+    const f = CAT.features[g.userData.idx]; if (!f) return;
+    const c = f.geometry.coordinates;
+    const d = enu(c[1], c[0], origin.lat, origin.lon);
+    g.position.set(d.e, 0, -d.n);                 // x = east, z = -north
+  });
+}
+function refreshMarker(i) {
+  const sp = sprites.find(s => s.userData.idx === i);
+  if (!sp) return;
+  const col = LVLCOL[assess(props(i)).lvl];
+  sp.material.map.dispose();
+  sp.material.map = labelTexture(i);
+  sp.material.needsUpdate = true;
+  const g = world.children.find(o => o.userData.idx === i);
+  if (g) g.children.forEach(ch => { if (ch.material && ch.material.color) ch.material.color.set(col); });
+}
+
+/* ---- north alignment ----
+   world.rotation.y = phi maps a bearing beta onto beta - phi. What we need is
+   phi = compass heading - view direction in the XR world frame. At session
+   start the latter is 0; the same expression lets the user re-sync later when
+   the ARCore yaw has drifted. */
+function camYawDeg() {
+  const cam = (renderer.xr && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  cam.updateMatrixWorld(true);
+  const f = new THREE.Vector3(0, 0, -1).transformDirection(cam.matrixWorld);
+  return (Math.atan2(f.x, -f.z) * 180 / Math.PI + 360) % 360;
+}
+function applyYaw() {
+  if (world) world.rotation.y = THREE.MathUtils.degToRad(worldYaw + headOff);
+  $('hOff').textContent = Math.round(headOff);
+}
+function syncNorth(quiet) {
+  if (heading == null) { if (!quiet) toast('No compass heading yet – move the phone in a figure of eight.'); return false; }
+  worldYaw = ((heading - camYawDeg()) % 360 + 360) % 360;
+  applyYaw();
+  if (!quiet) toast('North taken from compass (heading ' + heading.toFixed(0) + '°).');
+  return true;
+}
+
+/* ============================= MODES ============================= */
+
+async function startXR() {
+  if (!navigator.xr) throw new Error('navigator.xr missing');
+  const ok = await navigator.xr.isSessionSupported('immersive-ar');
+  if (!ok) throw new Error('immersive-ar not supported (is Google Play Services for AR installed?)');
+  $('xrui').classList.add('on');            // the overlay root has to be visible or Chrome rejects it
+  let s;
+  try {
+    s = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['local-floor'],
+      optionalFeatures: ['dom-overlay', 'hit-test'],
+      domOverlay: { root: $('xrui') }
+    });
+  } catch (err) {
+    $('xrui').classList.remove('on');
+    throw err;
+  }
+  xrSession = s; mode = 'WebXR';
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType('local-floor');
+  await renderer.xr.setSession(s);
+  xrRef = renderer.xr.getReferenceSpace();
+  s.addEventListener('select', onXRSelect);
+  s.addEventListener('end', endAR);
+  enterAR();
+  // the compass is often not ready at session start: keep trying for ~6 s
+  let tries = 0;
+  const iv = setInterval(() => { if (syncNorth(true) || ++tries > 12) clearInterval(iv); }, 500);
+  renderer.setAnimationLoop((t, frame) => { lastFrame = frame; tick(); renderer.render(scene, camera); });
+}
+
+async function startCam() {
+  const v = $('video');
+  const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+  v.srcObject = st; await v.play(); v.style.display = 'block';
+  mode = 'Camera'; enterAR();
+  renderer.domElement.addEventListener('pointerdown', onCamTap);
+  renderer.setAnimationLoop(() => {
+    if (haveOrient) camera.quaternion.copy(devQuat);
+    // own position from GPS, rotated the same way as the markers
+    if (origin && lastFix && lastFix.acc < 25) {
+      const d = enu(lastFix.lat, lastFix.lon, origin.lat, origin.lon);
+      const v2 = new THREE.Vector3(d.e, 0, -d.n).applyAxisAngle(_yAx, THREE.MathUtils.degToRad(worldYaw + headOff));
+      camGps.lerp(new THREE.Vector3(v2.x, 1.55, v2.z), 0.12);
+    }
+    camera.position.copy(camGps);
+    tick(); renderer.render(scene, camera);
+  });
+}
+
+function enterAR() {
+  $('app').classList.add('hidden');
+  $('xrui').classList.add('on');
+  renderer.domElement.style.display = 'block';
+  $('hMode').textContent = mode;
+  applyYaw();
+  buildChooser();
+}
+function endAR() {
+  renderer.setAnimationLoop(null);
+  if (xrSession) { try { xrSession.end(); } catch (e) {} xrSession = null; }
+  renderer.xr.enabled = false;
+  const v = $('video');
+  if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; v.style.display = 'none'; }
+  renderer.domElement.removeEventListener('pointerdown', onCamTap);
+  renderer.domElement.style.display = 'none';
+  $('xrui').classList.remove('on');
+  $('panelXR').classList.remove('on');
+  $('chooser').style.display = 'none';
+  $('app').classList.remove('hidden');
+  mode = null;
+  renderList();
+}
+
+const _cp = new THREE.Vector3(), _sp = new THREE.Vector3();
+function tick() {
+  const cam = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  _cp.setFromMatrixPosition(cam.matrixWorld);
+  let best = null, bd = 1e9;
+  sprites.forEach(sp => {
+    sp.getWorldPosition(_sp);
+    const d = _cp.distanceTo(_sp);
+    const k = THREE.MathUtils.clamp(d / 7, 0.7, 3.4);      // keep the label readable at distance
+    sp.scale.set(1.7 * k, 0.85 * k, 1);
+    if (d < bd) { bd = d; best = sp; }
+  });
+  $('hNear').textContent = best ? ('nearest ' + props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+}
+
+/* ---- tapping ---- */
+function pickFromRay(o, d) {
+  ray.set(o, d);
+  const hit = ray.intersectObjects(sprites, false);
+  if (hit.length) return hit[0].object.userData.idx;
+  let best = null, ba = Infinity;                          // tolerance: nearest sprite within 12 degrees
+  sprites.forEach(sp => {
+    sp.getWorldPosition(_sp);
+    const v = _sp.clone().sub(o).normalize();
+    const a = Math.acos(Math.min(1, Math.max(-1, v.dot(d)))) * 180 / Math.PI;
+    if (a < ba) { ba = a; best = sp; }
+  });
+  return (best && ba < 12) ? best.userData.idx : null;
+}
+function onXRSelect(e) {
+  if (!lastFrame || !xrRef) return;
+  const pose = lastFrame.getPose(e.inputSource.targetRaySpace, xrRef);
+  if (!pose) return;
+  const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
+  const o = new THREE.Vector3().setFromMatrixPosition(m);
+  const d = new THREE.Vector3(0, 0, -1).transformDirection(m);
+  const i = pickFromRay(o, d);
+  if (i !== null) openPanel(i);
+}
+function onCamTap(ev) {
+  const nx = (ev.clientX / innerWidth) * 2 - 1, ny = -(ev.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera({ x: nx, y: ny }, camera);
+  const i = pickFromRay(ray.ray.origin.clone(), ray.ray.direction.clone());
+  if (i !== null) openPanel(i);
+}
+
+/* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
+function buildChooser() {
+  const c = $('chooser');
+  c.innerHTML = '<div class="small" style="margin-bottom:8px">Put the origin exactly on one stem – this is the actual calibration.</div>';
+  const row = document.createElement('div'); row.className = 'btnrow';
+  CAT.features.forEach((f, i) => {
+    const b = document.createElement('button');
+    b.className = 'sm'; b.textContent = props(i).tree_id;
+    b.onclick = () => {
+      const co = f.geometry.coordinates;
+      origin = { lat: co[1], lon: co[0] };
+      camGps.set(0, 1.55, 0);
+      placeMarkers(); c.style.display = 'none';
+      toast('Origin = ' + props(i).tree_id);
+    };
+    row.appendChild(b);
+  });
+  const ab = document.createElement('button');
+  ab.className = 'sm'; ab.textContent = 'Cancel';
+  ab.onclick = () => { c.style.display = 'none'; };
+  row.appendChild(ab);
+  c.appendChild(row);
+}
+
+/* ============================ PANEL ============================ */
+
+let openIdx = null, panelEl = null, panelTab = 'vta';
+function panelTarget() { return (mode ? $('panelXR') : $('panelHome')); }
+
+function fieldRow(k, lab, typ, opt, p) {
+  const r = document.createElement('div');
+  r.className = 'row' + (typ === 'area' || typ === 'list' ? ' wide' : '');
+  const l = document.createElement('label'); l.textContent = lab; r.appendChild(l);
+  let inp;
+  if (typ === 'select') {
+    inp = document.createElement('select');
+    opt.forEach(o => { const e2 = document.createElement('option'); e2.value = o; e2.textContent = o; inp.appendChild(e2); });
+    inp.value = p[k];
+  } else if (typ === 'area') {
+    inp = document.createElement('textarea'); inp.value = p[k] == null ? '' : p[k];
+  } else if (typ === 'list') {
+    inp = document.createElement('textarea'); inp.value = (p[k] || []).join('\n');
+    inp.placeholder = 'one entry per line';
+  } else {
+    inp = document.createElement('input'); inp.type = typ;
+    inp.value = p[k] == null ? '' : p[k];
+    if (typ === 'number') inp.setAttribute('inputmode', 'decimal');
+  }
+  inp.dataset.k = k; inp.dataset.t = typ;
+  r.appendChild(inp);
+  return r;
+}
+
+function openPanel(i) {
+  openIdx = i; panelTab = 'vta';
+  const p = props(i);
+  const el = panelTarget(); panelEl = el;
+  el.innerHTML = '';
+
+  const ph = document.createElement('div'); ph.className = 'ph';
+  ph.innerHTML = '<div><h2></h2><div class="sub"></div></div>';
+  ph.querySelector('h2').textContent = (p.tree_id || '?') + ' · ' + (p.name_en || '');
+  ph.querySelector('.sub').textContent = (p.species || '') +
+    (p.osm_id ? ' · OSM ' + p.osm_id : '') + ' · position ±' + (p.position_accuracy_m == null ? '?' : p.position_accuracy_m) + ' m';
+  const bc = document.createElement('button'); bc.textContent = 'Close';
+  bc.onclick = closePanel; ph.appendChild(bc);
+  el.appendChild(ph);
+
+  const tabs = document.createElement('div'); tabs.className = 'ptabs';
+  const body = document.createElement('div'); body.className = 'pb';
+  const secs = {};
+  [['vta', 'VTA'], ['base', 'Base data'], ['hist', 'History'], ['photo', 'Photos']].forEach(pair => {
+    const k = pair[0], lab = pair[1];
+    const b = document.createElement('button'); b.textContent = lab; b.dataset.tab = k;
+    if (k === panelTab) b.className = 'on';
+    b.onclick = () => {
+      panelTab = k;
+      tabs.querySelectorAll('button').forEach(x => x.className = (x.dataset.tab === k ? 'on' : ''));
+      Object.keys(secs).forEach(x => secs[x].style.display = (x === k ? 'block' : 'none'));
+      body.scrollTop = 0;
+    };
+    tabs.appendChild(b);
+    const s = document.createElement('div'); s.style.display = (k === panelTab ? 'block' : 'none');
+    secs[k] = s; body.appendChild(s);
+  });
+  el.appendChild(tabs); el.appendChild(body);
+
+  /* --- VTA --- */
+  const v = secs.vta;
+  const vd = document.createElement('div'); vd.id = 'verdictBox'; v.appendChild(vd);
+  const h1 = document.createElement('h3'); h1.textContent = 'Inspection'; v.appendChild(h1);
+  F_VTA.forEach(f => v.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  const h2 = document.createElement('h3'); h2.textContent = 'Symptoms (VTA)'; v.appendChild(h2);
+  const sel = p.symptoms || [];
+  SYMPTOMS.forEach(pair => {
+    const grp = pair[0], list = pair[1];
+    const gh = document.createElement('div');
+    gh.className = 'small'; gh.style.margin = '10px 0 2px'; gh.textContent = grp;
+    v.appendChild(gh);
+    const box = document.createElement('div'); box.className = 'sym';
+    list.forEach(s => {
+      const l = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.dataset.sym = s[0]; cb.checked = sel.indexOf(s[0]) >= 0;
+      cb.onchange = () => updateVerdict();
+      l.appendChild(cb);
+      const sp2 = document.createElement('span'); sp2.textContent = s[1]; l.appendChild(sp2);
+      box.appendChild(l);
+    });
+    v.appendChild(box);
+  });
+  v.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', updateVerdict));
+
+  /* --- base data --- */
+  F_BASE.forEach(f => secs.base.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  const geo = document.createElement('div');
+  const c = CAT.features[i].geometry.coordinates;
+  geo.innerHTML = '<h3>Geometry</h3>' +
+    '<div class="kv"><span>Longitude / latitude</span><span>' + c[0].toFixed(7) + ' / ' + c[1].toFixed(7) + '</span></div>' +
+    '<div class="kv"><span>Source</span><span>' + (p.geometry_source || '–') + '</span></div>';
+  const bmove = document.createElement('button');
+  bmove.className = 'sm'; bmove.style.marginTop = '8px';
+  bmove.textContent = 'Set position from current GPS';
+  bmove.onclick = () => {
+    if (!lastFix) return toast('No GPS fix.');
+    CAT.features[i].geometry.coordinates = [lastFix.lon, lastFix.lat];
+    CAT.features[i].properties.position_accuracy_m = Math.round(lastFix.acc * 10) / 10;
+    CAT.features[i].properties.geometry_source = 'GPS in the field';
+    saveCat(); placeMarkers(); renderList();
+    toast('Position updated (±' + lastFix.acc.toFixed(0) + ' m).');
+    openPanel(i);
+  };
+  geo.appendChild(bmove);
+  secs.base.appendChild(geo);
+
+  /* --- history --- */
+  const hs = secs.hist;
+  const tb = document.createElement('table'); tb.className = 'hist';
+  tb.innerHTML = '<tr><th>Year</th><th>Girth cm</th><th>Vit.</th><th>Inspected</th><th>Finding</th></tr>' +
+    (p.history || []).map(r => '<tr><td>' + r.year + '</td><td>' + (r.girth_cm == null ? '' : r.girth_cm) + '</td><td>' +
+      (r.vitality_roloff == null ? '' : r.vitality_roloff) + '</td><td>' + (r.inspection || '') + '</td><td>' + (r.finding || '') + '</td></tr>').join('');
+  hs.appendChild(tb);
+  const badd = document.createElement('button');
+  badd.className = 'sm'; badd.style.marginTop = '10px';
+  badd.textContent = 'Add current inspection to history';
+  badd.onclick = () => {
+    savePanel(true);
+    const q = props(i), hist = (q.history || []).slice();
+    hist.push({
+      year: new Date().getFullYear(),
+      girth_cm: num(q.girth_cm),
+      vitality_roloff: num(q.vitality_roloff),
+      inspection: q.last_inspection || new Date().toISOString().slice(0, 10),
+      finding: (q.inspection_type || 'Inspection') + (q.remarks ? ': ' + q.remarks : '')
+    });
+    setEdit(i, { history: hist });
+    toast('Added to history.');
+    openPanel(i);
+  };
+  hs.appendChild(badd);
+
+  /* --- photos --- */
+  const fs = secs.photo;
+  if (!photosOk) {
+    fs.innerHTML = '<p class="small">Photo storage (IndexedDB) is not available on this device.</p>';
+  } else {
+    const inb = document.createElement('button');
+    inb.className = 'p'; inb.textContent = '📷 Take or choose a photo';
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.accept = 'image/*'; fi.setAttribute('capture', 'environment'); fi.style.display = 'none';
+    fi.onchange = async () => {
+      const f = fi.files && fi.files[0]; if (!f) return;
+      const url = await shrink(f, 1440, 0.72);
+      if (!url) return toast('Could not read the image.');
+      try { await photoAdd(p.tree_id, url); toast('Photo stored.'); renderPhotos(p.tree_id, gal); }
+      catch (e) { toast('Photo storage: ' + e.message); }
+      fi.value = '';
+    };
+    inb.onclick = () => fi.click();
+    fs.appendChild(inb); fs.appendChild(fi);
+    if (mode) {
+      const nt = document.createElement('p'); nt.className = 'small';
+      nt.textContent = 'Note: Chrome blocks the file dialog inside an AR session. Leave AR, then take the photo.';
+      fs.appendChild(nt);
+    }
+    var gal = document.createElement('div'); gal.className = 'photos';
+    fs.appendChild(gal);
+    renderPhotos(p.tree_id, gal);
+  }
+
+  const pf = document.createElement('div'); pf.className = 'pf';
+  const bs = document.createElement('button'); bs.className = 'p'; bs.textContent = 'Save';
+  bs.onclick = () => { savePanel(); closePanel(); };
+  const br2 = document.createElement('button'); br2.textContent = 'Reset';
+  br2.onclick = () => {
+    delete edits[tid(i)]; saveEdits(); refreshMarker(i); renderList(); openPanel(i);
+    toast('Field record reset.');
+  };
+  pf.appendChild(bs); pf.appendChild(br2);
+  el.appendChild(pf);
+
+  el.classList.add('on');
+  updateVerdict();
+}
+function closePanel() { if (panelEl) panelEl.classList.remove('on'); openIdx = null; }
+
+function collect() {
+  const o = {};
+  panelEl.querySelectorAll('[data-k]').forEach(inp => {
+    const k = inp.dataset.k, t = inp.dataset.t;
+    o[k] = t === 'list' ? inp.value.split('\n').map(s => s.trim()).filter(Boolean)
+         : t === 'number' ? (inp.value === '' ? null : Number(inp.value))
+         : inp.value;
+  });
+  const sym = [];
+  panelEl.querySelectorAll('[data-sym]').forEach(cb => { if (cb.checked) sym.push(cb.dataset.sym); });
+  o.symptoms = sym;
+  o.symptom_labels = sym.map(k => SYM_LABEL[k]).filter(Boolean);
+  return o;
+}
+function setEdit(i, patch) {
+  edits[tid(i)] = Object.assign({}, edits[tid(i)] || {}, patch);
+  saveEdits(); refreshMarker(i); renderList(); renderStats();
+}
+function savePanel(silent) {
+  if (openIdx === null) return;
+  setEdit(openIdx, collect());
+  if (!silent) toast('Saved.');
+}
+function updateVerdict() {
+  if (!panelEl || openIdx === null) return;
+  const box = panelEl.querySelector('#verdictBox'); if (!box) return;
+  const p = Object.assign({}, props(openIdx), collect());
+  const a = assess(p), col = LVLCOL[a.lvl];
+  box.className = 'verdict';
+  box.style.borderColor = col; box.style.background = col + '18';
+  let html = '<b style="color:' + col + '">Level ' + a.lvl + ' · ' + LVLTXT[a.lvl] + '</b>';
+  const kv = [];
+  if (a.tr != null) kv.push('t/R ' + a.tr.toFixed(2));
+  if (a.hd != null) kv.push('h/d ' + a.hd.toFixed(0));
+  if (kv.length) html += '<div class="small">' + kv.join(' · ') + '</div>';
+  html += a.notes.length ? '<ul>' + a.notes.map(n => '<li>' + n + '</li>').join('') + '</ul>'
+                         : '<div class="small">No triggering criteria recorded.</div>';
+  box.innerHTML = html;
+}
+
+async function renderPhotos(tree, gal) {
+  if (!gal) return;
+  let list = [];
+  try { list = await photoList(tree); } catch (e) { gal.innerHTML = '<p class="small">Photos could not be read.</p>'; return; }
+  gal.innerHTML = '';
+  if (!list.length) { gal.innerHTML = '<p class="small">No photos yet.</p>'; return; }
+  list.forEach(f => {
+    const fig = document.createElement('figure');
+    const im = document.createElement('img'); im.src = f.url; im.alt = tree;
+    im.onclick = () => { $('lbImg').src = f.url; $('lightbox').style.display = 'flex'; };
+    const db2 = document.createElement('button'); db2.className = 'del sm'; db2.textContent = '×';
+    db2.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
+    const cap = document.createElement('figcaption'); cap.textContent = (f.ts || '').slice(0, 16).replace('T', ' ');
+    fig.appendChild(im); fig.appendChild(db2); fig.appendChild(cap);
+    gal.appendChild(fig);
+  });
+}
+
+/* ========================= LIST / SCREENS ========================= */
+
+let sortByDist = true;
+function renderList() {
+  const box = $('listBox'); if (!box) return;
+  const rows = CAT.features.map((f, i) => {
+    const c = f.geometry.coordinates;
+    const db3 = lastFix ? distBear(c[1], c[0], lastFix.lat, lastFix.lon) : null;
+    return { i: i, d: db3 ? db3.d : null, b: db3 ? db3.b : null };
+  });
+  if (sortByDist && lastFix) rows.sort((a, b) => a.d - b.d);
+  box.innerHTML = '';
+  rows.forEach(o => {
+    const p = props(o.i), a = assess(p);
+    const b = document.createElement('button'); b.className = 'tree';
+    b.innerHTML =
+      '<span class="dot" style="background:' + LVLCOL[a.lvl] + '"></span>' +
+      '<span class="m"><span class="t1">' + (p.tree_id || '?') + (isEdited(o.i) ? ' ·' : '') + '</span>' +
+      '<span class="t2">' + (p.species || '') + '</span>' +
+      '<span class="t3">DBH ' + (p.dbh_cm == null ? '–' : p.dbh_cm) + ' cm · H ' + (p.height_m == null ? '–' : p.height_m) +
+      ' m · vit ' + (p.vitality_roloff == null ? '–' : p.vitality_roloff) + '</span></span>' +
+      '<span class="nav"><span class="arr" data-b="' + (o.b == null ? '' : o.b) + '">' + (o.b == null ? '·' : '↑') + '</span>' +
+      '<span class="dist">' + (o.d == null ? '– m' : o.d.toFixed(o.d < 100 ? 1 : 0) + ' m') + '</span></span>';
+    b.onclick = () => openPanel(o.i);
+    box.appendChild(b);
+  });
+  $('listCount').textContent = '(' + CAT.features.length + ')';
+  $('listHint').textContent = lastFix
+    ? 'Bearing is relative to where you are facing, GPS ±' + lastFix.acc.toFixed(0) + ' m.'
+    : 'No GPS fix – distance and bearing stay empty.';
+  updateArrows();
+}
+function updateArrows() {
+  if (heading == null) return;
+  document.querySelectorAll('#listBox .arr[data-b]').forEach(el => {
+    const b = parseFloat(el.dataset.b);
+    if (!isFinite(b)) return;
+    el.style.transform = 'rotate(' + (((b - heading) % 360 + 360) % 360) + 'deg)';
+  });
+}
+setInterval(() => { if ($('sc-list').classList.contains('on') && !mode) updateArrows(); }, 250);
+setInterval(() => { if ($('sc-list').classList.contains('on') && !mode && lastFix) renderList(); }, 5000);
+
+function showScreen(k) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
+  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
+  if (k === 'list') { startGPS(); startOrient(); renderList(); }   // sensors only on a user action
+  if (k === 'data') renderStats();
+}
+function renderStats() {
+  const n = CAT.features.length;
+  let ed = 0; const lv = [0, 0, 0, 0];
+  CAT.features.forEach((f, i) => { if (isEdited(i)) ed++; lv[assess(props(i)).lvl]++; });
+  const base = '<div class="kv"><span>Trees in catalogue</span><span>' + n + '</span></div>' +
+               '<div class="kv"><span>Edited in the field</span><span>' + ed + '</span></div>' +
+               '<div class="kv"><span>Levels 0 / 1 / 2 / 3</span><span>' + lv.join(' / ') + '</span></div>';
+  photoAll().then(ps => {
+    $('stats').innerHTML = base + '<div class="kv"><span>Photos stored</span><span>' + ps.length + '</span></div>';
+  }).catch(() => { $('stats').innerHTML = base; });
+}
+
+function toast(t) {
+  const el = $('toast'); el.textContent = t; el.style.display = 'block';
+  clearTimeout(toast._t); toast._t = setTimeout(() => { el.style.display = 'none'; }, 2600);
+}
+function msg(t) { $('msg').textContent = t; }
+
+/* ========================= IMPORT / EXPORT ========================= */
+
+function merged() {
+  const out = JSON.parse(JSON.stringify(CAT));
+  out.features.forEach((f, i) => { Object.assign(f.properties, edits[tid(i)] || {}); });
+  return out;
+}
+function dl(name, content, mime) {
+  const blob = (content instanceof Blob) ? content : new Blob([content], { type: mime || 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+const CSVCOLS = ['tree_id', 'lon', 'lat', 'species', 'name_en', 'planted', 'girth_cm', 'dbh_cm',
+  'height_m', 'crown_d_m', 'vitality_roloff', 'crown_dieback_pct', 'damage_class', 'cavity',
+  'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'stability', 'breakage_resistance',
+  'traffic_safety', 'urgency', 'symptoms', 'actions', 'inspection_type', 'last_inspection',
+  'next_inspection', 'interval_months', 'inspector', 'remarks'];
+function csv() {
+  const q = v => {
+    if (v == null) return '';
+    const s = Array.isArray(v) ? v.join(' | ') : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [CSVCOLS.join(',')];
+  CAT.features.forEach((f, i) => {
+    const p = props(i), a = assess(p), c = f.geometry.coordinates;
+    const r = CSVCOLS.map(k => {
+      if (k === 'lon') return c[0];
+      if (k === 'lat') return c[1];
+      if (k === 't_R') return a.tr == null ? '' : a.tr.toFixed(3);
+      if (k === 'h_d') return a.hd == null ? '' : a.hd.toFixed(1);
+      if (k === 'level') return a.lvl;
+      if (k === 'symptoms') return (p.symptoms || []).map(s => SYM_LABEL[s] || s);
+      return p[k];
+    });
+    rows.push(r.map(q).join(','));
+  });
+  return rows.join('\r\n');
+}
+function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
+
+/* ============================ START ============================ */
+
+function chk(state, txt) {
+  const d = document.createElement('div'); d.className = 'chk';
+  d.innerHTML = '<span class="i ' + state + '">' + (state === 'ok' ? '✔' : state === 'no' ? '✘' : '!') + '</span><span>' + txt + '</span>';
+  $('checks').appendChild(d);
+}
+async function checks() {
+  $('checks').innerHTML = '';
+  chk(isSecureContext ? 'ok' : 'no', 'Secure context (HTTPS)' + (isSecureContext ? '' : ' – WebXR, camera and GPS all need HTTPS'));
+  chk(navigator.geolocation ? 'ok' : 'no', 'Geolocation');
+  chk(navigator.mediaDevices ? 'ok' : 'no', 'Camera API');
+  chk(('ondeviceorientationabsolute' in window) ? 'ok' : 'wa', 'Absolute compass');
+  if (navigator.xr) {
+    let s = false;
+    try { s = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) {}
+    chk(s ? 'ok' : 'wa', 'WebXR immersive-ar' + (s ? '' : ' – unavailable, use camera mode'));
+    $('bxr').disabled = !s;
+  } else {
+    chk('wa', 'WebXR (navigator.xr) missing – use camera mode');
+    $('bxr').disabled = true;
+  }
+  chk(photosOk ? 'ok' : 'wa', 'Photo storage (IndexedDB)');
+  chk('serviceWorker' in navigator ? 'ok' : 'wa', 'Offline use (service worker)');
+}
+
+function wire() {
+  document.querySelectorAll('#tabbar button').forEach(b => b.onclick = () => showScreen(b.dataset.sc));
+
+  $('bxr').onclick = async () => {
+    msg('starting …');
+    try { await startOrient(); startGPS(); await startXR(); msg(''); }
+    catch (e) { msg('WebXR: ' + e.message + ' → try camera mode'); }
+  };
+  $('bcam').onclick = async () => {
+    msg('starting …');
+    try { await startOrient(); startGPS(); await startCam(); msg(''); }
+    catch (e) { msg('Camera: ' + e.message); }
+  };
+  $('bl').onclick = () => { headOff -= 5; applyYaw(); };
+  $('br').onclick = () => { headOff += 5; applyYaw(); };
+  $('bsync').onclick = () => { headOff = 0; syncNorth(false); };
+  $('bo').onclick = () => {
+    if (!lastFix) return toast('No GPS fix.');
+    origin = { lat: lastFix.lat, lon: lastFix.lon };
+    camGps.set(0, 1.55, 0); placeMarkers();
+    toast('Origin = current position (±' + lastFix.acc.toFixed(0) + ' m).');
+  };
+  $('bstand').onclick = () => {
+    const c = $('chooser');
+    c.style.display = (c.style.display === 'block' ? 'none' : 'block');
+  };
+  $('bq').onclick = endAR;
+
+  $('bSort').onclick = () => {
+    sortByDist = !sortByDist;
+    $('bSort').textContent = sortByDist ? 'by distance' : 'by catalogue';
+    renderList();
+  };
+  $('bNew').onclick = () => {
+    if (!lastFix) return toast('No GPS fix – a new tree needs a position.');
+    const id = 'NEW-' + stamp().replace(/-/g, '').slice(4, 12) + '-' + Math.random().toString(36).slice(2, 5);
+    const today = new Date().toISOString().slice(0, 10);
+    CAT.features.push({
+      type: 'Feature', geometry: { type: 'Point', coordinates: [lastFix.lon, lastFix.lat] },
+      properties: {
+        tree_id: id, species: '', name_en: '', inspector: '', geometry_source: 'GPS in the field',
+        position_accuracy_m: Math.round(lastFix.acc * 10) / 10, vitality_roloff: 0,
+        crown_dieback_pct: 0, damage_class: 'none', cavity: 'no',
+        stability: 'adequate', breakage_resistance: 'adequate', traffic_safety: 'adequate',
+        urgency: 'none', inspection_type: 'Routine inspection', last_inspection: today,
+        interval_months: 12, symptoms: [], actions: [], remarks: '', history: []
+      }
+    });
+    saveCat(); buildMarkers(); renderList();
+    openPanel(CAT.features.length - 1);
+  };
+
+  $('bExpGeo').onclick = () => dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
+  $('bExpCsv').onclick = () => dl('tree_register_' + stamp() + '.csv', csv(), 'text/csv');
+  $('bExpPhotos').onclick = async () => {
+    let ps = [];
+    try { ps = await photoAll(); } catch (e) {}
+    if (!ps.length) return toast('No photos stored.');
+    toast('Saving ' + ps.length + ' photos …');
+    for (let n = 0; n < ps.length; n++) {
+      const b = await (await fetch(ps[n].url)).blob();
+      dl(ps[n].tree + '_' + (n + 1) + '.jpg', b, 'image/jpeg');
+      await new Promise(r => setTimeout(r, 350));
+    }
+  };
+  $('bImp').onclick = () => $('fileImp').click();
+  $('fileImp').onchange = () => {
+    const f = $('fileImp').files && $('fileImp').files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const j = JSON.parse(rd.result);
+        const feats = (j.features || []).filter(x => x.geometry && x.geometry.type === 'Point');
+        if (!feats.length) throw new Error('no point features found');
+        feats.forEach((x, n) => {
+          if (!x.properties) x.properties = {};
+          if (!x.properties.tree_id) x.properties.tree_id = x.properties.baum_id || ('IMP-' + (n + 1));
+        });
+        CAT = { type: 'FeatureCollection', name: j.name || f.name, features: feats };
+        saveCat(); buildMarkers(); renderList(); renderStats();
+        toast(feats.length + ' trees loaded.');
+      } catch (e) { toast('Import failed: ' + e.message); }
+      $('fileImp').value = '';
+    };
+    rd.readAsText(f);
+  };
+  $('bResetEdits').onclick = () => {
+    if (!confirm('Delete every inspection record captured in the field?')) return;
+    edits = {}; lsDel(K_EDIT); buildMarkers(); renderList(); renderStats(); toast('Field records deleted.');
+  };
+  $('bResetAll').onclick = () => {
+    if (!confirm('Reset catalogue and field records to the shipped state? Photos are kept.')) return;
+    lsDel(K_CAT); lsDel(K_EDIT); loadAll(); buildMarkers(); renderList(); renderStats();
+    toast('Reset done.');
+  };
+  $('lbClose').onclick = () => { $('lightbox').style.display = 'none'; $('lbImg').src = ''; };
+  $('lightbox').onclick = e => { if (e.target.id === 'lightbox') $('lbClose').click(); };
+
+  let deferred = null;
+  addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferred = e;
+    const b = $('bInstall'); b.style.display = '';
+    b.onclick = async () => { b.style.display = 'none'; deferred.prompt(); await deferred.userChoice; deferred = null; };
+  });
+}
+
+loadAll();
+buildScene();
+buildMarkers();
+wire();
+checks();
+renderList();
+renderStats();
+$('about').innerHTML = 'VTA Field ' + APP_VERSION + ' · three.js r128 served locally · everything stays on the device ' +
+  '(localStorage + IndexedDB), nothing is sent to a server. Catalogue geometry: OSM crown centres, ' +
+  'not surveyed stem bases – expect 1–5 m offset.';
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}

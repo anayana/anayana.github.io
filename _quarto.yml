@@ -9,6 +9,7 @@ project:
     - bfn-gdi-cockpit.html
     - psm_data.js
     - KieferMistel.html
+    - vta/
 
 website:
   title: "A. Naya"

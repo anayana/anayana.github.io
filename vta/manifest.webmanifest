@@ -1,0 +1,17 @@
+{
+  "name": "VTA Field – Tree Inspection in AR",
+  "short_name": "VTA Field",
+  "description": "Visual tree assessment in the field: AR markers on the tree, register, inspection record, photos. Works offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1310",
+  "theme_color": "#0d1310",
+  "lang": "en",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
