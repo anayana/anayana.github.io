@@ -1,7 +1,7 @@
 /* Service worker: keep the whole app available offline.
    Navigation requests are network-first so fixes reach the field as soon as there
    is a connection; assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'vta-v5';
+const CACHE = 'vta-v6';
 const ASSETS = [
   './',
   'index.html',
@@ -14,15 +14,28 @@ const ASSETS = [
   'icon-maskable-512.png'
 ];
 
+/* Pre-cache one asset at a time rather than with addAll: a single failure there
+   rejects the whole install and leaves the worker with an empty cache, which is
+   the worst outcome for an app meant to run without a network.
+   cache:'reload' bypasses the browser HTTP cache - Pages serves assets with
+   max-age=600, so without it a fresh worker can store a stale build. */
+async function precache() {
+  const c = await caches.open(CACHE);
+  const results = await Promise.all(ASSETS.map(async u => {
+    try {
+      const r = await fetch(new Request(u, { cache: 'reload' }));
+      if (!r.ok) return u + ' -> ' + r.status;
+      await c.put(new Request(u), r);          // plain request as the cache key
+      return null;
+    } catch (err) {
+      return u + ' -> ' + err.message;
+    }
+  }));
+  const failed = results.filter(Boolean);
+  if (failed.length) console.warn('[sw] not pre-cached:', failed);
+}
 self.addEventListener('install', e => {
-  // cache:'reload' bypasses the browser HTTP cache. GitHub Pages serves assets
-  // with max-age=600, so without it a fresh worker can pre-cache stale files
-  // and pin an old build for the next ten minutes.
-  e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
-  );
+  e.waitUntil(precache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
