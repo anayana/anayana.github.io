@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.4';
+const APP_VERSION = '1.3.5';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -99,6 +99,26 @@ function loadAll() {
   edits = {};
   const re = lsGet(K_EDIT);
   if (re) { try { edits = JSON.parse(re) || {}; } catch (e) { edits = {}; } }
+}
+/* The app used to ship three OSM demo trees. They are gone from the shipped
+   catalogue, but a phone that ran an earlier version still has them in its
+   stored one, where they only get in the way of a real survey. Drop them once,
+   matched on the demo signature so nothing recorded in the field can match. */
+const DEMO_OSM = ['12498051519', '12498051520', '12498051521'];
+function dropDemoTrees() {
+  if (!CAT || !CAT.features) return 0;
+  const gone = [];
+  CAT.features = CAT.features.filter(f => {
+    const p = f.properties || {};
+    if (DEMO_OSM.indexOf(String(p.osm_id)) >= 0 && p.inspector === 'synthetic (demo)') {
+      gone.push(p.tree_id); return false;
+    }
+    return true;
+  });
+  if (!gone.length) return 0;
+  gone.forEach(id => { delete edits[id]; });
+  saveCat(); saveEdits();
+  return gone.length;
 }
 function saveCat() { lsSet(K_CAT, JSON.stringify(CAT)); }
 function saveEdits() { lsSet(K_EDIT, JSON.stringify(edits)); }
@@ -1257,16 +1277,15 @@ function geoEditor(i) {
   wrap.appendChild(pad);
 
   const row2 = document.createElement('div'); row2.className = 'btnrow';
-  const bres = document.createElement('button'); bres.className = 'sm'; bres.textContent = 'Restore catalogue position';
+  const bres = document.createElement('button'); bres.className = 'sm'; bres.textContent = 'Undo position change';
   bres.onclick = () => {
     const o = CAT.features[i].properties.orig_coordinates;
     if (!o) return toast('Position was never changed.');
     CAT.features[i].geometry.coordinates = o.slice();
     delete CAT.features[i].properties.orig_coordinates;
-    CAT.features[i].properties.geometry_source = (TREES_DEFAULT.features.some(x => x.properties.tree_id === tid(i)))
-      ? 'OpenStreetMap node' : 'catalogue';
+    CAT.features[i].properties.geometry_source = 'as recorded';
     saveCat(); placeMarkers(); renderList(); syncGeo(i);
-    toast('Catalogue position restored.');
+    toast('Position as first recorded.');
   };
   row2.appendChild(bres);
   const bdel = document.createElement('button'); bdel.className = 'sm x'; bdel.textContent = 'Delete tree';
@@ -1728,11 +1747,6 @@ function wire() {
     emptyRegister();
     toast('Register emptied – record your first tree by coordinates.');
   };
-  $('bResetAll').onclick = () => {
-    if (!confirm('Reset catalogue and field records to the shipped state? Photos are kept.')) return;
-    lsDel(K_CAT); lsDel(K_EDIT); loadAll(); buildMarkers(); renderList(); renderStats();
-    toast('Reset done.');
-  };
   $('lbClose').onclick = () => { $('lightbox').style.display = 'none'; $('lbImg').src = ''; };
   $('lightbox').onclick = e => { if (e.target.id === 'lightbox') $('lbClose').click(); };
 
@@ -1745,6 +1759,7 @@ function wire() {
 }
 
 loadAll();
+const _demo = dropDemoTrees();
 buildScene();
 buildMarkers();
 wire();
@@ -1752,6 +1767,7 @@ checks();
 renderList();
 renderStats();
 $('about').textContent = 'VTA Field ' + APP_VERSION;
+if (_demo) toast(_demo + ' demo trees removed – the register is yours now.');
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
