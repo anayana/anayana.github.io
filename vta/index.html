@@ -95,6 +95,8 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 .bar{position:absolute;left:8px;right:8px;background:rgba(12,18,15,.82);backdrop-filter:blur(8px);
   border:1px solid #2b3a31;border-radius:12px;padding:7px 10px}
 #hud{top:calc(8px + max(env(safe-area-inset-top), 28px));font-size:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+#hFit.ok{color:#8fd6a8;font-weight:600}
+#hFit.warn{color:#ffcf8f;font-weight:600}
 #hwarn{display:none;width:100%;color:#ffcf8f;font-weight:600}
 #hwarn.on{display:block}
 #hud b{color:#8fd6a8;font-weight:600}
@@ -280,6 +282,7 @@ table.hist th{color:#8fa697;font-weight:500}
     <span>North <b id="hOff">0</b>°</span>
     <span id="hSel"></span>
     <span id="hNear"></span>
+    <span id="hFit"></span>
     <span id="hwarn"></span>
   </div>
   <div id="chooser"></div>
@@ -306,8 +309,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.4.0"></script>
-<script src="data.js?v=1.4.0"></script>
-<script src="app.js?v=1.4.0"></script>
+<script src="vendor/three.min.js?v=1.4.1"></script>
+<script src="data.js?v=1.4.1"></script>
+<script src="app.js?v=1.4.1"></script>
 </body>
 </html>

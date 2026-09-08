@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -303,7 +303,26 @@ function distBear(lat, lon, lat0, lon0) {
    surveyor's resection, and the fit below is its least-squares form. */
 
 let REFS = [];                     // known points: { id, lat, lon, note, acc }
-const refFix = new Map();          // id -> { x, z } measured in this session
+const refFix = new Map();          // control key -> { x, z } measured in this session
+
+/* Anything with a coordinate you trust can hold the scene down, and after the
+   first survey the trees themselves are the closest such things - which beats
+   walking back to a marker post every time a session restarts. Reference
+   points first, then the nearest trees. */
+function controlList() {
+  const out = REFS.map(r => ({ key: 'r:' + r.id, name: r.id, lat: r.lat, lon: r.lon, ref: true }));
+  const c = (mode && world) ? camPos() : null;
+  const trees = CAT.features.map((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return null;
+    const co = f.geometry.coordinates;
+    const g = world && world.children.find(o => o.userData.idx === i);
+    const d = (c && g) ? c.distanceTo(g.getWorldPosition(new THREE.Vector3())) : 1e9;
+    return { key: 't:' + tid(i), name: props(i).tree_id, lat: co[1], lon: co[0], ref: false, d: d };
+  }).filter(Boolean);
+  trees.sort((a, b) => a.d - b.d);
+  return out.concat(trees.slice(0, 8));
+}
+function controlByKey(k) { return controlList().find(x => x.key === k) || null; }
 function loadRefs() {
   REFS = [];
   const raw = lsGet(K_REF);
@@ -344,11 +363,11 @@ function fitRigid(pairs) {
 /* Everything the fit needs is in the session; applying it is just the origin
    and the yaw the rest of the app already runs on. */
 function fitFromRefs(quiet) {
-  const used = REFS.filter(r => refFix.has(r.id));
-  if (used.length < 2) { if (!quiet) toast('Measure at least two reference points.'); return null; }
+  const used = controlList().filter(r => refFix.has(r.key));
+  if (used.length < 2) { if (!quiet) toast('Measure at least two control points.'); return null; }
   const lat0 = used.reduce((a, r) => a + r.lat, 0) / used.length;
   const lon0 = used.reduce((a, r) => a + r.lon, 0) / used.length;
-  const pairs = used.map(r => ({ id: r.id, u: enu(r.lat, r.lon, lat0, lon0), s: refFix.get(r.id) }));
+  const pairs = used.map(r => ({ id: r.name, u: enu(r.lat, r.lon, lat0, lon0), s: refFix.get(r.key) }));
   const f = fitRigid(pairs);
   if (!f) { if (!quiet) toast('Reference points are too close together.'); return null; }
   origin = { lat: lat0 + f.n0 / R1LAT,
@@ -357,9 +376,23 @@ function fitFromRefs(quiet) {
   worldYaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360; headOff = 0;
   applyYaw(); placeMarkers(); requestAnchors();
   lastFit = f;
+  showFit();
   if (!quiet) toast('Fitted on ' + f.n + ' points · residual ' + f.rms.toFixed(2) +
-                    ' m, worst ' + f.max.toFixed(2) + ' m');
+                    ' m, worst ' + f.max.toFixed(2) + ' m (' + f.worst + ')');
   return f;
+}
+/* The state of the fit belongs on screen, not in a toast that has scrolled
+   away by the time you are standing at the next tree. */
+function showFit() {
+  const el = $('hFit'); if (!el) return;
+  const done = controlList().filter(r => refFix.has(r.key)).length;
+  if (!mode) { el.textContent = ''; return; }
+  el.textContent = lastFit
+    ? 'fitted ' + lastFit.n + ' pts ±' + lastFit.rms.toFixed(2) + ' m'
+    : done >= 2 ? done + ' measured – press Apply'
+    : done === 1 ? '1 measured – one more point'
+    : 'not fitted – GPS and compass only';
+  el.className = lastFit ? 'ok' : 'warn';
 }
 let lastFit = null;
 
@@ -656,6 +689,7 @@ function enterAR() {
   buildMeasureMenu();
   buildRefMenu();
   refFix.clear(); lastFit = null;         // a new session, a new local frame
+  showFit();
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
   $('bshot').disabled = !(mode === 'WebXR' && camAccessOk);
@@ -681,6 +715,7 @@ function endAR() {
   $('ctl2').classList.remove('on');
   $('edge').innerHTML = ''; edgeEls = {};
   $('hwarn').textContent = ''; $('hwarn').classList.remove('on');
+  $('hFit').textContent = '';
   $('app').classList.remove('hidden');
   mode = null;
   renderList();
@@ -920,7 +955,7 @@ function startMeasure(kind, refArg) {
     if (tree == null) return toast('No tree to measure.');
   }
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg };
-  const who = kind === 'ref' ? ' · ' + refArg
+  const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
   const ask = cfg.aim ? 'Aim at the stem base and tap'
             : kind === 'target' ? 'Aim at the target on the ground and tap'
@@ -974,10 +1009,12 @@ function measureTap() {
     // it. Height is dropped - the fit is a two-dimensional one.
     refFix.set(m.refId, { x: hitPt.x, z: hitPt.z });
     clearMeasure();
-    const done = REFS.filter(r => refFix.has(r.id)).length;
-    if (done < 2) toast(refById(m.refId).id + ' measured – ' + (2 - done) + ' more to fit.');
+    const c = controlByKey(m.refId);
+    const done = controlList().filter(r => refFix.has(r.key)).length;
+    if (done < 2) toast((c ? c.name : 'Point') + ' measured – one more and it fits.');
     else fitFromRefs(false);
-    buildRefMenu();
+    showFit(); buildRefMenu();
+    $('refmenu').style.display = 'block';       // stay open: the next point is one tap away
     return;
   }
 
@@ -1170,37 +1207,64 @@ function updateEdge() {
 function buildRefMenu() {
   const el = $('refmenu');
   el.innerHTML = '';
-  const head = document.createElement('div'); head.className = 'small';
-  const done = REFS.filter(r => refFix.has(r.id)).length;
-  head.innerHTML = REFS.length
-    ? 'Aim at each known point and tap. <b>' + done + ' of ' + REFS.length + '</b> measured' +
-      (lastFit ? ' · residual ' + lastFit.rms.toFixed(2) + ' m' : '') +
-      (done < 2 ? ' · two are the minimum' : '')
-    : 'No reference points yet – add them on the map.';
+  const list = controlList();
+  const done = list.filter(r => refFix.has(r.key)).length;
+
+  const head = document.createElement('div');
+  head.innerHTML = '<b>Georeference</b>';
   el.appendChild(head);
-  const row = document.createElement('div'); row.className = 'btnrow'; row.style.marginTop = '8px';
-  REFS.forEach(r => {
+  const st = document.createElement('div'); st.className = 'small'; st.style.margin = '4px 0 8px';
+  st.innerHTML = lastFit
+    ? '<b style="color:#8fd6a8">Applied.</b> ' + lastFit.n + ' points, residual ' +
+      lastFit.rms.toFixed(2) + ' m, worst ' + lastFit.max.toFixed(2) + ' m (' + lastFit.worst + '). ' +
+      'Measure another point to improve it, or close and record trees.'
+    : done === 1
+      ? '<b>1 measured.</b> One more point and the scene is fixed.'
+      : done === 0
+        ? 'Aim at a point you know and tap. Two are the minimum, three or four give a residual.'
+        : '<b>' + done + ' measured.</b> Ready – press Apply.';
+  el.appendChild(st);
+
+  const row = document.createElement('div'); row.className = 'btnrow';
+  list.forEach(r => {
     const b = document.createElement('button');
-    b.className = 'sm' + (refFix.has(r.id) ? ' p' : '');
-    b.textContent = (refFix.has(r.id) ? '✓ ' : '') + r.id;
-    b.onclick = () => startMeasure('ref', r.id);
+    const has = refFix.has(r.key);
+    b.className = 'sm' + (has ? ' p' : '');
+    b.textContent = (has ? '✓ ' : '') + r.name + (r.ref ? '' : ' ⌇');
+    b.onclick = () => startMeasure('ref', r.key);
     row.appendChild(b);
   });
-  if (done >= 2) {
-    const f = document.createElement('button');
-    f.className = 'sm'; f.textContent = 'Fit again';
-    f.onclick = () => { fitFromRefs(false); buildRefMenu(); };
-    row.appendChild(f);
-    const c = document.createElement('button');
-    c.className = 'sm x'; c.textContent = 'Clear';
-    c.onclick = () => { refFix.clear(); lastFit = null; buildRefMenu(); toast('Measurements cleared.'); };
-    row.appendChild(c);
+  if (!list.length) {
+    const e = document.createElement('span'); e.className = 'small';
+    e.textContent = 'Nothing to aim at yet – set reference points on the map.';
+    row.appendChild(e);
   }
-  const x = document.createElement('button');
-  x.className = 'sm'; x.textContent = 'Close';
-  x.onclick = () => { el.style.display = 'none'; };
-  row.appendChild(x);
   el.appendChild(row);
+
+  const act = document.createElement('div'); act.className = 'btnrow'; act.style.marginTop = '8px';
+  const ap = document.createElement('button');
+  ap.className = done >= 2 ? 'p' : ''; ap.disabled = done < 2;
+  ap.textContent = done >= 2 ? 'Apply and close' : 'Apply (needs 2)';
+  ap.onclick = () => {
+    if (!fitFromRefs(false)) return;
+    el.style.display = 'none';
+  };
+  act.appendChild(ap);
+  if (done) {
+    const c = document.createElement('button'); c.className = 'x'; c.textContent = 'Start over';
+    c.onclick = () => {
+      refFix.clear(); lastFit = null; showFit(); buildRefMenu();
+      toast('Measurements cleared – the scene keeps the last fit.');
+    };
+    act.appendChild(c);
+  }
+  const x = document.createElement('button'); x.textContent = 'Close';
+  x.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(x);
+  el.appendChild(act);
+  const foot = document.createElement('div'); foot.className = 'small'; foot.style.marginTop = '6px';
+  foot.textContent = '⌇ marks a tree from the register – usable once its own position is good.';
+  el.appendChild(foot);
 }
 
 function buildChooser() {
@@ -1885,6 +1949,13 @@ function msg(t) { $('msg').textContent = t; }
 function merged() {
   const out = JSON.parse(JSON.stringify(CAT));
   out.features.forEach((f, i) => { Object.assign(f.properties, edits[tid(i)] || {}); });
+  // control points travel with the register - they are the work of a morning
+  // and losing them costs more than losing a tree record
+  REFS.forEach(r => out.features.push({
+    type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] },
+    properties: { tree_id: r.id, is_reference: true, geometry_source: r.note || 'reference point',
+                  position_accuracy_m: r.acc == null ? undefined : r.acc }
+  }));
   return out;
 }
 function dl(name, content, mime) {
@@ -2053,15 +2124,28 @@ function wire() {
     rd.onload = () => {
       try {
         const j = JSON.parse(rd.result);
-        const feats = (j.features || []).filter(x => x.geometry && x.geometry.type === 'Point');
-        if (!feats.length) throw new Error('no point features found');
+        const all = (j.features || []).filter(x => x.geometry && x.geometry.type === 'Point');
+        if (!all.length) throw new Error('no point features found');
+        const refs = all.filter(x => x.properties && x.properties.is_reference);
+        const feats = all.filter(x => !(x.properties && x.properties.is_reference));
         feats.forEach((x, n) => {
           if (!x.properties) x.properties = {};
           if (!x.properties.tree_id) x.properties.tree_id = x.properties.baum_id || ('IMP-' + (n + 1));
         });
         CAT = { type: 'FeatureCollection', name: j.name || f.name, features: feats };
-        saveCat(); buildMarkers(); renderList(); renderStats();
-        toast(feats.length + ' trees loaded.');
+        saveCat();
+        if (refs.length) {
+          refs.forEach(x => {
+            const id = x.properties.tree_id || ('P' + (REFS.length + 1));
+            if (refById(id)) return;
+            REFS.push({ id: id, lon: x.geometry.coordinates[0], lat: x.geometry.coordinates[1],
+                        note: x.properties.geometry_source || 'imported',
+                        acc: x.properties.position_accuracy_m == null ? null : +x.properties.position_accuracy_m });
+          });
+          saveRefs(); renderRefs();
+        }
+        buildMarkers(); renderList(); renderStats();
+        toast(feats.length + ' trees' + (refs.length ? ' and ' + refs.length + ' reference points' : '') + ' loaded.');
       } catch (e) { toast('Import failed: ' + e.message); }
       $('fileImp').value = '';
     };
