@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.5';
+const APP_VERSION = '1.3.6';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -103,14 +103,14 @@ function loadAll() {
 /* The app used to ship three OSM demo trees. They are gone from the shipped
    catalogue, but a phone that ran an earlier version still has them in its
    stored one, where they only get in the way of a real survey. Drop them once,
-   matched on the demo signature so nothing recorded in the field can match. */
+   matched on the OSM node id, which nothing recorded in the field carries. */
 const DEMO_OSM = ['12498051519', '12498051520', '12498051521'];
 function dropDemoTrees() {
   if (!CAT || !CAT.features) return 0;
   const gone = [];
   CAT.features = CAT.features.filter(f => {
     const p = f.properties || {};
-    if (DEMO_OSM.indexOf(String(p.osm_id)) >= 0 && p.inspector === 'synthetic (demo)') {
+    if (DEMO_OSM.indexOf(String(p.osm_id)) >= 0) {      // nothing you record has an osm_id
       gone.push(p.tree_id); return false;
     }
     return true;
@@ -1543,7 +1543,8 @@ function renderStats() {
   const n = CAT.features.length;
   let ed = 0; const lv = [0, 0, 0, 0];
   CAT.features.forEach((f, i) => { if (isEdited(i)) ed++; lv[assess(props(i)).lvl]++; });
-  const base = '<div class="kv"><span>Trees in catalogue</span><span>' + n + '</span></div>' +
+  const base = '<div class="kv"><span>App version</span><span>' + APP_VERSION + '</span></div>' +
+               '<div class="kv"><span>Trees in catalogue</span><span>' + n + '</span></div>' +
                '<div class="kv"><span>Edited in the field</span><span>' + ed + '</span></div>' +
                '<div class="kv"><span>Levels 0 / 1 / 2 / 3</span><span>' + lv.join(' / ') + '</span></div>';
   photoAll().then(ps => {
@@ -1740,6 +1741,23 @@ function wire() {
   $('bResetEdits').onclick = () => {
     if (!confirm('Delete every inspection record captured in the field?')) return;
     edits = {}; lsDel(K_EDIT); buildMarkers(); renderList(); renderStats(); toast('Field records deleted.');
+  };
+  $('bUpdate').onclick = async () => {
+    // A stale service worker keeps serving yesterday's app and no amount of
+    // reloading helps, so throw the worker and every cache away and come back
+    // on a URL the caches have never seen. Trees and photos are untouched.
+    $('bUpdate').disabled = true; toast('Fetching the current version …');
+    try {
+      if ('serviceWorker' in navigator) {
+        const rs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(rs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k => caches.delete(k)));
+      }
+    } catch (e) {}
+    location.replace(location.pathname + '?u=' + Date.now());
   };
   $('bEmpty').onclick = () => {
     if (!CAT.features.length) return toast('The register is already empty.');
