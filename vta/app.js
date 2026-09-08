@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.3.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -385,6 +385,7 @@ function placeMarkers() {
     const d = enu(c[1], c[0], origin.lat, origin.lon);
     g.position.set(d.e, 0, -d.n);                 // x = east, z = -north
   });
+  requestAnchors();       // old anchors would drag the markers back
 }
 function refreshMarker(i) {
   const sp = sprites.find(s => s.userData.idx === i);
@@ -416,6 +417,7 @@ function syncNorth(quiet) {
   if (heading == null) { if (!quiet) toast('No compass heading yet – move the phone in a figure of eight.'); return false; }
   worldYaw = ((heading - camYawDeg()) % 360 + 360) % 360;
   applyYaw();
+  requestAnchors();       // the markers just turned, their anchors have not
   if (!quiet) toast('North taken from compass (heading ' + heading.toFixed(0) + '°).');
   return true;
 }
@@ -486,7 +488,11 @@ async function startCam() {
     if (origin && lastFix && lastFix.acc < 25) {
       const d = enu(lastFix.lat, lastFix.lon, origin.lat, origin.lon);
       const v2 = new THREE.Vector3(d.e, 0, -d.n).applyAxisAngle(_yAx, THREE.MathUtils.degToRad(worldYaw + headOff));
-      camGps.lerp(new THREE.Vector3(v2.x, 1.55, v2.z), 0.12);
+      const tgt = new THREE.Vector3(v2.x, 1.55, v2.z);
+      // GPS noise is metres wide, and moving the camera moves the whole scene
+      // past you: follow a fix only once it has left the accuracy circle, then
+      // ease over rather than jump.
+      if (camGps.distanceTo(tgt) > Math.max(1.5, lastFix.acc * 0.5)) camGps.lerp(tgt, 0.02);
     }
     camera.position.copy(camGps);
     tick(); renderer.render(scene, camera);
@@ -531,16 +537,41 @@ function endAR() {
 }
 
 const _cp = new THREE.Vector3(), _sp = new THREE.Vector3();
+const LBL_W = 1.7, LBL_H = 0.85;          // label size in metres at scale 1
+const LBL_MAXW = 0.55, LBL_MAXH = 0.34;   // and never more than this share of the screen
+
+/* Sprites are sized in metres, so a label that reads well at 10 m swallows the
+   whole display once you walk up to the stem. Cap the scale by what the label
+   is allowed to cover on screen: at distance d the viewport is 2*d*tanHalf
+   metres wide, so the cap follows the screen, not a guessed minimum. */
+function frustumTan(cam) {
+  const pc = (cam.cameras && cam.cameras.length) ? cam.cameras[0] : cam;
+  const e = pc.projectionMatrix.elements;
+  return { x: e[0] ? Math.abs(1 / e[0]) : 1, y: e[5] ? Math.abs(1 / e[5]) : 1 };
+}
+function fitScale(k, d, t, w, h) {
+  return Math.min(k, LBL_MAXW * 2 * d * t.x / w, LBL_MAXH * 2 * d * t.y / h);
+}
+
 function tick() {
   const cam = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
   _cp.setFromMatrixPosition(cam.matrixWorld);
+  const t = frustumTan(cam);
   let best = null, bd = 1e9;
   sprites.forEach(sp => {
     sp.getWorldPosition(_sp);
     const d = _cp.distanceTo(_sp);
     const k = THREE.MathUtils.clamp(d / 7, 0.7, 3.4);      // keep the label readable at distance
-    sp.scale.set(1.7 * k, 0.85 * k, 1);
+    const s = fitScale(k, d, t, LBL_W, LBL_H);
+    sp.scale.set(LBL_W * s, LBL_H * s, 1);
     if (d < bd) { bd = d; best = sp; }
+  });
+  // measurement read-outs sit wherever you tapped, sometimes at arm's length
+  mGroup.children.forEach(o => {
+    const b = o.userData.base; if (!b) return;
+    o.getWorldPosition(_sp);
+    const s = fitScale(1, _cp.distanceTo(_sp), t, b[0], b[1]);
+    o.scale.set(b[0] * s, b[1] * s, 1);
   });
   $('hNear').textContent = best ? ('nearest ' + props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
@@ -608,7 +639,10 @@ function updateHitTest(frame) {
 /* ---- anchors: let ARCore hold the markers in place ----
    Without them the markers sit at fixed session coordinates and inherit every
    bit of tracking drift; anchored, ARCore re-localises them as you walk. */
-function requestAnchors() { if (anchorsOk) anchorsWanted = true; }
+const ANCH_DEAD = 0.30;    // ignore anchor offsets below this - jitter, not drift
+const ANCH_RATE = 0.10;    // and correct the rest at most this fast (m/s)
+let anchTime = 0;
+function requestAnchors() { if (anchorsOk) { anchorsWanted = true; anchTime = 0; } }
 function dropAnchors() {
   anchorMap.forEach(a => { try { a.delete(); } catch (e) {} });
   anchorMap.clear();
@@ -631,13 +665,24 @@ function updateAnchors(frame) {
     });
     return;
   }
+  const now = performance.now();
+  const dt = anchTime ? Math.min(0.1, (now - anchTime) / 1000) : 0;
+  anchTime = now;
   anchorMap.forEach((a, idx) => {
     const pose = frame.getPose(a.anchorSpace, xrRef);
     if (!pose) return;
     const g = world.children.find(o => o.userData.idx === idx);
     if (!g) return;
     const p = pose.transform.position;
-    g.position.copy(world.worldToLocal(new THREE.Vector3(p.x, p.y, p.z)));
+    const tgt = world.worldToLocal(new THREE.Vector3(p.x, p.y, p.z));
+    // A marker that follows its anchor frame by frame twitches with every
+    // re-localisation, and ARCore re-localises hardest where the camera has the
+    // most detail - right in front of the tree you are standing at. Correct
+    // real drift only, and slowly enough that nothing visibly slides.
+    const off = tgt.sub(g.position);
+    const len = off.length();
+    if (len < ANCH_DEAD) return;
+    g.position.addScaledVector(off, Math.min(len - ANCH_DEAD, ANCH_RATE * dt) / len);
   });
 }
 
@@ -696,6 +741,7 @@ function valueSprite(text) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({
     map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
   sp.scale.set(1.2, 0.3, 1); sp.renderOrder = 13;
+  sp.userData.base = [1.2, 0.3];            // tick() caps this against the screen
   return sp;
 }
 function drawSegment(a, b, text) {
