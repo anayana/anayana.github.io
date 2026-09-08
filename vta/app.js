@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.7';
+const APP_VERSION = '1.4.8';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -586,7 +586,11 @@ function buildScene() {
     new THREE.MeshBasicMaterial({ color: 0x8fd6a8, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false }));
   reticle.rotation.x = -Math.PI / 2; reticle.renderOrder = 12; reticle.visible = false;
   scene.add(reticle);
-  mGroup = new THREE.Group(); scene.add(mGroup);
+  // Inside world, not in the session frame: a measurement drawn in session
+  // coordinates stays where the phone happened to be standing, while the trees
+  // move with every fit, yaw re-sync and anchor correction - so the line walks
+  // away from the tree it measured.
+  mGroup = new THREE.Group(); world.add(mGroup);
 
   addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
@@ -632,7 +636,8 @@ function labelTexture(i) {
 }
 
 function buildMarkers() {
-  while (world.children.length) world.remove(world.children[0]);
+  // only the marker groups: mGroup hangs here too and must survive
+  world.children.filter(o => o.userData.idx != null).forEach(o => world.remove(o));
   sprites = [];
   CAT.features.forEach((f, i) => {
     if (!f.geometry || f.geometry.type !== 'Point') return;
@@ -850,7 +855,7 @@ function tick() {
     if (d < bd) { bd = d; best = sp; }
   });
   // measurement read-outs sit wherever you tapped, sometimes at arm's length
-  mGroup.children.forEach(o => {
+  mObjs.forEach(o => {
     const b = o.userData.base; if (!b) return;
     o.getWorldPosition(_sp);
     const s = fitScale(1, _cp.distanceTo(_sp), t, b[0], b[1]);
@@ -1006,16 +1011,24 @@ function mbar(txt, buttons) {
   });
   $('mbar').classList.add('on');
 }
+let mObjs = [];                    // what was drawn, and where it was hung
 function clearMeasure() {
   measure = null;
   reticle.visible = false;
   $('mbar').classList.remove('on');
-  while (mGroup.children.length) {
-    const c = mGroup.children[0];
+  mObjs.forEach(c => {
     if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); }
     if (c.geometry) c.geometry.dispose();
-    mGroup.remove(c);
-  }
+    if (c.parent) c.parent.remove(c);
+  });
+  mObjs = [];
+}
+/* A measurement of a tree hangs on that tree, so an anchor correction moves
+   both together; a free tape hangs on the world, which is still georeferenced.
+   Points come in as session coordinates and are converted to the parent's. */
+function mParent(tree) {
+  const g = (tree != null && world) ? world.children.find(o => o.userData.idx === tree) : null;
+  return g || mGroup;
 }
 function valueSprite(text) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128;
@@ -1030,14 +1043,18 @@ function valueSprite(text) {
   sp.userData.base = [1.2, 0.3];            // tick() caps this against the screen
   return sp;
 }
-function drawSegment(a, b, text) {
+function drawSegment(a, b, text, tree) {
+  const parent = mParent(tree);
+  parent.updateMatrixWorld(true);
+  const la = parent.worldToLocal(a.clone()), lb = parent.worldToLocal(b.clone());
   const line = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([a, b]),
+    new THREE.BufferGeometry().setFromPoints([la, lb]),
     new THREE.LineBasicMaterial({ color: 0x8fd6a8, depthTest: false }));
-  line.renderOrder = 12; mGroup.add(line);
+  line.renderOrder = 12;
+  parent.add(line); mObjs.push(line);
   const sp = valueSprite(text);
-  sp.position.copy(a.clone().add(b).multiplyScalar(0.5));
-  mGroup.add(sp);
+  sp.position.copy(la.clone().add(lb).multiplyScalar(0.5));
+  parent.add(sp); mObjs.push(sp);
 }
 
 function startMeasure(kind, refArg) {
@@ -1086,7 +1103,7 @@ function measureTap() {
                                [['Again', () => startMeasure(m.kind)], ['Cancel', clearMeasure]]);
     const top = c.y + horiz * Math.tan(el);
     const h = top - base.y;
-    drawSegment(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m');
+    drawSegment(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m', m.tree);
     finishMeasure(h, cfg.label + ' ' + h.toFixed(1) + ' m<br><span class="small">' +
       horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '° up</span>');
     return;
@@ -1133,7 +1150,7 @@ function measureTap() {
     if (!g) return clearMeasure();
     const stem = g.getWorldPosition(new THREE.Vector3());
     const d = Math.hypot(hitPt.x - stem.x, hitPt.z - stem.z);
-    drawSegment(new THREE.Vector3(stem.x, hitPt.y, stem.z), hitPt.clone(), d.toFixed(1) + ' m');
+    drawSegment(new THREE.Vector3(stem.x, hitPt.y, stem.z), hitPt.clone(), d.toFixed(1) + ' m', m.tree);
     const h = num(props(m.tree).height_m);
     const zone = (h && d <= h) ? '<br><span class="small">inside the fall zone (' + h.toFixed(0) + ' m tree)</span>' : '';
     finishMeasure(d, 'Distance to target ' + d.toFixed(1) + ' m' + zone);
@@ -1148,7 +1165,7 @@ function measureTap() {
   }
   const a = m.pts[0], b = hitPt.clone();
   const d = Math.hypot(b.x - a.x, b.z - a.z);
-  drawSegment(a, b, d.toFixed(1) + ' m');
+  drawSegment(a, b, d.toFixed(1) + ' m', m.kind === 'crown' ? m.tree : null);
   finishMeasure(d, cfg.label + ' ' + d.toFixed(1) + ' m');
 }
 
