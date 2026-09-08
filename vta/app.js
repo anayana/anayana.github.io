@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.5';
+const APP_VERSION = '1.4.6';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -256,9 +256,20 @@ function assess(p) {
 
 /* ========================== GEODESY ========================== */
 
-const R1LAT = 110540, R1LON = 111320;
+/* Metres per degree, as a function of latitude. The flat constants this
+   replaces (110540 / 111320) are the values for about 45 degrees; at 62 north
+   the latitude one is 0.8 % short, which is 0.4 m over a fifty-metre stand and
+   grows with every metre of it. */
+function mLat(lat) {
+  const r = lat * Math.PI / 180;
+  return 111132.92 - 559.82 * Math.cos(2 * r) + 1.175 * Math.cos(4 * r) - 0.0023 * Math.cos(6 * r);
+}
+function mLon(lat) {
+  const r = lat * Math.PI / 180;
+  return 111412.84 * Math.cos(r) - 93.5 * Math.cos(3 * r) + 0.118 * Math.cos(5 * r);
+}
 function enu(lat, lon, lat0, lon0) {
-  return { e: (lon - lon0) * R1LON * Math.cos(lat0 * Math.PI / 180), n: (lat - lat0) * R1LAT };
+  return { e: (lon - lon0) * mLon(lat0), n: (lat - lat0) * mLat(lat0) };
 }
 /* A point in the scene back to WGS84. Accurate relative to everything else in
    the session; in absolute terms it inherits the error of the origin fix. */
@@ -269,8 +280,8 @@ function sceneToWgs(v) {
   // heading's answer
   world.updateMatrixWorld(true);
   const l = world.worldToLocal(v.clone());
-  return { lat: origin.lat + (-l.z) / R1LAT,
-           lon: origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180)) };
+  return { lat: origin.lat + (-l.z) / mLat(origin.lat),
+           lon: origin.lon + l.x / mLon(origin.lat) };
 }
 /* The inverse: declare that the spot you are standing on has these
    coordinates. The scene's zero point is wherever the session started, not
@@ -281,8 +292,7 @@ function setOriginHere(lat, lon, acc) {
   if (world && mode) {
     world.updateMatrixWorld(true);
     const l = world.worldToLocal(camPos());
-    origin = { lat: lat + l.z / R1LAT,
-               lon: lon - l.x / (R1LON * Math.cos(lat * Math.PI / 180)) };
+    origin = { lat: lat + l.z / mLat(lat), lon: lon - l.x / mLon(lat) };
   } else {
     origin = { lat: lat, lon: lon };
   }
@@ -375,8 +385,7 @@ function fitFromRefs(quiet) {
     if (heading == null) { if (!quiet) toast('One point needs the compass for the heading – no heading yet.'); return null; }
     syncNorth(true);
     const v = new THREE.Vector3(p.x, 0, p.z).applyAxisAngle(_yAx, -THREE.MathUtils.degToRad(worldYaw + headOff));
-    origin = { lat: r.lat + v.z / R1LAT,
-               lon: r.lon - v.x / (R1LON * Math.cos(r.lat * Math.PI / 180)) };
+    origin = { lat: r.lat + v.z / mLat(r.lat), lon: r.lon - v.x / mLon(r.lat) };
     originAcc = null; originPinned = true;
     placeMarkers(); requestAnchors(); lastFit = null; showFit();
     if (!quiet) toast('Position set from ' + r.name + ' – heading still from the compass. One more point fixes it.');
@@ -388,8 +397,7 @@ function fitFromRefs(quiet) {
   const pairs = used.map(r => ({ id: r.name, u: enu(r.lat, r.lon, lat0, lon0), s: refFix.get(r.key) }));
   const f = fitRigid(pairs);
   if (!f) { if (!quiet) toast('Reference points are too close together.'); return null; }
-  origin = { lat: lat0 + f.n0 / R1LAT,
-             lon: lon0 + f.e0 / (R1LON * Math.cos(lat0 * Math.PI / 180)) };
+  origin = { lat: lat0 + f.n0 / mLat(lat0), lon: lon0 + f.e0 / mLon(lat0) };
   originAcc = f.rms; originPinned = true;
   worldYaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360; headOff = 0;
   applyYaw(); placeMarkers(); requestAnchors();
@@ -1407,11 +1415,26 @@ function drawMap() {
     if (!seen[k]) { mapTiles[k].remove(); delete mapTiles[k]; }
   });
   drawMapMarks(left, top, v.z);
-  $('mapInfo').textContent = v.lat.toFixed(6) + ', ' + v.lon.toFixed(6) + '  ·  z' + v.z;
+  $('mapInfo').textContent = v.lat.toFixed(6) + ', ' + v.lon.toFixed(6) + '  ·  z' + v.z +
+    (lastFix ? '  ·  GPS ±' + lastFix.acc.toFixed(0) + ' m' : '');
+  if (mapSel != null) syncMapSel();
 }
+let mapSel = null;                 // index of the tree picked on the map
+function mapMPP(lat, z) { return 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z); }
 function drawMapMarks(left, top, z) {
   const layer = $('mapMarks');
   layer.innerHTML = '';
+  // the phone's own accuracy claim, drawn to scale: a fix is a circle, and
+  // seeing it beside the building says more than a number in the header
+  if (lastFix && lastFix.acc) {
+    const r = lastFix.acc / mapMPP(lastFix.lat, z);
+    const c = document.createElement('div'); c.className = 'acc';
+    c.style.left = (lon2px(lastFix.lon, z) - left) + 'px';
+    c.style.top = (lat2px(lastFix.lat, z) - top) + 'px';
+    c.style.width = c.style.height = (r * 2) + 'px';
+    c.style.margin = (-r) + 'px 0 0 ' + (-r) + 'px';
+    layer.appendChild(c);
+  }
   const put = (lat, lon, cls, label) => {
     const d = document.createElement('div'); d.className = 'mk ' + cls;
     d.style.left = (lon2px(lon, z) - left) + 'px';
@@ -1422,7 +1445,7 @@ function drawMapMarks(left, top, z) {
   CAT.features.forEach((f, i) => {
     if (!f.geometry || f.geometry.type !== 'Point') return;
     const c = f.geometry.coordinates;
-    put(c[1], c[0], 'mkT', z >= 18 ? props(i).tree_id : '');
+    put(c[1], c[0], 'mkT' + (i === mapSel ? ' sel' : ''), (z >= 18 || i === mapSel) ? props(i).tree_id : '');
   });
   REFS.forEach(r => put(r.lat, r.lon, 'mkR', r.id));
   if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
@@ -1448,7 +1471,7 @@ function wireMap() {
       mapPinch.d = Math.hypot(mapPinch.a.x - mapPinch.b.x, mapPinch.a.y - mapPinch.b.y);
       return;
     }
-    mapDrag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    mapDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
   });
   box.addEventListener('pointermove', e => {
     if (mapPinch) {
@@ -1466,7 +1489,10 @@ function wireMap() {
   });
   const up = e => {
     if (mapPinch && (e.pointerId === mapPinch.a.id || e.pointerId === mapPinch.b.id)) { mapPinch = null; mapDrag = null; return; }
-    if (mapDrag && e.pointerId === mapDrag.id) mapDrag = null;
+    if (mapDrag && e.pointerId === mapDrag.id) {
+      if (Math.hypot(e.clientX - mapDrag.x0, e.clientY - mapDrag.y0) < 7) mapPick(e);
+      mapDrag = null;
+    }
   };
   box.addEventListener('pointerup', up);
   box.addEventListener('pointercancel', up);
@@ -1487,11 +1513,47 @@ function wireMap() {
     saveRefs(); $('mRefId').value = ''; drawMap(); renderRefs();
     toast('Reference point ' + id + ' set at the crosshair.');
   };
+  $('mMove').onclick = () => {
+    if (mapSel == null) return;
+    const v = mapCentre(), id = tid(mapSel);
+    setCoords(mapSel, v.lon, v.lat, 'moved on the map', null);
+    drawMap(); syncMapSel();
+    toast(id + ' moved to the crosshair.');
+  };
   $('mAddTree').onclick = () => {
     const v = mapCentre();
     const i = addTree(v.lon, v.lat, 'picked on the map', null);
     drawMap(); openPanel(i, 'base');
   };
+}
+/* A tap that did not pan is a pick: take the nearest tree within a thumb's
+   width, so a shifted marker can be dragged onto the truth without leaving
+   the map. */
+function mapPick(e) {
+  const box = $('mapBox'), r = box.getBoundingClientRect();
+  const v = mapCentre(), w = box.clientWidth, h = box.clientHeight;
+  const left = lon2px(v.lon, v.z) - w / 2, top = lat2px(v.lat, v.z) - h / 2;
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  let best = null, bd = 26;
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    const d = Math.hypot(lon2px(c[0], v.z) - left - px, lat2px(c[1], v.z) - top - py);
+    if (d < bd) { bd = d; best = i; }
+  });
+  mapSel = (best === mapSel) ? null : best;
+  drawMap(); syncMapSel();
+}
+function syncMapSel() {
+  const b = $('mMove'), info = $('mSel');
+  if (mapSel == null || !CAT.features[mapSel]) {
+    mapSel = null; b.style.display = 'none'; info.textContent = 'Tap a tree on the map to pick it.';
+    return;
+  }
+  const v = mapCentre(), c = CAT.features[mapSel].geometry.coordinates;
+  const d = distBear(c[1], c[0], v.lat, v.lon).d;
+  b.style.display = ''; b.textContent = 'Move ' + tid(mapSel) + ' here (' + d.toFixed(1) + ' m)';
+  info.textContent = tid(mapSel) + ' picked · ' + (props(mapSel).species || 'no species');
 }
 function renderRefs() {
   const box = $('refList'); if (!box) return;
@@ -1696,8 +1758,8 @@ function geoEditor(i) {
     if (de === 0 && dn === 0) { b.className = 'sm mid'; }
     b.onclick = () => {
       const cc = CAT.features[i].geometry.coordinates;
-      const dLat = (dn * step) / R1LAT;
-      const dLon = (de * step) / (R1LON * Math.cos(cc[1] * Math.PI / 180));
+      const dLat = (dn * step) / mLat(cc[1]);
+      const dLon = (de * step) / mLon(cc[1]);
       setCoords(i, cc[0] + dLon, cc[1] + dLat, 'adjusted in the field');
     };
     return b;
@@ -1976,7 +2038,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); }   // sensors only on a user action
   if (k === 'data') renderStats();
-  if (k === 'map') { startGPS(); drawMap(); renderRefs(); }
+  if (k === 'map') { startGPS(); drawMap(); renderRefs(); syncMapSel(); }
 }
 function renderStats() {
   const n = CAT.features.length;
