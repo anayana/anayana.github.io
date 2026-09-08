@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.4';
+const APP_VERSION = '1.4.5';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2124,7 +2124,16 @@ function wire() {
     $('ctl2').classList.toggle('on');
     $('mmenu').style.display = 'none';
   };
-  $('bq').onclick = endAR;
+  $('bq').onclick = () => {
+    // the control measurements only exist inside this session's frame - leaving
+    // throws them away, and there is no getting them back
+    const done = controlList().filter(r => refFix.has(r.key)).length;
+    if (done && !confirm('Leave AR?\n\n' + done + ' control point' + (done > 1 ? 's' : '') +
+        ' measured in this session' + (lastFit ? ' (fit ±' + lastFit.rms.toFixed(2) + ' m)' : '') +
+        '. They are tied to this session and cannot be carried into the next one – ' +
+        'you would measure them again.')) return;
+    endAR();
+  };
 
   $('bSort').onclick = () => {
     sortByDist = !sortByDist;

@@ -107,10 +107,11 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 #hwarn.on{display:flex}
 #hwarn>span{flex:1}
 #hwarn button{padding:2px 8px;font-size:13px}
-#ctl{bottom:calc(8px + env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;padding:8px}
+/* clear of the browser's own full-screen card, which sits at the very bottom */
+#ctl{bottom:calc(72px + env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;padding:8px}
 #ctl{flex-wrap:nowrap}
 #ctl button{font-size:13px;padding:7px 8px;white-space:nowrap}
-#chooser,#mmenu,#refmenu{position:absolute;left:12px;right:12px;bottom:86px;background:rgba(10,16,13,.96);
+#chooser,#mmenu,#refmenu{position:absolute;left:12px;right:12px;bottom:150px;background:rgba(10,16,13,.96);
   border:1px solid #34483c;border-radius:14px;padding:12px;display:none}
 #chooser .btnrow button,#mmenu .btnrow button,#refmenu .btnrow button{min-width:30%}
 #refmenu{max-height:56vh;overflow:auto}
@@ -118,10 +119,10 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 .refrow .nm{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .refrow.has .nm{color:#8fd6a8}
 .refrow button{font-size:12.5px;padding:6px 9px;flex:0 0 auto}
-#ctl2{bottom:calc(62px + env(safe-area-inset-bottom));display:none;gap:6px;flex-wrap:wrap;padding:8px}
+#ctl2{bottom:calc(126px + env(safe-area-inset-bottom));display:none;gap:6px;flex-wrap:wrap;padding:8px}
 #ctl2.on{display:flex}
 #ctl2 button{font-size:13px;padding:7px 10px}
-#mbar{bottom:calc(62px + env(safe-area-inset-bottom));display:none;font-size:13px}
+#mbar{bottom:calc(126px + env(safe-area-inset-bottom));display:none;font-size:13px}
 #mbar.on{display:block}
 #mbtn{display:flex;gap:6px;margin-top:8px}
 #mbtn button{flex:1;font-size:13px;padding:7px 10px}
@@ -323,8 +324,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.4.4"></script>
-<script src="data.js?v=1.4.4"></script>
-<script src="app.js?v=1.4.4"></script>
+<script src="vendor/three.min.js?v=1.4.5"></script>
+<script src="data.js?v=1.4.5"></script>
+<script src="app.js?v=1.4.5"></script>
 </body>
 </html>
