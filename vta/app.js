@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.6';
+const APP_VERSION = '1.4.7';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -42,6 +42,32 @@ const SYMPTOMS = [
 const SYM_LABEL = {};
 SYMPTOMS.forEach(g => g[1].forEach(s => { SYM_LABEL[s[0]] = s[1]; }));
 
+/* Species offered for picking. Northern and central European street, park and
+   forest trees - free text still wins, this only saves the typing. */
+const SPECIES = [
+  ['Acer platanoides', 'Norway maple'], ['Acer pseudoplatanus', 'Sycamore'],
+  ['Acer saccharinum', 'Silver maple'], ['Aesculus hippocastanum', 'Horse chestnut'],
+  ['Alnus glutinosa', 'Black alder'], ['Alnus incana', 'Grey alder'],
+  ['Betula pendula', 'Silver birch'], ['Betula pubescens', 'Downy birch'],
+  ['Carpinus betulus', 'Hornbeam'], ['Castanea sativa', 'Sweet chestnut'],
+  ['Corylus avellana', 'Hazel'], ['Crataegus monogyna', 'Hawthorn'],
+  ['Fagus sylvatica', 'Beech'], ['Fraxinus excelsior', 'Ash'],
+  ['Juglans regia', 'Walnut'], ['Larix decidua', 'European larch'],
+  ['Larix sibirica', 'Siberian larch'], ['Malus domestica', 'Apple'],
+  ['Picea abies', 'Norway spruce'], ['Pinus sylvestris', 'Scots pine'],
+  ['Pinus cembra', 'Swiss pine'], ['Platanus x hispanica', 'London plane'],
+  ['Populus tremula', 'Aspen'], ['Populus nigra', 'Black poplar'],
+  ['Prunus avium', 'Wild cherry'], ['Prunus padus', 'Bird cherry'],
+  ['Pseudotsuga menziesii', 'Douglas fir'], ['Quercus petraea', 'Sessile oak'],
+  ['Quercus robur', 'Pedunculate oak'], ['Quercus rubra', 'Red oak'],
+  ['Robinia pseudoacacia', 'Black locust'], ['Salix alba', 'White willow'],
+  ['Salix caprea', 'Goat willow'], ['Sorbus aucuparia', 'Rowan'],
+  ['Sorbus intermedia', 'Swedish whitebeam'], ['Taxus baccata', 'Yew'],
+  ['Thuja occidentalis', 'White cedar'], ['Tilia cordata', 'Small-leaved lime'],
+  ['Tilia platyphyllos', 'Large-leaved lime'], ['Tilia x europaea', 'Common lime'],
+  ['Ulmus glabra', 'Wych elm'], ['Ulmus laevis', 'European white elm']
+];
+
 const SAFE = ['adequate', 'restricted', 'not given'];
 const F_VTA = [
   ['inspection_type', 'Inspection type', 'select', ['Routine inspection', 'Visual inspection', 'Detailed assessment', 'Post-storm inspection']],
@@ -66,7 +92,7 @@ const F_VTA = [
 ];
 const F_BASE = [
   ['tree_id', 'Tree ID', 'text'],
-  ['species', 'Species (scientific)', 'text'],
+  ['species', 'Species (scientific)', 'species'],
   ['name_en', 'Common name', 'text'],
   ['name_fi', 'Name (Finnish)', 'text'],
   ['planted', 'Year planted', 'number'],
@@ -582,8 +608,21 @@ function labelTexture(i) {
   g.fillStyle = col; g.beginPath(); g.arc(62, 74, 26, 0, 7); g.fill();
   g.fillStyle = '#fff'; g.font = 'bold 46px system-ui,sans-serif';
   g.fillText(p.tree_id || '?', 104, 90);
-  g.fillStyle = '#cfe0d5'; g.font = 'italic 36px system-ui,sans-serif';
-  g.fillText(p.species || '', 32, 152);
+  // the species is what you actually look for on a marker, so it gets weight,
+  // and its absence gets said rather than left as a blank line
+  const sp = (p.species || '').trim(), cn = (p.name_en || '').trim();
+  if (sp || cn) {
+    g.fillStyle = '#eaf3ee'; g.font = 'italic bold 40px system-ui,sans-serif';
+    g.fillText(sp || cn, 32, 154);
+    if (sp && cn) {
+      const w = g.measureText(sp).width;
+      g.fillStyle = '#9fb3a6'; g.font = '30px system-ui,sans-serif';
+      g.fillText(' · ' + cn, 32 + w, 154);
+    }
+  } else {
+    g.fillStyle = '#e0a94a'; g.font = 'italic 36px system-ui,sans-serif';
+    g.fillText('species not recorded', 32, 154);
+  }
   g.fillStyle = '#9fb3a6'; g.font = '32px system-ui,sans-serif';
   g.fillText('DBH ' + (p.dbh_cm == null ? '–' : p.dbh_cm) + ' cm · H ' + (p.height_m == null ? '–' : p.height_m) + ' m', 32, 204);
   g.fillText('Vitality ' + (p.vitality_roloff == null ? '–' : p.vitality_roloff) + ' · ' + (p.damage_class || '–'), 32, 250);
@@ -1601,6 +1640,20 @@ function fieldRow(k, lab, typ, opt, p) {
   } else if (typ === 'list') {
     inp = document.createElement('textarea'); inp.value = (p[k] || []).join('\n');
     inp.placeholder = 'one entry per line';
+  } else if (typ === 'species') {
+    // typing a binomial on a phone in the cold is a good way to get "Betual"
+    // into a register, so offer the list and keep free text possible
+    inp = document.createElement('input'); inp.type = 'text';
+    inp.value = p[k] == null ? '' : p[k];
+    inp.setAttribute('list', 'speciesList');
+    inp.setAttribute('autocapitalize', 'words');
+    inp.onchange = () => {
+      const hit = SPECIES.find(x => x[0].toLowerCase() === inp.value.trim().toLowerCase());
+      if (!hit || !panelEl) return;
+      inp.value = hit[0];                                       // canonical spelling and case
+      const cn = panelEl.querySelector('[data-k="name_en"]');   // fill the common name to match
+      if (cn && !cn.value.trim()) cn.value = hit[1];
+    };
   } else {
     inp = document.createElement('input'); inp.type = typ;
     inp.value = p[k] == null ? '' : p[k];
@@ -2314,6 +2367,15 @@ function wire() {
     b.onclick = async () => { b.style.display = 'none'; deferred.prompt(); await deferred.userChoice; deferred = null; };
   });
 }
+
+(function speciesDatalist() {
+  const dl = document.createElement('datalist'); dl.id = 'speciesList';
+  SPECIES.forEach(x => {
+    const o = document.createElement('option');
+    o.value = x[0]; o.label = x[1]; dl.appendChild(o);
+  });
+  document.body.appendChild(dl);
+})();
 
 loadAll();
 loadRefs();
