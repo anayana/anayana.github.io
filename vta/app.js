@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.4.3';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -264,6 +264,10 @@ function enu(lat, lon, lat0, lon0) {
    the session; in absolute terms it inherits the error of the origin fix. */
 function sceneToWgs(v) {
   if (!origin || !world) return null;
+  // worldToLocal inverts the cached matrix, and applyYaw() has just turned the
+  // world without a render in between - refresh it or the answer is the old
+  // heading's answer
+  world.updateMatrixWorld(true);
   const l = world.worldToLocal(v.clone());
   return { lat: origin.lat + (-l.z) / R1LAT,
            lon: origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180)) };
@@ -364,6 +368,20 @@ function fitRigid(pairs) {
    and the yaw the rest of the app already runs on. */
 function fitFromRefs(quiet) {
   const used = controlList().filter(r => refFix.has(r.key));
+  if (used.length === 1) {
+    // one point pins the position exactly and leaves the heading to the
+    // compass - worse than a real fit, far better than a GPS origin
+    const r = used[0], p = refFix.get(r.key);
+    if (heading == null) { if (!quiet) toast('One point needs the compass for the heading – no heading yet.'); return null; }
+    syncNorth(true);
+    const v = new THREE.Vector3(p.x, 0, p.z).applyAxisAngle(_yAx, -THREE.MathUtils.degToRad(worldYaw + headOff));
+    origin = { lat: r.lat + v.z / R1LAT,
+               lon: r.lon - v.x / (R1LON * Math.cos(r.lat * Math.PI / 180)) };
+    originAcc = null; originPinned = true;
+    placeMarkers(); requestAnchors(); lastFit = null; showFit();
+    if (!quiet) toast('Position set from ' + r.name + ' – heading still from the compass. One more point fixes it.');
+    return null;
+  }
   if (used.length < 2) { if (!quiet) toast('Measure at least two control points.'); return null; }
   const lat0 = used.reduce((a, r) => a + r.lat, 0) / used.length;
   const lon0 = used.reduce((a, r) => a + r.lon, 0) / used.length;
@@ -385,6 +403,19 @@ function fitFromRefs(quiet) {
    session already knows: where the phone is. Stand on the point, press the
    button. You are within half a metre of it, which over a thirty-metre
    baseline is a degree of heading - the compass is off by twenty. */
+/* The one thing the app exists for should not be two menus deep behind a
+   reticle. Stand at the stem, press the button. */
+function addTreeHere() {
+  if (mode !== 'WebXR') return toast('Needs the WebXR mode – its tracking is what places the tree.');
+  const g = sceneToWgs(camPos());
+  if (!g) return toast('No origin yet – no GPS fix and no fit.');
+  const i = addTree(g.lon, g.lat, lastFit ? 'AR, fitted scene' : 'AR, scene from GPS',
+                    lastFit ? lastFit.rms : originAcc);
+  selectTree(i);
+  openPanel(i);
+  toast('Tree ' + tid(i) + ' recorded where you stand.');
+}
+
 function markControlHere(key) {
   if (mode !== 'WebXR') return toast('Standing needs the WebXR mode – its tracking is what measures the point.');
   const c = controlByKey(key);
@@ -392,8 +423,7 @@ function markControlHere(key) {
   const p = camPos();
   refFix.set(key, { x: p.x, z: p.z });
   const done = controlList().filter(r => refFix.has(r.key)).length;
-  if (done >= 2) fitFromRefs(false);
-  else toast(c.name + ' taken where you stand – one more point.');
+  fitFromRefs(false);          // one point already moves the scene onto it
   showFit(); buildRefMenu();
 }
 
@@ -406,7 +436,7 @@ function showFit() {
   el.textContent = lastFit
     ? 'fitted ' + lastFit.n + ' pts ±' + lastFit.rms.toFixed(2) + ' m'
     : done >= 2 ? done + ' measured – press Apply'
-    : done === 1 ? '1 measured – one more point'
+    : done === 1 ? '1 pt – position only, heading from compass'
     : 'not fitted – GPS and compass only';
   el.className = lastFit ? 'ok' : 'warn';
 }
@@ -1229,17 +1259,13 @@ function buildRefMenu() {
   const head = document.createElement('div');
   head.innerHTML = '<b>Georeference</b>';
   el.appendChild(head);
-  const st = document.createElement('div'); st.className = 'small'; st.style.margin = '4px 0 8px';
+  const st = document.createElement('div'); st.className = 'small'; st.style.margin = '2px 0 8px';
   st.innerHTML = lastFit
-    ? '<b style="color:#8fd6a8">Applied.</b> ' + lastFit.n + ' points, residual ' +
-      lastFit.rms.toFixed(2) + ' m, worst ' + lastFit.max.toFixed(2) + ' m (' + lastFit.worst + '). ' +
-      'Measure another point to improve it, or close and record trees.'
-    : done === 1
-      ? '<b>1 measured.</b> One more point and the scene is fixed.'
-      : done === 0
-        ? 'Walk to a point you know and press <b>I stand here</b>. Two are the minimum, ' +
-          'three or four give a residual. <b>Aim</b> is only for a point you cannot stand on.'
-        : '<b>' + done + ' measured.</b> Ready – press Apply.';
+    ? '<b style="color:#8fd6a8">Fitted</b> · ' + lastFit.n + ' pts · ±' + lastFit.rms.toFixed(2) +
+      ' m · worst ' + lastFit.worst + ' ' + lastFit.max.toFixed(2) + ' m'
+    : done === 1 ? '<b>1 pt</b> · position only, heading from compass'
+    : done ? '<b>' + done + ' pts</b> · press Apply'
+    : 'Not fitted';
   el.appendChild(st);
 
   const rows = document.createElement('div');
@@ -1260,7 +1286,7 @@ function buildRefMenu() {
   });
   if (!list.length) {
     const e = document.createElement('div'); e.className = 'small';
-    e.textContent = 'Nothing to aim at yet – set reference points on the map.';
+    e.textContent = 'No points yet – set them on the map tab.';
     rows.appendChild(e);
   }
   el.appendChild(rows);
@@ -1286,9 +1312,6 @@ function buildRefMenu() {
   x.onclick = () => { el.style.display = 'none'; };
   act.appendChild(x);
   el.appendChild(act);
-  const foot = document.createElement('div'); foot.className = 'small'; foot.style.marginTop = '6px';
-  foot.textContent = '⌇ marks a tree from the register. Stand at its stem and press the button.';
-  el.appendChild(foot);
 }
 
 function buildChooser() {
@@ -2064,6 +2087,7 @@ function wire() {
     requestAnchors();
     toast('Scene re-hung on your GPS position (±' + lastFix.acc.toFixed(0) + ' m).');
   };
+  $('bnew').onclick = addTreeHere;
   $('bref').onclick = () => {
     const el = $('refmenu');
     const open = el.style.display !== 'block';
