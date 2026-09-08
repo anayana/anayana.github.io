@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.8';
+const APP_VERSION = '1.4.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -84,7 +84,7 @@ const LVLTXT = ['inconspicuous', 'minor findings', 'conspicuous – review measu
 
 /* ============================ STORAGE ============================ */
 
-const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1';
+const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1';
 let mem = {};                                  // fallback when localStorage is blocked
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
@@ -289,6 +289,79 @@ function distBear(lat, lon, lat0, lon0) {
   const d = enu(lat, lon, lat0, lon0);
   return { d: Math.hypot(d.e, d.n), b: (Math.atan2(d.e, d.n) * 180 / Math.PI + 360) % 360 };
 }
+
+/* ===================== CONTROL POINTS / GEOREFERENCE =====================
+   GPS puts the scene within metres and the compass turns it by tens of
+   degrees; at 30 m a 20-degree heading error is a 10 m miss, which is what a
+   register looks like when every marker is "somehow offset". ARCore's visual
+   odometry, by contrast, is good to about a percent of the distance walked -
+   centimetres over a stand. So the local frame is the accurate part, and all
+   that is missing is where it sits on the earth and which way it points.
+
+   Two known points measured in that frame determine both: three or four
+   give a residual that says whether to believe the result. This is the
+   surveyor's resection, and the fit below is its least-squares form. */
+
+let REFS = [];                     // known points: { id, lat, lon, note, acc }
+const refFix = new Map();          // id -> { x, z } measured in this session
+function loadRefs() {
+  REFS = [];
+  const raw = lsGet(K_REF);
+  if (raw) { try { REFS = JSON.parse(raw) || []; } catch (e) { REFS = []; } }
+}
+function saveRefs() { lsSet(K_REF, JSON.stringify(REFS)); }
+function refById(id) { return REFS.find(r => r.id === id) || null; }
+
+/* Rotation and translation only - the scale is known to be 1, and letting a
+   fit absorb scale would quietly hide a bad control point. Complex form:
+   s = e^(-i*phi) * (u - u0), with u = e - i*n on the map side and s = x + i*z
+   in the scene. */
+function fitRigid(pairs) {
+  const N = pairs.length;
+  if (N < 2) return null;
+  let ue = 0, un = 0, sx = 0, sz = 0;
+  pairs.forEach(p => { ue += p.u.e; un += p.u.n; sx += p.s.x; sz += p.s.z; });
+  ue /= N; un /= N; sx /= N; sz /= N;
+  let cr = 0, ci = 0;
+  pairs.forEach(p => {
+    const ur = p.u.e - ue, ui = -(p.u.n - un);
+    const sr = p.s.x - sx, si = p.s.z - sz;
+    cr += sr * ur + si * ui; ci += si * ur - sr * ui;      // sum of s * conj(u)
+  });
+  if (Math.hypot(cr, ci) < 1e-9) return null;              // all points coincide
+  const phi = -Math.atan2(ci, cr);
+  const cp = Math.cos(phi), sp = Math.sin(phi);
+  const e0 = ue - (cp * sx - sp * sz), n0 = un + (sp * sx + cp * sz);
+  let sum = 0, mx = 0, worst = null;
+  pairs.forEach(p => {
+    const ur = p.u.e - e0, ui = -(p.u.n - n0);
+    const d = Math.hypot(cp * ur + sp * ui - p.s.x, -sp * ur + cp * ui - p.s.z);
+    sum += d * d; if (d > mx) { mx = d; worst = p.id; }
+  });
+  return { phi: phi, e0: e0, n0: n0, rms: Math.sqrt(sum / N), max: mx, worst: worst, n: N };
+}
+
+/* Everything the fit needs is in the session; applying it is just the origin
+   and the yaw the rest of the app already runs on. */
+function fitFromRefs(quiet) {
+  const used = REFS.filter(r => refFix.has(r.id));
+  if (used.length < 2) { if (!quiet) toast('Measure at least two reference points.'); return null; }
+  const lat0 = used.reduce((a, r) => a + r.lat, 0) / used.length;
+  const lon0 = used.reduce((a, r) => a + r.lon, 0) / used.length;
+  const pairs = used.map(r => ({ id: r.id, u: enu(r.lat, r.lon, lat0, lon0), s: refFix.get(r.id) }));
+  const f = fitRigid(pairs);
+  if (!f) { if (!quiet) toast('Reference points are too close together.'); return null; }
+  origin = { lat: lat0 + f.n0 / R1LAT,
+             lon: lon0 + f.e0 / (R1LON * Math.cos(lat0 * Math.PI / 180)) };
+  originAcc = f.rms; originPinned = true;
+  worldYaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360; headOff = 0;
+  applyYaw(); placeMarkers(); requestAnchors();
+  lastFit = f;
+  if (!quiet) toast('Fitted on ' + f.n + ' points · residual ' + f.rms.toFixed(2) +
+                    ' m, worst ' + f.max.toFixed(2) + ' m');
+  return f;
+}
+let lastFit = null;
 
 /* ====================== SENSORS: GPS / COMPASS ====================== */
 
@@ -581,6 +654,8 @@ function enterAR() {
   selectTree(null);
   buildChooser();
   buildMeasureMenu();
+  buildRefMenu();
+  refFix.clear(); lastFit = null;         // a new session, a new local frame
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
   $('bshot').disabled = !(mode === 'WebXR' && camAccessOk);
@@ -602,6 +677,7 @@ function endAR() {
   $('panelXR').classList.remove('on');
   $('chooser').style.display = 'none';
   $('mmenu').style.display = 'none';
+  $('refmenu').style.display = 'none';
   $('ctl2').classList.remove('on');
   $('edge').innerHTML = ''; edgeEls = {};
   $('hwarn').textContent = ''; $('hwarn').classList.remove('on');
@@ -783,6 +859,7 @@ const MEAS = {
   target:    { label: 'Distance to target', field: 'target_distance_m', hits: 1, aim: false },
   stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false },
   newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false },
+  ref:       { label: 'Reference point',  field: null,                hits: 1, aim: false },
   tape:      { label: 'Tape',             field: null,                hits: 2, aim: false }
 };
 function mbar(txt, buttons) {
@@ -829,10 +906,11 @@ function drawSegment(a, b, text) {
   mGroup.add(sp);
 }
 
-function startMeasure(kind) {
+function startMeasure(kind, refArg) {
   if (mode !== 'WebXR') return toast('Measuring needs the WebXR mode.');
   if (!hitOk) return toast('Hit-test unavailable in this session.');
   $('mmenu').style.display = 'none';
+  $('refmenu').style.display = 'none';
   $('ctl2').classList.remove('on');
   clearMeasure();
   const cfg = MEAS[kind];
@@ -841,10 +919,12 @@ function startMeasure(kind) {
     if (tree == null) { tree = nearestTree(); selectTree(tree); }
     if (tree == null) return toast('No tree to measure.');
   }
-  measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true };
-  const who = (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
+  measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg };
+  const who = kind === 'ref' ? ' · ' + refArg
+            : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
   const ask = cfg.aim ? 'Aim at the stem base and tap'
             : kind === 'target' ? 'Aim at the target on the ground and tap'
+            : kind === 'ref' ? 'Aim at the reference point on the ground and tap'
             : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base and tap'
             : 'Aim at the first point and tap';
   mbar('<b>' + cfg.label + who + '</b><br>' + ask, [['Cancel', clearMeasure]]);
@@ -885,6 +965,19 @@ function measureTap() {
     toast('Stem position of ' + props(m.tree).tree_id + ' set.');
     requestAnchors();
     clearMeasure();
+    return;
+  }
+
+  if (m.kind === 'ref') {
+    // stored in session coordinates, not as a lat/lon: the fit is about to
+    // move the world under this point, and the measurement must not move with
+    // it. Height is dropped - the fit is a two-dimensional one.
+    refFix.set(m.refId, { x: hitPt.x, z: hitPt.z });
+    clearMeasure();
+    const done = REFS.filter(r => refFix.has(r.id)).length;
+    if (done < 2) toast(refById(m.refId).id + ' measured – ' + (2 - done) + ' more to fit.');
+    else fitFromRefs(false);
+    buildRefMenu();
     return;
   }
 
@@ -1074,6 +1167,42 @@ function updateEdge() {
 }
 
 /* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
+function buildRefMenu() {
+  const el = $('refmenu');
+  el.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'small';
+  const done = REFS.filter(r => refFix.has(r.id)).length;
+  head.innerHTML = REFS.length
+    ? 'Aim at each known point and tap. <b>' + done + ' of ' + REFS.length + '</b> measured' +
+      (lastFit ? ' · residual ' + lastFit.rms.toFixed(2) + ' m' : '') +
+      (done < 2 ? ' · two are the minimum' : '')
+    : 'No reference points yet – add them on the map.';
+  el.appendChild(head);
+  const row = document.createElement('div'); row.className = 'btnrow'; row.style.marginTop = '8px';
+  REFS.forEach(r => {
+    const b = document.createElement('button');
+    b.className = 'sm' + (refFix.has(r.id) ? ' p' : '');
+    b.textContent = (refFix.has(r.id) ? '✓ ' : '') + r.id;
+    b.onclick = () => startMeasure('ref', r.id);
+    row.appendChild(b);
+  });
+  if (done >= 2) {
+    const f = document.createElement('button');
+    f.className = 'sm'; f.textContent = 'Fit again';
+    f.onclick = () => { fitFromRefs(false); buildRefMenu(); };
+    row.appendChild(f);
+    const c = document.createElement('button');
+    c.className = 'sm x'; c.textContent = 'Clear';
+    c.onclick = () => { refFix.clear(); lastFit = null; buildRefMenu(); toast('Measurements cleared.'); };
+    row.appendChild(c);
+  }
+  const x = document.createElement('button');
+  x.className = 'sm'; x.textContent = 'Close';
+  x.onclick = () => { el.style.display = 'none'; };
+  row.appendChild(x);
+  el.appendChild(row);
+}
+
 function buildChooser() {
   const c = $('chooser');
   c.innerHTML = '';
@@ -1100,6 +1229,178 @@ function buildChooser() {
   ab.onclick = () => { c.style.display = 'none'; };
   row.appendChild(ab);
   c.appendChild(row);
+}
+
+/* ============================== MAP ==============================
+   A slippy map is a few lines of Web Mercator and a grid of images, and a
+   library would be a bigger dependency than the whole feature. Tiles come from
+   OpenStreetMap and are cached by the service worker, so an area you have
+   looked at once is there again without a network. */
+
+const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const MAPZ = { min: 12, max: 19 };
+let mapView = null, mapTiles = {}, mapDrag = null, mapPinch = null;
+
+function lon2px(lon, z) { return (lon + 180) / 360 * 256 * Math.pow(2, z); }
+function lat2px(lat, z) {
+  const s = Math.sin(Math.max(-85, Math.min(85, lat)) * Math.PI / 180);
+  return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * Math.pow(2, z);
+}
+function px2lon(x, z) { return x / (256 * Math.pow(2, z)) * 360 - 180; }
+function px2lat(y, z) {
+  const n = Math.PI - 2 * Math.PI * y / (256 * Math.pow(2, z));
+  return 180 / Math.PI * Math.atan(Math.sinh(n));
+}
+function mapCentre() {
+  if (mapView) return mapView;
+  const c = (REFS[0] && { lat: REFS[0].lat, lon: REFS[0].lon }) ||
+            (CAT.features[0] && { lat: CAT.features[0].geometry.coordinates[1],
+                                  lon: CAT.features[0].geometry.coordinates[0] }) ||
+            (lastFix && { lat: lastFix.lat, lon: lastFix.lon }) || { lat: 51.0, lon: 10.0 };
+  mapView = { lat: c.lat, lon: c.lon, z: (REFS[0] || CAT.features[0] || lastFix) ? 18 : 6 };
+  return mapView;
+}
+function drawMap() {
+  const box = $('mapBox'); if (!box || !box.offsetWidth) return;
+  const v = mapCentre(), w = box.clientWidth, h = box.clientHeight, sc = Math.pow(2, v.z);
+  const cx = lon2px(v.lon, v.z), cy = lat2px(v.lat, v.z);
+  const left = cx - w / 2, top = cy - h / 2;
+  const t0x = Math.floor(left / 256), t1x = Math.floor((left + w) / 256);
+  const t0y = Math.floor(top / 256), t1y = Math.floor((top + h) / 256);
+  const layer = $('mapTiles'), seen = {};
+  for (let tx = t0x; tx <= t1x; tx++) {
+    for (let ty = t0y; ty <= t1y; ty++) {
+      if (ty < 0 || ty >= sc) continue;
+      const wx = ((tx % sc) + sc) % sc;                    // wrap around the globe
+      const key = v.z + '/' + wx + '/' + ty;
+      seen[key] = 1;
+      let img = mapTiles[key];
+      if (!img) {
+        img = document.createElement('img');
+        img.src = TILE.replace('{z}', v.z).replace('{x}', wx).replace('{y}', ty);
+        img.alt = ''; img.loading = 'eager'; img.draggable = false;
+        img.onerror = () => { img.style.visibility = 'hidden'; };
+        mapTiles[key] = img; layer.appendChild(img);
+      }
+      img.style.left = (tx * 256 - left) + 'px';
+      img.style.top = (ty * 256 - top) + 'px';
+    }
+  }
+  Object.keys(mapTiles).forEach(k => {
+    if (!seen[k]) { mapTiles[k].remove(); delete mapTiles[k]; }
+  });
+  drawMapMarks(left, top, v.z);
+  $('mapInfo').textContent = v.lat.toFixed(6) + ', ' + v.lon.toFixed(6) + '  ·  z' + v.z;
+}
+function drawMapMarks(left, top, z) {
+  const layer = $('mapMarks');
+  layer.innerHTML = '';
+  const put = (lat, lon, cls, label) => {
+    const d = document.createElement('div'); d.className = 'mk ' + cls;
+    d.style.left = (lon2px(lon, z) - left) + 'px';
+    d.style.top = (lat2px(lat, z) - top) + 'px';
+    if (label) { const t = document.createElement('span'); t.textContent = label; d.appendChild(t); }
+    layer.appendChild(d);
+  };
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    put(c[1], c[0], 'mkT', z >= 18 ? props(i).tree_id : '');
+  });
+  REFS.forEach(r => put(r.lat, r.lon, 'mkR', r.id));
+  if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
+}
+function mapMoveBy(dx, dy) {
+  const v = mapCentre();
+  const cx = lon2px(v.lon, v.z) - dx, cy = lat2px(v.lat, v.z) - dy;
+  v.lon = px2lon(cx, v.z); v.lat = px2lat(cy, v.z);
+  drawMap();
+}
+function mapZoom(dz) {
+  const v = mapCentre();
+  const z = Math.max(MAPZ.min, Math.min(MAPZ.max, v.z + dz));
+  if (z === v.z) return;
+  v.z = z; drawMap();
+}
+function wireMap() {
+  const box = $('mapBox');
+  box.addEventListener('pointerdown', e => {
+    box.setPointerCapture(e.pointerId);
+    if (mapDrag && mapDrag.id !== e.pointerId) {          // second finger: pinch
+      mapPinch = { a: mapDrag, b: { id: e.pointerId, x: e.clientX, y: e.clientY }, d: 0 };
+      mapPinch.d = Math.hypot(mapPinch.a.x - mapPinch.b.x, mapPinch.a.y - mapPinch.b.y);
+      return;
+    }
+    mapDrag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  });
+  box.addEventListener('pointermove', e => {
+    if (mapPinch) {
+      const p = (e.pointerId === mapPinch.a.id) ? mapPinch.a : (e.pointerId === mapPinch.b.id) ? mapPinch.b : null;
+      if (!p) return;
+      p.x = e.clientX; p.y = e.clientY;
+      const d = Math.hypot(mapPinch.a.x - mapPinch.b.x, mapPinch.a.y - mapPinch.b.y);
+      if (mapPinch.d && d / mapPinch.d > 1.6) { mapZoom(1); mapPinch.d = d; }
+      if (mapPinch.d && d / mapPinch.d < 0.62) { mapZoom(-1); mapPinch.d = d; }
+      return;
+    }
+    if (!mapDrag || e.pointerId !== mapDrag.id) return;
+    mapMoveBy(e.clientX - mapDrag.x, e.clientY - mapDrag.y);
+    mapDrag.x = e.clientX; mapDrag.y = e.clientY;
+  });
+  const up = e => {
+    if (mapPinch && (e.pointerId === mapPinch.a.id || e.pointerId === mapPinch.b.id)) { mapPinch = null; mapDrag = null; return; }
+    if (mapDrag && e.pointerId === mapDrag.id) mapDrag = null;
+  };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
+  addEventListener('resize', () => { if ($('sc-map').classList.contains('on')) drawMap(); });
+
+  $('mZin').onclick = () => mapZoom(1);
+  $('mZout').onclick = () => mapZoom(-1);
+  $('mMe').onclick = () => {
+    if (!lastFix) return toast('No GPS fix.');
+    const v = mapCentre(); v.lat = lastFix.lat; v.lon = lastFix.lon; v.z = Math.max(v.z, 18); drawMap();
+  };
+  $('mAddRef').onclick = () => {
+    const v = mapCentre();
+    const id = ($('mRefId').value || '').trim() || ('P' + (REFS.length + 1));
+    if (refById(id)) return toast('A reference point called ' + id + ' already exists.');
+    REFS.push({ id: id, lat: +v.lat.toFixed(7), lon: +v.lon.toFixed(7),
+                note: 'picked on the map', acc: null });
+    saveRefs(); $('mRefId').value = ''; drawMap(); renderRefs();
+    toast('Reference point ' + id + ' set at the crosshair.');
+  };
+  $('mAddTree').onclick = () => {
+    const v = mapCentre();
+    const i = addTree(v.lon, v.lat, 'picked on the map', null);
+    drawMap(); openPanel(i, 'base');
+  };
+}
+function renderRefs() {
+  const box = $('refList'); if (!box) return;
+  box.innerHTML = '';
+  if (!REFS.length) {
+    box.innerHTML = '<p class="small">None yet. Pan the crosshair onto something you can ' +
+      'stand on and recognise – a path junction, a building corner, a post – and set a point.</p>';
+    return;
+  }
+  REFS.forEach(r => {
+    const row = document.createElement('div'); row.className = 'kv';
+    const a = document.createElement('span');
+    a.innerHTML = '<b>' + r.id + '</b> <span class="small">' + r.lat.toFixed(6) + ', ' +
+                  r.lon.toFixed(6) + '</span>';
+    const bs = document.createElement('span');
+    const go = document.createElement('button'); go.className = 'sm'; go.textContent = 'Show';
+    go.onclick = () => { const v = mapCentre(); v.lat = r.lat; v.lon = r.lon; v.z = 19; drawMap(); };
+    const del = document.createElement('button'); del.className = 'sm x'; del.textContent = 'Delete';
+    del.onclick = () => {
+      REFS = REFS.filter(x => x.id !== r.id); refFix.delete(r.id); saveRefs();
+      drawMap(); renderRefs(); toast(r.id + ' deleted.');
+    };
+    bs.appendChild(go); bs.appendChild(del);
+    row.appendChild(a); row.appendChild(bs);
+    box.appendChild(row);
+  });
 }
 
 /* ============================ PANEL ============================ */
@@ -1558,6 +1859,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); }   // sensors only on a user action
   if (k === 'data') renderStats();
+  if (k === 'map') { startGPS(); drawMap(); renderRefs(); }
 }
 function renderStats() {
   const n = CAT.features.length;
@@ -1666,6 +1968,13 @@ function wire() {
     setOriginHere(lastFix.lat, lastFix.lon, lastFix.acc);
     requestAnchors();
     toast('Scene re-hung on your GPS position (±' + lastFix.acc.toFixed(0) + ' m).');
+  };
+  $('bref').onclick = () => {
+    const el = $('refmenu');
+    const open = el.style.display !== 'block';
+    if (open) buildRefMenu();
+    el.style.display = open ? 'block' : 'none';
+    $('mmenu').style.display = 'none'; $('chooser').style.display = 'none';
   };
   $('bstand').onclick = () => {
     const c = $('chooser');
@@ -1797,10 +2106,12 @@ function wire() {
 }
 
 loadAll();
+loadRefs();
 const _demo = dropDemoTrees();
 buildScene();
 buildMarkers();
 wire();
+wireMap();
 checks();
 renderList();
 renderStats();
