@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.8';
+const APP_VERSION = '1.5.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -423,12 +423,7 @@ function fitFromRefs(quiet) {
   const pairs = used.map(r => ({ id: r.name, u: enu(r.lat, r.lon, lat0, lon0), s: refFix.get(r.key) }));
   const f = fitRigid(pairs);
   if (!f) { if (!quiet) toast('Reference points are too close together.'); return null; }
-  origin = { lat: lat0 + f.n0 / mLat(lat0), lon: lon0 + f.e0 / mLon(lat0) };
-  originAcc = f.rms; originPinned = true;
-  worldYaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360; headOff = 0;
-  applyYaw(); placeMarkers(); requestAnchors();
-  lastFit = f;
-  showFit();
+  applyFit(f, lat0, lon0, false);
   if (!quiet) toast('Fitted on ' + f.n + ' points · residual ' + f.rms.toFixed(2) +
                     ' m, worst ' + f.max.toFixed(2) + ' m (' + f.worst + ')');
   return f;
@@ -467,13 +462,68 @@ function showFit() {
   const el = $('hFit'); if (!el) return;
   const done = controlList().filter(r => refFix.has(r.key)).length;
   if (!mode) { el.textContent = ''; return; }
-  el.textContent = lastFit ? 'fit ' + lastFit.n + '·±' + lastFit.rms.toFixed(1) + ' m'
+  el.textContent = lastFit
+      ? (lastFit.auto ? 'auto · ' + lastFit.n + ' fixes' : 'fit ' + lastFit.n + '·±' + lastFit.rms.toFixed(1) + ' m')
     : done >= 2 ? done + ' pts – apply'
     : done === 1 ? '1 pt – GPS off, compass on'
     : 'not fitted';
   el.className = lastFit ? 'ok' : 'warn';
 }
 let lastFit = null;
+
+function applyFit(f, lat0, lon0, auto) {
+  origin = { lat: lat0 + f.n0 / mLat(lat0), lon: lon0 + f.e0 / mLon(lat0) };
+  originAcc = f.rms; originPinned = true;
+  worldYaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360; headOff = 0;
+  applyYaw(); placeMarkers(); requestAnchors();
+  f.auto = !!auto; lastFit = f;
+  showFit();
+}
+
+/* ---- the walk as its own control survey ----
+   Measuring points by hand is the accurate way and costs a walk every session.
+   But a walk is already happening: every GPS fix taken during a session pairs
+   a WGS84 position with the camera's position in session coordinates, which is
+   exactly the pair the fit consumes. One such pair is a bad control point -
+   metres of noise - but thirty of them spread over fifty metres average down
+   to about a metre of position and a degree of heading, which beats the
+   compass by more than an order of magnitude and asks nothing of the user.
+   Hand-measured points still win: as soon as two exist, this stops. */
+let track = [];
+const T_ACC = 15,      // ignore a fix worse than this
+      T_STEP = 2,      // and one taken without having moved
+      T_MIN = 8,       // samples before a first fit
+      T_SPAN = 12,     // metres of baseline before a first fit
+      T_SETTLE = 40;   // after this many, hold still rather than keep nudging
+function trackFix(fix) {
+  if (mode !== 'WebXR' || !world) return;
+  if (!(fix.acc <= T_ACC)) return;
+  const p = camPos();
+  const last = track[track.length - 1];
+  if (last && Math.hypot(p.x - last.x, p.z - last.z) < T_STEP) return;
+  track.push({ lat: fix.lat, lon: fix.lon, acc: fix.acc, x: p.x, z: p.z });
+  if (track.length > 200) track.shift();
+  autoFit();
+}
+function trackSpan() {
+  let mx = 0;
+  for (let i = 0; i < track.length; i++)
+    for (let j = i + 1; j < track.length; j++)
+      mx = Math.max(mx, Math.hypot(track[i].x - track[j].x, track[i].z - track[j].z));
+  return mx;
+}
+function autoFit() {
+  if (controlList().filter(r => refFix.has(r.key)).length >= 2) return;   // hand-measured wins
+  if (lastFit && !lastFit.auto) return;
+  if (track.length < T_MIN || trackSpan() < T_SPAN) return;
+  if (lastFit && lastFit.auto && track.length > T_SETTLE) return;         // converged, hold
+  const lat0 = track.reduce((a, r) => a + r.lat, 0) / track.length;
+  const lon0 = track.reduce((a, r) => a + r.lon, 0) / track.length;
+  const f = fitRigid(track.map((r, n) => ({ id: 'fix' + n,
+    u: enu(r.lat, r.lon, lat0, lon0), s: { x: r.x, z: r.z } })));
+  if (!f) return;
+  applyFit(f, lat0, lon0, true);
+}
 
 /* ====================== SENSORS: GPS / COMPASS ====================== */
 
@@ -488,6 +538,7 @@ function startGPS() {
     // The first fix of a session is the cold-start fix and usually the worst
     // of the day, yet everything on screen is drawn relative to the origin.
     // Keep taking the better fix until a session pins the scene down.
+    trackFix(lastFix);
     if (!origin || (!mode && !originPinned && originAcc != null && lastFix.acc < originAcc - 1)) {
       origin = { lat: lastFix.lat, lon: lastFix.lon };
       if (!originPinned) originAcc = lastFix.acc;
@@ -790,7 +841,7 @@ function enterAR() {
   buildChooser();
   buildMeasureMenu();
   buildRefMenu();
-  refFix.clear(); lastFit = null;         // a new session, a new local frame
+  refFix.clear(); lastFit = null; track = [];   // a new session, a new local frame
   showFit();
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
@@ -1331,8 +1382,10 @@ function buildRefMenu() {
   el.appendChild(head);
   const st = document.createElement('div'); st.className = 'small'; st.style.margin = '2px 0 8px';
   st.innerHTML = lastFit
-    ? '<b style="color:#8fd6a8">Fitted</b> · ' + lastFit.n + ' pts · ±' + lastFit.rms.toFixed(2) +
-      ' m · worst ' + lastFit.worst + ' ' + lastFit.max.toFixed(2) + ' m'
+    ? '<b style="color:#8fd6a8">' + (lastFit.auto ? 'Fitted from your walk' : 'Fitted') + '</b> · ' +
+      lastFit.n + (lastFit.auto ? ' fixes · ±' : ' pts · ±') + lastFit.rms.toFixed(2) + ' m' +
+      (lastFit.auto ? ' GPS scatter · heading is good, position is averaged · two measured points beat it'
+                    : ' · worst ' + lastFit.worst + ' ' + lastFit.max.toFixed(2) + ' m')
     : done === 1 ? '<b>1 pt</b> · position only, heading from compass'
     : done ? '<b>' + done + ' pts</b> · press Apply'
     : 'Not fitted';
@@ -1373,8 +1426,8 @@ function buildRefMenu() {
   if (done) {
     const c = document.createElement('button'); c.className = 'x'; c.textContent = 'Start over';
     c.onclick = () => {
-      refFix.clear(); lastFit = null; showFit(); buildRefMenu();
-      toast('Measurements cleared – the scene keeps the last fit.');
+      refFix.clear(); lastFit = null; track = []; showFit(); buildRefMenu();
+      toast('Measurements cleared – walking will fit the scene again.');
     };
     act.appendChild(c);
   }
@@ -1658,19 +1711,36 @@ function fieldRow(k, lab, typ, opt, p) {
     inp = document.createElement('textarea'); inp.value = (p[k] || []).join('\n');
     inp.placeholder = 'one entry per line';
   } else if (typ === 'species') {
-    // typing a binomial on a phone in the cold is a good way to get "Betual"
-    // into a register, so offer the list and keep free text possible
+    // a datalist is a suggestion the browser may or may not show - Chrome on
+    // Android often shows nothing at all - so the list is a real select, with
+    // the text field kept beside it for anything the list does not have
+    const box = document.createElement('div'); box.className = 'spbox';
+    const sel = document.createElement('select');
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = 'Pick a species…'; sel.appendChild(none);
+    SPECIES.forEach(x => {
+      const o = document.createElement('option');
+      o.value = x[0]; o.textContent = x[0] + ' · ' + x[1]; sel.appendChild(o);
+    });
     inp = document.createElement('input'); inp.type = 'text';
     inp.value = p[k] == null ? '' : p[k];
-    inp.setAttribute('list', 'speciesList');
+    inp.placeholder = 'or type it';
     inp.setAttribute('autocapitalize', 'words');
-    inp.onchange = () => {
-      const hit = SPECIES.find(x => x[0].toLowerCase() === inp.value.trim().toLowerCase());
-      if (!hit || !panelEl) return;
-      inp.value = hit[0];                                       // canonical spelling and case
-      const cn = panelEl.querySelector('[data-k="name_en"]');   // fill the common name to match
-      if (cn && !cn.value.trim()) cn.value = hit[1];
+    sel.value = SPECIES.some(x => x[0] === inp.value) ? inp.value : '';
+    sel.onchange = () => {
+      if (!sel.value) return;
+      inp.value = sel.value;
+      const hit = SPECIES.find(x => x[0] === sel.value);
+      const cn = panelEl && panelEl.querySelector('[data-k="name_en"]');
+      if (hit && cn && !cn.value.trim()) cn.value = hit[1];
     };
+    inp.onchange = () => {
+      sel.value = SPECIES.some(x => x[0] === inp.value.trim()) ? inp.value.trim() : '';
+    };
+    box.appendChild(sel); box.appendChild(inp);
+    inp.dataset.k = k; inp.dataset.t = 'text';
+    r.appendChild(box);
+    return r;
   } else {
     inp = document.createElement('input'); inp.type = typ;
     inp.value = p[k] == null ? '' : p[k];
@@ -2384,15 +2454,6 @@ function wire() {
     b.onclick = async () => { b.style.display = 'none'; deferred.prompt(); await deferred.userChoice; deferred = null; };
   });
 }
-
-(function speciesDatalist() {
-  const dl = document.createElement('datalist'); dl.id = 'speciesList';
-  SPECIES.forEach(x => {
-    const o = document.createElement('option');
-    o.value = x[0]; o.label = x[1]; dl.appendChild(o);
-  });
-  document.body.appendChild(dl);
-})();
 
 loadAll();
 loadRefs();
