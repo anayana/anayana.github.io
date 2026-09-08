@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -519,7 +519,7 @@ function onCamTap(ev) {
 /* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
 function buildChooser() {
   const c = $('chooser');
-  c.innerHTML = '<div class="small" style="margin-bottom:8px">Put the origin exactly on one stem – this is the actual calibration.</div>';
+  c.innerHTML = '<div class="small" style="margin-bottom:8px">Pick the stem you are standing at.</div>';
   const row = document.createElement('div'); row.className = 'btnrow';
   CAT.features.forEach((f, i) => {
     const b = document.createElement('button');
@@ -667,8 +667,7 @@ function geoEditor(i) {
   wrap.appendChild(row1);
 
   const hint = document.createElement('p'); hint.className = 'small';
-  hint.textContent = 'Stand at the stem, hold the phone still, then average. Nudging moves the point in metres – ' +
-    'north/south/east/west, independent of where you are facing.';
+  hint.textContent = 'Stand at the stem and hold the phone still while averaging. The pad moves the point in metres, N/S/E/W.';
   wrap.appendChild(hint);
 
   let step = 0.5;
@@ -726,7 +725,7 @@ function openPanel(i) {
   ph.innerHTML = '<div><h2></h2><div class="sub"></div></div>';
   ph.querySelector('h2').textContent = (p.tree_id || '?') + ' · ' + (p.name_en || '');
   ph.querySelector('.sub').textContent = (p.species || '') +
-    (p.osm_id ? ' · OSM ' + p.osm_id : '') + ' · position ±' + (p.position_accuracy_m == null ? '?' : p.position_accuracy_m) + ' m';
+    ' · position ±' + (p.position_accuracy_m == null ? '?' : p.position_accuracy_m) + ' m';
   const bc = document.createElement('button'); bc.textContent = 'Close';
   bc.onclick = closePanel; ph.appendChild(bc);
   el.appendChild(ph);
@@ -827,7 +826,7 @@ function openPanel(i) {
     fs.appendChild(inb); fs.appendChild(fi);
     if (mode) {
       const nt = document.createElement('p'); nt.className = 'small';
-      nt.textContent = 'Note: Chrome blocks the file dialog inside an AR session. Leave AR, then take the photo.';
+      nt.textContent = 'Photos only outside the AR view – leave AR first.';
       fs.appendChild(nt);
     }
     var gal = document.createElement('div'); gal.className = 'photos';
@@ -937,7 +936,7 @@ function renderList() {
   });
   $('listCount').textContent = '(' + CAT.features.length + ')';
   $('listHint').textContent = lastFix
-    ? 'Bearing is relative to where you are facing, GPS ±' + lastFix.acc.toFixed(0) + ' m.'
+    ? 'Arrows point relative to where you are facing.'
     : 'No GPS fix – distance and bearing stay empty.';
   updateArrows();
 }
@@ -1028,21 +1027,18 @@ function chk(state, txt) {
 }
 async function checks() {
   $('checks').innerHTML = '';
-  chk(isSecureContext ? 'ok' : 'no', 'Secure context (HTTPS)' + (isSecureContext ? '' : ' – WebXR, camera and GPS all need HTTPS'));
-  chk(navigator.geolocation ? 'ok' : 'no', 'Geolocation');
-  chk(navigator.mediaDevices ? 'ok' : 'no', 'Camera API');
-  chk(('ondeviceorientationabsolute' in window) ? 'ok' : 'wa', 'Absolute compass');
+  chk(isSecureContext ? 'ok' : 'no', 'Secure connection' + (isSecureContext ? '' : ' – AR, camera and GPS need HTTPS'));
+  chk(navigator.geolocation ? 'ok' : 'no', 'Location');
+  chk(navigator.mediaDevices ? 'ok' : 'no', 'Camera');
+  chk(('ondeviceorientationabsolute' in window) ? 'ok' : 'wa', 'Compass');
+  let xrOk = false;
   if (navigator.xr) {
-    let s = false;
-    try { s = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) {}
-    chk(s ? 'ok' : 'wa', 'WebXR immersive-ar' + (s ? '' : ' – unavailable, use camera mode'));
-    $('bxr').disabled = !s;
-  } else {
-    chk('wa', 'WebXR (navigator.xr) missing – use camera mode');
-    $('bxr').disabled = true;
+    try { xrOk = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) {}
   }
-  chk(photosOk ? 'ok' : 'wa', 'Photo storage (IndexedDB)');
-  chk('serviceWorker' in navigator ? 'ok' : 'wa', 'Offline use (service worker)');
+  chk(xrOk ? 'ok' : 'wa', 'AR tracking' + (xrOk ? '' : ' – unavailable, use camera mode'));
+  $('bxr').disabled = !xrOk;
+  chk(photosOk ? 'ok' : 'wa', 'Photo storage');
+  chk('serviceWorker' in navigator ? 'ok' : 'wa', 'Offline use');
 }
 
 function wire() {
@@ -1158,9 +1154,8 @@ wire();
 checks();
 renderList();
 renderStats();
-$('about').innerHTML = 'VTA Field ' + APP_VERSION + ' · three.js r128 served locally · everything stays on the device ' +
-  '(localStorage + IndexedDB), nothing is sent to a server. Catalogue geometry: OSM crown centres, ' +
-  'not surveyed stem bases – expect 1–5 m offset.';
+$('about').innerHTML = 'VTA Field ' + APP_VERSION + ' · records and photos stay on this device, ' +
+  'nothing is sent to a server. Export before wiping the browser data.';
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }

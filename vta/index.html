@@ -147,10 +147,10 @@ table.hist th{color:#8fa697;font-weight:500}
       <div id="msg"></div>
       <h3>Device check</h3>
       <div id="checks"></div>
-      <div class="note"><b>WebXR</b> uses ARCore tracking – markers stay put while you walk.
-        <b>Camera mode</b> runs without ARCore (camera image + compass + GPS); the direction is right, the position drifts.</div>
-      <div class="note warn"><b>Not a safety verdict.</b> The notes are arithmetic aids based on
-        Mattheck and FLL criteria. Judging stability and breakage resistance remains with the inspecting person.</div>
+      <div class="note">Camera mode needs no ARCore – use it when the check above shows WebXR as unavailable.
+        Markers then drift as you walk, the direction stays right.</div>
+      <div class="note warn"><b>Not a safety verdict.</b> Levels and notes are arithmetic aids;
+        judging stability and breakage resistance stays with the inspector.</div>
     </section>
 
     <section class="screen" id="sc-list">
@@ -219,8 +219,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.1.0"></script>
-<script src="data.js?v=1.1.0"></script>
-<script src="app.js?v=1.1.0"></script>
+<script src="vendor/three.min.js?v=1.1.1"></script>
+<script src="data.js?v=1.1.1"></script>
+<script src="app.js?v=1.1.1"></script>
 </body>
 </html>
