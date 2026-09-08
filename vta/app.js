@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.2';
+const APP_VERSION = '1.3.3';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -240,6 +240,14 @@ const R1LAT = 110540, R1LON = 111320;
 function enu(lat, lon, lat0, lon0) {
   return { e: (lon - lon0) * R1LON * Math.cos(lat0 * Math.PI / 180), n: (lat - lat0) * R1LAT };
 }
+/* A point in the scene back to WGS84. Accurate relative to everything else in
+   the session; in absolute terms it inherits the error of the origin fix. */
+function sceneToWgs(v) {
+  if (!origin || !world) return null;
+  const l = world.worldToLocal(v.clone());
+  return { lat: origin.lat + (-l.z) / R1LAT,
+           lon: origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180)) };
+}
 function distBear(lat, lon, lat0, lon0) {
   const d = enu(lat, lon, lat0, lon0);
   return { d: Math.hypot(d.e, d.n), b: (Math.atan2(d.e, d.n) * 180 / Math.PI + 360) % 360 };
@@ -255,7 +263,14 @@ function startGPS() {
     lastFix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: gpsAcc };
     $('hAcc').textContent = gpsAcc.toFixed(0);
     $('gpsBadge').textContent = 'GPS ±' + gpsAcc.toFixed(0) + ' m';
-    if (!origin) { origin = { lat: lastFix.lat, lon: lastFix.lon }; placeMarkers(); }
+    // The first fix of a session is the cold-start fix and usually the worst
+    // of the day, yet everything on screen is drawn relative to the origin.
+    // Keep taking the better fix until a session pins the scene down.
+    if (!origin || (!mode && !originPinned && originAcc != null && lastFix.acc < originAcc - 1)) {
+      origin = { lat: lastFix.lat, lon: lastFix.lon };
+      if (!originPinned) originAcc = lastFix.acc;
+      placeMarkers();
+    }
   }, e => {
     $('gpsBadge').textContent = 'GPS off';
     msg('GPS: ' + e.message);
@@ -299,7 +314,7 @@ async function startOrient() {
 /* ============================ SCENE ============================ */
 
 let renderer, scene, camera, world, sprites = [], ray = new THREE.Raycaster();
-let origin = null, originAcc = null, headOff = 0, worldYaw = 0, mode = null, xrSession = null, xrRef = null, lastFrame = null;
+let origin = null, originAcc = null, originPinned = false, headOff = 0, worldYaw = 0, mode = null, xrSession = null, xrRef = null, lastFrame = null;
 let camGps = new THREE.Vector3(0, 1.55, 0);
 /* AR tools */
 let hitOk = false, hitSource = null, hitPt = null, reticle = null;
@@ -708,6 +723,7 @@ const MEAS = {
   crown:     { label: 'Crown diameter',   field: 'crown_d_m',         hits: 2, aim: false },
   target:    { label: 'Distance to target', field: 'target_distance_m', hits: 1, aim: false },
   stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false },
+  newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false },
   tape:      { label: 'Tape',             field: null,                hits: 2, aim: false }
 };
 function mbar(txt, buttons) {
@@ -767,10 +783,10 @@ function startMeasure(kind) {
     if (tree == null) return toast('No tree to measure.');
   }
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true };
-  const who = tree == null ? '' : ' · ' + props(tree).tree_id;
+  const who = (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
   const ask = cfg.aim ? 'Aim at the stem base and tap'
             : kind === 'target' ? 'Aim at the target on the ground and tap'
-            : kind === 'stem' ? 'Aim at the stem base and tap'
+            : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base and tap'
             : 'Aim at the first point and tap';
   mbar('<b>' + cfg.label + who + '</b><br>' + ask, [['Cancel', clearMeasure]]);
 }
@@ -804,13 +820,23 @@ function measureTap() {
   }
 
   if (m.kind === 'stem') {
-    const l = world.worldToLocal(hitPt.clone());
-    const lat = origin.lat + (-l.z) / R1LAT;
-    const lon = origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180));
-    setCoords(m.tree, lon, lat, 'AR hit-test', originAcc);
+    const g = sceneToWgs(hitPt);
+    if (!g) { toast('No origin yet – no GPS fix.'); return clearMeasure(); }
+    setCoords(m.tree, g.lon, g.lat, 'AR hit-test', originAcc);
     toast('Stem position of ' + props(m.tree).tree_id + ' set.');
     requestAnchors();
     clearMeasure();
+    return;
+  }
+
+  if (m.kind === 'newtree') {
+    const g = sceneToWgs(hitPt);
+    if (!g) { toast('No origin yet – no GPS fix.'); return clearMeasure(); }
+    const i = addTree(g.lon, g.lat, 'AR hit-test', originAcc);
+    selectTree(i);
+    clearMeasure();
+    toast('New tree ' + props(i).tree_id + ' placed where you aimed.');
+    openPanel(i);
     return;
   }
 
@@ -863,7 +889,8 @@ function buildMeasureMenu() {
   el.innerHTML = '';
   const row = document.createElement('div'); row.className = 'btnrow';
   [['height', 'Height'], ['crownbase', 'Crown base'], ['crown', 'Crown Ø'],
-   ['target', 'Target dist.'], ['stem', 'Stem position'], ['tape', 'Tape']].forEach(k => {
+   ['target', 'Target dist.'], ['stem', 'Stem position'], ['newtree', '+ New tree'],
+   ['tape', 'Tape']].forEach(k => {
     const b = document.createElement('button');
     b.className = 'sm'; b.textContent = k[1];
     b.onclick = () => startMeasure(k[0]);
@@ -914,11 +941,8 @@ function takeARPhoto(frame) {
 
     const meta = { mode: 'AR' };
     const c = camPos();
-    if (origin) {
-      const l = world.worldToLocal(c.clone());
-      meta.lat = +(origin.lat + (-l.z) / R1LAT).toFixed(7);
-      meta.lon = +(origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180))).toFixed(7);
-    }
+    const gp = sceneToWgs(c);
+    if (gp) { meta.lat = +gp.lat.toFixed(7); meta.lon = +gp.lon.toFixed(7); }
     meta.bearing = Math.round((camYawDeg() + worldYaw + headOff) % 360);
     const g = world.children.find(o => o.userData.idx === tree);
     if (g) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
@@ -1001,7 +1025,7 @@ function buildChooser() {
     b.onclick = () => {
       const co = f.geometry.coordinates;
       origin = { lat: co[1], lon: co[0] };
-      originAcc = num(props(i).position_accuracy_m);
+      originAcc = num(props(i).position_accuracy_m); originPinned = true;
       camGps.set(0, 1.55, 0);
       placeMarkers(); requestAnchors(); c.style.display = 'none';
       selectTree(i);
@@ -1079,6 +1103,26 @@ function syncGeo(i) {
     '<div class="kv"><span>Accuracy</span><span>±' + (f.properties.position_accuracy_m == null ? '?' : f.properties.position_accuracy_m) + ' m</span></div>' +
     (o ? '<div class="kv"><span>Moved from catalogue</span><span>' + moved.toFixed(2) + ' m</span></div>' : '');
 }
+/* A new tree is only ever as good as the position it is given, so record where
+   it came from and let the caller pick the source. */
+function addTree(lon, lat, source, acc) {
+  const id = 'NEW-' + stamp().replace(/-/g, '').slice(4, 12) + '-' + Math.random().toString(36).slice(2, 5);
+  const today = new Date().toISOString().slice(0, 10);
+  CAT.features.push({
+    type: 'Feature', geometry: { type: 'Point', coordinates: [+(+lon).toFixed(7), +(+lat).toFixed(7)] },
+    properties: {
+      tree_id: id, species: '', name_en: '', inspector: '', geometry_source: source,
+      position_accuracy_m: acc == null ? null : Math.round(acc * 10) / 10, vitality_roloff: 0,
+      crown_dieback_pct: 0, damage_class: 'none', cavity: 'no',
+      stability: 'adequate', breakage_resistance: 'adequate', traffic_safety: 'adequate',
+      urgency: 'none', inspection_type: 'Routine inspection', last_inspection: today,
+      interval_months: 12, symptoms: [], actions: [], remarks: '', history: []
+    }
+  });
+  saveCat(); buildMarkers(); renderList();
+  return CAT.features.length - 1;
+}
+
 function gpsAverage(i, btn) {
   if (!navigator.geolocation) return toast('No geolocation on this device.');
   const samples = [];
@@ -1187,8 +1231,8 @@ function geoEditor(i) {
   return wrap;
 }
 
-function openPanel(i) {
-  openIdx = i; panelTab = 'vta';
+function openPanel(i, tab) {
+  openIdx = i; panelTab = tab || 'vta';
   const p = props(i);
   const el = panelTarget(); panelEl = el;
   el.innerHTML = '';
@@ -1529,7 +1573,7 @@ function wire() {
   $('bsync').onclick = () => { headOff = 0; syncNorth(false); requestAnchors(); };
   $('bo').onclick = () => {
     if (!lastFix) return toast('No GPS fix.');
-    origin = { lat: lastFix.lat, lon: lastFix.lon }; originAcc = lastFix.acc;
+    origin = { lat: lastFix.lat, lon: lastFix.lon }; originAcc = lastFix.acc; originPinned = true;
     camGps.set(0, 1.55, 0); placeMarkers(); requestAnchors();
     toast('Origin = current position (±' + lastFix.acc.toFixed(0) + ' m).');
   };
@@ -1564,21 +1608,10 @@ function wire() {
   };
   $('bNew').onclick = () => {
     if (!lastFix) return toast('No GPS fix – a new tree needs a position.');
-    const id = 'NEW-' + stamp().replace(/-/g, '').slice(4, 12) + '-' + Math.random().toString(36).slice(2, 5);
-    const today = new Date().toISOString().slice(0, 10);
-    CAT.features.push({
-      type: 'Feature', geometry: { type: 'Point', coordinates: [lastFix.lon, lastFix.lat] },
-      properties: {
-        tree_id: id, species: '', name_en: '', inspector: '', geometry_source: 'GPS in the field',
-        position_accuracy_m: Math.round(lastFix.acc * 10) / 10, vitality_roloff: 0,
-        crown_dieback_pct: 0, damage_class: 'none', cavity: 'no',
-        stability: 'adequate', breakage_resistance: 'adequate', traffic_safety: 'adequate',
-        urgency: 'none', inspection_type: 'Routine inspection', last_inspection: today,
-        interval_months: 12, symptoms: [], actions: [], remarks: '', history: []
-      }
-    });
-    saveCat(); buildMarkers(); renderList();
-    openPanel(CAT.features.length - 1);
+    const i = addTree(lastFix.lon, lastFix.lat, 'GPS in the field', lastFix.acc);
+    openPanel(i, 'base');            // straight to the position, it needs fixing
+    toast('Recorded at your own position (±' + lastFix.acc.toFixed(0) +
+          ' m) – average it at the stem, or place it in AR.');
   };
 
   $('bExpGeo').onclick = () => dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
