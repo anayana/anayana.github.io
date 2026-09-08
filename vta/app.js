@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.7';
+const APP_VERSION = '1.3.8';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -326,10 +326,30 @@ function orientQuat(q, a, b, g, o) {
   q.multiply(_q1);
   q.multiply(_q0.setFromAxisAngle(_zAx, -o));
 }
+/* Held sideways while the screen is locked upright, ARCore builds the camera
+   image for a portrait display it no longer has: the passthrough comes out
+   rotated against everything drawn on top of it, and no marker can sit on its
+   tree. Nothing in the page can correct that, so say so. Detected by taking
+   the phone's own top edge from the raw sensor quaternion - the screen
+   compensation is exactly what is broken here, so it is left out - and
+   comparing it against the orientation the screen claims. */
+const _upDev = new THREE.Vector3(), _rawQ = new THREE.Quaternion();
+function checkOrientLock(a, b, g) {
+  const el = $('hwarn'); if (!el) return;
+  const ang = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
+  orientQuat(_rawQ, a, b, g, 0);
+  _upDev.set(0, 1, 0).applyQuaternion(_rawQ);
+  const sideways = Math.abs(_upDev.y) < 0.5;
+  const bad = mode === 'WebXR' && sideways && (ang % 180 === 0);
+  el.textContent = bad ? 'Screen locked upright while you hold the phone sideways – the view is 90° out. Turn auto-rotate on, or hold the phone upright.' : '';
+  el.classList.toggle('on', bad);
+}
 function onOrient(ev) {
   if (ev.alpha == null) return;
   haveOrient = true;
   const o = THREE.MathUtils.degToRad(screen.orientation ? screen.orientation.angle : (window.orientation || 0));
+  checkOrientLock(THREE.MathUtils.degToRad(ev.alpha), THREE.MathUtils.degToRad(ev.beta),
+                  THREE.MathUtils.degToRad(ev.gamma));
   orientQuat(devQuat, THREE.MathUtils.degToRad(ev.alpha), THREE.MathUtils.degToRad(ev.beta),
              THREE.MathUtils.degToRad(ev.gamma), o);
   const f = new THREE.Vector3(0, 0, -1).applyQuaternion(devQuat);
@@ -584,6 +604,7 @@ function endAR() {
   $('mmenu').style.display = 'none';
   $('ctl2').classList.remove('on');
   $('edge').innerHTML = ''; edgeEls = {};
+  $('hwarn').textContent = ''; $('hwarn').classList.remove('on');
   $('app').classList.remove('hidden');
   mode = null;
   renderList();

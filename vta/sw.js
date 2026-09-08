@@ -1,13 +1,13 @@
 /* Service worker: keep the whole app available offline.
    Navigation requests are network-first so fixes reach the field as soon as there
    is a connection; assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'vta-v19';
+const CACHE = 'vta-v20';
 const ASSETS = [
   './',
   'index.html',
-  'app.js?v=1.3.7',
-  'data.js?v=1.3.7',
-  'vendor/three.min.js?v=1.3.7',
+  'app.js?v=1.3.8',
+  'data.js?v=1.3.8',
+  'vendor/three.min.js?v=1.3.8',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',
