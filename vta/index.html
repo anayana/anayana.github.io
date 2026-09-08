@@ -77,9 +77,22 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 #hud b{color:#8fd6a8;font-weight:600}
 #ctl{bottom:calc(8px + env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;padding:8px}
 #ctl button{font-size:13px;padding:7px 10px}
-#chooser{position:absolute;left:12px;right:12px;bottom:86px;background:rgba(10,16,13,.96);
+#chooser,#mmenu{position:absolute;left:12px;right:12px;bottom:86px;background:rgba(10,16,13,.96);
   border:1px solid #34483c;border-radius:14px;padding:12px;display:none}
-#chooser .btnrow button{min-width:30%}
+#chooser .btnrow button,#mmenu .btnrow button{min-width:30%}
+#ctl2{bottom:calc(62px + env(safe-area-inset-bottom));display:none;gap:6px;flex-wrap:wrap;padding:8px}
+#ctl2.on{display:flex}
+#ctl2 button{font-size:13px;padding:7px 10px}
+#mbar{bottom:calc(62px + env(safe-area-inset-bottom));display:none;font-size:13px}
+#mbar.on{display:block}
+#mbtn{display:flex;gap:6px;margin-top:8px}
+#mbtn button{flex:1;font-size:13px;padding:7px 10px}
+#edge{position:absolute;inset:0;pointer-events:none}
+.ea{position:absolute;transform:translate(-50%,-50%);display:none;align-items:center;gap:5px;
+  background:rgba(12,18,15,.82);border:1px solid #2b3a31;border-radius:20px;padding:3px 9px;
+  font-size:11px;white-space:nowrap;color:#cfe0d5}
+.ea.on{display:flex}
+.ea .g{display:inline-block;font-size:13px;line-height:1}
 
 /* ---------- panel / bottom sheet ---------- */
 .panel{position:fixed;left:0;right:0;bottom:0;top:0;z-index:6;background:#0c1310;display:none;
@@ -197,20 +210,29 @@ table.hist th{color:#8fa697;font-weight:500}
 </div>
 
 <div id="xrui">
+  <div id="edge"></div>
   <div class="bar" id="hud">
     <span>Mode <b id="hMode">–</b></span>
     <span>GPS ±<b id="hAcc">–</b> m</span>
     <span>Heading <b id="hHead">–</b>°</span>
     <span>North <b id="hOff">0</b>°</span>
+    <span id="hSel"></span>
     <span id="hNear"></span>
   </div>
   <div id="chooser"></div>
-  <div class="bar" id="ctl">
+  <div id="mmenu"></div>
+  <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
+  <div class="bar" id="ctl2">
     <button id="bl">◀ −5°</button>
     <button id="br">+5° ▶</button>
     <button id="bsync">Re-sync north</button>
-    <button id="bstand">I am at…</button>
     <button id="bo">Origin = GPS</button>
+  </div>
+  <div class="bar" id="ctl">
+    <button id="bmeas">Measure</button>
+    <button id="bshot">Photo</button>
+    <button id="bstand">I am at…</button>
+    <button id="bmore">⋯</button>
     <button class="x" id="bq">Exit</button>
   </div>
   <div class="panel" id="panelXR"></div>
@@ -219,8 +241,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.1.1"></script>
-<script src="data.js?v=1.1.1"></script>
-<script src="app.js?v=1.1.1"></script>
+<script src="vendor/three.min.js?v=1.2.3"></script>
+<script src="data.js?v=1.2.3"></script>
+<script src="app.js?v=1.2.3"></script>
 </body>
 </html>

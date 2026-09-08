@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.2.3';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -55,6 +55,8 @@ const F_VTA = [
   ['radius_r_cm', 'Stem radius R (cm)', 'number'],
   ['stability', 'Stability (uprooting)', 'select', SAFE],
   ['breakage_resistance', 'Breakage resistance', 'select', SAFE],
+  ['target_type', 'Target', 'select', ['none', 'path', 'road', 'parking', 'building', 'playground', 'other']],
+  ['target_distance_m', 'Distance to target (m)', 'number'],
   ['traffic_safety', 'Traffic safety', 'select', SAFE],
   ['urgency', 'Urgency', 'select', ['none', 'next growing season', '3 months', '1 month', 'immediate']],
   ['actions', 'Actions', 'list'],
@@ -121,11 +123,12 @@ function pdb() {
     r.onerror = () => rej(r.error);
   });
 }
-async function photoAdd(tree, url) {
+async function photoAdd(tree, url, meta) {
   const db = await pdb();
+  const rec = Object.assign({ tree: tree, url: url, ts: new Date().toISOString() }, meta || {});
   return new Promise((res, rej) => {
     const tx = db.transaction('photos', 'readwrite');
-    tx.objectStore('photos').add({ tree: tree, url: url, ts: new Date().toISOString() });
+    tx.objectStore('photos').add(rec);
     tx.oncomplete = res; tx.onerror = () => rej(tx.error);
   });
 }
@@ -212,6 +215,14 @@ function assess(p) {
   if (cd >= 60) up(2, 'Crown dieback ' + cd + ' % – severely damaged crown.');
   else if (cd >= 30) up(1, 'Crown dieback ' + cd + ' %.');
 
+  const tgt = num(p.target_distance_m);
+  if (tgt != null && h > 0 && p.target_type && p.target_type !== 'none' && tgt <= h) {
+    // a target inside the fall zone does not make the tree worse, it makes a
+    // failure more costly - so it only sharpens an already conspicuous tree
+    if (lvl >= 2) up(3, 'Target (' + p.target_type + ') ' + tgt.toFixed(1) + ' m from the stem, inside the fall zone of a ' + h.toFixed(1) + ' m tree.');
+    else notes.push('Target (' + p.target_type + ') inside the fall zone – a failure would be costly.');
+  }
+
   if (p.traffic_safety === 'not given') up(3, 'Traffic safety rated as not given.');
   else if (p.traffic_safety === 'restricted') up(2, 'Traffic safety rated as restricted.');
   if (p.stability === 'not given' || p.breakage_resistance === 'not given') up(3, null);
@@ -288,8 +299,14 @@ async function startOrient() {
 /* ============================ SCENE ============================ */
 
 let renderer, scene, camera, world, sprites = [], ray = new THREE.Raycaster();
-let origin = null, headOff = 0, worldYaw = 0, mode = null, xrSession = null, xrRef = null, lastFrame = null;
+let origin = null, originAcc = null, headOff = 0, worldYaw = 0, mode = null, xrSession = null, xrRef = null, lastFrame = null;
 let camGps = new THREE.Vector3(0, 1.55, 0);
+/* AR tools */
+let hitOk = false, hitSource = null, hitPt = null, reticle = null;
+let anchorsOk = false, anchorMap = new Map(), anchorsWanted = false;
+let camAccessOk = false, shotFor = null;
+let selIdx = null, measure = null, mGroup = null;
+let edgeEls = {}, edgeTick = 0;
 
 function buildScene() {
   scene = new THREE.Scene();
@@ -301,6 +318,14 @@ function buildScene() {
   renderer.domElement.className = 'ar';
   renderer.domElement.style.display = 'none';   // three writes inline display:block, which beats the class
   document.body.appendChild(renderer.domElement);
+
+  // hit-test reticle and the container for measurement lines, both in session space
+  reticle = new THREE.Mesh(new THREE.RingGeometry(0.09, 0.13, 32),
+    new THREE.MeshBasicMaterial({ color: 0x8fd6a8, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false }));
+  reticle.rotation.x = -Math.PI / 2; reticle.renderOrder = 12; reticle.visible = false;
+  scene.add(reticle);
+  mGroup = new THREE.Group(); scene.add(mGroup);
+
   addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
@@ -406,7 +431,7 @@ async function startXR() {
   try {
     s = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['local-floor'],
-      optionalFeatures: ['dom-overlay', 'hit-test'],
+      optionalFeatures: ['dom-overlay', 'hit-test', 'anchors', 'camera-access'],
       domOverlay: { root: $('xrui') }
     });
   } catch (err) {
@@ -420,11 +445,33 @@ async function startXR() {
   xrRef = renderer.xr.getReferenceSpace();
   s.addEventListener('select', onXRSelect);
   s.addEventListener('end', endAR);
+
+  // Optional features are granted per session, so ask the session, not the device.
+  const has = f => (s.enabledFeatures ? s.enabledFeatures.indexOf(f) >= 0 : true);
+  anchorsOk = has('anchors') && typeof XRFrame !== 'undefined' && 'createAnchor' in XRFrame.prototype;
+  camAccessOk = has('camera-access') && typeof XRWebGLBinding !== 'undefined' &&
+                'getCameraImage' in XRWebGLBinding.prototype;
+  hitOk = has('hit-test') && typeof s.requestHitTestSource === 'function';
+  if (hitOk) {
+    try {
+      const viewerSpace = await s.requestReferenceSpace('viewer');
+      hitSource = await s.requestHitTestSource({ space: viewerSpace });
+    } catch (e) { hitOk = false; hitSource = null; }
+  }
+
   enterAR();
   // the compass is often not ready at session start: keep trying for ~6 s
   let tries = 0;
   const iv = setInterval(() => { if (syncNorth(true) || ++tries > 12) clearInterval(iv); }, 500);
-  renderer.setAnimationLoop((t, frame) => { lastFrame = frame; tick(); renderer.render(scene, camera); });
+  renderer.setAnimationLoop((t, frame) => {
+    lastFrame = frame;
+    if (frame) {
+      updateHitTest(frame);
+      updateAnchors(frame);
+      if (shotFor !== null) takeARPhoto(frame);
+    }
+    tick(); renderer.render(scene, camera);
+  });
 }
 
 async function startCam() {
@@ -452,10 +499,20 @@ function enterAR() {
   renderer.domElement.style.display = 'block';
   $('hMode').textContent = mode;
   applyYaw();
+  selectTree(null);
   buildChooser();
+  buildMeasureMenu();
+  buildEdge();
+  $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
+  $('bshot').disabled = !(mode === 'WebXR' && camAccessOk);
+  requestAnchors();
 }
 function endAR() {
   renderer.setAnimationLoop(null);
+  clearMeasure();
+  dropAnchors();
+  if (hitSource) { try { hitSource.cancel(); } catch (e) {} hitSource = null; }
+  hitOk = anchorsOk = camAccessOk = false; shotFor = null;
   if (xrSession) { try { xrSession.end(); } catch (e) {} xrSession = null; }
   renderer.xr.enabled = false;
   const v = $('video');
@@ -465,6 +522,9 @@ function endAR() {
   $('xrui').classList.remove('on');
   $('panelXR').classList.remove('on');
   $('chooser').style.display = 'none';
+  $('mmenu').style.display = 'none';
+  $('ctl2').classList.remove('on');
+  $('edge').innerHTML = ''; edgeEls = {};
   $('app').classList.remove('hidden');
   mode = null;
   renderList();
@@ -483,6 +543,7 @@ function tick() {
     if (d < bd) { bd = d; best = sp; }
   });
   $('hNear').textContent = best ? ('nearest ' + props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+  if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
 }
 
 /* ---- tapping ---- */
@@ -501,19 +562,388 @@ function pickFromRay(o, d) {
 }
 function onXRSelect(e) {
   if (!lastFrame || !xrRef) return;
+  if (measure) { measureTap(); return; }          // a tap belongs to the tool that is running
   const pose = lastFrame.getPose(e.inputSource.targetRaySpace, xrRef);
   if (!pose) return;
   const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
   const o = new THREE.Vector3().setFromMatrixPosition(m);
   const d = new THREE.Vector3(0, 0, -1).transformDirection(m);
   const i = pickFromRay(o, d);
-  if (i !== null) openPanel(i);
+  if (i !== null) { selectTree(i); openPanel(i); }
 }
 function onCamTap(ev) {
   const nx = (ev.clientX / innerWidth) * 2 - 1, ny = -(ev.clientY / innerHeight) * 2 + 1;
   ray.setFromCamera({ x: nx, y: ny }, camera);
   const i = pickFromRay(ray.ray.origin.clone(), ray.ray.direction.clone());
-  if (i !== null) openPanel(i);
+  if (i !== null) { selectTree(i); openPanel(i); }
+}
+
+/* ======================= AR TOOLS (WebXR only) =======================
+   Hit-test gives a point on a real surface, which is what turns the app from
+   a viewer into a measuring device. Everything here degrades quietly: without
+   the feature the buttons stay disabled rather than misbehaving. */
+
+function xrCam() {
+  const c = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  return (c.cameras && c.cameras.length) ? c.cameras[0] : c;
+}
+function camPos() { return new THREE.Vector3().setFromMatrixPosition(xrCam().matrixWorld); }
+function camDir() { return new THREE.Vector3(0, 0, -1).transformDirection(xrCam().matrixWorld); }
+
+function updateHitTest(frame) {
+  if (!hitSource) { hitPt = null; reticle.visible = false; return; }
+  const res = frame.getHitTestResults(hitSource);
+  if (res.length) {
+    const p = res[0].getPose(xrRef);
+    if (p) {
+      hitPt = new THREE.Vector3(p.transform.position.x, p.transform.position.y, p.transform.position.z);
+      reticle.position.copy(hitPt);
+      reticle.visible = !!(measure && measure.wantsHit);
+      return;
+    }
+  }
+  hitPt = null; reticle.visible = false;
+}
+
+/* ---- anchors: let ARCore hold the markers in place ----
+   Without them the markers sit at fixed session coordinates and inherit every
+   bit of tracking drift; anchored, ARCore re-localises them as you walk. */
+function requestAnchors() { if (anchorsOk) anchorsWanted = true; }
+function dropAnchors() {
+  anchorMap.forEach(a => { try { a.delete(); } catch (e) {} });
+  anchorMap.clear();
+}
+function updateAnchors(frame) {
+  if (!anchorsOk || !origin || !world) return;
+  world.updateMatrixWorld(true);
+  if (anchorsWanted) {
+    anchorsWanted = false;
+    dropAnchors();
+    const cp = camPos();
+    world.children.forEach(g => {
+      const wp = g.getWorldPosition(new THREE.Vector3());
+      if (wp.distanceTo(cp) > 60) return;              // distant anchors buy nothing
+      let pr;
+      try {
+        pr = frame.createAnchor(new XRRigidTransform({ x: wp.x, y: wp.y, z: wp.z }), xrRef);
+      } catch (e) { anchorsOk = false; return; }
+      if (pr && pr.then) pr.then(a => anchorMap.set(g.userData.idx, a)).catch(() => {});
+    });
+    return;
+  }
+  anchorMap.forEach((a, idx) => {
+    const pose = frame.getPose(a.anchorSpace, xrRef);
+    if (!pose) return;
+    const g = world.children.find(o => o.userData.idx === idx);
+    if (!g) return;
+    const p = pose.transform.position;
+    g.position.copy(world.worldToLocal(new THREE.Vector3(p.x, p.y, p.z)));
+  });
+}
+
+/* ---- selection ---- */
+function selectTree(i) {
+  selIdx = i;
+  $('hSel').textContent = i == null ? '' : ('sel ' + props(i).tree_id);
+}
+function nearestTree() {
+  const c = camPos();
+  let best = null, bd = 1e9;
+  sprites.forEach(sp => {
+    const d = c.distanceTo(sp.getWorldPosition(new THREE.Vector3()));
+    if (d < bd) { bd = d; best = sp.userData.idx; }
+  });
+  return best;
+}
+
+/* ---- measurement ---- */
+const MEAS = {
+  height:    { label: 'Tree height',      field: 'height_m',          hits: 1, aim: true },
+  crownbase: { label: 'Crown base',       field: 'crown_base_m',      hits: 1, aim: true },
+  crown:     { label: 'Crown diameter',   field: 'crown_d_m',         hits: 2, aim: false },
+  target:    { label: 'Distance to target', field: 'target_distance_m', hits: 1, aim: false },
+  stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false },
+  tape:      { label: 'Tape',             field: null,                hits: 2, aim: false }
+};
+function mbar(txt, buttons) {
+  $('mtxt').innerHTML = txt;
+  const box = $('mbtn'); box.innerHTML = '';
+  (buttons || []).forEach(b => {
+    const el = document.createElement('button');
+    el.textContent = b[0]; if (b[2]) el.className = b[2];
+    el.onclick = b[1]; box.appendChild(el);
+  });
+  $('mbar').classList.add('on');
+}
+function clearMeasure() {
+  measure = null;
+  reticle.visible = false;
+  $('mbar').classList.remove('on');
+  while (mGroup.children.length) {
+    const c = mGroup.children[0];
+    if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); }
+    if (c.geometry) c.geometry.dispose();
+    mGroup.remove(c);
+  }
+}
+function valueSprite(text) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(10,16,13,.9)'; roundRect(g, 2, 2, 508, 124, 20); g.fill();
+  g.lineWidth = 5; g.strokeStyle = '#8fd6a8'; roundRect(g, 2, 2, 508, 124, 20); g.stroke();
+  g.fillStyle = '#dff0e6'; g.font = 'bold 58px system-ui,sans-serif'; g.textAlign = 'center';
+  g.fillText(text, 256, 86);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+  sp.scale.set(1.2, 0.3, 1); sp.renderOrder = 13;
+  return sp;
+}
+function drawSegment(a, b, text) {
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([a, b]),
+    new THREE.LineBasicMaterial({ color: 0x8fd6a8, depthTest: false }));
+  line.renderOrder = 12; mGroup.add(line);
+  const sp = valueSprite(text);
+  sp.position.copy(a.clone().add(b).multiplyScalar(0.5));
+  mGroup.add(sp);
+}
+
+function startMeasure(kind) {
+  if (mode !== 'WebXR') return toast('Measuring needs the WebXR mode.');
+  if (!hitOk) return toast('Hit-test unavailable in this session.');
+  $('mmenu').style.display = 'none';
+  $('ctl2').classList.remove('on');
+  clearMeasure();
+  const cfg = MEAS[kind];
+  let tree = selIdx;
+  if (cfg.field || kind === 'stem') {
+    if (tree == null) { tree = nearestTree(); selectTree(tree); }
+    if (tree == null) return toast('No tree to measure.');
+  }
+  measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true };
+  const who = tree == null ? '' : ' · ' + props(tree).tree_id;
+  const ask = cfg.aim ? 'Aim at the stem base and tap'
+            : kind === 'target' ? 'Aim at the target on the ground and tap'
+            : kind === 'stem' ? 'Aim at the stem base and tap'
+            : 'Aim at the first point and tap';
+  mbar('<b>' + cfg.label + who + '</b><br>' + ask, [['Cancel', clearMeasure]]);
+}
+
+function measureTap() {
+  const m = measure, cfg = m.cfg;
+  if (m.wantsHit && !hitPt) { toast('No surface found – aim at the ground.'); return; }
+
+  if (cfg.aim) {
+    if (m.step === 0) {                                   // remember the base, then aim high
+      m.pts[0] = hitPt.clone();
+      m.step = 1; m.wantsHit = false; reticle.visible = false;
+      mbar('<b>' + cfg.label + '</b><br>Now aim at the ' +
+           (m.kind === 'height' ? 'treetop' : 'lowest live branch') + ' and tap',
+           [['Cancel', clearMeasure]]);
+      return;
+    }
+    const base = m.pts[0], c = camPos(), d = camDir();
+    const horiz = Math.hypot(c.x - base.x, c.z - base.z);
+    const el = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
+    if (horiz < 1.5) return mbar('<b>Too close</b><br>Step back – at least a few metres from the stem.',
+                                 [['Again', () => startMeasure(m.kind)], ['Cancel', clearMeasure]]);
+    if (el < 0.09) return mbar('<b>Aim higher</b><br>The sightline is almost level, the result would be meaningless.',
+                               [['Again', () => startMeasure(m.kind)], ['Cancel', clearMeasure]]);
+    const top = c.y + horiz * Math.tan(el);
+    const h = top - base.y;
+    drawSegment(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m');
+    finishMeasure(h, cfg.label + ' ' + h.toFixed(1) + ' m<br><span class="small">' +
+      horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '° up</span>');
+    return;
+  }
+
+  if (m.kind === 'stem') {
+    const l = world.worldToLocal(hitPt.clone());
+    const lat = origin.lat + (-l.z) / R1LAT;
+    const lon = origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180));
+    setCoords(m.tree, lon, lat, 'AR hit-test', originAcc);
+    toast('Stem position of ' + props(m.tree).tree_id + ' set.');
+    requestAnchors();
+    clearMeasure();
+    return;
+  }
+
+  if (m.kind === 'target') {
+    const g = world.children.find(o => o.userData.idx === m.tree);
+    if (!g) return clearMeasure();
+    const stem = g.getWorldPosition(new THREE.Vector3());
+    const d = Math.hypot(hitPt.x - stem.x, hitPt.z - stem.z);
+    drawSegment(new THREE.Vector3(stem.x, hitPt.y, stem.z), hitPt.clone(), d.toFixed(1) + ' m');
+    const h = num(props(m.tree).height_m);
+    const zone = (h && d <= h) ? '<br><span class="small">inside the fall zone (' + h.toFixed(0) + ' m tree)</span>' : '';
+    finishMeasure(d, 'Distance to target ' + d.toFixed(1) + ' m' + zone);
+    return;
+  }
+
+  // two free points: crown diameter or plain tape
+  if (m.step === 0) {
+    m.pts[0] = hitPt.clone(); m.step = 1;
+    mbar('<b>' + cfg.label + '</b><br>Aim at the second point and tap', [['Cancel', clearMeasure]]);
+    return;
+  }
+  const a = m.pts[0], b = hitPt.clone();
+  const d = Math.hypot(b.x - a.x, b.z - a.z);
+  drawSegment(a, b, d.toFixed(1) + ' m');
+  finishMeasure(d, cfg.label + ' ' + d.toFixed(1) + ' m');
+}
+
+function finishMeasure(value, html) {
+  const m = measure;
+  m.value = value; m.wantsHit = false;
+  reticle.visible = false;
+  const btns = [];
+  if (m.cfg.field) {
+    html = props(m.tree).tree_id + ' · ' + html;
+    btns.push(['Apply', () => {
+      const patch = {};
+      patch[m.cfg.field] = Math.round(value * 10) / 10;
+      setEdit(m.tree, patch);
+      toast(m.cfg.label + ' saved to ' + props(m.tree).tree_id + '.');
+      clearMeasure();
+    }, 'p']);
+  }
+  btns.push(['Again', () => startMeasure(m.kind)]);
+  btns.push(['Close', clearMeasure]);
+  mbar(html, btns);
+}
+
+function buildMeasureMenu() {
+  const el = $('mmenu');
+  el.innerHTML = '<div class="small" style="margin-bottom:8px">' +
+    (selIdx == null ? 'Uses the nearest tree unless you tap a marker first.'
+                    : 'For ' + props(selIdx).tree_id + '.') + '</div>';
+  const row = document.createElement('div'); row.className = 'btnrow';
+  [['height', 'Height'], ['crownbase', 'Crown base'], ['crown', 'Crown Ø'],
+   ['target', 'Target dist.'], ['stem', 'Stem position'], ['tape', 'Tape']].forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'sm'; b.textContent = k[1];
+    b.onclick = () => startMeasure(k[0]);
+    row.appendChild(b);
+  });
+  const c = document.createElement('button');
+  c.className = 'sm'; c.textContent = 'Cancel';
+  c.onclick = () => { el.style.display = 'none'; };
+  row.appendChild(c);
+  el.appendChild(row);
+}
+
+/* ---- photo from inside the session ----
+   Without camera-access the file dialog is the only route, and Chrome blocks
+   that during an immersive session. */
+function takeARPhoto(frame) {
+  const tree = shotFor; shotFor = null;
+  try {
+    const pose = frame.getViewerPose(xrRef);
+    if (!pose || !pose.views.length) throw new Error('no viewer pose');
+    const view = pose.views[0];
+    if (!view.camera) throw new Error('no camera image in this frame');
+    const gl = renderer.getContext();
+    const tex = new XRWebGLBinding(xrSession, gl).getCameraImage(view.camera);
+    const w = view.camera.width, h = view.camera.height;
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    const px = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(fb);
+    if (renderer.resetState) renderer.resetState();
+    else if (renderer.state && renderer.state.reset) renderer.state.reset();
+
+    const src = document.createElement('canvas'); src.width = w; src.height = h;
+    const ctx = src.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {                       // GL reads bottom-up
+      const s = (h - 1 - y) * w * 4, t = y * w * 4;
+      img.data.set(px.subarray(s, s + w * 4), t);
+    }
+    ctx.putImageData(img, 0, 0);
+    const k = Math.min(1, 1440 / Math.max(w, h));
+    const out = document.createElement('canvas');
+    out.width = Math.round(w * k); out.height = Math.round(h * k);
+    out.getContext('2d').drawImage(src, 0, 0, out.width, out.height);
+
+    const meta = { mode: 'AR' };
+    const c = camPos();
+    if (origin) {
+      const l = world.worldToLocal(c.clone());
+      meta.lat = +(origin.lat + (-l.z) / R1LAT).toFixed(7);
+      meta.lon = +(origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180))).toFixed(7);
+    }
+    meta.bearing = Math.round((camYawDeg() + worldYaw + headOff) % 360);
+    const g = world.children.find(o => o.userData.idx === tree);
+    if (g) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
+
+    photoAdd(props(tree).tree_id, out.toDataURL('image/jpeg', 0.72), meta)
+      .then(() => toast('Photo of ' + props(tree).tree_id + ' stored.'))
+      .catch(e => toast('Photo storage: ' + e.message));
+  } catch (e) {
+    toast('Camera capture failed: ' + e.message);
+  }
+}
+
+/* ---- direction arrows for markers outside the view ---- */
+function buildEdge() {
+  const box = $('edge'); box.innerHTML = ''; edgeEls = {};
+  CAT.features.forEach((f, i) => {
+    const d = document.createElement('div'); d.className = 'ea';
+    d.innerHTML = '<span class="g">➤</span><span class="l"></span>';
+    box.appendChild(d); edgeEls[i] = d;
+  });
+}
+function updateEdge() {
+  const cam = xrCam(), cw = innerWidth, ch = innerHeight;
+  const c = camPos();
+  // own inverse: matrixWorldInverse is only refreshed inside render(), which
+  // runs after this, so using it would lag a frame and be wrong on the first
+  const inv = new THREE.Matrix4().copy(cam.matrixWorld).invert();
+  const off = [];
+  sprites.forEach(sp => {
+    const el = edgeEls[sp.userData.idx];
+    if (!el) return;
+    const wp = sp.getWorldPosition(new THREE.Vector3());
+    const dist = c.distanceTo(wp);
+    if (dist < 2) { el.classList.remove('on'); return; }   // you are standing at it
+    const eye = wp.clone().applyMatrix4(inv);
+    let x, y, on = false;
+    if (eye.z < -0.05) {                                   // in front: project normally
+      const ndc = eye.clone().applyMatrix4(cam.projectionMatrix);
+      x = ndc.x; y = ndc.y;
+      on = Math.abs(x) <= 1 && Math.abs(y) <= 1;
+    } else {
+      // on the camera plane the projection divides by zero, and behind it the
+      // sign flips - take the direction straight from eye space instead
+      const len = Math.hypot(eye.x, eye.y) || 1;
+      x = eye.x / len * 2; y = eye.y / len * 2;
+    }
+    if (on) { el.classList.remove('on'); return; }
+    off.push({ el: el, x: x, y: y, d: dist, idx: sp.userData.idx });
+  });
+  off.sort((a, b) => a.d - b.d);
+  const placed = [];
+  off.forEach((o, n) => {
+    if (n > 2) { o.el.classList.remove('on'); return; }   // three at most, or it is a mess
+    const m = Math.max(Math.abs(o.x), Math.abs(o.y)) || 1;
+    const x = o.x / m, y = o.y / m;
+    const mg = 54;
+    const left = Math.min(cw - mg, Math.max(mg, (x * 0.5 + 0.5) * cw));
+    let top = Math.min(ch - mg, Math.max(mg, (-y * 0.5 + 0.5) * ch));
+    // trees in the same direction land on the same spot - stack them instead
+    while (placed.some(p => Math.abs(p.left - left) < 60 && Math.abs(p.top - top) < 34)) {
+      top += 34;
+      if (top > ch - mg) { top = mg; break; }
+    }
+    placed.push({ left: left, top: top });
+    o.el.style.left = left + 'px'; o.el.style.top = top + 'px';
+    o.el.querySelector('.g').style.transform = 'rotate(' + (Math.atan2(-y, x) * 180 / Math.PI) + 'deg)';
+    o.el.querySelector('.l').textContent = props(o.idx).tree_id + ' ' + o.d.toFixed(0) + ' m';
+    o.el.classList.add('on');
+  });
 }
 
 /* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
@@ -527,8 +957,10 @@ function buildChooser() {
     b.onclick = () => {
       const co = f.geometry.coordinates;
       origin = { lat: co[1], lon: co[0] };
+      originAcc = num(props(i).position_accuracy_m);
       camGps.set(0, 1.55, 0);
-      placeMarkers(); c.style.display = 'none';
+      placeMarkers(); requestAnchors(); c.style.display = 'none';
+      selectTree(i);
       toast('Origin = ' + props(i).tree_id);
     };
     row.appendChild(b);
@@ -818,7 +1250,8 @@ function openPanel(i) {
       const f = fi.files && fi.files[0]; if (!f) return;
       const url = await shrink(f, 1440, 0.72);
       if (!url) return toast('Could not read the image.');
-      try { await photoAdd(p.tree_id, url); toast('Photo stored.'); renderPhotos(p.tree_id, gal); }
+      const meta = lastFix ? { lat: +lastFix.lat.toFixed(7), lon: +lastFix.lon.toFixed(7) } : {};
+      try { await photoAdd(p.tree_id, url, meta); toast('Photo stored.'); renderPhotos(p.tree_id, gal); }
       catch (e) { toast('Photo storage: ' + e.message); }
       fi.value = '';
     };
@@ -902,7 +1335,10 @@ async function renderPhotos(tree, gal) {
     im.onclick = () => { $('lbImg').src = f.url; $('lightbox').style.display = 'flex'; };
     const db2 = document.createElement('button'); db2.className = 'del sm'; db2.textContent = '×';
     db2.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
-    const cap = document.createElement('figcaption'); cap.textContent = (f.ts || '').slice(0, 16).replace('T', ' ');
+    const cap = document.createElement('figcaption');
+    cap.textContent = (f.ts || '').slice(0, 16).replace('T', ' ') +
+      (f.bearing != null ? ' · ' + f.bearing + '°' : '') +
+      (f.dist != null ? ' · ' + f.dist + ' m' : '');
     fig.appendChild(im); fig.appendChild(db2); fig.appendChild(cap);
     gal.appendChild(fig);
   });
@@ -991,7 +1427,7 @@ function dl(name, content, mime) {
 }
 const CSVCOLS = ['tree_id', 'lon', 'lat', 'species', 'name_en', 'planted', 'girth_cm', 'dbh_cm',
   'height_m', 'crown_d_m', 'vitality_roloff', 'crown_dieback_pct', 'damage_class', 'cavity',
-  'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'stability', 'breakage_resistance',
+  'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'target_type', 'target_distance_m', 'stability', 'breakage_resistance',
   'traffic_safety', 'urgency', 'symptoms', 'actions', 'inspection_type', 'last_inspection',
   'next_inspection', 'interval_months', 'inspector', 'remarks'];
 function csv() {
@@ -1054,18 +1490,36 @@ function wire() {
     try { await startOrient(); startGPS(); await startCam(); msg(''); }
     catch (e) { msg('Camera: ' + e.message); }
   };
-  $('bl').onclick = () => { headOff -= 5; applyYaw(); };
-  $('br').onclick = () => { headOff += 5; applyYaw(); };
-  $('bsync').onclick = () => { headOff = 0; syncNorth(false); };
+  $('bl').onclick = () => { headOff -= 5; applyYaw(); requestAnchors(); };
+  $('br').onclick = () => { headOff += 5; applyYaw(); requestAnchors(); };
+  $('bsync').onclick = () => { headOff = 0; syncNorth(false); requestAnchors(); };
   $('bo').onclick = () => {
     if (!lastFix) return toast('No GPS fix.');
-    origin = { lat: lastFix.lat, lon: lastFix.lon };
-    camGps.set(0, 1.55, 0); placeMarkers();
+    origin = { lat: lastFix.lat, lon: lastFix.lon }; originAcc = lastFix.acc;
+    camGps.set(0, 1.55, 0); placeMarkers(); requestAnchors();
     toast('Origin = current position (±' + lastFix.acc.toFixed(0) + ' m).');
   };
   $('bstand').onclick = () => {
     const c = $('chooser');
     c.style.display = (c.style.display === 'block' ? 'none' : 'block');
+    $('mmenu').style.display = 'none';
+  };
+  $('bmeas').onclick = () => {
+    const m = $('mmenu');
+    if (m.style.display === 'block') { m.style.display = 'none'; return; }
+    buildMeasureMenu();
+    m.style.display = 'block';
+    $('chooser').style.display = 'none';
+  };
+  $('bshot').onclick = () => {
+    const t = selIdx == null ? nearestTree() : selIdx;
+    if (t == null) return toast('No tree selected.');
+    selectTree(t); shotFor = t;
+    toast('Capturing photo of ' + props(t).tree_id + ' …');
+  };
+  $('bmore').onclick = () => {
+    $('ctl2').classList.toggle('on');
+    $('mmenu').style.display = 'none';
   };
   $('bq').onclick = endAR;
 
