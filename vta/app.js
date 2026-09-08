@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -462,11 +462,12 @@ function showFit() {
   const el = $('hFit'); if (!el) return;
   const done = controlList().filter(r => refFix.has(r.key)).length;
   if (!mode) { el.textContent = ''; return; }
+  // say what it means for the markers, not what the maths is called
   el.textContent = lastFit
-      ? (lastFit.auto ? 'auto · ' + lastFit.n + ' fixes' : 'fit ' + lastFit.n + '·±' + lastFit.rms.toFixed(1) + ' m')
-    : done >= 2 ? done + ' pts – apply'
-    : done === 1 ? '1 pt – GPS off, compass on'
-    : 'not fitted';
+      ? (lastFit.auto ? 'markers aligned by walking' : 'markers aligned ±' + lastFit.rms.toFixed(1) + ' m')
+    : done >= 2 ? 'ready – press Apply'
+    : done === 1 ? 'markers roughly placed'
+    : 'markers not aligned – walk a bit';
   el.className = lastFit ? 'ok' : 'warn';
 }
 let lastFit = null;
@@ -1382,13 +1383,14 @@ function buildRefMenu() {
   el.appendChild(head);
   const st = document.createElement('div'); st.className = 'small'; st.style.margin = '2px 0 8px';
   st.innerHTML = lastFit
-    ? '<b style="color:#8fd6a8">' + (lastFit.auto ? 'Fitted from your walk' : 'Fitted') + '</b> · ' +
-      lastFit.n + (lastFit.auto ? ' fixes · ±' : ' pts · ±') + lastFit.rms.toFixed(2) + ' m' +
-      (lastFit.auto ? ' GPS scatter · heading is good, position is averaged · two measured points beat it'
-                    : ' · worst ' + lastFit.worst + ' ' + lastFit.max.toFixed(2) + ' m')
-    : done === 1 ? '<b>1 pt</b> · position only, heading from compass'
-    : done ? '<b>' + done + ' pts</b> · press Apply'
-    : 'Not fitted';
+    ? (lastFit.auto
+        ? '<b style="color:#8fd6a8">Markers aligned by walking</b> · from ' + lastFit.n +
+          ' GPS fixes · direction good, position within a few metres'
+        : '<b style="color:#8fd6a8">Markers aligned</b> · ' + lastFit.n + ' points · ±' +
+          lastFit.rms.toFixed(2) + ' m · worst ' + lastFit.worst + ' ' + lastFit.max.toFixed(2) + ' m')
+    : done === 1 ? '<b>1 point</b> · markers sit on it, direction still from the compass'
+    : done ? '<b>' + done + ' points</b> · press Apply'
+    : 'Markers not aligned · walk a bit, or stand on a point and press below';
   el.appendChild(st);
 
   const rows = document.createElement('div');
