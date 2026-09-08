@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.3.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -814,9 +814,7 @@ function finishMeasure(value, html) {
 
 function buildMeasureMenu() {
   const el = $('mmenu');
-  el.innerHTML = '<div class="small" style="margin-bottom:8px">' +
-    (selIdx == null ? 'Uses the nearest tree unless you tap a marker first.'
-                    : 'For ' + props(selIdx).tree_id + '.') + '</div>';
+  el.innerHTML = '';
   const row = document.createElement('div'); row.className = 'btnrow';
   [['height', 'Height'], ['crownbase', 'Crown base'], ['crown', 'Crown Ø'],
    ['target', 'Target dist.'], ['stem', 'Stem position'], ['tape', 'Tape']].forEach(k => {
@@ -949,7 +947,7 @@ function updateEdge() {
 /* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
 function buildChooser() {
   const c = $('chooser');
-  c.innerHTML = '<div class="small" style="margin-bottom:8px">Pick the stem you are standing at.</div>';
+  c.innerHTML = '';
   const row = document.createElement('div'); row.className = 'btnrow';
   CAT.features.forEach((f, i) => {
     const b = document.createElement('button');
@@ -1097,10 +1095,6 @@ function geoEditor(i) {
   bavg.onclick = () => gpsAverage(i, bavg);
   row1.appendChild(bnow); row1.appendChild(bavg);
   wrap.appendChild(row1);
-
-  const hint = document.createElement('p'); hint.className = 'small';
-  hint.textContent = 'Stand at the stem and hold the phone still while averaging. The pad moves the point in metres, N/S/E/W.';
-  wrap.appendChild(hint);
 
   let step = 0.5;
   const pad = document.createElement('div'); pad.className = 'pad';
@@ -1256,12 +1250,8 @@ function openPanel(i) {
       fi.value = '';
     };
     inb.onclick = () => fi.click();
+    inb.disabled = !!mode;          // the file dialog is blocked inside a session
     fs.appendChild(inb); fs.appendChild(fi);
-    if (mode) {
-      const nt = document.createElement('p'); nt.className = 'small';
-      nt.textContent = 'Photos only outside the AR view – leave AR first.';
-      fs.appendChild(nt);
-    }
     var gal = document.createElement('div'); gal.className = 'photos';
     fs.appendChild(gal);
     renderPhotos(p.tree_id, gal);
@@ -1371,9 +1361,6 @@ function renderList() {
     box.appendChild(b);
   });
   $('listCount').textContent = '(' + CAT.features.length + ')';
-  $('listHint').textContent = lastFix
-    ? 'Arrows point relative to where you are facing.'
-    : 'No GPS fix – distance and bearing stay empty.';
   updateArrows();
 }
 function updateArrows() {
@@ -1456,25 +1443,16 @@ function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g,
 
 /* ============================ START ============================ */
 
-function chk(state, txt) {
-  const d = document.createElement('div'); d.className = 'chk';
-  d.innerHTML = '<span class="i ' + state + '">' + (state === 'ok' ? '✔' : state === 'no' ? '✘' : '!') + '</span><span>' + txt + '</span>';
-  $('checks').appendChild(d);
-}
+/* Capability detection without a list to read: what the device cannot do
+   shows up as a control that is off. */
 async function checks() {
-  $('checks').innerHTML = '';
-  chk(isSecureContext ? 'ok' : 'no', 'Secure connection' + (isSecureContext ? '' : ' – AR, camera and GPS need HTTPS'));
-  chk(navigator.geolocation ? 'ok' : 'no', 'Location');
-  chk(navigator.mediaDevices ? 'ok' : 'no', 'Camera');
-  chk(('ondeviceorientationabsolute' in window) ? 'ok' : 'wa', 'Compass');
   let xrOk = false;
   if (navigator.xr) {
     try { xrOk = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) {}
   }
-  chk(xrOk ? 'ok' : 'wa', 'AR tracking' + (xrOk ? '' : ' – unavailable, use camera mode'));
   $('bxr').disabled = !xrOk;
-  chk(photosOk ? 'ok' : 'wa', 'Photo storage');
-  chk('serviceWorker' in navigator ? 'ok' : 'wa', 'Offline use');
+  if (!xrOk) $('bxr').textContent = 'AR unavailable';
+  $('bcam').disabled = !navigator.mediaDevices;
 }
 
 function wire() {
@@ -1608,8 +1586,7 @@ wire();
 checks();
 renderList();
 renderStats();
-$('about').innerHTML = 'VTA Field ' + APP_VERSION + ' · records and photos stay on this device, ' +
-  'nothing is sent to a server. Export before wiping the browser data.';
+$('about').textContent = 'VTA Field ' + APP_VERSION;
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
