@@ -94,14 +94,22 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 #xrui>*{pointer-events:auto}
 .bar{position:absolute;left:8px;right:8px;background:rgba(12,18,15,.82);backdrop-filter:blur(8px);
   border:1px solid #2b3a31;border-radius:12px;padding:7px 10px}
-#hud{top:calc(8px + max(env(safe-area-inset-top), 28px));font-size:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+#hud{top:calc(6px + max(env(safe-area-inset-top), 28px));left:auto;right:8px;
+  max-width:calc(100% - 16px);font-size:12px;display:flex;gap:9px;flex-wrap:wrap;
+  align-items:center;padding:5px 10px}
+#hud b{color:#8fd6a8;font-weight:600}
+#hMore{display:none;gap:9px}
+#hud.open #hMore{display:flex;flex-wrap:wrap}
 #hFit.ok{color:#8fd6a8;font-weight:600}
 #hFit.warn{color:#ffcf8f;font-weight:600}
-#hwarn{display:none;width:100%;color:#ffcf8f;font-weight:600}
-#hwarn.on{display:block}
-#hud b{color:#8fd6a8;font-weight:600}
+#hwarn{display:none;top:calc(44px + max(env(safe-area-inset-top), 28px));font-size:12px;
+  color:#ffcf8f;align-items:center;gap:8px;padding:6px 8px 6px 10px}
+#hwarn.on{display:flex}
+#hwarn>span{flex:1}
+#hwarn button{padding:2px 8px;font-size:13px}
 #ctl{bottom:calc(8px + env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;padding:8px}
-#ctl button{font-size:13px;padding:7px 10px}
+#ctl{flex-wrap:nowrap}
+#ctl button{font-size:13px;padding:7px 8px;white-space:nowrap}
 #chooser,#mmenu,#refmenu{position:absolute;left:12px;right:12px;bottom:86px;background:rgba(10,16,13,.96);
   border:1px solid #34483c;border-radius:14px;padding:12px;display:none}
 #chooser .btnrow button,#mmenu .btnrow button,#refmenu .btnrow button{min-width:30%}
@@ -281,15 +289,15 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="xrui">
   <div id="edge"></div>
   <div class="bar" id="hud">
-    <span>Mode <b id="hMode">–</b></span>
-    <span>GPS ±<b id="hAcc">–</b> m</span>
-    <span>Heading <b id="hHead">–</b>°</span>
-    <span>North <b id="hOff">0</b>°</span>
-    <span id="hSel"></span>
-    <span id="hNear"></span>
-    <span id="hFit"></span>
-    <span id="hwarn"></span>
+    <span>±<b id="hAcc">–</b> m · <b id="hHead">–</b>° · <span id="hFit"></span></span>
+    <span id="hMore">
+      <span>Mode <b id="hMode">–</b></span>
+      <span>North <b id="hOff">0</b>°</span>
+      <span id="hSel"></span>
+      <span id="hNear"></span>
+    </span>
   </div>
+  <div class="bar" id="hwarn"><span id="hwarnT"></span><button id="hwarnX">✕</button></div>
   <div id="chooser"></div>
   <div id="mmenu"></div>
   <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
@@ -302,7 +310,7 @@ table.hist th{color:#8fa697;font-weight:500}
   </div>
   <div id="refmenu"></div>
   <div class="bar" id="ctl">
-    <button class="p" id="bnew">+ Tree here</button>
+    <button class="p" id="bnew">+ Tree</button>
     <button id="bref">Refs</button>
     <button id="bmeas">Measure</button>
     <button id="bshot">Photo</button>
@@ -315,8 +323,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.4.3"></script>
-<script src="data.js?v=1.4.3"></script>
-<script src="app.js?v=1.4.3"></script>
+<script src="vendor/three.min.js?v=1.4.4"></script>
+<script src="data.js?v=1.4.4"></script>
+<script src="app.js?v=1.4.4"></script>
 </body>
 </html>

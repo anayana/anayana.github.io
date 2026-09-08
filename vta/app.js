@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.3';
+const APP_VERSION = '1.4.4';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -433,11 +433,10 @@ function showFit() {
   const el = $('hFit'); if (!el) return;
   const done = controlList().filter(r => refFix.has(r.key)).length;
   if (!mode) { el.textContent = ''; return; }
-  el.textContent = lastFit
-    ? 'fitted ' + lastFit.n + ' pts ±' + lastFit.rms.toFixed(2) + ' m'
-    : done >= 2 ? done + ' measured – press Apply'
-    : done === 1 ? '1 pt – position only, heading from compass'
-    : 'not fitted – GPS and compass only';
+  el.textContent = lastFit ? 'fit ' + lastFit.n + '·±' + lastFit.rms.toFixed(1) + ' m'
+    : done >= 2 ? done + ' pts – apply'
+    : done === 1 ? '1 pt – GPS off, compass on'
+    : 'not fitted';
   el.className = lastFit ? 'ok' : 'warn';
 }
 let lastFit = null;
@@ -486,14 +485,19 @@ function orientQuat(q, a, b, g, o) {
    compensation is exactly what is broken here, so it is left out - and
    comparing it against the orientation the screen claims. */
 const _upDev = new THREE.Vector3(), _rawQ = new THREE.Quaternion();
+let warnOff = false;
 function checkOrientLock(a, b, g) {
   const el = $('hwarn'); if (!el) return;
+  if (!el.dataset.wired) {
+    el.dataset.wired = '1';
+    $('hwarnX').onclick = () => { warnOff = true; el.classList.remove('on'); };
+  }
   const ang = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
   orientQuat(_rawQ, a, b, g, 0);
   _upDev.set(0, 1, 0).applyQuaternion(_rawQ);
   const sideways = Math.abs(_upDev.y) < 0.5;
-  const bad = mode === 'WebXR' && sideways && (ang % 180 === 0);
-  el.textContent = bad ? 'Screen locked upright while you hold the phone sideways – the view is 90° out. Turn auto-rotate on, or hold the phone upright.' : '';
+  const bad = mode === 'WebXR' && sideways && (ang % 180 === 0) && !warnOff;
+  $('hwarnT').textContent = bad ? 'View 90° out – auto-rotate is off. Hold the phone upright.' : '';
   el.classList.toggle('on', bad);
 }
 function onOrient(ev) {
@@ -760,7 +764,8 @@ function endAR() {
   $('refmenu').style.display = 'none';
   $('ctl2').classList.remove('on');
   $('edge').innerHTML = ''; edgeEls = {};
-  $('hwarn').textContent = ''; $('hwarn').classList.remove('on');
+  $('hwarnT').textContent = ''; $('hwarn').classList.remove('on'); warnOff = false;
+  $('hud').classList.remove('open');
   $('hFit').textContent = '';
   $('app').classList.remove('hidden');
   mode = null;
@@ -804,7 +809,8 @@ function tick() {
     const s = fitScale(1, _cp.distanceTo(_sp), t, b[0], b[1]);
     o.scale.set(b[0] * s, b[1] * s, 1);
   });
-  $('hNear').textContent = best ? ('nearest ' + props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+  if ($('hud').classList.contains('open'))
+    $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
 }
 
@@ -2087,6 +2093,7 @@ function wire() {
     requestAnchors();
     toast('Scene re-hung on your GPS position (±' + lastFix.acc.toFixed(0) + ' m).');
   };
+  $('hud').onclick = () => $('hud').classList.toggle('open');
   $('bnew').onclick = addTreeHere;
   $('bref').onclick = () => {
     const el = $('refmenu');
