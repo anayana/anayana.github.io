@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.3';
+const APP_VERSION = '1.3.4';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -248,6 +248,23 @@ function sceneToWgs(v) {
   return { lat: origin.lat + (-l.z) / R1LAT,
            lon: origin.lon + l.x / (R1LON * Math.cos(origin.lat * Math.PI / 180)) };
 }
+/* The inverse: declare that the spot you are standing on has these
+   coordinates. The scene's zero point is wherever the session started, not
+   where you are now, so the origin is shifted by your offset from it -
+   otherwise walking twenty metres before saying "I am at ..." puts the whole
+   scene twenty metres out. */
+function setOriginHere(lat, lon, acc) {
+  if (world && mode) {
+    world.updateMatrixWorld(true);
+    const l = world.worldToLocal(camPos());
+    origin = { lat: lat + l.z / R1LAT,
+               lon: lon - l.x / (R1LON * Math.cos(lat * Math.PI / 180)) };
+  } else {
+    origin = { lat: lat, lon: lon };
+  }
+  originAcc = acc; originPinned = true;
+  placeMarkers();
+}
 function distBear(lat, lon, lat0, lon0) {
   const d = enu(lat, lon, lat0, lon0);
   return { d: Math.hypot(d.e, d.n), b: (Math.atan2(d.e, d.n) * 180 / Math.PI + 360) % 360 };
@@ -391,6 +408,7 @@ function buildMarkers() {
     g.userData.idx = i; world.add(g);
   });
   placeMarkers();
+  if (mode) { buildEdge(); buildChooser(); }     // both are keyed by index
 }
 function placeMarkers() {
   if (!origin || !world) return;
@@ -1024,15 +1042,18 @@ function buildChooser() {
     b.className = 'sm'; b.textContent = props(i).tree_id;
     b.onclick = () => {
       const co = f.geometry.coordinates;
-      origin = { lat: co[1], lon: co[0] };
-      originAcc = num(props(i).position_accuracy_m); originPinned = true;
-      camGps.set(0, 1.55, 0);
-      placeMarkers(); requestAnchors(); c.style.display = 'none';
+      setOriginHere(co[1], co[0], num(props(i).position_accuracy_m));
+      requestAnchors(); c.style.display = 'none';
       selectTree(i);
-      toast('Origin = ' + props(i).tree_id);
+      toast('You are at ' + props(i).tree_id + ' – scene re-hung on it.');
     };
     row.appendChild(b);
   });
+  if (!CAT.features.length) {
+    const e = document.createElement('span'); e.className = 'small';
+    e.textContent = 'No trees in the register yet. ';
+    row.appendChild(e);
+  }
   const ab = document.createElement('button');
   ab.className = 'sm'; ab.textContent = 'Cancel';
   ab.onclick = () => { c.style.display = 'none'; };
@@ -1121,6 +1142,29 @@ function addTree(lon, lat, source, acc) {
   });
   saveCat(); buildMarkers(); renderList();
   return CAT.features.length - 1;
+}
+
+/* Removing a tree shifts every index above it, and half the app holds indices:
+   the panel, the selection, a running measurement, the AR overlay lists. Drop
+   all of them rather than trying to renumber. */
+function deleteTree(i) {
+  const id = tid(i);
+  CAT.features.splice(i, 1);
+  if (edits[id]) { delete edits[id]; saveEdits(); }
+  saveCat();
+  closePanel();
+  if (measure) clearMeasure();
+  selectTree(null);
+  buildMarkers(); renderList(); renderStats();
+  return id;
+}
+function emptyRegister() {
+  CAT.features = [];
+  edits = {}; saveEdits(); saveCat();
+  closePanel();
+  if (measure) clearMeasure();
+  selectTree(null);
+  buildMarkers(); renderList(); renderStats();
 }
 
 function gpsAverage(i, btn) {
@@ -1225,6 +1269,12 @@ function geoEditor(i) {
     toast('Catalogue position restored.');
   };
   row2.appendChild(bres);
+  const bdel = document.createElement('button'); bdel.className = 'sm x'; bdel.textContent = 'Delete tree';
+  bdel.onclick = () => {
+    if (!confirm('Delete ' + tid(i) + ' from the register? Photos of it are kept.')) return;
+    toast(deleteTree(i) + ' deleted.');
+  };
+  row2.appendChild(bdel);
   wrap.appendChild(row2);
 
   setTimeout(() => syncGeo(i), 0);
@@ -1573,9 +1623,9 @@ function wire() {
   $('bsync').onclick = () => { headOff = 0; syncNorth(false); requestAnchors(); };
   $('bo').onclick = () => {
     if (!lastFix) return toast('No GPS fix.');
-    origin = { lat: lastFix.lat, lon: lastFix.lon }; originAcc = lastFix.acc; originPinned = true;
-    camGps.set(0, 1.55, 0); placeMarkers(); requestAnchors();
-    toast('Origin = current position (±' + lastFix.acc.toFixed(0) + ' m).');
+    setOriginHere(lastFix.lat, lastFix.lon, lastFix.acc);
+    requestAnchors();
+    toast('Scene re-hung on your GPS position (±' + lastFix.acc.toFixed(0) + ' m).');
   };
   $('bstand').onclick = () => {
     const c = $('chooser');
@@ -1612,6 +1662,26 @@ function wire() {
     openPanel(i, 'base');            // straight to the position, it needs fixing
     toast('Recorded at your own position (±' + lastFix.acc.toFixed(0) +
           ' m) – average it at the stem, or place it in AR.');
+  };
+
+  $('bNewXY').onclick = () => {
+    const box = $('newXY');
+    const open = box.style.display !== 'block';
+    box.style.display = open ? 'block' : 'none';
+    if (open && lastFix) {                       // a starting point to correct, not a proposal
+      $('nxLon').placeholder = lastFix.lon.toFixed(7);
+      $('nxLat').placeholder = lastFix.lat.toFixed(7);
+    }
+  };
+  $('nxCancel').onclick = () => { $('newXY').style.display = 'none'; };
+  $('nxOk').onclick = () => {
+    const lon = parseFloat($('nxLon').value), lat = parseFloat($('nxLat').value);
+    if (!isFinite(lon) || !isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lon) > 180)
+      return toast('Enter longitude and latitude in decimal degrees.');
+    const i = addTree(lon, lat, 'entered by hand', null);
+    $('nxLon').value = ''; $('nxLat').value = ''; $('newXY').style.display = 'none';
+    openPanel(i, 'base');
+    toast('Tree ' + tid(i) + ' created at the coordinate you entered.');
   };
 
   $('bExpGeo').onclick = () => dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
@@ -1651,6 +1721,12 @@ function wire() {
   $('bResetEdits').onclick = () => {
     if (!confirm('Delete every inspection record captured in the field?')) return;
     edits = {}; lsDel(K_EDIT); buildMarkers(); renderList(); renderStats(); toast('Field records deleted.');
+  };
+  $('bEmpty').onclick = () => {
+    if (!CAT.features.length) return toast('The register is already empty.');
+    if (!confirm('Delete all ' + CAT.features.length + ' trees and start an empty register? Photos are kept.')) return;
+    emptyRegister();
+    toast('Register emptied – record your first tree by coordinates.');
   };
   $('bResetAll').onclick = () => {
     if (!confirm('Reset catalogue and field records to the shipped state? Photos are kept.')) return;
