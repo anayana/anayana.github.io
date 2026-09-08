@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.6';
+const APP_VERSION = '1.3.7';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1288,12 +1288,6 @@ function geoEditor(i) {
     toast('Position as first recorded.');
   };
   row2.appendChild(bres);
-  const bdel = document.createElement('button'); bdel.className = 'sm x'; bdel.textContent = 'Delete tree';
-  bdel.onclick = () => {
-    if (!confirm('Delete ' + tid(i) + ' from the register? Photos of it are kept.')) return;
-    toast(deleteTree(i) + ' deleted.');
-  };
-  row2.appendChild(bdel);
   wrap.appendChild(row2);
 
   setTimeout(() => syncGeo(i), 0);
@@ -1424,7 +1418,12 @@ function openPanel(i, tab) {
     delete edits[tid(i)]; saveEdits(); refreshMarker(i); renderList(); openPanel(i);
     toast('Field record reset.');
   };
-  pf.appendChild(bs); pf.appendChild(br2);
+  const bd = document.createElement('button'); bd.className = 'x'; bd.textContent = 'Delete';
+  bd.onclick = () => {
+    if (!confirm('Delete ' + tid(i) + ' from the register? Photos of it are kept.')) return;
+    toast(deleteTree(i) + ' deleted.');
+  };
+  pf.appendChild(bs); pf.appendChild(br2); pf.appendChild(bd);
   el.appendChild(pf);
 
   el.classList.add('on');
