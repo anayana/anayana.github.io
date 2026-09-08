@@ -105,6 +105,11 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 #chooser,#mmenu,#refmenu{position:absolute;left:12px;right:12px;bottom:86px;background:rgba(10,16,13,.96);
   border:1px solid #34483c;border-radius:14px;padding:12px;display:none}
 #chooser .btnrow button,#mmenu .btnrow button,#refmenu .btnrow button{min-width:30%}
+#refmenu{max-height:56vh;overflow:auto}
+.refrow{display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #223027}
+.refrow .nm{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.refrow.has .nm{color:#8fd6a8}
+.refrow button{font-size:12.5px;padding:6px 9px;flex:0 0 auto}
 #ctl2{bottom:calc(62px + env(safe-area-inset-bottom));display:none;gap:6px;flex-wrap:wrap;padding:8px}
 #ctl2.on{display:flex}
 #ctl2 button{font-size:13px;padding:7px 10px}
@@ -309,8 +314,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.4.1"></script>
-<script src="data.js?v=1.4.1"></script>
-<script src="app.js?v=1.4.1"></script>
+<script src="vendor/three.min.js?v=1.4.2"></script>
+<script src="data.js?v=1.4.2"></script>
+<script src="app.js?v=1.4.2"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -381,6 +381,22 @@ function fitFromRefs(quiet) {
                     ' m, worst ' + f.max.toFixed(2) + ' m (' + f.worst + ')');
   return f;
 }
+/* Aiming a reticle at a fence post is a lot of ceremony for a number the
+   session already knows: where the phone is. Stand on the point, press the
+   button. You are within half a metre of it, which over a thirty-metre
+   baseline is a degree of heading - the compass is off by twenty. */
+function markControlHere(key) {
+  if (mode !== 'WebXR') return toast('Standing needs the WebXR mode – its tracking is what measures the point.');
+  const c = controlByKey(key);
+  if (!c) return;
+  const p = camPos();
+  refFix.set(key, { x: p.x, z: p.z });
+  const done = controlList().filter(r => refFix.has(r.key)).length;
+  if (done >= 2) fitFromRefs(false);
+  else toast(c.name + ' taken where you stand – one more point.');
+  showFit(); buildRefMenu();
+}
+
 /* The state of the fit belongs on screen, not in a toast that has scrolled
    away by the time you are standing at the next tree. */
 function showFit() {
@@ -959,7 +975,7 @@ function startMeasure(kind, refArg) {
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
   const ask = cfg.aim ? 'Aim at the stem base and tap'
             : kind === 'target' ? 'Aim at the target on the ground and tap'
-            : kind === 'ref' ? 'Aim at the reference point on the ground and tap'
+            : kind === 'ref' ? 'Aim at the point itself and tap – or cancel and stand on it instead'
             : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base and tap'
             : 'Aim at the first point and tap';
   mbar('<b>' + cfg.label + who + '</b><br>' + ask, [['Cancel', clearMeasure]]);
@@ -1221,25 +1237,33 @@ function buildRefMenu() {
     : done === 1
       ? '<b>1 measured.</b> One more point and the scene is fixed.'
       : done === 0
-        ? 'Aim at a point you know and tap. Two are the minimum, three or four give a residual.'
+        ? 'Walk to a point you know and press <b>I stand here</b>. Two are the minimum, ' +
+          'three or four give a residual. <b>Aim</b> is only for a point you cannot stand on.'
         : '<b>' + done + ' measured.</b> Ready – press Apply.';
   el.appendChild(st);
 
-  const row = document.createElement('div'); row.className = 'btnrow';
+  const rows = document.createElement('div');
   list.forEach(r => {
-    const b = document.createElement('button');
     const has = refFix.has(r.key);
-    b.className = 'sm' + (has ? ' p' : '');
-    b.textContent = (has ? '✓ ' : '') + r.name + (r.ref ? '' : ' ⌇');
-    b.onclick = () => startMeasure('ref', r.key);
-    row.appendChild(b);
+    const line = document.createElement('div'); line.className = 'refrow' + (has ? ' has' : '');
+    const nm = document.createElement('span'); nm.className = 'nm';
+    nm.textContent = (has ? '✓ ' : '') + r.name + (r.ref ? '' : ' ⌇');
+    const here = document.createElement('button'); here.className = 'sm p';
+    here.textContent = has ? 'Again' : 'I stand here';
+    here.onclick = () => markControlHere(r.key);
+    const aim = document.createElement('button'); aim.className = 'sm';
+    aim.textContent = 'Aim'; aim.title = 'for a point you cannot stand on';
+    aim.disabled = !hitOk;
+    aim.onclick = () => startMeasure('ref', r.key);
+    line.appendChild(nm); line.appendChild(here); line.appendChild(aim);
+    rows.appendChild(line);
   });
   if (!list.length) {
-    const e = document.createElement('span'); e.className = 'small';
+    const e = document.createElement('div'); e.className = 'small';
     e.textContent = 'Nothing to aim at yet – set reference points on the map.';
-    row.appendChild(e);
+    rows.appendChild(e);
   }
-  el.appendChild(row);
+  el.appendChild(rows);
 
   const act = document.createElement('div'); act.className = 'btnrow'; act.style.marginTop = '8px';
   const ap = document.createElement('button');
@@ -1263,7 +1287,7 @@ function buildRefMenu() {
   act.appendChild(x);
   el.appendChild(act);
   const foot = document.createElement('div'); foot.className = 'small'; foot.style.marginTop = '6px';
-  foot.textContent = '⌇ marks a tree from the register – usable once its own position is good.';
+  foot.textContent = '⌇ marks a tree from the register. Stand at its stem and press the button.';
   el.appendChild(foot);
 }
 
