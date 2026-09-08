@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1443,16 +1443,26 @@ function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g,
 
 /* ============================ START ============================ */
 
-/* Capability detection without a list to read: what the device cannot do
-   shows up as a control that is off. */
+function chk(state, txt) {
+  const d = document.createElement('div'); d.className = 'chk';
+  d.innerHTML = '<span class="i ' + state + '">' + (state === 'ok' ? '✔' : state === 'no' ? '✘' : '!') + '</span><span>' + txt + '</span>';
+  $('checks').appendChild(d);
+}
 async function checks() {
+  $('checks').innerHTML = '';
+  chk(isSecureContext ? 'ok' : 'no', 'Secure connection' + (isSecureContext ? '' : ' – AR, camera and GPS need HTTPS'));
+  chk(navigator.geolocation ? 'ok' : 'no', 'Location');
+  chk(navigator.mediaDevices ? 'ok' : 'no', 'Camera');
+  chk(('ondeviceorientationabsolute' in window) ? 'ok' : 'wa', 'Compass');
   let xrOk = false;
   if (navigator.xr) {
     try { xrOk = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) {}
   }
+  chk(xrOk ? 'ok' : 'wa', 'AR tracking' + (xrOk ? '' : ' – unavailable, use camera mode'));
   $('bxr').disabled = !xrOk;
-  if (!xrOk) $('bxr').textContent = 'AR unavailable';
   $('bcam').disabled = !navigator.mediaDevices;
+  chk(photosOk ? 'ok' : 'wa', 'Photo storage');
+  chk('serviceWorker' in navigator ? 'ok' : 'wa', 'Offline use');
 }
 
 function wire() {
