@@ -116,7 +116,7 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #xrui>*{pointer-events:auto}
 .bar{position:absolute;left:8px;right:8px;background:rgba(12,18,15,.82);backdrop-filter:blur(8px);
   border:1px solid #2b3a31;border-radius:12px;padding:7px 10px}
-#hud{top:calc(6px + max(env(safe-area-inset-top), 28px));left:auto;right:8px;
+#hud{top:calc(48px + max(env(safe-area-inset-top), 28px));left:auto;right:8px;
   max-width:calc(100% - 16px);font-size:12px;display:flex;gap:9px;flex-wrap:wrap;
   align-items:center;padding:5px 10px}
 #hud b{color:#8fd6a8;font-weight:600}
@@ -124,6 +124,16 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #hud.open #hMore{display:flex;flex-wrap:wrap}
 #hFit.ok{color:#8fd6a8;font-weight:600}
 #hFit.warn{color:#ffcf8f;font-weight:600}
+#modebar{top:calc(6px + max(env(safe-area-inset-top), 28px));left:8px;right:auto;display:flex;
+  gap:4px;padding:4px}
+#modebar button{font-size:12.5px;padding:5px 11px}
+#modebar button.on{background:#2f7a4d;border-color:#2f7a4d;color:#fff}
+#navBox{display:none;position:absolute;left:12px;right:12px;bottom:150px;
+  background:rgba(10,16,13,.96);border:1px solid #34483c;border-radius:14px;padding:12px}
+.navhead{margin-bottom:6px}
+.navbig{display:flex;align-items:center;gap:14px;margin:4px 0 6px}
+.navbig .arrow{font-size:46px;line-height:1;color:#8fd6a8;display:inline-block}
+.navbig .m{font-size:30px;font-weight:600}
 #hwarn{display:none;top:calc(44px + max(env(safe-area-inset-top), 28px));font-size:12px;
   color:#ffcf8f;align-items:center;gap:8px;padding:6px 8px 6px 10px}
 #hwarn.on{display:flex}
@@ -436,6 +446,11 @@ table.hist th{color:#8fa697;font-weight:500}
     <button id="bsync">Re-sync north</button>
     <button id="bo">Origin = GPS</button>
   </div>
+  <div class="bar" id="modebar">
+    <button id="mode-survey" class="on">Survey</button>
+    <button id="mode-navigate">Navigate</button>
+  </div>
+  <div id="navBox"><div class="btnrow"><button id="navNext" class="sm">Next tree</button></div></div>
   <div id="refmenu"></div>
   <div id="nummenu"></div>
   <div class="bar" id="ctl">
@@ -453,8 +468,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.13.0"></script>
-<script src="data.js?v=1.13.0"></script>
-<script src="app.js?v=1.13.0"></script>
+<script src="vendor/three.min.js?v=2.0.0"></script>
+<script src="data.js?v=2.0.0"></script>
+<script src="app.js?v=2.0.0"></script>
 </body>
 </html>

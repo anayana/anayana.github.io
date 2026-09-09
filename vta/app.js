@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '2.0.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -178,7 +178,7 @@ const LVLTXT = ['inconspicuous', 'minor findings', 'conspicuous – review measu
 
 const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1',
       K_NIA = 'vta_nia_v1', K_EXP = 'vta_exported_v1', K_TRASH = 'vta_trash_v1',
-      K_ROUND = 'vta_round_v1', K_PREF = 'vta_prefs_v1';
+      K_ROUND = 'vta_round_v1', K_PREF = 'vta_prefs_v1', K_PLOT = 'vta_plot_v1';
 let mem = {};                                  // fallback when localStorage is blocked
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
@@ -587,10 +587,11 @@ function fitFromRefs(quiet) {
   if (used.length < 2) { if (!quiet) toast('Measure at least two control points.'); return null; }
   const lat0 = used.reduce((a, r) => a + r.lat, 0) / used.length;
   const lon0 = used.reduce((a, r) => a + r.lon, 0) / used.length;
-  const pairs = used.map(r => ({ id: r.name, u: enu(r.lat, r.lon, lat0, lon0), s: refFix.get(r.key) }));
-  const f = fitRigid(pairs);
-  if (!f) { if (!quiet) toast('Reference points are too close together.'); return null; }
-  applyFit(f, lat0, lon0, false);
+  const f = fitS2P(used.map(r => {
+    const l = wgsToPlot(r.lat, r.lon);
+    return l ? { id: r.name, l: l, s: refFix.get(r.key) } : null;
+  }).filter(Boolean), 'control points');
+  if (!f) { if (!quiet) toast('Control points are too close together, or the plot has no position yet.'); return null; }
   if (!quiet) toast('Fitted on ' + f.n + ' points · residual ' + f.rms.toFixed(2) +
                     ' m, worst ' + f.max.toFixed(2) + ' m (' + f.worst + ')');
   return f;
@@ -603,10 +604,24 @@ function fitFromRefs(quiet) {
    reticle. Stand at the stem, press the button. */
 function addTreeHere() {
   if (mode !== 'WebXR') return toast('Needs the WebXR mode – its tracking is what places the tree.');
-  const g = sceneToWgs(camPos());
-  if (!g) return toast('No origin yet – no GPS fix and no fit.');
-  const i = addTree(g.lon, g.lat, lastFit ? 'AR, fitted scene' : 'AR, scene from GPS',
-                    lastFit ? lastFit.rms : originAcc);
+  const c = camPos();
+  // The first tree of a survey defines the plot frame: this spot is its
+  // origin and the way the phone is facing is not allowed to matter, so the
+  // frame is laid out along north as the compass currently believes it. Every
+  // later tree is measured against it by the session's own tracking, which is
+  // the accurate part; if the compass was ten degrees out, the whole stand is
+  // ten degrees out together and two known points straighten it later.
+  if (!S2P) {
+    const north = (heading != null) ? heading : (worldYaw + headOff);
+    S2P = { phi: THREE.MathUtils.degToRad(north), tx: c.x, tz: c.z };
+    if (!plotGeoreferenced() && lastFix) plotAbsorbFix(lastFix, 0, 0);
+    toast('Survey started here – this spot is the plot origin.');
+  }
+  const l = s2pInvert(c.x, c.z);
+  const g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
+  if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
+  const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc);
+  setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
   selectTree(i);
   openPanel(i);
   toast('Tree ' + tid(i) + ' recorded where you stand.');
@@ -630,13 +645,12 @@ function showFit() {
   const done = controlList().filter(r => refFix.has(r.key)).length;
   if (!mode) { el.textContent = ''; return; }
   // say what it means for the markers, not what the maths is called
-  el.textContent = sceneLocked ? 'markers locked'
-    : lastFit
-      ? (lastFit.auto ? 'markers aligned by walking' : 'markers aligned ±' + lastFit.rms.toFixed(1) + ' m')
+  el.textContent = S2P
+      ? 'locked on ' + s2pFrom + (s2pRms != null ? ' ±' + s2pRms.toFixed(1) + ' m' : '')
+    : arMode === 'survey' ? 'not locked – record a tree to start a survey'
     : done >= 2 ? 'ready – press Apply'
-    : done === 1 ? 'markers roughly placed'
-    : 'markers not aligned – walk a bit';
-  el.className = lastFit ? 'ok' : 'warn';
+    : 'not locked – arrow only, no markers';
+  el.className = S2P ? 'ok' : 'warn';
 }
 let lastFit = null;
 
@@ -704,6 +718,175 @@ function applyFit(f, lat0, lon0, auto) {
   f.auto = !!auto; lastFit = f;
   compAt = performance.now();
   showFit();
+}
+
+/* ============================ THE TWO JOBS ============================
+   Recording a stand and finding a tree in it are not the same task and were
+   fighting each other. Recording needs the session's own geometry and nothing
+   else. Finding needs to know where you are, which before a lock is a GPS
+   question and after a lock is not.
+
+   Survey: markers are drawn from the local survey, and only for trees the
+   session can place. Nothing is drawn from GPS.
+   Navigate: until the session is locked onto the stand there is an arrow and a
+   distance - honest about being GPS - and no markers at all. Lock on, and it
+   becomes the survey view. */
+let arMode = 'survey';
+function setArMode(m) {
+  arMode = m;
+  ['survey', 'navigate'].forEach(k =>
+    $('mode-' + k) && $('mode-' + k).classList.toggle('on', k === m));
+  $('navBox').style.display = (m === 'navigate' && !S2P) ? 'block' : 'none';
+  $('bnew').style.display = m === 'survey' ? '' : 'none';
+  showFit(); placeMarkers(); updateNav();
+}
+
+/* Before a lock: the direction and the distance, from GPS and compass, and
+   labelled as such. No marker is drawn in the world, because there is nothing
+   honest to draw. */
+let navTarget = null;
+function updateNav() {
+  const box = $('navBox'); if (!box || box.style.display === 'none') return;
+  if (navTarget == null || !CAT.features[navTarget]) {
+    navTarget = nearestByGps();
+    if (navTarget == null) { box.innerHTML = '<p class="small">No trees in the register.</p>'; return; }
+  }
+  const p = props(navTarget), c = CAT.features[navTarget].geometry.coordinates;
+  if (!lastFix) { box.innerHTML = '<p class="small">Waiting for a GPS fix.</p>'; return; }
+  const db = distBear(c[1], c[0], lastFix.lat, lastFix.lon);
+  const rel = heading == null ? null : ((db.b - heading) % 360 + 360) % 360;
+  box.innerHTML =
+    '<div class="navhead"><b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b>' +
+    ' <span class="small">' + esc(p.species || '') + '</span></div>' +
+    '<div class="navbig"><span class="arrow" style="transform:rotate(' +
+      (rel == null ? 0 : rel) + 'deg)">↑</span><span class="m">' +
+      db.d.toFixed(db.d < 100 ? 1 : 0) + ' m</span></div>' +
+    '<div class="small">' + (rel == null ? 'no compass' : 'bearing ' + db.b.toFixed(0) + '°') +
+    ' · GPS ±' + lastFix.acc.toFixed(0) + ' m · no marker until the stand is locked</div>';
+}
+function nearestByGps() {
+  if (!lastFix) return null;
+  let best = null, bd = 1e9;
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    const d = distBear(c[1], c[0], lastFix.lat, lastFix.lon).d;
+    if (d < bd) { bd = d; best = i; }
+  });
+  return best;
+}
+
+/* ====================== THE PLOT AND ITS FRAME ======================
+   The mistake this replaces: every tree carried its own GPS fix. Two stems
+   recorded ten minutes apart inherit two different biases, so their distance
+   apart is wrong by metres before anything is displayed - and no amount of
+   smoothing the drawing can recover geometry that was never measured.
+
+   What the phone is actually good at is the opposite: within one AR session
+   the relative geometry is centimetres. So a stand is recorded as a local
+   survey - metres east and north within a plot frame - and the plot carries
+   ONE georeference for all of it. Improving that georeference later rotates
+   and shifts the whole stand as a rigid body and never disturbs a single
+   distance between two trees.
+
+   GPS is then an attribute of the plot, averaged over a whole survey, not a
+   per-tree measurement. And it never places a marker: markers come from the
+   local survey, and if the session cannot be tied to the plot, no markers are
+   drawn at all. A marker that cannot be placed is worse than none. */
+let PLOT = null;
+function loadPlot() {
+  try { PLOT = JSON.parse(lsGet(K_PLOT)) || null; } catch (e) { PLOT = null; }
+  if (!PLOT) PLOT = { id: 'plot1', name: '', lat: null, lon: null, yaw: 0, acc: null, n: 0 };
+}
+function savePlot() { lsSet(K_PLOT, JSON.stringify(PLOT)); }
+function plotGeoreferenced() { return !!(PLOT && PLOT.lat != null); }
+
+/* local (east, north) in the plot frame -> WGS84, and back */
+function plotToWgs(lx, ly) {
+  if (!plotGeoreferenced()) return null;
+  const a = THREE.MathUtils.degToRad(PLOT.yaw || 0);
+  const e = lx * Math.cos(a) + ly * Math.sin(a);
+  const n = -lx * Math.sin(a) + ly * Math.cos(a);
+  return { lat: PLOT.lat + n / mLat(PLOT.lat), lon: PLOT.lon + e / mLon(PLOT.lat) };
+}
+function wgsToPlot(lat, lon) {
+  if (!plotGeoreferenced()) return null;
+  const d = enu(lat, lon, PLOT.lat, PLOT.lon);
+  const a = -THREE.MathUtils.degToRad(PLOT.yaw || 0);
+  return { lx: d.e * Math.cos(a) + d.n * Math.sin(a),
+           ly: -d.e * Math.sin(a) + d.n * Math.cos(a) };
+}
+function hasLocal(p) { return p && p.lx != null && p.ly != null; }
+function localOf(i) {
+  const p = props(i);
+  if (hasLocal(p)) return { lx: +p.lx, ly: +p.ly };
+  const c = CAT.features[i].geometry.coordinates;
+  return wgsToPlot(c[1], c[0]);          // a GPS-placed tree, best effort
+}
+
+/* Writing the georeference back out. The survey does not change - only where
+   on the earth it is said to be. */
+function refreshPlotGeo() {
+  if (!plotGeoreferenced()) return 0;
+  let n = 0;
+  CAT.features.forEach((f, i) => {
+    const p = props(i);
+    if (!hasLocal(p)) return;
+    const g = plotToWgs(+p.lx, +p.ly);
+    if (!g) return;
+    f.geometry.coordinates = [+g.lon.toFixed(7), +g.lat.toFixed(7)];
+    n++;
+  });
+  if (n) { saveCat(); placeMarkers(); renderList(); }
+  return n;
+}
+
+/* The plot's own position, averaged over every fix of every survey rather than
+   taken from one. Each sample is the fix minus where the phone was standing in
+   the plot frame, so walking about improves it instead of confusing it. */
+function plotAbsorbFix(fix, lx, ly) {
+  if (!(fix.acc <= 20)) return;
+  const back = { lat: fix.lat - ly / mLat(fix.lat), lon: fix.lon - lx / mLon(fix.lat) };
+  if (!plotGeoreferenced()) {
+    PLOT.lat = back.lat; PLOT.lon = back.lon; PLOT.n = 1; PLOT.acc = fix.acc;
+  } else {
+    const w = 1 / Math.max(1, PLOT.n + 1);
+    PLOT.lat += (back.lat - PLOT.lat) * w;
+    PLOT.lon += (back.lon - PLOT.lon) * w;
+    PLOT.n++;
+    PLOT.acc = Math.max(1, (PLOT.acc || fix.acc) * (1 - w) + fix.acc * w);
+  }
+  savePlot();
+}
+
+/* The plot's rotation comes from the compass at the moment the survey starts,
+   which is the one weak number left in the chain: it is out by however much
+   the compass is out, and it turns the whole stand together. Two points whose
+   true coordinates are known settle it - and because the correction is applied
+   to the plot rather than to the trees, the survey itself is untouched. */
+function correctPlotFrom(pairs) {          // [{ lat, lon, l:{lx,ly} }]
+  if (!pairs || pairs.length < 2) return null;
+  const lat0 = pairs.reduce((a, p) => a + p.lat, 0) / pairs.length;
+  const lon0 = pairs.reduce((a, p) => a + p.lon, 0) / pairs.length;
+  // fit local -> true ENU: same solver, the other way round
+  const f = fitRigid(pairs.map((p, k) => {
+    const d = enu(p.lat, p.lon, lat0, lon0);
+    return { id: 'p' + k, u: { e: d.e, n: d.n }, s: { x: p.l.lx, z: -p.l.ly } };
+  }));
+  if (!f) return null;
+  // f maps true ENU -> local; the plot needs the inverse
+  const yaw = ((-f.phi * 180 / Math.PI) % 360 + 360) % 360;
+  const a = THREE.MathUtils.degToRad(yaw);
+  // the plot origin is where local (0,0) lands in true ENU
+  const c = Math.cos(f.phi), sn = Math.sin(f.phi);
+  const e0 = f.e0, n0 = f.n0;
+  PLOT.yaw = yaw;
+  PLOT.lat = lat0 + n0 / mLat(lat0);
+  PLOT.lon = lon0 + e0 / mLon(lat0);
+  PLOT.acc = f.rms;
+  savePlot();
+  const n = refreshPlotGeo();
+  return { rms: f.rms, n: pairs.length, rewritten: n, yaw: yaw };
 }
 
 /* ---- finding a tree by the number on its trunk ----
@@ -782,20 +965,20 @@ function candidateTrees(limit) {
   const out = [];
   CAT.features.forEach((f, i) => {
     if (!f.geometry || f.geometry.type !== 'Point') return;
-    out.push({ i: i, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] });
+    const l = localOf(i);
+    if (!l) return;
+    out.push({ i: i, e: l.lx, n: l.ly });
   });
-  if (out.length <= limit || !origin) return out.slice(0, limit);
-  out.forEach(c => { c.d = distBear(c.lat, c.lon, origin.lat, origin.lon).d; });
-  out.sort((a, b) => a.d - b.d);
+  if (out.length <= limit || !lastFix) return out.slice(0, limit);
+  const me = wgsToPlot(lastFix.lat, lastFix.lon);      // only to choose candidates
+  if (me) { out.forEach(c => { c.d = Math.hypot(c.e - me.lx, c.n - me.ly); });
+            out.sort((a, b) => a.d - b.d); }
   return out.slice(0, limit);
 }
 function matchStems(obs) {
   if (obs.length < 3) return { error: 'at least three stems' };
   const cands = candidateTrees(120);
-  if (cands.length < obs.length) return { error: 'the register holds fewer trees than that' };
-  const lat0 = cands.reduce((a, c) => a + c.lat, 0) / cands.length;
-  const lon0 = cands.reduce((a, c) => a + c.lon, 0) / cands.length;
-  cands.forEach(c => { const e = enu(c.lat, c.lon, lat0, lon0); c.e = e.e; c.n = e.n; });
+  if (cands.length < obs.length) return { error: 'the register holds fewer surveyed trees than that' };
   const dObs = (a, b) => Math.hypot(obs[a].x - obs[b].x, obs[a].z - obs[b].z);
   const dCand = (a, b) => Math.hypot(cands[a].e - cands[b].e, cands[a].n - cands[b].n);
 
@@ -838,10 +1021,9 @@ function matchStems(obs) {
   if (!best) return { error: 'no arrangement of the register matches those stems' };
   const ambiguous = !!(second && second.n === best.n &&
                        second.err < best.err * 2.5 && second.key !== best.key);
-  const fin = fitRigid(best.pairs.map(pp => ({
-    id: tid(cands[pp.c].i), u: { e: cands[pp.c].e, n: cands[pp.c].n }, s: obs[pp.k] })));
-  return { pairs: best.pairs.map(pp => ({ obs: pp.k, tree: cands[pp.c].i })),
-           fit: fin, lat0: lat0, lon0: lon0, ambiguous: ambiguous, n: best.n };
+  return { pairs: best.pairs.map(pp => ({ obs: pp.k, tree: cands[pp.c].i,
+             l: { lx: cands[pp.c].e, ly: cands[pp.c].n }, s: obs[pp.k] })),
+           ambiguous: ambiguous, n: best.n };
 }
 
 /* ---- the walk as its own control survey ----
@@ -867,7 +1049,12 @@ function trackFix(fix) {
   if (last && Math.hypot(p.x - last.x, p.z - last.z) < T_STEP) return;
   track.push({ lat: fix.lat, lon: fix.lon, acc: fix.acc, x: p.x, z: p.z });
   if (track.length > 200) track.shift();
-  autoFit();
+  // A fix taken while the session knows where it is improves the PLOT's
+  // position - it never touches the markers, which is the whole point.
+  if (S2P) {
+    const l = s2pInvert(p.x, p.z);
+    plotAbsorbFix(fix, l.lx, l.ly);
+  }
 }
 function trackSpan() {
   let mx = 0;
@@ -1089,13 +1276,56 @@ function buildMarkers() {
   updateFallZones();
   if (mode) { buildEdge(); buildChooser(); }     // both are keyed by index
 }
+/* The session-to-plot transform: where the plot frame sits inside this AR
+   session. Set by recording (the first tree of a session defines it), by a
+   stem match, or by control points - never by GPS. Null means the app does not
+   know where it is, and then it draws nothing rather than something wrong. */
+let S2P = null;               // { phi (rad), tx, tz } : scene = R(phi)*local + t
+let s2pFrom = '', s2pRms = null;
+
+/* One way in for every kind of evidence: pairs of (plot local, scene point).
+   Stems, control points and, if asked for explicitly, GPS all end up here. */
+function fitS2P(pairs, source) {
+  if (!pairs || pairs.length < 2) return null;
+  const f = fitRigid(pairs.map(pp => ({ id: pp.id, u: { e: pp.l.lx, n: pp.l.ly }, s: pp.s })));
+  if (!f) return null;
+  // fitRigid solves s = R(-phi)(u - u0) with u = e - i*n; s2pApply wants the
+  // same mapping written as scene = R(phi)*local + t
+  const o = { x: 0, z: 0 };
+  S2P = { phi: f.phi, tx: 0, tz: 0 };
+  const at0 = s2pApply(f.e0, f.n0);
+  S2P.tx = -at0.x; S2P.tz = -at0.z;
+  s2pFrom = source || ''; s2pRms = f.rms;
+  placeMarkers(); requestAnchors(); showFit();
+  return f;
+}
+function s2pApply(lx, ly) {
+  if (!S2P) return null;
+  const c = Math.cos(S2P.phi), sn = Math.sin(S2P.phi);
+  // local (east, north) enters the scene as (x, z) = (e, -n)
+  const x = lx * c + (-ly) * sn, z = -lx * sn + (-ly) * c;
+  return { x: x + S2P.tx, z: z + S2P.tz };
+}
+function s2pInvert(x, z) {
+  if (!S2P) return null;
+  const c = Math.cos(-S2P.phi), sn = Math.sin(-S2P.phi);
+  const dx = x - S2P.tx, dz = z - S2P.tz;
+  const e = dx * c + dz * sn, mn = -dx * sn + dz * c;
+  return { lx: e, ly: -mn };
+}
 function placeMarkers() {
-  if (!origin || !world) return;
+  if (!world) return;
   world.children.forEach(g => {
-    const f = CAT.features[g.userData.idx]; if (!f) return;
-    const c = f.geometry.coordinates;
-    const d = enu(c[1], c[0], origin.lat, origin.lon);
-    g.position.set(d.e, 0, -d.n);                 // x = east, z = -north
+    const i = g.userData.idx;
+    if (i == null || !CAT.features[i]) return;
+    const p0 = props(i);
+    const l = localOf(i);
+    // in survey mode only trees the survey actually holds; a GPS-only tree has
+    // no business being drawn as if it were measured
+    const ok = S2P && l && (arMode !== 'survey' || hasLocal(p0) || S2P);
+    const q = ok ? s2pApply(l.lx, l.ly) : null;
+    if (q) { g.position.set(q.x, 0, q.z); g.visible = true; }
+    else g.visible = false;                    // nothing known, nothing shown
   });
   requestAnchors();       // old anchors would drag the markers back
 }
@@ -1254,6 +1484,8 @@ function enterAR() {
   buildRefMenu();
   refFix.clear(); lastFit = null; track = []; autoState = null;   // new session, new frame
   sceneLocked = false; settleComp();
+  S2P = null; s2pFrom = ''; s2pRms = null; navTarget = null;
+  setArMode(CAT.features.length ? 'navigate' : 'survey');
   showFit();
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
@@ -1331,6 +1563,7 @@ function tick() {
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
   compAt = nowMs;
   if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
+  if (arMode === 'navigate' && !S2P && (edgeTick % 15 === 5)) updateNav();
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
 }
 
@@ -1894,12 +2127,12 @@ function runStemMatch(pts) {
          [['Cancel', clearMeasure]]);
     return;
   }
+  const f = fitS2P(r.pairs.map(pp => ({ id: tid(pp.tree), l: pp.l, s: pp.s })), 'stems');
+  if (!f) { toast('The stems are too close together to orient on.'); return; }
   if (!confirm('Matched ' + r.n + ' stems:\n\n' + names + '\n\nresidual ' +
-               r.fit.rms.toFixed(2) + ' m\n\nHang the scene on them?')) return;
-  applyFit(r.fit, r.lat0, r.lon0, false);
-  lastFit.worst = 'stems';
+               f.rms.toFixed(2) + ' m\n\nUse them?')) { S2P = null; placeMarkers(); return; }
   clearMeasure();
-  toast('Scene matched to ' + r.n + ' stems · ±' + r.fit.rms.toFixed(2) + ' m');
+  toast('Locked on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m');
 }
 
 function buildNumMenu(prefill) {
@@ -1991,6 +2224,25 @@ function buildRefMenu() {
     rows.appendChild(e);
   }
   el.appendChild(rows);
+
+  if (done >= 2 && S2P) {
+    const pc = document.createElement('div'); pc.className = 'btnrow'; pc.style.marginTop = '8px';
+    const pb = document.createElement('button'); pb.className = 'sm';
+    pb.textContent = 'Straighten the plot on these points';
+    pb.title = 'Fix the whole stand on the earth from the measured points';
+    pb.onclick = () => {
+      const pairs = list.filter(r => refFix.has(r.key)).map(r => {
+        const sp = refFix.get(r.key);
+        return { lat: r.lat, lon: r.lon, l: s2pInvert(sp.x, sp.z) };
+      }).filter(x => x.l);
+      const res = correctPlotFrom(pairs);
+      if (!res) return toast('Those points cannot settle it – they are too close together.');
+      toast('Plot straightened on ' + res.n + ' points · ±' + res.rms.toFixed(2) +
+            ' m · ' + res.rewritten + ' trees rewritten');
+      buildRefMenu();
+    };
+    pc.appendChild(pb); el.appendChild(pc);
+  }
 
   const sm = document.createElement('div'); sm.className = 'btnrow'; sm.style.marginTop = '8px';
   const smb = document.createElement('button'); smb.className = 'sm';
@@ -3796,6 +4048,13 @@ function wire() {
   };
   $('hud').onclick = () => $('hud').classList.toggle('open');
   $('bnew').onclick = addTreeHere;
+  $('mode-survey').onclick = () => setArMode('survey');
+  $('mode-navigate').onclick = () => setArMode('navigate');
+  $('navNext').onclick = () => {
+    const list = CAT.features.map((f, i) => i);
+    navTarget = list[(list.indexOf(navTarget) + 1) % list.length];
+    updateNav();
+  };
   $('bnum').onclick = () => {
     const el = $('nummenu');
     const open = el.style.display !== 'block';
@@ -4027,6 +4286,7 @@ function wire() {
 
 loadAll();
 loadRefs();
+loadPlot();
 const _demo = dropDemoTrees();
 buildScene();
 buildMarkers();
