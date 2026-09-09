@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.8.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -173,7 +173,8 @@ const LVLTXT = ['inconspicuous', 'minor findings', 'conspicuous – review measu
 
 /* ============================ STORAGE ============================ */
 
-const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1';
+const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1',
+      K_NIA = 'vta_nia_v1';
 let mem = {};                                  // fallback when localStorage is blocked
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
@@ -2342,6 +2343,21 @@ async function renderPhotos(tree, gal) {
       };
       fig.appendChild(sh);
     }
+    const nia = document.createElement('button'); nia.className = 'niabtn sm'; nia.textContent = 'NIA';
+    nia.title = 'Ask the identification service for candidates';
+    nia.onclick = async () => {
+      const idx = CAT.features.findIndex((x, n) => tid(n) === tree);
+      nia.disabled = true; nia.textContent = '…';
+      try {
+        const blob = await (await fetch(f.url)).blob();
+        niaSheet(idx, await niaIdentify(blob));
+      } catch (e) {
+        toast('Identification: ' + (e.message === 'Failed to fetch'
+          ? 'no answer – no network, or the service does not allow browser requests' : e.message));
+      }
+      nia.disabled = false; nia.textContent = 'NIA';
+    };
+    fig.appendChild(nia);
     cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : '') +
       (f.ts || '').slice(0, 16).replace('T', ' ') +
       (f.bearing != null ? ' · ' + f.bearing + '°' : '') +
@@ -2417,6 +2433,138 @@ function toast(t) {
   clearTimeout(toast._t); toast._t = setTimeout(() => { el.style.display = 'none'; }, 2600);
 }
 function msg(t) { $('msg').textContent = t; }
+
+/* ================= IDENTIFICATION SERVICE (NIA) =================
+   Observation.org / Naturalis run a recognition model over some forty thousand
+   European taxa, fungi among them. It answers with candidates and
+   probabilities, and that is all it is used for here: a suggestion, ranked,
+   that the inspector accepts or ignores. Nothing it says reaches the
+   assessment on its own - the species drives the hazard rating, and a model
+   that has never seen a Kretzschmaria crust in situ has no business setting
+   that on its own.
+
+   The public endpoint allows ten identifications a day; a token raises it.
+   Both are settings, so neither is baked in. */
+const NIA_DEFAULT = 'https://multi-source.identify.biodiversityanalysis.eu/v2/observation/identify';
+function niaCfg() {
+  try { return JSON.parse(lsGet(K_NIA)) || {}; } catch (e) { return {}; }
+}
+function niaSave(c) { lsSet(K_NIA, JSON.stringify(c)); }
+
+/* The response schema is the service's to change, and this app cannot be
+   redeployed from a wood, so read it by shape rather than by field name:
+   anything carrying a name and a number between zero and one is a candidate. */
+function niaParse(j) {
+  const out = [];
+  const nameOf = o => o.scientific_name || o.scientificName || o.name || o.species ||
+                      (o.taxon && (o.taxon.scientific_name || o.taxon.name));
+  const probOf = o => [o.probability, o.score, o.confidence, o.certainty, o.p]
+                        .find(v => typeof v === 'number');
+  (function walk(o, depth) {
+    if (!o || typeof o !== 'object' || depth > 8) return;
+    if (Array.isArray(o)) { o.forEach(x => walk(x, depth + 1)); return; }
+    const n = nameOf(o), p = probOf(o);
+    if (typeof n === 'string' && n.trim() && typeof p === 'number') out.push({ name: n.trim(), p: p });
+    Object.keys(o).forEach(k => walk(o[k], depth + 1));
+  })(j, 0);
+  const seen = {};
+  const uniq = out.filter(x => { const k = x.name.toLowerCase();
+    if (seen[k]) return false; seen[k] = 1; return true; });
+  const mx = uniq.reduce((a, x) => Math.max(a, x.p), 0);
+  if (mx > 1) uniq.forEach(x => { x.p = x.p / 100; });          // percentages
+  return uniq.sort((a, b) => b.p - a.p).slice(0, 8);
+}
+
+/* Map a suggested name onto the fungi this app knows how to assess. An exact
+   binomial wins; failing that a genus match, because "Armillaria spp." is how
+   the table carries a group that is not separable in the field anyway. */
+const FUNGI_SYN = {
+  'ustulina deusta': 'kdeu', 'hypoxylon deustum': 'kdeu', 'ustulina maxima': 'kdeu',
+  'ganoderma lipsiense': 'gapp', 'ganoderma australe': 'gads',
+  'armillaria mellea': 'arme', 'armillaria ostoyae': 'arme', 'armillaria gallica': 'arme',
+  'armillaria borealis': 'arme', 'heterobasidion parviporum': 'hann',
+  'phaeolus spadiceus': 'pschw', 'polyporus sulphureus': 'lsul',
+  'cerrena unicolor': 'tver', 'coriolus versicolor': 'tver',
+  'stereum purpureum': 'cpur', 'fomes annosus': 'hann'
+};
+function niaMatch(name) {
+  const n = name.toLowerCase().trim();
+  const hit = FUNGI.find(f => f[1].toLowerCase() === n);
+  if (hit) return { key: hit[0], exact: true };
+  if (FUNGI_SYN[n]) return { key: FUNGI_SYN[n], exact: true };
+  // a genus alone leaves the species open, and within Ganoderma or Inonotus the
+  // species is the difference between watching and acting - so take the worst
+  // of the genus and say plainly that this is what happened
+  const gen = n.split(/\s+/)[0];
+  const same = FUNGI.filter(f => f[1].toLowerCase().split(/\s+/)[0] === gen);
+  if (!same.length) return null;
+  const worst = same.reduce((a, f) => (f[5] > a[5] ? f : a), same[0]);
+  return { key: worst[0], exact: false, ambiguous: same.length > 1 };
+}
+
+async function niaIdentify(blob) {
+  const c = niaCfg();
+  const url = (c.url || NIA_DEFAULT).trim();
+  const fd = new FormData();
+  fd.append('image', blob, 'photo.jpg');
+  const headers = {};
+  if (c.token) headers['Authorization'] = 'Token ' + c.token.trim();
+  const r = await fetch(url, { method: 'POST', body: fd, headers: headers });
+  if (r.status === 401 || r.status === 403)
+    throw new Error('the service refused the request – check the token (' + r.status + ')');
+  if (r.status === 429)
+    throw new Error('daily limit reached – the public endpoint allows ten a day, a token raises it');
+  if (!r.ok) throw new Error('the service answered ' + r.status);
+  const j = await r.json();
+  const list = niaParse(j);
+  if (!list.length) throw new Error('the answer held no recognisable candidates');
+  return list;
+}
+
+/* The suggestions are shown, never applied. Adding one is a separate tap, and
+   a genus-only match says so rather than pretending to a species. */
+function niaSheet(tree, list) {
+  const el = $('niaBox');
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Suggestions</b> <span class="small">· model, not a determination · ' +
+                'confirm before recording</span>';
+  el.appendChild(h);
+  list.forEach(c => {
+    const m = niaMatch(c.name);
+    const row = document.createElement('div'); row.className = 'niarow';
+    const pct = (c.p * 100).toFixed(c.p >= 0.1 ? 0 : 1) + ' %';
+    row.innerHTML = '<div><b>' + c.name + '</b> <span class="small">' + pct + '</span>' +
+      (m ? '<div class="small dim">' + FUNGI_BY[m.key][2] + ' · ' + FUNGI_BY[m.key][4] +
+           ' · level ' + FUNGI_BY[m.key][5] +
+           (m.exact ? '' : m.ambiguous ? ' · genus only – the worst of the genus is assumed'
+                                       : ' · genus match') + '</div>'
+         : '<div class="small dim">not one of the decay fungi this app assesses</div>') + '</div>';
+    const bar = document.createElement('div'); bar.className = 'niabar';
+    const fill = document.createElement('i'); fill.style.width = Math.round(c.p * 100) + '%';
+    bar.appendChild(fill); row.appendChild(bar);
+    if (m) {
+      const add = document.createElement('button'); add.className = 'sm p'; add.textContent = 'Record';
+      add.onclick = () => {
+        const id = tid(tree);
+        const cur = (props(tree).fungi || []).slice();
+        if (!cur.includes(m.key)) cur.push(m.key);
+        edits[id] = Object.assign({}, edits[id], { fungi: cur,
+          fungi_labels: cur.map(k => FUNGI_BY[k] && FUNGI_BY[k][1]).filter(Boolean) });
+        saveEdits(); refreshMarker(tree); renderList();
+        if (openIdx === tree) openPanel(tree);
+        toast(FUNGI_BY[m.key][1] + ' recorded for ' + id + '.');
+        el.style.display = 'none';
+      };
+      row.appendChild(add);
+    }
+    el.appendChild(row);
+  });
+  const close = document.createElement('button'); close.textContent = 'Close';
+  close.onclick = () => { el.style.display = 'none'; };
+  el.appendChild(close);
+  el.style.display = 'block';
+}
 
 /* ========================= IMPORT / EXPORT ========================= */
 
@@ -2644,6 +2792,13 @@ function wire() {
   $('bResetEdits').onclick = () => {
     if (!confirm('Delete every inspection record captured in the field?')) return;
     edits = {}; lsDel(K_EDIT); buildMarkers(); renderList(); renderStats(); toast('Field records deleted.');
+  };
+  const nc = niaCfg();
+  $('niaUrl').value = nc.url || '';
+  $('niaTok').value = nc.token || '';
+  $('niaSave').onclick = () => {
+    niaSave({ url: $('niaUrl').value.trim(), token: $('niaTok').value.trim() });
+    toast('Identification service saved.');
   };
   $('bUpdate').onclick = async () => {
     // A stale service worker keeps serving yesterday's app and no amount of

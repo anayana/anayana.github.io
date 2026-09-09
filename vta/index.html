@@ -167,6 +167,16 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
   border-radius:8px;color:#8fd6a8;text-decoration:none;font-size:13px}
 .photos figure{position:relative}
 .photos .idbtn{position:absolute;left:4px;top:4px;font-size:11px;padding:3px 7px}
+.photos .niabtn{position:absolute;left:44px;top:4px;font-size:11px;padding:3px 7px}
+#niaBox{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;max-height:70vh;
+  overflow:auto;background:rgba(10,16,13,.98);border:1px solid #34483c;border-radius:14px;padding:12px}
+#niaBox>button{width:100%;margin-top:8px}
+.niarow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;
+  border-bottom:1px solid #223027}
+.niarow>div:first-child{flex:1 1 100%;min-width:0}
+.niarow .dim{color:#8ea396}
+.niabar{flex:1;height:6px;background:#1a231d;border-radius:3px;overflow:hidden}
+.niabar i{display:block;height:100%;background:#8fd6a8}
 .sym label{display:flex;gap:9px;align-items:flex-start;padding:6px 2px;border-bottom:1px solid #1a231d;font-size:13.5px}
 .sym input{width:20px;height:20px;flex:0 0 20px;accent-color:#3f8a60;margin:0}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
@@ -278,6 +288,16 @@ table.hist th{color:#8fa697;font-weight:500}
       <h3>Import</h3>
       <div class="btnrow"><button id="bImp">Load register…</button></div>
       <input type="file" id="fileImp" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
+      <h3>Identification service</h3>
+      <div class="row"><label>Endpoint (blank = public)</label>
+        <input type="url" id="niaUrl" placeholder="multi-source.identify.biodiversityanalysis.eu"></div>
+      <div class="row"><label>Token (optional)</label>
+        <input type="text" id="niaTok" placeholder="raises the daily limit"></div>
+      <div class="btnrow"><button id="niaSave">Save</button></div>
+      <p class="small">Nature Identification API by Observation.org and Naturalis. Without a
+        token the public endpoint allows ten identifications a day. Suggestions are never
+        recorded on their own.</p>
+
       <h3>App</h3>
       <div class="btnrow"><button id="bUpdate">Fetch the current version</button></div>
       <p class="small">Throws the offline copy away and reloads from the server.
@@ -302,6 +322,8 @@ table.hist th{color:#8fa697;font-weight:500}
   </div>
   <div class="panel" id="panelHome"></div>
 </div>
+
+<div id="niaBox"></div>
 
 <div id="xrui">
   <div id="edge"></div>
@@ -341,8 +363,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.7.1"></script>
-<script src="data.js?v=1.7.1"></script>
-<script src="app.js?v=1.7.1"></script>
+<script src="vendor/three.min.js?v=1.8.0"></script>
+<script src="data.js?v=1.8.0"></script>
+<script src="app.js?v=1.8.0"></script>
 </body>
 </html>
