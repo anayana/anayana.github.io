@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.6.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -665,6 +665,7 @@ function addTreeHere() {
   s2pAuto = false;                    // trees are being measured into this frame now
   const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc, l, true);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+  placeMarkers();
   selectTree(i);
   openPanel(i);
   toast('Tree ' + tid(i) + ' recorded where you stand.' +
@@ -1847,21 +1848,40 @@ function dropAnchors() {
   anchorMap.forEach(a => { try { a.delete(); } catch (e) {} });
   anchorMap.clear();
 }
+/* Anchors used to be pulled straight onto the markers, one anchor moving one
+   marker. That is two owners for the same number: the survey said where a
+   marker belongs, the anchor pulled it somewhere else, and the next thing
+   that called placeMarkers - a fix, a new tree, a mode switch - put it back
+   in one frame. That snap is the jump, and no amount of dead-banding the pull
+   could remove it, because the two sources never agreed.
+
+   So the anchors keep their real job and lose the other one. They are
+   evidence about one thing only: how far the session's own frame has drifted
+   since they were made. That is a property of the frame, not of any single
+   tree, so the answer they give is averaged over all of them and applied to
+   the transform. Every marker then moves together, by the same centimetres,
+   the geometry between them never changes, and placeMarkers has nothing to
+   snap back - it computes exactly what is already on screen. */
 function updateAnchors(frame) {
-  if (!anchorsOk || !origin || !world) return;
+  if (!anchorsOk || !S2P || !world) return;
   world.updateMatrixWorld(true);
   if (anchorsWanted) {
     anchorsWanted = false;
     dropAnchors();
+    if (compActive()) { anchorsWanted = true; return; }   // wait out the glide, then pin
     const cp = camPos();
     world.children.forEach(g => {
-      const wp = g.getWorldPosition(new THREE.Vector3());
-      if (wp.distanceTo(cp) > 60) return;              // distant anchors buy nothing
+      const i = g.userData.idx;
+      const l = i == null ? null : localOf(i);
+      const q = l && s2pApply(l.lx, l.ly);
+      if (!q) return;
+      // pinned where the survey says the tree is, never where a glide has it
+      if (Math.hypot(q.x - cp.x, q.z - cp.z) > 60) return;   // distant anchors buy nothing
       let pr;
       try {
-        pr = frame.createAnchor(new XRRigidTransform({ x: wp.x, y: wp.y, z: wp.z }), xrRef);
+        pr = frame.createAnchor(new XRRigidTransform({ x: q.x, y: g.position.y, z: q.z }), xrRef);
       } catch (e) { anchorsOk = false; return; }
-      if (pr && pr.then) pr.then(a => anchorMap.set(g.userData.idx, a)).catch(() => {});
+      if (pr && pr.then) pr.then(a => anchorMap.set(i, a)).catch(() => {});
     });
     return;
   }
@@ -1869,22 +1889,24 @@ function updateAnchors(frame) {
   const now = performance.now();
   const dt = anchTime ? Math.min(0.1, (now - anchTime) / 1000) : 0;
   anchTime = now;
+  if (!dt) return;
+  let sx = 0, sz = 0, n = 0;
   anchorMap.forEach((a, idx) => {
     const pose = frame.getPose(a.anchorSpace, xrRef);
     if (!pose) return;
-    const g = world.children.find(o => o.userData.idx === idx);
-    if (!g) return;
-    const p = pose.transform.position;
-    const tgt = world.worldToLocal(new THREE.Vector3(p.x, p.y, p.z));
-    // A marker that follows its anchor frame by frame twitches with every
-    // re-localisation, and ARCore re-localises hardest where the camera has the
-    // most detail - right in front of the tree you are standing at. Correct
-    // real drift only, and slowly enough that nothing visibly slides.
-    const off = tgt.sub(g.position);
-    const len = off.length();
-    if (len < ANCH_DEAD) return;
-    g.position.addScaledVector(off, Math.min(len - ANCH_DEAD, ANCH_RATE * dt) / len);
+    const l = localOf(idx);
+    const q = l && s2pApply(l.lx, l.ly);
+    if (!q) return;
+    sx += pose.transform.position.x - q.x;
+    sz += pose.transform.position.z - q.z;
+    n++;
   });
+  if (n < 2) return;                   // one anchor is an opinion, not a measurement
+  const dx = sx / n, dz = sz / n, len = Math.hypot(dx, dz);
+  if (len < ANCH_DEAD) return;         // jitter, not drift
+  const k = Math.min(len - ANCH_DEAD, ANCH_RATE * dt) / len;
+  S2P.tx += dx * k; S2P.tz += dz * k;
+  placeMarkers();
 }
 
 /* ---- selection ---- */
@@ -3324,7 +3346,12 @@ function addTree(lon, lat, source, acc, local, quiet) {
       crown_dieback_pct: 0, damage_class: 'none', cavity: 'no',
       stability: 'adequate', breakage_resistance: 'adequate', traffic_safety: 'adequate',
       urgency: 'none', inspection_type: 'Routine inspection', last_inspection: today,
-      interval_months: 12, symptoms: [], actions: [], remarks: '', history: []
+      interval_months: 12, symptoms: [], actions: [], remarks: '', history: [],
+      // a surveyed tree carries its local coordinates from the first moment:
+      // without them its marker is drawn from GPS for one redraw and then
+      // moves when the survey value arrives
+      lx: local ? +local.lx.toFixed(3) : undefined,
+      ly: local ? +local.ly.toFixed(3) : undefined
     }
   });
   saveCat(); buildMarkers(); renderList();
