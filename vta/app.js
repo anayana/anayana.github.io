@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.6.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -650,7 +650,7 @@ function addTreeHere() {
       const north = (heading != null) ? heading : 0;
       S2P = { phi: THREE.MathUtils.degToRad(north), tx: c.x, tz: c.z };
       if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
-      s2pFrom = 'this spot'; s2pRms = null;
+      s2pFrom = 'this spot'; s2pRms = null; s2pAuto = false;
       placeMarkers(); requestAnchors(); showFit();
       const others = CAT.features.filter((f, i) => hasLocal(props(i))).length;
       toast(others ? 'No GPS fix – recording into a fresh frame, so this tree is not measured ' +
@@ -662,6 +662,7 @@ function addTreeHere() {
   const g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
   if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
   const near = nearbyTree(g.lon, g.lat, 2.0, l);
+  s2pAuto = false;                    // trees are being measured into this frame now
   const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc, l, true);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
   selectTree(i);
@@ -682,7 +683,7 @@ function lockOnTree(i) {
   S2P = { phi: THREE.MathUtils.degToRad(north), tx: 0, tz: 0 };
   const at = s2pApply(l.lx, l.ly);
   S2P.tx = cam.x - at.x; S2P.tz = cam.z - at.z;
-  s2pFrom = 'the tree you stand at'; s2pRms = null;
+  s2pFrom = 'the tree you stand at'; s2pRms = null; s2pAuto = false;
   placeMarkers(); requestAnchors(); showFit();
   return true;
 }
@@ -767,29 +768,6 @@ function decayComp(dt) {
   if (Math.abs(compRot) < 1e-4 && compPos.lengthSq() < 1e-6) settleComp(); else applyComp();
 }
 
-function applyFit(f, lat0, lon0, auto) {
-  const o0 = origin, phi0 = THREE.MathUtils.degToRad(worldYaw + headOff);
-  origin = { lat: lat0 + f.n0 / mLat(lat0), lon: lon0 + f.e0 / mLon(lat0) };
-  originAcc = f.rms; originPinned = true;
-  worldYaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360; headOff = 0;
-  if (o0 && worldComp && mode) {
-    const phi1 = THREE.MathUtils.degToRad(worldYaw);
-    const d = enu(origin.lat, origin.lon, o0.lat, o0.lon);   // new origin seen from the old
-    const dTrans = rotY(new THREE.Vector3(d.e, 0, -d.n), phi0);
-    const dRot = phi0 - phi1;
-    // compose onto whatever glide is still running
-    compPos.add(rotY(dTrans, compRot));
-    compRot += dRot;
-    while (compRot > Math.PI) compRot -= 2 * Math.PI;
-    while (compRot < -Math.PI) compRot += 2 * Math.PI;
-    if (compPos.length() > 60) settleComp();     // a jump this large is a re-anchor, not a nudge
-    else applyComp();
-  }
-  applyYaw(); placeMarkers(); requestAnchors();
-  f.auto = !!auto; lastFit = f;
-  compAt = performance.now();
-  showFit();
-}
 
 /* ============================ THE TWO JOBS ============================
    Recording a stand and finding a tree in it are not the same task and were
@@ -1200,7 +1178,11 @@ function trackFix(fix) {
   if (track.length > 200) track.shift();
   // A fix taken while the session knows where it is improves the PLOT's
   // position - it never touches the markers, which is the whole point.
-  if (S2P) {
+  // Only while the session's own lock is measured: if the lock came from GPS
+  // in the first place the fix is not new evidence, it is the same evidence
+  // going round a second time, and it drags the plot out from under the
+  // walking fit that is being computed from it.
+  if (S2P && !s2pAuto) {
     const l = s2pInvert(p.x, p.z);
     plotAbsorbFix(fix, l.lx, l.ly);
   }
@@ -1215,24 +1197,26 @@ function trackSpan() {
 let sceneLocked = false;
 function autoFit() {
   if (sceneLocked) return;
+  if (S2P && !s2pAuto) return;              // measured, or recorded into: leave it
+  if (!plotGeoreferenced()) return;
   if (controlList().filter(r => refFix.has(r.key)).length >= 2) return;   // hand-measured wins
-  if (lastFit && !lastFit.auto) return;
   if (track.length < T_MIN || trackSpan() < T_SPAN) return;
-  if (lastFit && lastFit.auto && track.length > T_SETTLE) return;         // converged, hold
-  const lat0 = track.reduce((a, r) => a + r.lat, 0) / track.length;
-  const lon0 = track.reduce((a, r) => a + r.lon, 0) / track.length;
-  const f = fitRigid(track.map((r, n) => ({ id: 'fix' + n,
-    u: enu(r.lat, r.lon, lat0, lon0), s: { x: r.x, z: r.z } })));
-  if (!f) return;
+  if (track.length > T_SETTLE && autoState) return;                       // converged, hold
+  const pairs = [];
+  track.forEach((r, n) => {
+    const l = wgsToPlot(r.lat, r.lon);
+    if (l) pairs.push({ id: 'fix' + n, l: l, s: { x: r.x, z: r.z } });
+  });
+  if (pairs.length < T_MIN) return;
   /* Re-fitting on every fix is why the markers kept creeping: each new fix
      shifts the answer a little and the whole scene moves with it. A fit is
      only replaced when it rests on substantially more evidence - half as many
      fixes again, or half as long a baseline - so the scene settles in a few
      visible steps instead of drifting continuously. */
-  if (lastFit && lastFit.auto && autoState &&
-      track.length < autoState.n * 1.5 && trackSpan() < autoState.span * 1.5) return;
+  if (autoState && track.length < autoState.n * 1.5 && trackSpan() < autoState.span * 1.5) return;
   autoState = { n: track.length, span: trackSpan() };
-  applyFit(f, lat0, lon0, true);
+  const f = fitS2P(pairs, 'walking with GPS', true);
+  if (f) { f.auto = true; f.n = pairs.length; lastFit = f; }
 }
 let autoState = null;
 
@@ -1250,6 +1234,7 @@ function startGPS() {
     // of the day, yet everything on screen is drawn relative to the origin.
     // Keep taking the better fix until a session pins the scene down.
     trackFix(lastFix);
+    autoAlign();
     if (mapFollow && $('sc-map').classList.contains('on')) mapToMe(!mapView);
     if (!origin || (!mode && !originPinned && originAcc != null && lastFix.acc < originAcc - 1)) {
       origin = { lat: lastFix.lat, lon: lastFix.lon };
@@ -1338,7 +1323,7 @@ function buildScene() {
   camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 500);
   // worldComp holds the difference between where the markers are drawn and
   // where the current best transform says they belong, and decays it to
-  // nothing over a couple of seconds. See applyFit().
+  // nothing over a couple of seconds. See glideFrom().
   worldComp = new THREE.Group(); scene.add(worldComp);
   world = new THREE.Group(); worldComp.add(world);
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -1435,19 +1420,88 @@ let s2pFrom = '', s2pRms = null;
 
 /* One way in for every kind of evidence: pairs of (plot local, scene point).
    Stems, control points and, if asked for explicitly, GPS all end up here. */
-function fitS2P(pairs, source) {
+/* A better transform puts the markers in a better place, but neither the tree
+   nor you have moved, so nothing on screen may jump. The change is applied to
+   the transform at once - every coordinate comes from it - and cancelled out
+   of the drawing by the equal and opposite offset, which then decays away.
+   The rotation and the offset are read off two probe points rather than
+   derived: two transforms, two points each, and the rigid motion between them
+   is arithmetic that cannot get a sign wrong. */
+function s2pAt(S, lx, ly) {
+  const c = Math.cos(S.phi), sn = Math.sin(S.phi);
+  return { x: lx * c + (-ly) * sn + S.tx, z: -lx * sn + (-ly) * c + S.tz };
+}
+function glideFrom(prev) {
+  if (!prev || !worldComp || !mode || !S2P) return;
+  const a1 = s2pAt(prev, 0, 0), a2 = s2pAt(prev, 1, 0);
+  const b1 = s2pAt(S2P, 0, 0), b2 = s2pAt(S2P, 1, 0);
+  const bx = b2.x - b1.x, bz = b2.z - b1.z, ax = a2.x - a1.x, az = a2.z - a1.z;
+  const n2 = bx * bx + bz * bz;
+  if (!n2) return;
+  const th = Math.atan2((ax * bz - az * bx) / n2, (ax * bx + az * bz) / n2);
+  const rb = rotY(new THREE.Vector3(b1.x, 0, b1.z), th);
+  compPos.add(rotY(new THREE.Vector3(a1.x - rb.x, 0, a1.z - rb.z), compRot));
+  compRot += th;
+  while (compRot > Math.PI) compRot -= 2 * Math.PI;
+  while (compRot < -Math.PI) compRot += 2 * Math.PI;
+  if (compPos.length() > 60) settleComp(); else applyComp();
+  compAt = performance.now();
+}
+
+function fitS2P(pairs, source, auto) {
   if (!pairs || pairs.length < 2) return null;
   const f = fitRigid(pairs.map(pp => ({ id: pp.id, u: { e: pp.l.lx, n: pp.l.ly }, s: pp.s })));
   if (!f) return null;
   // fitRigid solves s = R(-phi)(u - u0) with u = e - i*n; s2pApply wants the
   // same mapping written as scene = R(phi)*local + t
-  const o = { x: 0, z: 0 };
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
   S2P = { phi: f.phi, tx: 0, tz: 0 };
   const at0 = s2pApply(f.e0, f.n0);
   S2P.tx = -at0.x; S2P.tz = -at0.z;
-  s2pFrom = source || ''; s2pRms = f.rms;
+  s2pFrom = source || ''; s2pRms = f.rms; s2pAuto = !!auto;
+  if (!sceneLocked) glideFrom(prev);
   placeMarkers(); requestAnchors(); showFit();
   return f;
+}
+/* Whether the current alignment is the app's own guess (GPS, compass, walking)
+   or something measured. A measured one is never overwritten, and neither is
+   a frame that has trees recorded into it - two stems recorded either side of
+   a shifted frame would no longer be the right distance apart. */
+let s2pAuto = false;
+
+/* ---- aligning itself ----
+   The session's own frame is arbitrary: it starts where the phone starts. The
+   register is not, so at every start the app places itself with what it has -
+   the GPS fix says where you are in the plot, the compass says which way the
+   phone is pointing - and the markers are on screen from the first second,
+   with the accuracy said out loud. Walking then corrects it without being
+   asked, and a stem match or a control point replaces it outright. */
+const AUTO_ACC = 20;          // metres of GPS accuracy worth aligning on
+let autoSaid = false;
+function autoAlign(force) {
+  if (!world || !mode || sceneLocked) return false;
+  if (S2P && !force) return false;
+  if (!lastFix || heading == null || !plotGeoreferenced()) return false;
+  // A ±30 m fix would put the whole stand thirty metres from where it is, and
+  // a marker that far out is worse than no marker: wait for a better one.
+  if (!(lastFix.acc <= AUTO_ACC)) return false;
+  if (!CAT.features.some((f, i) => hasLocal(props(i)))) return false;
+  const l = wgsToPlot(lastFix.lat, lastFix.lon);
+  if (!l) return false;
+  const c = camPos();
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
+  S2P = { phi: THREE.MathUtils.degToRad(heading), tx: 0, tz: 0 };
+  const at = s2pApply(l.lx, l.ly);
+  S2P.tx = c.x - at.x; S2P.tz = c.z - at.z;
+  s2pFrom = 'GPS and the compass'; s2pRms = lastFix.acc; s2pAuto = true;
+  glideFrom(prev);
+  placeMarkers(); requestAnchors(); showFit();
+  if (!autoSaid) {
+    autoSaid = true;
+    toast('Markers placed from GPS and the compass, ±' + lastFix.acc.toFixed(0) +
+          ' m. Walk a few steps and it corrects itself.');
+  }
+  return true;
 }
 function s2pApply(lx, ly) {
   if (!S2P) return null;
@@ -1639,17 +1693,16 @@ function enterAR() {
   applyYaw();
   selectTree(null);
   buildChooser();
-  buildMeasureMenu();
   buildRefMenu();
   refFix.clear(); lastFit = null; track = []; autoState = null;   // new session, new frame
   sceneLocked = false; settleComp();
-  S2P = null; s2pFrom = ''; s2pRms = null; navTarget = null;
+  S2P = null; s2pFrom = ''; s2pRms = null; s2pAuto = false; autoSaid = false; navTarget = null;
   setArMode('survey');          // recording is the default; navigating is a choice
   showFit();
   buildEdge();
-  $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
   $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
+  autoAlign();                  // aligning is not a thing the user should have to ask for
 }
 function endAR() {
   renderer.setAnimationLoop(null);
@@ -2075,23 +2128,42 @@ function finishMeasure(value, html) {
   mbar(html, btns);
 }
 
-function buildMeasureMenu() {
-  const el = $('mmenu');
-  el.innerHTML = '';
+/* Measuring by camera used to sit on the bar between + Tree and Photo, which
+   is a lot of prominence for numbers that are not trustworthy. A height from
+   a phone is a tangent of two tap angles and a hit-test on sloping ground:
+   the geometry is right and the inputs are not, and the result is out by
+   metres. It stays in the app because a rough height is better than an empty
+   field, and it moves to the tree's own page, where the field it fills is,
+   marked for what it is.
+
+   Two of them are not estimates and keep working from the AR bar's menu: a
+   stem position and a tape measure are the hit-test alone, no angles. */
+function measureBlock(i) {
+  const wrap = document.createElement('div');
+  const h = document.createElement('h3'); h.textContent = 'Measure with the camera';
+  wrap.appendChild(h);
+  const ready = (mode === 'WebXR' && hitOk && $('xrui').classList.contains('on'));
+  const note = document.createElement('div'); note.className = 'small';
+  note.style.margin = '0 0 8px';
+  note.textContent = ready
+    ? 'Rough estimates. Heights and crowns from a phone are out by metres on '
+      + 'uneven ground – type a measured value over them where it matters.'
+    : 'Open the AR view to measure. The values are rough estimates in any case.';
+  wrap.appendChild(note);
   const row = document.createElement('div'); row.className = 'btnrow';
-  [['height', 'Height'], ['crownbase', 'Crown base'], ['crown', 'Crown Ø'],
-   ['target', 'Target dist.'], ['stem', 'Stem position'], ['newtree', '+ New tree'],
-   ['tape', 'Tape']].forEach(k => {
+  [['stem', 'Stem position', true], ['height', 'Height', false],
+   ['crownbase', 'Crown base', false], ['crown', 'Crown Ø', false],
+   ['target', 'Target dist.', false], ['tape', 'Tape', true]].forEach(k => {
     const b = document.createElement('button');
-    b.className = 'sm'; b.textContent = k[1];
-    b.onclick = () => startMeasure(k[0]);
+    b.className = 'sm';
+    b.textContent = k[1] + (k[2] ? '' : ' ~');
+    b.disabled = !ready;
+    if (!k[2]) b.style.opacity = '.62';
+    b.onclick = () => { const t = openIdx; closePanel(); selectTree(t); startMeasure(k[0]); };
     row.appendChild(b);
   });
-  const c = document.createElement('button');
-  c.className = 'sm'; c.textContent = 'Cancel';
-  c.onclick = () => { el.style.display = 'none'; };
-  row.appendChild(c);
-  el.appendChild(row);
+  wrap.appendChild(row);
+  return wrap;
 }
 
 /* ---- bark as a fingerprint ----
@@ -2743,6 +2815,12 @@ function buildRefMenu() {
     buildRefMenu();
   };
   more.appendChild(fz);
+  const nt = document.createElement('button'); nt.className = 'sm';
+  nt.textContent = 'Record a tree by aiming';
+  nt.title = 'For a stem you cannot walk to';
+  nt.disabled = !hitOk;
+  nt.onclick = () => { el.style.display = 'none'; startMeasure('newtree'); };
+  more.appendChild(nt);
   el.appendChild(more);
 }
 
@@ -3509,6 +3587,7 @@ function openPanel(i, tab) {
 
   /* --- base data --- */
   F_BASE.forEach(f => secs.base.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  secs.base.appendChild(measureBlock(i));
   secs.base.appendChild(geoEditor(i));
 
   /* --- history --- */
@@ -4718,13 +4797,6 @@ function wire() {
   };
   $('bref').onclick = alignMenu;
   $('balign').onclick = alignMenu;
-  $('bmeas').onclick = () => {
-    const m = $('mmenu');
-    if (m.style.display === 'block') { m.style.display = 'none'; return; }
-    buildMeasureMenu();
-    closePopups('mmenu');
-    m.style.display = 'block';
-  };
   $('bshot').onclick = () => {
     const t = selIdx == null ? nearestTree() : selIdx;
     if (t == null) return toast('No tree selected.');
