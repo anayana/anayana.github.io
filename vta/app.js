@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.10.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -778,6 +778,7 @@ function buildMarkers() {
     g.userData.idx = i; world.add(g);
   });
   placeMarkers();
+  updateFallZones();
   if (mode) { buildEdge(); buildChooser(); }     // both are keyed by index
 }
 function placeMarkers() {
@@ -799,6 +800,37 @@ function refreshMarker(i) {
   sp.material.needsUpdate = true;
   const g = world.children.find(o => o.userData.idx === i);
   if (g) g.children.forEach(ch => { if (ch.material && ch.material.color) ch.material.color.set(col); });
+}
+
+/* ---- fall zone ----
+   Height and distance to the target are already recorded and compared in the
+   assessment, but a number in a form convinces nobody standing on the spot.
+   The circle of radius = tree height, drawn on the ground, shows what is
+   actually inside it - which is the argument an owner who does not want the
+   work will actually look at. */
+let fallZone = false;
+function updateFallZones() {
+  if (!world) return;
+  world.children.forEach(g => {
+    const old = g.children.filter(o => o.userData.fz);
+    old.forEach(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); g.remove(o); });
+    if (!fallZone || g.userData.idx == null) return;
+    const p = props(g.userData.idx), h = num(p.height_m);
+    if (!(h > 0)) return;
+    const tgt = num(p.target_distance_m);
+    const hit = tgt != null && p.target_type && p.target_type !== 'none' && tgt <= h;
+    const pts = [];
+    for (let k = 0; k <= 72; k++) {
+      const a = k / 72 * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a) * h, 0.02, Math.sin(a) * h));
+    }
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: hit ? 0xff8f7a : 0x8fd6a8, transparent: true,
+                                    opacity: 0.85, depthTest: false }));
+    line.renderOrder = 8; line.userData.fz = 1; g.add(line);
+    const lab = valueSprite('fall zone ' + h.toFixed(0) + ' m');
+    lab.position.set(0, 0.5, -h); lab.userData.fz = 1; g.add(lab);
+  });
 }
 
 /* ---- north alignment ----
@@ -1754,6 +1786,36 @@ function wireMap() {
     if (!lastFix) return toast('No GPS fix.');
     const v = mapCentre(); v.lat = lastFix.lat; v.lon = lastFix.lon; v.z = Math.max(v.z, 18); drawMap();
   };
+  $('mCache').onclick = async () => {
+    const v = mapCentre(), box = $('mapBox');
+    const w = box.clientWidth, h = box.clientHeight;
+    const urls = [];
+    for (let z = Math.max(MAPZ.min, v.z - 1); z <= Math.min(MAPZ.max, v.z + 2); z++) {
+      const sc = Math.pow(2, z);
+      const k = Math.pow(2, z - v.z);
+      const cx = lon2px(v.lon, z), cy = lat2px(v.lat, z);
+      const left = cx - w * k / 2, top = cy - h * k / 2;
+      for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w * k) / 256); tx++)
+        for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h * k) / 256); ty++) {
+          if (ty < 0 || ty >= sc) continue;
+          urls.push(TILE.replace('{z}', z).replace('{x}', ((tx % sc) + sc) % sc).replace('{y}', ty));
+        }
+    }
+    if (urls.length > 400) return toast('Zoom in – that would be ' + urls.length + ' tiles.');
+    const b = $('mCache'); b.disabled = true;
+    let done = 0, failed = 0;
+    // one at a time: this is somebody else's tile server, and a field phone on
+    // a thin connection does better with a queue than with a stampede
+    for (const u of urls) {
+      try { const r = await fetch(u, { mode: 'cors' }); if (!r.ok) failed++; } catch (e) { failed++; }
+      done++;
+      if (done % 5 === 0 || done === urls.length)
+        b.textContent = 'Loading ' + done + '/' + urls.length + '…';
+    }
+    b.disabled = false; b.textContent = 'Save this area offline';
+    toast(failed ? (urls.length - failed) + ' of ' + urls.length + ' tiles stored.'
+                 : urls.length + ' tiles stored for offline use.');
+  };
   $('mAddRef').onclick = () => {
     const v = mapCentre();
     const id = ($('mRefId').value || '').trim() || ('P' + (REFS.length + 1));
@@ -2366,6 +2428,136 @@ async function renderPhotos(tree, gal) {
   });
 }
 
+/* ============================== REPORT ==============================
+   The app captured a complete inspection and handed back GeoJSON, which is
+   raw data, not the thing an inspector is paid to deliver. This builds the
+   document: a stand summary, the outstanding work, and one record per tree
+   with its findings, its reasoning and its photographs. It opens as a page to
+   print - to paper or to PDF, both of which a client will accept and neither
+   of which needs this app to read back. */
+function esc(x) {
+  return String(x == null ? '' : x).replace(/[&<>"]/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+async function buildReport(withPhotos) {
+  const now = new Date();
+  const items = CAT.features.map((f, i) => ({ i: i, p: props(i), a: assess(props(i)),
+                                              c: f.geometry.coordinates }));
+  const lv = [0, 0, 0, 0];
+  items.forEach(x => lv[x.a.lvl]++);
+  const work = workItems();
+  let photos = {};
+  if (withPhotos) {
+    try {
+      const all = await photoAll();
+      all.forEach(ph => { (photos[ph.tree] = photos[ph.tree] || []).push(ph); });
+      Object.keys(photos).forEach(k => {
+        photos[k].sort((a, b) => ((b.kind === 'bark') - (a.kind === 'bark')) || (a.ts < b.ts ? 1 : -1));
+        photos[k] = photos[k].slice(0, 3);
+      });
+    } catch (e) { photos = {}; }
+  }
+  const head = (x) => (x.p.tag_no ? 'No. ' + esc(x.p.tag_no) : esc(x.p.tree_id)) +
+    (x.p.tag_no ? ' <span class="q">(' + esc(x.p.tree_id) + ')</span>' : '');
+  const row = (k, v) => v == null || v === '' ? '' :
+    '<tr><th>' + esc(k) + '</th><td>' + (Array.isArray(v) ? v.map(esc).join(' · ') : esc(v)) + '</td></tr>';
+
+  const trees = items.map(x => {
+    const p = x.p, a = x.a;
+    const fung = (p.fungi || []).map(k => FUNGI_BY[k] && (FUNGI_BY[k][1] + ' (' + FUNGI_BY[k][2] + ')')).filter(Boolean);
+    const ph = (photos[p.tree_id] || []).map(f =>
+      '<figure><img src="' + f.url + '"><figcaption>' +
+      (f.kind === 'bark' ? 'Bark 1.30 m · ' : '') + esc((f.ts || '').slice(0, 10)) +
+      (f.bearing != null ? ' · ' + f.bearing + '&deg;' : '') + '</figcaption></figure>').join('');
+    const hist = (p.history || []).map(r =>
+      '<tr><td>' + esc(r.inspection || r.year) + '</td><td>' + (r.level == null ? '' : r.level) +
+      '</td><td>' + (r.vitality_roloff == null ? '' : r.vitality_roloff) + '</td><td>' +
+      (r.crown_dieback_pct == null ? '' : r.crown_dieback_pct + ' %') + '</td><td>' +
+      (r.t_R == null ? '' : r.t_R) + '</td></tr>').join('');
+    return '<section class="tree"><h2>' + head(x) + ' <span class="lvl l' + a.lvl + '">Level ' +
+      a.lvl + ' · ' + esc(LVLTXT[a.lvl]) + '</span></h2>' +
+      '<table>' +
+      row('Species', p.species ? p.species + (p.name_en ? ' (' + p.name_en + ')' : '') : '') +
+      row('Position', x.c[1].toFixed(6) + ', ' + x.c[0].toFixed(6) +
+          (p.position_accuracy_m != null ? '  ±' + p.position_accuracy_m + ' m' : '') +
+          (p.geometry_source ? '  · ' + p.geometry_source : '')) +
+      row('DBH / height', (p.dbh_cm == null ? '–' : p.dbh_cm + ' cm') + ' / ' +
+          (p.height_m == null ? '–' : p.height_m + ' m')) +
+      row('Vitality (Roloff)', p.vitality_roloff) +
+      row('Crown dieback', p.crown_dieback_pct == null ? '' : p.crown_dieback_pct + ' %') +
+      row('Damage class', p.damage_class) +
+      row('t / R', a.tr == null ? '' : a.tr.toFixed(2) + (a.tr < 0.30 ? '  (below 0.30)' : '')) +
+      row('h / d', a.hd == null ? '' : a.hd.toFixed(0)) +
+      row('Symptoms', p.symptom_labels && p.symptom_labels.length ? p.symptom_labels : null) +
+      row('Wood-decay fungi', fung.length ? fung : null) +
+      row('Target', p.target_type && p.target_type !== 'none'
+          ? p.target_type + (p.target_distance_m != null ? ' at ' + p.target_distance_m + ' m' : '') : '') +
+      row('Stability / breakage', (p.stability || '–') + ' / ' + (p.breakage_resistance || '–')) +
+      row('Traffic safety', p.traffic_safety) +
+      row('Actions', (p.actions || []).length ? p.actions : null) +
+      row('Urgency', p.urgency && p.urgency !== 'none' ? p.urgency : '') +
+      row('Inspected', (p.last_inspection || '') + (p.inspector ? ' by ' + p.inspector : '') +
+          (p.inspection_type ? ' · ' + p.inspection_type : '')) +
+      row('Next inspection', p.next_inspection) +
+      row('Remarks', p.remarks) +
+      '</table>' +
+      (a.notes.length ? '<div class="why"><b>Reasoning</b><ul>' +
+        a.notes.map(n => '<li>' + esc(n) + '</li>').join('') + '</ul></div>' : '') +
+      (hist ? '<table class="hist"><caption>History</caption><tr><th>Inspected</th><th>Level</th>' +
+        '<th>Vit.</th><th>Dieback</th><th>t/R</th></tr>' + hist + '</table>' : '') +
+      (ph ? '<div class="ph">' + ph + '</div>' : '') +
+      '</section>';
+  }).join('');
+
+  const workRows = work.map(x => '<tr><td>' + (x.p.tag_no ? 'No. ' + esc(x.p.tag_no) : esc(x.p.tree_id)) +
+    '</td><td>' + x.lvl + '</td><td>' + esc(x.urg || '') + '</td><td>' +
+    esc((x.acts || []).join(' · ')) + '</td><td>' + esc(x.p.next_inspection || '') +
+    (x.due != null && x.due < 0 ? ' <b>overdue</b>' : '') + '</td></tr>').join('');
+
+  return '<!doctype html><meta charset="utf-8"><title>Tree inspection ' + stamp() + '</title>' +
+    '<style>' +
+    'body{font:13px/1.45 system-ui,sans-serif;color:#111;margin:24px;max-width:900px}' +
+    'h1{font-size:20px;margin:0 0 2px}h2{font-size:15px;margin:0 0 8px;display:flex;' +
+    'justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid #ccc;padding-bottom:4px}' +
+    '.q{color:#777;font-weight:400}.sub{color:#555;margin:0 0 18px}' +
+    'table{border-collapse:collapse;width:100%;margin-bottom:8px}' +
+    'th,td{text-align:left;vertical-align:top;padding:3px 8px 3px 0;border-bottom:1px solid #eee}' +
+    'th{width:150px;color:#555;font-weight:600}' +
+    '.lvl{font-size:12px;padding:2px 8px;border-radius:10px;white-space:nowrap;color:#fff}' +
+    '.l0{background:#3f8f5b}.l1{background:#9a8b22}.l2{background:#c07a1e}.l3{background:#b1382c}' +
+    '.tree{page-break-inside:avoid;margin-bottom:22px}' +
+    '.why{background:#f6f6f4;border-left:3px solid #b1382c;padding:6px 10px;margin:6px 0}' +
+    '.why ul{margin:4px 0 0 16px;padding:0}.why b{font-size:12px}' +
+    'table.hist th{width:auto}table.hist caption{text-align:left;font-weight:600;padding:6px 0 2px}' +
+    '.ph{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}' +
+    '.ph figure{margin:0;width:170px}.ph img{width:100%;border:1px solid #ccc}' +
+    '.ph figcaption{font-size:10px;color:#555}' +
+    '.sum td,.sum th{border:none;padding:2px 14px 2px 0}' +
+    '@media print{body{margin:0}}' +
+    '</style>' +
+    '<h1>Tree inspection · visual assessment</h1>' +
+    '<p class="sub">' + esc(now.toLocaleString()) + ' · ' + items.length + ' trees' +
+    (CAT.name ? ' · ' + esc(CAT.name) : '') + '</p>' +
+    '<table class="sum"><tr><th>Level 0 inconspicuous</th><td>' + lv[0] + '</td>' +
+    '<th>Level 1 watch</th><td>' + lv[1] + '</td></tr>' +
+    '<tr><th>Level 2 conspicuous</th><td>' + lv[2] + '</td>' +
+    '<th>Level 3 urgent</th><td>' + lv[3] + '</td></tr></table>' +
+    (workRows ? '<h2>Outstanding</h2><table><tr><th>Tree</th><th>Lvl</th><th>Urgency</th>' +
+      '<th>Action</th><th>Next inspection</th></tr>' + workRows + '</table>' : '') +
+    trees;
+}
+async function openReport(withPhotos) {
+  toast('Building the report …');
+  try {
+    const html = await buildReport(withPhotos);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) { dl('inspection_report_' + stamp() + '.html', blob); toast('Report saved as a file.'); }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast('Report failed: ' + e.message); }
+}
+
 /* ============================ WORK LIST ============================
    Urgency, actions and the next inspection date were recorded and then buried
    one tree deep, which is no use to the crew that has to cut and no use to the
@@ -2838,6 +3030,12 @@ function wire() {
     el.style.display = open ? 'block' : 'none';
     $('mmenu').style.display = 'none'; $('chooser').style.display = 'none';
   };
+  $('bfz').onclick = () => {
+    fallZone = !fallZone;
+    $('bfz').classList.toggle('p', fallZone);
+    updateFallZones();
+    toast(fallZone ? 'Fall zones shown – radius is the tree height.' : 'Fall zones hidden.');
+  };
   $('bstand').onclick = () => {
     const c = $('chooser');
     c.style.display = (c.style.display === 'block' ? 'none' : 'block');
@@ -2909,6 +3107,8 @@ function wire() {
     toast('Tree ' + tid(i) + ' created at the coordinate you entered.');
   };
 
+  $('bRepPlain').onclick = () => openReport(false);
+  $('bRepPhoto').onclick = () => openReport(true);
   $('bExpGeo').onclick = () => {
     dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
     markExported();
