@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.0.1';
+const APP_VERSION = '2.0.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -465,8 +465,16 @@ function enu(lat, lon, lat0, lon0) {
 /* A point in the scene back to WGS84. Accurate relative to everything else in
    the session; in absolute terms it inherits the error of the origin fix. */
 function sceneToWgs(v) {
-  if (!origin || !world) return null;
   settleComp();                       // a placement ends the glide rather than inheriting it
+  /* Through the survey, not through the old GPS origin: scene -> plot local ->
+     WGS84. If the session is not tied to the plot there is no answer, and
+     saying so beats inventing one. */
+  if (S2P && plotGeoreferenced()) {
+    const l = s2pInvert(v.x, v.z);
+    const g = plotToWgs(l.lx, l.ly);
+    if (g) return g;
+  }
+  if (!origin || !world) return null;
   // worldToLocal inverts the cached matrix, and applyYaw() has just turned the
   // world without a render in between - refresh it or the answer is the old
   // heading's answer
@@ -803,18 +811,34 @@ function plotGeoreferenced() { return !!(PLOT && PLOT.lat != null); }
 
 /* local (east, north) in the plot frame -> WGS84, and back */
 function plotToWgs(lx, ly) {
-  if (!plotGeoreferenced()) return null;
+  if (!plotGeoreferenced() && !ensurePlotOrigin()) return null;
   const a = THREE.MathUtils.degToRad(PLOT.yaw || 0);
   const e = lx * Math.cos(a) + ly * Math.sin(a);
   const n = -lx * Math.sin(a) + ly * Math.cos(a);
   return { lat: PLOT.lat + n / mLat(PLOT.lat), lon: PLOT.lon + e / mLon(PLOT.lat) };
 }
 function wgsToPlot(lat, lon) {
-  if (!plotGeoreferenced()) return null;
+  if (!plotGeoreferenced() && !ensurePlotOrigin()) return null;
   const d = enu(lat, lon, PLOT.lat, PLOT.lon);
   const a = -THREE.MathUtils.degToRad(PLOT.yaw || 0);
   return { lx: d.e * Math.cos(a) + d.n * Math.sin(a),
            ly: -d.e * Math.sin(a) + d.n * Math.cos(a) };
+}
+/* A register that arrives with nothing but coordinates - an import, or trees
+   recorded before there was a plot - still has to be usable. Give the plot a
+   provisional origin at the first tree: its absolute position is then exactly
+   as good as that tree's coordinate, which is all anyone has, and control
+   points or a survey can straighten it later without touching the geometry. */
+function ensurePlotOrigin() {
+  if (plotGeoreferenced() || !CAT.features.length) return plotGeoreferenced();
+  const f = CAT.features.find(x => x.geometry && x.geometry.type === 'Point');
+  if (!f) return false;
+  PLOT.lat = f.geometry.coordinates[1];
+  PLOT.lon = f.geometry.coordinates[0];
+  PLOT.yaw = 0; PLOT.n = 0;
+  PLOT.acc = num((f.properties || {}).position_accuracy_m);
+  savePlot();
+  return true;
 }
 function hasLocal(p) { return p && p.lx != null && p.ly != null; }
 function localOf(i) {
@@ -874,11 +898,13 @@ function correctPlotFrom(pairs) {          // [{ lat, lon, l:{lx,ly} }]
     return { id: 'p' + k, u: { e: d.e, n: d.n }, s: { x: p.l.lx, z: -p.l.ly } };
   }));
   if (!f) return null;
-  // f maps true ENU -> local; the plot needs the inverse
-  const yaw = ((-f.phi * 180 / Math.PI) % 360 + 360) % 360;
-  const a = THREE.MathUtils.degToRad(yaw);
-  // the plot origin is where local (0,0) lands in true ENU
-  const c = Math.cos(f.phi), sn = Math.sin(f.phi);
+  /* fitRigid solves conj(W) = e^(-i.phi)(conj(U) - conj(U0)) with W the local
+     point and U the true ENU one, so W = e^(+i.phi)(U - U0) - and plotToWgs is
+     written as U = e^(-i.yaw)W, i.e. W = e^(+i.yaw)U. The yaw is therefore
+     +phi, not -phi. It was -phi, which turned a stand the wrong way by twice
+     its error; the test that passed used a true rotation of zero and could not
+     tell the two apart. */
+  const yaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360;
   const e0 = f.e0, n0 = f.n0;
   PLOT.yaw = yaw;
   PLOT.lat = lat0 + n0 / mLat(lat0);
@@ -1313,6 +1339,12 @@ function s2pInvert(x, z) {
   const e = dx * c + dz * sn, mn = -dx * sn + dz * c;
   return { lx: e, ly: -mn };
 }
+/* Where true north points inside the session, in degrees. Plot local +y is
+   north turned by PLOT.yaw; the session turns that again by S2P.phi. */
+function sceneNorthDeg() {
+  if (!S2P) return null;
+  return ((-(S2P.phi * 180 / Math.PI) - (PLOT ? PLOT.yaw : 0)) % 360 + 360) % 360;
+}
 function placeMarkers() {
   if (!world) return;
   world.children.forEach(g => {
@@ -1382,8 +1414,12 @@ function camYawDeg() {
   const f = new THREE.Vector3(0, 0, -1).transformDirection(cam.matrixWorld);
   return (Math.atan2(f.x, -f.z) * 180 / Math.PI + 360) % 360;
 }
+/* placeMarkers() writes session coordinates straight into each marker, so the
+   group they hang in must not turn as well - a rotation here would be applied
+   twice. worldYaw survives only for the camera-mode fallback and the compass
+   read-out. */
 function applyYaw() {
-  if (world) world.rotation.y = THREE.MathUtils.degToRad(worldYaw + headOff);
+  if (world) world.rotation.y = 0;
   $('hOff').textContent = Math.round(headOff);
 }
 function syncNorth(quiet) {
@@ -1435,9 +1471,8 @@ async function startXR() {
   }
 
   enterAR();
-  // the compass is often not ready at session start: keep trying for ~6 s
-  let tries = 0;
-  const iv = setInterval(() => { if (syncNorth(true) || ++tries > 12) clearInterval(iv); }, 500);
+  // the compass used to be re-applied to the scene here; it no longer places
+  // anything, and a heading is read passively for the plot bootstrap alone
   renderer.setAnimationLoop((t, frame) => {
     lastFrame = frame;
     if (frame) {
@@ -1815,8 +1850,10 @@ function measureTap() {
 
   if (m.kind === 'stem') {
     const g = sceneToWgs(hitPt);
-    if (!g) { toast('No origin yet – no GPS fix.'); return clearMeasure(); }
-    setCoords(m.tree, g.lon, g.lat, 'AR hit-test', originAcc);
+    if (!g) { toast('The session is not tied to the stand yet.'); return clearMeasure(); }
+    setCoords(m.tree, g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null);
+    if (S2P) { const l = s2pInvert(hitPt.x, hitPt.z);
+               setEdit(m.tree, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) }); }
     toast('Stem position of ' + props(m.tree).tree_id + ' set.');
     requestAnchors();
     clearMeasure();
@@ -1854,8 +1891,10 @@ function measureTap() {
 
   if (m.kind === 'newtree') {
     const g = sceneToWgs(hitPt);
-    if (!g) { toast('No origin yet – no GPS fix.'); return clearMeasure(); }
-    const i = addTree(g.lon, g.lat, 'AR hit-test', originAcc);
+    if (!g) { toast('The session is not tied to the stand yet.'); return clearMeasure(); }
+    const i = addTree(g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null);
+    if (S2P) { const l = s2pInvert(hitPt.x, hitPt.z);
+               setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) }); }
     selectTree(i);
     clearMeasure();
     toast('New tree ' + props(i).tree_id + ' placed where you aimed.');
@@ -1946,7 +1985,8 @@ function camPitchDeg() {
 }
 function barkState() {
   const h = camPos().y, pitch = camPitchDeg();
-  const bear = (camYawDeg() + worldYaw + headOff) % 360;
+  const nd = sceneNorthDeg();
+  const bear = nd == null ? camYawDeg() : ((camYawDeg() - nd) % 360 + 360) % 360;
   const dh = h - BARK_H;
   let db = null;
   if (barkRef != null) {
@@ -2031,7 +2071,8 @@ function takeARPhoto(frame) {
     const c = camPos();
     const gp = sceneToWgs(c);
     if (gp) { meta.lat = +gp.lat.toFixed(7); meta.lon = +gp.lon.toFixed(7); }
-    meta.bearing = Math.round((camYawDeg() + worldYaw + headOff) % 360);
+    const nd = sceneNorthDeg();
+    meta.bearing = nd == null ? null : Math.round((camYawDeg() - nd + 360) % 360);
     meta.h = +c.y.toFixed(2);
     meta.pitch = Math.round(camPitchDeg());
     const kindNow = shotKind; shotKind = null;
@@ -4055,15 +4096,6 @@ function wire() {
     msg('starting …');
     try { await startOrient(); startGPS(); await startCam(); msg(''); }
     catch (e) { msg('Camera: ' + e.message); }
-  };
-  $('bl').onclick = () => { headOff -= 5; applyYaw(); requestAnchors(); };
-  $('br').onclick = () => { headOff += 5; applyYaw(); requestAnchors(); };
-  $('bsync').onclick = () => { headOff = 0; syncNorth(false); requestAnchors(); };
-  $('bo').onclick = () => {
-    if (!lastFix) return toast('No GPS fix.');
-    setOriginHere(lastFix.lat, lastFix.lon, lastFix.acc);
-    requestAnchors();
-    toast('Scene re-hung on your GPS position (±' + lastFix.acc.toFixed(0) + ' m).');
   };
   $('hud').onclick = () => $('hud').classList.toggle('open');
   $('bnew').onclick = addTreeHere;
