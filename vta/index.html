@@ -111,43 +111,50 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #mapAttr a{color:#8fd6a8}
 
 /* ---------- AR overlay ---------- */
+/* One column, three zones: what sits at the top, the camera view, and the
+   controls at the bottom. Nothing is positioned over anything else - the
+   stack lays itself out, so a menu pushes the bar down instead of covering it. */
 #xrui{position:fixed;inset:0;z-index:4;display:none;pointer-events:none}
-#xrui.on{display:block}
+#xrui.on{display:flex;flex-direction:column}
 #xrui>*{pointer-events:auto}
-.bar{position:absolute;left:8px;right:8px;background:rgba(12,18,15,.82);backdrop-filter:blur(8px);
+#xrtop,#xrbot{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;
+  pointer-events:none;min-height:0}
+#xrtop>*,#xrbot>*{pointer-events:auto}
+#xrtop{padding:max(env(safe-area-inset-top),28px) 8px 0}
+#xrmid{flex:1 1 auto;min-height:24px;pointer-events:none}
+/* clear of the browser's own full-screen card, and of the on-screen keyboard */
+#xrbot{padding:0 8px calc(72px + env(safe-area-inset-bottom) + var(--kb,0px));
+  max-height:82%;overflow:hidden}
+.bar{background:rgba(12,18,15,.82);backdrop-filter:blur(8px);
   border:1px solid #2b3a31;border-radius:12px;padding:7px 10px}
-#hud{top:calc(48px + max(env(safe-area-inset-top), 28px));left:auto;right:8px;
-  max-width:calc(100% - 16px);font-size:12px;display:flex;gap:9px;flex-wrap:wrap;
+#hud{font-size:12px;display:flex;gap:9px;flex-wrap:wrap;
   align-items:center;padding:5px 10px}
 #hud b{color:#8fd6a8;font-weight:600}
 #hMore{display:flex;gap:9px;flex-wrap:wrap}
 #hFit.ok{color:#8fd6a8;font-weight:600}
 #hFit.warn{color:#ffcf8f;font-weight:600}
-#modebar{top:calc(6px + max(env(safe-area-inset-top), 28px));left:8px;right:auto;display:flex;
-  gap:4px;padding:4px}
+#modebar{align-self:flex-start;display:flex;gap:4px;padding:4px}
 #modebar button{font-size:12.5px;padding:5px 11px}
 #modebar button.on{background:#2f7a4d;border-color:#2f7a4d;color:#fff}
-#navBox{display:none;position:absolute;left:12px;right:12px;bottom:150px;
-  background:rgba(10,16,13,.96);border:1px solid #34483c;border-radius:14px;padding:12px}
+#navBox{display:none;background:rgba(10,16,13,.96);border:1px solid #34483c;
+  border-radius:14px;padding:12px}
 .navhead{margin-bottom:6px}
 .navbig{display:flex;align-items:center;gap:14px;margin:4px 0 6px}
 .navbig .arrow{font-size:46px;line-height:1;color:#8fd6a8;display:inline-block}
 .navbig .m{font-size:30px;font-weight:600}
-#hwarn{display:none;top:calc(44px + max(env(safe-area-inset-top), 28px));font-size:12px;
+#hwarn{display:none;font-size:12px;
   color:#ffcf8f;align-items:center;gap:8px;padding:6px 8px 6px 10px}
 #hwarn.on{display:flex}
 #hwarn>span{flex:1}
 #hwarn button{padding:2px 8px;font-size:13px}
-/* clear of the browser's own full-screen card, which sits at the very bottom */
-#ctl{bottom:calc(72px + env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;padding:8px}
 /* Everything on the bar, all of it, all the time. Two rows on a phone is a
    better price than a button nobody can find. */
-#ctl{flex-wrap:wrap;gap:5px;padding:7px}
+#ctl{display:flex;flex-wrap:wrap;gap:5px;padding:7px;flex:0 0 auto}
 #ctl button{font-size:12.5px;padding:6px 9px;white-space:nowrap;flex:0 0 auto}
-#chooser,#mmenu,#refmenu,#nummenu{position:absolute;left:12px;right:12px;bottom:150px;background:rgba(10,16,13,.96);
-  border:1px solid #34483c;border-radius:14px;padding:12px;display:none}
+#chooser,#mmenu,#refmenu,#nummenu{background:rgba(10,16,13,.96);
+  border:1px solid #34483c;border-radius:14px;padding:12px;display:none;
+  min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
 #chooser .btnrow button,#mmenu .btnrow button,#refmenu .btnrow button{min-width:30%}
-#refmenu,#nummenu{max-height:56vh;overflow:auto}
 #nummenu{display:none}
 button.numrow{display:flex;gap:8px;align-items:center;justify-content:space-between;width:100%;
   text-align:left;background:#131c17;border:1px solid #26332b;border-radius:10px;
@@ -158,10 +165,10 @@ button.numrow .dim{color:#8ea396}
 .refrow .nm{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .refrow.has .nm{color:#8fd6a8}
 .refrow button{font-size:12.5px;padding:6px 9px;flex:0 0 auto}
-#ctl2{bottom:calc(126px + env(safe-area-inset-bottom));display:none;gap:6px;flex-wrap:wrap;padding:8px}
+#ctl2{display:none;gap:6px;flex-wrap:wrap;padding:8px}
 #ctl2.on{display:flex}
 #ctl2 button{font-size:13px;padding:7px 10px}
-#mbar{bottom:calc(126px + env(safe-area-inset-bottom));display:none;font-size:13px}
+#mbar{display:none;font-size:13px;max-height:34vh;overflow:auto}
 #mbar.on{display:block}
 #mbtn{display:flex;gap:6px;margin-top:8px}
 #mbtn button{flex:1;font-size:13px;padding:7px 10px}
@@ -254,6 +261,7 @@ table.hist th{color:#8fa697;font-weight:500}
 #lightbox img{max-width:100%;max-height:88%}
 #lightbox button{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:10;background:#1e3128;
+  pointer-events:none;
   border:1px solid #3f8a60;border-radius:10px;padding:9px 14px;font-size:13.5px;display:none;max-width:88%}
 .small{font-size:12px;color:#7f9488}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid #1a231d;font-size:13px}
@@ -427,6 +435,11 @@ table.hist th{color:#8fa697;font-weight:500}
 
 <div id="xrui">
   <div id="edge"></div>
+  <div id="xrtop">
+  <div class="bar" id="modebar">
+    <button id="mode-survey" class="on">Survey</button>
+    <button id="mode-navigate">Navigate</button>
+  </div>
   <div class="bar" id="hud">
     <span>±<b id="hAcc">–</b> m · <b id="hHead">–</b>° · <span id="hFit"></span><span id="hBatt"></span></span>
     <span id="hMore">
@@ -437,16 +450,15 @@ table.hist th{color:#8fa697;font-weight:500}
     </span>
   </div>
   <div class="bar" id="hwarn"><span id="hwarnT"></span><button id="hwarnX">✕</button></div>
+  </div>
+  <div id="xrmid"></div>
+  <div id="xrbot">
+  <div id="navBox"><div class="btnrow"><button id="navNext" class="sm">Next tree</button></div></div>
   <div id="chooser"></div>
   <div id="mmenu"></div>
-  <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
-  <div class="bar" id="modebar">
-    <button id="mode-survey" class="on">Survey</button>
-    <button id="mode-navigate">Navigate</button>
-  </div>
-  <div id="navBox"><div class="btnrow"><button id="navNext" class="sm">Next tree</button></div></div>
   <div id="refmenu"></div>
   <div id="nummenu"></div>
+  <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
   <div class="bar" id="ctl">
     <button class="p" id="bnew">+ Tree</button>
     <button id="bnum">№</button>
@@ -460,14 +472,15 @@ table.hist th{color:#8fa697;font-weight:500}
     <button class="x" id="bq">Exit</button>
     <span id="ctl2" style="display:none"><button id="bmore"></button></span>
   </div>
+  </div>
   <div class="panel" id="panelXR"></div>
 </div>
 
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.2.3"></script>
-<script src="data.js?v=2.2.3"></script>
-<script src="app.js?v=2.2.3"></script>
+<script src="vendor/three.min.js?v=2.4.0"></script>
+<script src="data.js?v=2.4.0"></script>
+<script src="app.js?v=2.4.0"></script>
 </body>
 </html>

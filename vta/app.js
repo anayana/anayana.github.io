@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.2.3';
+const APP_VERSION = '2.4.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -629,22 +629,71 @@ function addTreeHere() {
   // the accurate part; if the compass was ten degrees out, the whole stand is
   // ten degrees out together and two known points straighten it later.
   if (!S2P) {
-    const north = (heading != null) ? heading : (worldYaw + headOff);
-    S2P = { phi: THREE.MathUtils.degToRad(north), tx: c.x, tz: c.z };
-    // The plot origin is HERE. It was borrowed from whatever tree happened to
-    // be first in the register, which put the first tree of every survey
-    // exactly on top of it - hence "already recorded 0.0 m from here".
-    if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
-    toast('Survey started here – this spot is the plot origin.');
+    /* Laying a fresh frame over a stand that is already surveyed is the worst
+       thing this app can do: the new tree lands on local (0,0), which is where
+       the first tree of the previous survey sits - the "already recorded 0.0 m
+       from here" - and every earlier tree silently ends up measured against an
+       origin that has moved. A survey is only ever started on empty ground.
+       Otherwise the session has to be tied to the stand first, which is what
+       "I am at ..." and matching stems are for. */
+    /* Pressing the button means record a tree, so a tree gets recorded. If the
+       stand is already surveyed the session ties itself to the nearest tree it
+       knows - GPS is easily good enough to say which tree of a stand you are
+       standing in, and the compass gives the rest. Laying a fresh frame over an
+       existing survey would put this tree on top of an old one and quietly
+       move every earlier tree, so that only happens on empty ground. */
+    const near = nearestSurveyedByGps();
+    if (near != null && lockOnTree(near)) {
+      toast('Continuing the survey from ' + (props(near).tag_no ? '№ ' + props(near).tag_no : tid(near)) +
+            ' – match stems under Refs for a tighter lock.');
+    } else {
+      const north = (heading != null) ? heading : 0;
+      S2P = { phi: THREE.MathUtils.degToRad(north), tx: c.x, tz: c.z };
+      if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
+      const others = CAT.features.filter((f, i) => hasLocal(props(i))).length;
+      toast(others ? 'No GPS fix – recording into a fresh frame, so this tree is not measured ' +
+                     'against the earlier ones. Lock on a known tree when you can.'
+                   : 'Survey started here – this spot is the plot origin.');
+    }
   }
   const l = s2pInvert(c.x, c.z);
   const g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
   if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
-  const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc, l);
+  const near = nearbyTree(g.lon, g.lat, 2.0, l);
+  const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc, l, true);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
   selectTree(i);
   openPanel(i);
-  toast('Tree ' + tid(i) + ' recorded where you stand.');
+  toast('Tree ' + tid(i) + ' recorded where you stand.' +
+        (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : ''));
+}
+
+/* Standing at a tree you know is a whole fix: the position comes from that
+   tree exactly and the rotation from the compass. Worse than three stems,
+   enormously better than nothing, and available when the wood is too dense to
+   see three. */
+function lockOnTree(i) {
+  const l = localOf(i);
+  if (!l || !world) return false;
+  const cam = camPos();
+  const north = (heading != null) ? heading : 0;
+  S2P = { phi: THREE.MathUtils.degToRad(north), tx: 0, tz: 0 };
+  const at = s2pApply(l.lx, l.ly);
+  S2P.tx = cam.x - at.x; S2P.tz = cam.z - at.z;
+  s2pFrom = 'the tree you stand at'; s2pRms = null;
+  placeMarkers(); requestAnchors(); showFit();
+  return true;
+}
+function nearestSurveyedByGps() {
+  if (!lastFix) return null;
+  let best = null, bd = 1e9;
+  CAT.features.forEach((f, i) => {
+    if (!hasLocal(props(i)) || !f.geometry) return;
+    const c = f.geometry.coordinates;
+    const d = distBear(c[1], c[0], lastFix.lat, lastFix.lon).d;
+    if (d < bd) { bd = d; best = i; }
+  });
+  return best;
 }
 
 function markControlHere(key) {
@@ -1198,6 +1247,7 @@ function startGPS() {
     // of the day, yet everything on screen is drawn relative to the origin.
     // Keep taking the better fix until a session pins the scene down.
     trackFix(lastFix);
+    if (mapFollow && $('sc-map').classList.contains('on')) mapToMe(!mapView);
     if (!origin || (!mode && !originPinned && originAcc != null && lastFix.acc < originAcc - 1)) {
       origin = { lat: lastFix.lat, lon: lastFix.lon };
       if (!originPinned) originAcc = lastFix.acc;
@@ -1808,6 +1858,14 @@ const MEAS = {
   stems:     { label: 'Match stems',      field: null,                hits: 9, aim: false },
   tape:      { label: 'Tape',             field: null,                hits: 2, aim: false }
 };
+/* One panel at a time. Two of them open is two panels of reading before the
+   button you wanted, and on a phone that is the whole screen. */
+function closePopups(keep) {
+  ['chooser', 'mmenu', 'refmenu', 'nummenu'].forEach(id => {
+    if (id !== keep) $(id).style.display = 'none';
+  });
+}
+
 function mbar(txt, buttons) {
   $('mtxt').innerHTML = txt;
   const box = $('mbtn'); box.innerHTML = '';
@@ -2546,7 +2604,8 @@ function buildNumMenu(prefill) {
   cl.onclick = () => { el.style.display = 'none'; };
   act.appendChild(cl);
   el.appendChild(act);
-  setTimeout(() => inp.focus(), 50);
+  // No autofocus. The keyboard would cover the list before it can be read;
+  // tapping the field is one touch and leaves the choice with the user.
 }
 
 function buildRefMenu() {
@@ -2648,21 +2707,32 @@ function buildChooser() {
   const c = $('chooser');
   c.innerHTML = '';
   const row = document.createElement('div'); row.className = 'btnrow';
-  CAT.features.forEach((f, i) => {
+  const order = CAT.features.map((f, i) => i)
+    .filter(i => localOf(i))
+    .sort((a, bIdx) => {
+      if (!lastFix) return 0;
+      const ca = CAT.features[a].geometry.coordinates, cb = CAT.features[bIdx].geometry.coordinates;
+      return distBear(ca[1], ca[0], lastFix.lat, lastFix.lon).d -
+             distBear(cb[1], cb[0], lastFix.lat, lastFix.lon).d;
+    }).slice(0, 12);
+  order.forEach(i => {
+    const f = CAT.features[i];
     const b = document.createElement('button');
-    b.className = 'sm'; b.textContent = props(i).tree_id;
+    b.className = 'sm';
+    b.textContent = (props(i).tag_no ? '№ ' + props(i).tag_no : props(i).tree_id) +
+      (lastFix ? ' · ' + distBear(f.geometry.coordinates[1], f.geometry.coordinates[0],
+                                  lastFix.lat, lastFix.lon).d.toFixed(0) + ' m' : '');
     b.onclick = () => {
-      const co = f.geometry.coordinates;
-      setOriginHere(co[1], co[0], num(props(i).position_accuracy_m));
-      requestAnchors(); c.style.display = 'none';
+      if (!lockOnTree(i)) { toast('That tree has no surveyed position.'); return; }
+      c.style.display = 'none';
       selectTree(i);
-      toast('You are at ' + props(i).tree_id + ' – scene re-hung on it.');
+      toast('Locked on ' + tid(i) + ' – heading from the compass. Match stems for better.');
     };
     row.appendChild(b);
   });
-  if (!CAT.features.length) {
+  if (!order.length) {
     const e = document.createElement('span'); e.className = 'small';
-    e.textContent = 'No trees in the register yet. ';
+    e.textContent = 'No surveyed trees to stand at. ';
     row.appendChild(e);
   }
   const ab = document.createElement('button');
@@ -2681,6 +2751,10 @@ function buildChooser() {
 const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAPZ = { min: 12, max: 19 };
 let mapView = null, mapTiles = {}, mapDrag = null, mapPinch = null;
+/* The map opens where you are standing and stays there while the fix moves.
+   Dragging it is a decision to look somewhere else, so that switches the
+   following off until the "Me" button switches it back on. */
+let mapFollow = true;
 
 function lon2px(lon, z) { return (lon + 180) / 360 * 256 * Math.pow(2, z); }
 function lat2px(lat, z) {
@@ -2694,12 +2768,23 @@ function px2lat(y, z) {
 }
 function mapCentre() {
   if (mapView) return mapView;
-  const c = (REFS[0] && { lat: REFS[0].lat, lon: REFS[0].lon }) ||
+  const c = (lastFix && { lat: lastFix.lat, lon: lastFix.lon }) ||
+            (REFS[0] && { lat: REFS[0].lat, lon: REFS[0].lon }) ||
             (CAT.features[0] && { lat: CAT.features[0].geometry.coordinates[1],
                                   lon: CAT.features[0].geometry.coordinates[0] }) ||
-            (lastFix && { lat: lastFix.lat, lon: lastFix.lon }) || { lat: 51.0, lon: 10.0 };
-  mapView = { lat: c.lat, lon: c.lon, z: (REFS[0] || CAT.features[0] || lastFix) ? 18 : 6 };
+            { lat: 51.0, lon: 10.0 };
+  mapView = { lat: c.lat, lon: c.lon, z: (lastFix || REFS[0] || CAT.features[0]) ? 18 : 6 };
   return mapView;
+}
+/* Put the view on the phone and keep it there. */
+function mapToMe(zoom) {
+  if (!lastFix) return false;
+  const v = mapCentre();
+  v.lat = lastFix.lat; v.lon = lastFix.lon;
+  if (zoom) v.z = Math.max(v.z, 18);
+  mapFollow = true;
+  drawMap();
+  return true;
 }
 function drawMap() {
   const box = $('mapBox'); if (!box || !box.offsetWidth) return;
@@ -2767,6 +2852,7 @@ function drawMapMarks(left, top, z) {
   if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
 }
 function mapMoveBy(dx, dy) {
+  mapFollow = false;
   const v = mapCentre();
   const cx = lon2px(v.lon, v.z) - dx, cy = lat2px(v.lat, v.z) - dy;
   v.lon = px2lon(cx, v.z); v.lat = px2lat(cy, v.z);
@@ -2817,8 +2903,7 @@ function wireMap() {
   $('mZin').onclick = () => mapZoom(1);
   $('mZout').onclick = () => mapZoom(-1);
   $('mMe').onclick = () => {
-    if (!lastFix) return toast('No GPS fix.');
-    const v = mapCentre(); v.lat = lastFix.lat; v.lon = lastFix.lon; v.z = Math.max(v.z, 18); drawMap();
+    if (!mapToMe(true)) toast('No GPS fix yet – the map centres itself as soon as there is one.');
   };
   $('mCache').onclick = async () => {
     const v = mapCentre(), box = $('mapBox');
@@ -3043,10 +3128,15 @@ function nextTreeId() {
   return pre + String(max + 1).padStart(5, '0');
 }
 
-function addTree(lon, lat, source, acc, local) {
-  const near = nearbyTree(lon, lat, 2.5, local);
-  if (near && !confirm(tid(near.i) + ' is already recorded ' + near.d.toFixed(1) +
-      ' m from here. Add another tree anyway?')) return near.i;
+/* quiet: pressing + Tree means record a tree. Whether something is already
+   recorded nearby is worth saying afterwards, never worth a dialog in the way
+   of a man standing in the rain with a phone in one hand. */
+function addTree(lon, lat, source, acc, local, quiet) {
+  if (!quiet) {
+    const near = nearbyTree(lon, lat, 2.5, local);
+    if (near && !confirm(tid(near.i) + ' is already recorded ' + near.d.toFixed(1) +
+        ' m from here. Add another tree anyway?')) return near.i;
+  }
   const id = nextTreeId();
   const today = new Date().toISOString().slice(0, 10);
   CAT.features.push({
@@ -4149,7 +4239,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
   if (k === 'data') renderStats();
-  if (k === 'map') { startGPS(); drawMap(); renderRefs(); syncMapSel(); }
+  if (k === 'map') { startGPS(); mapFollow = true; if (!mapToMe(true)) drawMap(); renderRefs(); syncMapSel(); }
 }
 function renderStats() {
   const n = CAT.features.length;
@@ -4214,6 +4304,10 @@ function batteryOkForAR() {
 
 function toast(t) {
   const el = $('toast'); el.textContent = t; el.style.display = 'block';
+  // Never over the controls: in AR the bar wraps to two rows and its height is
+  // not a constant, so the toast is put directly above whatever it is now.
+  const bar = $('xrui').classList.contains('on') ? $('ctl').getBoundingClientRect() : null;
+  el.style.bottom = bar ? (innerHeight - bar.top + 8) + 'px' : '';
   clearTimeout(toast._t); toast._t = setTimeout(() => { el.style.display = 'none'; }, 2600);
 }
 function msg(t) { $('msg').textContent = t; }
@@ -4518,16 +4612,15 @@ function wire() {
     const el = $('nummenu');
     const open = el.style.display !== 'block';
     if (open) buildNumMenu('');
+    closePopups('nummenu');
     el.style.display = open ? 'block' : 'none';
-    $('mmenu').style.display = 'none'; $('refmenu').style.display = 'none';
-    $('chooser').style.display = 'none';
   };
   $('bref').onclick = () => {
     const el = $('refmenu');
     const open = el.style.display !== 'block';
     if (open) buildRefMenu();
+    closePopups('refmenu');
     el.style.display = open ? 'block' : 'none';
-    $('mmenu').style.display = 'none'; $('chooser').style.display = 'none';
   };
   $('block').onclick = () => {
     sceneLocked = !sceneLocked;
@@ -4546,15 +4639,16 @@ function wire() {
   };
   $('bstand').onclick = () => {
     const c = $('chooser');
-    c.style.display = (c.style.display === 'block' ? 'none' : 'block');
-    $('mmenu').style.display = 'none';
+    const open = c.style.display !== 'block';
+    closePopups('chooser');
+    c.style.display = open ? 'block' : 'none';
   };
   $('bmeas').onclick = () => {
     const m = $('mmenu');
     if (m.style.display === 'block') { m.style.display = 'none'; return; }
     buildMeasureMenu();
+    closePopups('mmenu');
     m.style.display = 'block';
-    $('chooser').style.display = 'none';
   };
   $('bshot').onclick = () => {
     const t = selIdx == null ? nearestTree() : selIdx;
@@ -4744,6 +4838,21 @@ function wire() {
   });
 }
 
+/* The on-screen keyboard covers the bottom of the window without changing the
+   layout viewport, so the controls end up underneath it. visualViewport knows
+   how much is left; the bottom stack is lifted by exactly that much. */
+function watchKeyboard() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const apply = () => {
+    const hidden = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty('--kb', (hidden > 90 ? hidden : 0) + 'px');
+  };
+  vv.addEventListener('resize', apply);
+  vv.addEventListener('scroll', apply);
+  apply();
+}
+
 loadAll();
 loadRefs();
 loadPlot();
@@ -4752,6 +4861,7 @@ buildScene();
 buildMarkers();
 wire();
 wireMap();
+watchKeyboard();
 applyDay();
 watchBattery();
 storageCheck(true);
