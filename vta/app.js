@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.12.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -645,6 +645,90 @@ function applyFit(f, lat0, lon0, auto) {
   showFit();
 }
 
+/* ---- recognising the stand by its own pattern ----
+   The scene has to be told where it is, and GPS is the weakest way to tell it.
+   But a stand carries its own signature: the spacing of its stems. Point at
+   three or four trunks and the constellation of what is in front of you can be
+   matched against the constellation in the register - without being told which
+   tree is which, because the distances between them are enough to work it out.
+
+   This is point-set registration, done the blunt way that suits the numbers
+   here: take two observed stems as a baseline, find every pair of register
+   trees the same distance apart, and for each such pair take the transform it
+   implies and count how many of the other stems then land on a register tree.
+   The assignment with the most agreement wins. Ten trees and four stems is a
+   few thousand cheap tests.
+
+   A regular planting is genuinely ambiguous - an avenue at eight-metre spacing
+   fits itself shifted by one tree just as well - so a second solution that is
+   as good as the best is reported as ambiguous rather than guessed at. */
+const STEM_TOL = 1.6;              // metres a stem may sit from where it is filed
+function candidateTrees(limit) {
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    out.push({ i: i, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] });
+  });
+  if (out.length <= limit || !origin) return out.slice(0, limit);
+  out.forEach(c => { c.d = distBear(c.lat, c.lon, origin.lat, origin.lon).d; });
+  out.sort((a, b) => a.d - b.d);
+  return out.slice(0, limit);
+}
+function matchStems(obs) {
+  if (obs.length < 3) return { error: 'at least three stems' };
+  const cands = candidateTrees(120);
+  if (cands.length < obs.length) return { error: 'the register holds fewer trees than that' };
+  const lat0 = cands.reduce((a, c) => a + c.lat, 0) / cands.length;
+  const lon0 = cands.reduce((a, c) => a + c.lon, 0) / cands.length;
+  cands.forEach(c => { const e = enu(c.lat, c.lon, lat0, lon0); c.e = e.e; c.n = e.n; });
+  const dObs = (a, b) => Math.hypot(obs[a].x - obs[b].x, obs[a].z - obs[b].z);
+  const dCand = (a, b) => Math.hypot(cands[a].e - cands[b].e, cands[a].n - cands[b].n);
+
+  let best = null, second = null;
+  for (let a = 0; a < obs.length; a++) for (let b = 0; b < obs.length; b++) {
+    if (a === b) continue;
+    const dab = dObs(a, b);
+    if (dab < 3) continue;                       // too short a baseline to orient on
+    for (let i = 0; i < cands.length; i++) for (let j = 0; j < cands.length; j++) {
+      if (i === j) continue;
+      if (Math.abs(dCand(i, j) - dab) > STEM_TOL) continue;
+      const f0 = fitRigid([{ u: { e: cands[i].e, n: cands[i].n }, s: obs[a] },
+                           { u: { e: cands[j].e, n: cands[j].n }, s: obs[b] }]);
+      if (!f0) continue;
+      // where every register tree would sit in the scene under this guess
+      const cp = Math.cos(f0.phi), sp = Math.sin(f0.phi);
+      const put = c => { const ur = c.e - f0.e0, ui = -(c.n - f0.n0);
+                         return { x: cp * ur + sp * ui, z: -sp * ur + cp * ui }; };
+      const pairs = []; let err = 0;
+      for (let k = 0; k < obs.length; k++) {
+        let bi = -1, bd = STEM_TOL;
+        for (let c = 0; c < cands.length; c++) {
+          const q = put(cands[c]);
+          const d = Math.hypot(q.x - obs[k].x, q.z - obs[k].z);
+          if (d < bd) { bd = d; bi = c; }
+        }
+        if (bi >= 0) { pairs.push({ k: k, c: bi }); err += bd * bd; }
+      }
+      const used = {}; let dup = false;
+      pairs.forEach(pp => { if (used[pp.c]) dup = true; used[pp.c] = 1; });
+      if (dup || pairs.length < 3) continue;      // one tree cannot be two stems
+      const sol = { pairs: pairs, err: err, n: pairs.length,
+                    key: pairs.map(pp => pp.k + '>' + cands[pp.c].i).sort().join(',') };
+      if (!best || sol.n > best.n || (sol.n === best.n && sol.err < best.err)) {
+        if (best && best.key !== sol.key) second = best;
+        best = sol;
+      } else if ((!second || sol.n > second.n) && sol.key !== best.key) second = sol;
+    }
+  }
+  if (!best) return { error: 'no arrangement of the register matches those stems' };
+  const ambiguous = !!(second && second.n === best.n &&
+                       second.err < best.err * 2.5 && second.key !== best.key);
+  const fin = fitRigid(best.pairs.map(pp => ({
+    id: tid(cands[pp.c].i), u: { e: cands[pp.c].e, n: cands[pp.c].n }, s: obs[pp.k] })));
+  return { pairs: best.pairs.map(pp => ({ obs: pp.k, tree: cands[pp.c].i })),
+           fit: fin, lat0: lat0, lon0: lon0, ambiguous: ambiguous, n: best.n };
+}
+
 /* ---- the walk as its own control survey ----
    Measuring points by hand is the accurate way and costs a walk every session.
    But a walk is already happening: every GPS fix taken during a session pairs
@@ -687,8 +771,17 @@ function autoFit() {
   const f = fitRigid(track.map((r, n) => ({ id: 'fix' + n,
     u: enu(r.lat, r.lon, lat0, lon0), s: { x: r.x, z: r.z } })));
   if (!f) return;
+  /* Re-fitting on every fix is why the markers kept creeping: each new fix
+     shifts the answer a little and the whole scene moves with it. A fit is
+     only replaced when it rests on substantially more evidence - half as many
+     fixes again, or half as long a baseline - so the scene settles in a few
+     visible steps instead of drifting continuously. */
+  if (lastFit && lastFit.auto && autoState &&
+      track.length < autoState.n * 1.5 && trackSpan() < autoState.span * 1.5) return;
+  autoState = { n: track.length, span: trackSpan() };
   applyFit(f, lat0, lon0, true);
 }
+let autoState = null;
 
 /* ====================== SENSORS: GPS / COMPASS ====================== */
 
@@ -1038,7 +1131,7 @@ function enterAR() {
   buildChooser();
   buildMeasureMenu();
   buildRefMenu();
-  refFix.clear(); lastFit = null; track = [];   // a new session, a new local frame
+  refFix.clear(); lastFit = null; track = []; autoState = null;   // new session, new frame
   showFit();
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
@@ -1248,6 +1341,7 @@ const MEAS = {
   stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false },
   newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false },
   ref:       { label: 'Reference point',  field: null,                hits: 1, aim: false },
+  stems:     { label: 'Match stems',      field: null,                hits: 9, aim: false },
   tape:      { label: 'Tape',             field: null,                hits: 2, aim: false }
 };
 function mbar(txt, buttons) {
@@ -1324,6 +1418,7 @@ function startMeasure(kind, refArg) {
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
   const ask = cfg.aim ? 'Aim at the stem base and tap'
             : kind === 'target' ? 'Aim at the target on the ground and tap'
+            : kind === 'stems' ? 'Aim at the base of a stem you can see and tap. Three or four, well spread'
             : kind === 'ref' ? 'Aim at the point itself and tap – or cancel and stand on it instead'
             : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base and tap'
             : 'Aim at the first point and tap';
@@ -1365,6 +1460,20 @@ function measureTap() {
     toast('Stem position of ' + props(m.tree).tree_id + ' set.');
     requestAnchors();
     clearMeasure();
+    return;
+  }
+
+  if (m.kind === 'stems') {
+    m.pts.push({ x: hitPt.x, z: hitPt.z });
+    const mark = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24),
+      new THREE.MeshBasicMaterial({ color: 0xffd27a, side: THREE.DoubleSide, depthTest: false }));
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.set(hitPt.x, 0.02, hitPt.z);
+    mark.renderOrder = 12; scene.add(mark); mObjs.push(mark);
+    const n = m.pts.length;
+    mbar('<b>Match stems</b><br>' + n + ' stem' + (n === 1 ? '' : 's') + ' marked' +
+         (n < 3 ? ' · ' + (3 - n) + ' more' : ' · ready'),
+         (n >= 3 ? [['Match', () => runStemMatch(m.pts), 'p']] : []).concat([['Cancel', clearMeasure]]));
     return;
   }
 
@@ -1637,6 +1746,24 @@ function updateEdge() {
 }
 
 /* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
+function runStemMatch(pts) {
+  const r = matchStems(pts.slice());
+  if (r.error) { toast('No match: ' + r.error + '.'); return; }
+  const names = r.pairs.map(pp => tid(pp.tree)).join(', ');
+  if (r.ambiguous) {
+    mbar('<b>Ambiguous</b><br>The spacing fits more than one set of trees – a regular ' +
+         'planting looks the same shifted along. Mark another stem, or one further out.',
+         [['Cancel', clearMeasure]]);
+    return;
+  }
+  if (!confirm('Matched ' + r.n + ' stems:\n\n' + names + '\n\nresidual ' +
+               r.fit.rms.toFixed(2) + ' m\n\nHang the scene on them?')) return;
+  applyFit(r.fit, r.lat0, r.lon0, false);
+  lastFit.worst = 'stems';
+  clearMeasure();
+  toast('Scene matched to ' + r.n + ' stems · ±' + r.fit.rms.toFixed(2) + ' m');
+}
+
 function buildRefMenu() {
   const el = $('refmenu');
   el.innerHTML = '';
@@ -1680,6 +1807,15 @@ function buildRefMenu() {
     rows.appendChild(e);
   }
   el.appendChild(rows);
+
+  const sm = document.createElement('div'); sm.className = 'btnrow'; sm.style.marginTop = '8px';
+  const smb = document.createElement('button'); smb.className = 'sm';
+  smb.textContent = 'Match stems instead';
+  smb.title = 'Aim at three or four trunks; the spacing says which trees they are';
+  smb.disabled = !hitOk || CAT.features.length < 3;
+  smb.onclick = () => { el.style.display = 'none'; startMeasure('stems'); };
+  sm.appendChild(smb);
+  el.appendChild(sm);
 
   const act = document.createElement('div'); act.className = 'btnrow'; act.style.marginTop = '8px';
   const ap = document.createElement('button');
@@ -2434,6 +2570,20 @@ function openPanel(i, tab) {
   };
   pf.appendChild(bs); pf.appendChild(br2); pf.appendChild(bd);
   el.appendChild(pf);
+
+  /* The Quick tab repeats fields that also live under VTA and Base data, and
+     collect() reads every [data-k] in document order - so the untouched twin
+     further down overwrote whatever had just been typed above it, and a DBH
+     entered on Quick was saved as nothing. Keep the twins in step. */
+  const twin = ev => {
+    const t = ev.target, k = t && t.dataset && t.dataset.k;
+    if (!k) return;
+    panelEl.querySelectorAll('[data-k="' + k + '"]').forEach(o => {
+      if (o !== t && o.value !== t.value) o.value = t.value;
+    });
+  };
+  panelEl.addEventListener('input', twin);
+  panelEl.addEventListener('change', twin);
 
   el.classList.add('on');
   updateVerdict();
