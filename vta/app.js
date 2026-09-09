@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.0.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2656,11 +2656,30 @@ function syncGeo(i) {
 }
 /* A new tree is only ever as good as the position it is given, so record where
    it came from and let the caller pick the source. */
+/* Trees are numbered 00001, 00002, ... The number is the identity the whole
+   app hangs on - the edits, the photographs, the merge - so it has to be
+   unique, which a running number is only within one phone. An optional prefix
+   keeps two surveyors from both producing 00001; the bin is counted too, so
+   restoring a deleted tree cannot land on a number given out since. */
+function nextTreeId() {
+  const pre = (prefs().idPrefix || '').trim();
+  let max = 0;
+  const consider = id => {
+    const m = String(id || '').match(/^(.*?)(\d+)$/);
+    if (!m || m[1] !== pre) return;
+    const n = parseInt(m[2], 10);
+    if (isFinite(n) && n > max) max = n;
+  };
+  CAT.features.forEach(f => consider((f.properties || {}).tree_id));
+  trashList().forEach(t => consider(((t.feature || {}).properties || {}).tree_id));
+  return pre + String(max + 1).padStart(5, '0');
+}
+
 function addTree(lon, lat, source, acc) {
   const near = nearbyTree(lon, lat, 2.5);
   if (near && !confirm(tid(near.i) + ' is already recorded ' + near.d.toFixed(1) +
       ' m from here. Add another tree anyway?')) return near.i;
-  const id = 'NEW-' + stamp().replace(/-/g, '').slice(4, 12) + '-' + Math.random().toString(36).slice(2, 5);
+  const id = nextTreeId();
   const today = new Date().toISOString().slice(0, 10);
   CAT.features.push({
     type: 'Feature', geometry: { type: 'Point', coordinates: [+(+lon).toFixed(7), +(+lat).toFixed(7)] },
@@ -4229,6 +4248,11 @@ function wire() {
   const pf = prefs();
   $('prefInspector').value = pf.inspector || '';
   $('prefInspector').onchange = () => setPref('inspector', $('prefInspector').value.trim());
+  $('prefPrefix').value = pf.idPrefix || '';
+  $('prefPrefix').onchange = () => {
+    setPref('idPrefix', $('prefPrefix').value.trim());
+    toast('Next tree will be ' + nextTreeId() + '.');
+  };
   $('roundStart').onclick = () => {
     const who = ($('prefInspector').value || '').trim();
     if (!who) return toast('Put your name in first – a round has to be signed.');
