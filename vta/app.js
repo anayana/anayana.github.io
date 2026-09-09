@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.2.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1603,7 +1603,6 @@ function endAR() {
   $('mmenu').style.display = 'none';
   $('refmenu').style.display = 'none';
   $('nummenu').style.display = 'none';
-  $('ctl2').classList.remove('on');
   $('edge').innerHTML = ''; edgeEls = {};
   $('hwarnT').textContent = ''; $('hwarn').classList.remove('on'); warnOff = false;
   $('hud').classList.remove('open');
@@ -1650,8 +1649,7 @@ function tick() {
     const s = fitScale(1, _cp.distanceTo(_sp), t, b[0], b[1]);
     o.scale.set(b[0] * s, b[1] * s, 1);
   });
-  if ($('hud').classList.contains('open'))
-    $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+  $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
   const nowMs = performance.now();
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
   compAt = nowMs;
@@ -1858,7 +1856,6 @@ function startMeasure(kind, refArg) {
   if (!hitOk) return toast('Hit-test unavailable in this session.');
   $('mmenu').style.display = 'none';
   $('refmenu').style.display = 'none';
-  $('ctl2').classList.remove('on');
   clearMeasure();
   const cfg = MEAS[kind];
   let tree = selIdx;
@@ -4495,7 +4492,7 @@ function wire() {
     try { await startOrient(); startGPS(); await startCam(); msg(''); }
     catch (e) { msg('Camera: ' + e.message); }
   };
-  $('hud').onclick = () => $('hud').classList.toggle('open');
+
   $('bnew').onclick = addTreeHere;
   $('mode-survey').onclick = () => setArMode('survey');
   $('mode-navigate').onclick = () => setArMode('navigate');
@@ -4556,10 +4553,6 @@ function wire() {
     const t = selIdx == null ? nearestTree() : selIdx;
     if (t == null) return toast('No tree selected.');
     selectTree(t); startBark(t);
-  };
-  $('bmore').onclick = () => {
-    $('ctl2').classList.toggle('on');
-    $('mmenu').style.display = 'none';
   };
   $('bq').onclick = () => {
     // the control measurements only exist inside this session's frame - leaving
