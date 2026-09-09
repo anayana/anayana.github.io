@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.2.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -612,6 +612,7 @@ function fitFromRefs(quiet) {
    reticle. Stand at the stem, press the button. */
 function addTreeHere() {
   if (mode !== 'WebXR') return toast('Needs the WebXR mode – its tracking is what places the tree.');
+  if (arMode !== 'survey') setArMode('survey');      // pressing it means surveying
   const c = camPos();
   // The first tree of a survey defines the plot frame: this spot is its
   // origin and the way the phone is facing is not allowed to matter, so the
@@ -745,7 +746,8 @@ function setArMode(m) {
   ['survey', 'navigate'].forEach(k =>
     $('mode-' + k) && $('mode-' + k).classList.toggle('on', k === m));
   $('navBox').style.display = (m === 'navigate' && !S2P) ? 'block' : 'none';
-  $('bnew').style.display = m === 'survey' ? '' : 'none';
+  // Recording is the thing the app is for. It is never hidden, in any mode -
+  // hiding it behind a mode switch was a straightforward mistake.
   showFit(); placeMarkers(); updateNav();
 }
 
@@ -1576,7 +1578,7 @@ function enterAR() {
   refFix.clear(); lastFit = null; track = []; autoState = null;   // new session, new frame
   sceneLocked = false; settleComp();
   S2P = null; s2pFrom = ''; s2pRms = null; navTarget = null;
-  setArMode(CAT.features.length ? 'navigate' : 'survey');
+  setArMode('survey');          // recording is the default; navigating is a choice
   showFit();
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
