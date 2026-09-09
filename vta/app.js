@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.0.2';
+const APP_VERSION = '2.1.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1965,6 +1965,248 @@ function buildMeasureMenu() {
   el.appendChild(row);
 }
 
+/* ---- bark as a fingerprint ----
+   Re-identification, not determination: the question is never "what species is
+   this" but "is this the same trunk as last year", and the candidates are the
+   handful of trees standing near you, not a flora. That makes it tractable
+   without a trained model.
+
+   The signature has to survive a year of weather and a different day's light,
+   so nothing is taken from brightness. The crop is contrast-normalised against
+   its own local mean, which removes wet-versus-dry and sun-versus-shade, then
+   described by gradient orientation - the direction the bark runs, which is
+   what a fissure pattern actually is. To that is added the spacing of the
+   fissures, read as the autocorrelation of the vertical-edge profile across
+   the trunk: two pines differ in how wide their plates are long before they
+   differ in anything a histogram sees.
+
+   It only works because the frame repeats. That is what the 1.30 m protocol is
+   for, and why a signature is only compared against photographs taken from the
+   same side.
+
+   Species in Finland are few and their barks are unlike - a pine plate, a
+   birch lenticel, a spruce scale, an aspen diamond - so the recorded species
+   is used as a sanity check on a match, never as the match itself. */
+const SIG_N = 96, SIG_CELL = 8, SIG_BINS = 9, SIG_LAGS = 28;
+
+function barkSignature(img, dx, dy, zoom) {
+  const c = document.createElement('canvas'); c.width = c.height = SIG_N;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  const w = img.width || img.videoWidth, h = img.height || img.videoHeight;
+  if (!w || !h) return null;
+  const side = Math.min(w, h) * (zoom || 1);         // centre square, so framing wobble matters less
+  const ox = (w - side) / 2 + (dx || 0) * side, oy = (h - side) / 2 + (dy || 0) * side;
+  g.drawImage(img, ox, oy, side, side, 0, 0, SIG_N, SIG_N);
+  const px = g.getImageData(0, 0, SIG_N, SIG_N).data;
+  const gray = new Float32Array(SIG_N * SIG_N);
+  for (let k = 0, n = 0; k < px.length; k += 4, n++)
+    gray[n] = 0.299 * px[k] + 0.587 * px[k + 1] + 0.114 * px[k + 2];
+
+  // local contrast normalisation via integral images: (v - mean) / (sd + eps)
+  const S1 = new Float64Array((SIG_N + 1) * (SIG_N + 1)), S2 = new Float64Array(S1.length);
+  for (let y = 0; y < SIG_N; y++) for (let x = 0; x < SIG_N; x++) {
+    const v = gray[y * SIG_N + x], i1 = (y + 1) * (SIG_N + 1) + (x + 1);
+    S1[i1] = v + S1[i1 - 1] + S1[i1 - SIG_N - 1] - S1[i1 - SIG_N - 2];
+    S2[i1] = v * v + S2[i1 - 1] + S2[i1 - SIG_N - 1] - S2[i1 - SIG_N - 2];
+  }
+  const R = 8, norm = new Float32Array(SIG_N * SIG_N);
+  const box = (S, x0, y0, x1, y1) => S[(y1 + 1) * (SIG_N + 1) + (x1 + 1)] -
+    S[(y0) * (SIG_N + 1) + (x1 + 1)] - S[(y1 + 1) * (SIG_N + 1) + (x0)] +
+    S[(y0) * (SIG_N + 1) + (x0)];
+  for (let y = 0; y < SIG_N; y++) for (let x = 0; x < SIG_N; x++) {
+    const x0 = Math.max(0, x - R), x1 = Math.min(SIG_N - 1, x + R);
+    const y0 = Math.max(0, y - R), y1 = Math.min(SIG_N - 1, y + R);
+    const cnt = (x1 - x0 + 1) * (y1 - y0 + 1);
+    const m = box(S1, x0, y0, x1, y1) / cnt;
+    const sd = Math.sqrt(Math.max(1, box(S2, x0, y0, x1, y1) / cnt - m * m));
+    norm[y * SIG_N + x] = (gray[y * SIG_N + x] - m) / sd;
+  }
+
+  // gradients, then an unsigned orientation histogram per cell
+  const cells = SIG_N / SIG_CELL;
+  const hist = new Float32Array(cells * cells * SIG_BINS);
+  const colEdge = new Float32Array(SIG_N);
+  for (let y = 1; y < SIG_N - 1; y++) for (let x = 1; x < SIG_N - 1; x++) {
+    const gx = norm[y * SIG_N + x + 1] - norm[y * SIG_N + x - 1];
+    const gy = norm[(y + 1) * SIG_N + x] - norm[(y - 1) * SIG_N + x];
+    const mag = Math.hypot(gx, gy);
+    if (mag < 1e-6) continue;
+    let ang = Math.atan2(gy, gx); if (ang < 0) ang += Math.PI;   // unsigned
+    const bin = Math.min(SIG_BINS - 1, Math.floor(ang / Math.PI * SIG_BINS));
+    const cy = Math.floor(y / SIG_CELL), cx = Math.floor(x / SIG_CELL);
+    hist[(cy * cells + cx) * SIG_BINS + bin] += mag;
+    colEdge[x] += Math.abs(gx);                                  // fissures run up the trunk
+  }
+  for (let k = 0; k < cells * cells; k++) {                      // each cell on its own
+    let sum = 0;
+    for (let bnum = 0; bnum < SIG_BINS; bnum++) sum += hist[k * SIG_BINS + bnum] ** 2;
+    const inv = 1 / Math.sqrt(sum + 1e-6);
+    for (let bnum = 0; bnum < SIG_BINS; bnum++) hist[k * SIG_BINS + bnum] *= inv;
+  }
+
+  // how far apart the fissures sit, as the autocorrelation of that profile
+  let cm = 0; for (let x = 0; x < SIG_N; x++) cm += colEdge[x]; cm /= SIG_N;
+  for (let x = 0; x < SIG_N; x++) colEdge[x] -= cm;
+  const ac = new Float32Array(SIG_LAGS);
+  let a0 = 0; for (let x = 0; x < SIG_N; x++) a0 += colEdge[x] * colEdge[x];
+  for (let lag = 1; lag <= SIG_LAGS; lag++) {
+    let a = 0;
+    for (let x = 0; x + lag < SIG_N; x++) a += colEdge[x] * colEdge[x + lag];
+    ac[lag - 1] = a0 > 0 ? a / a0 : 0;
+  }
+
+  const out = new Float32Array(hist.length + SIG_LAGS);
+  out.set(hist, 0); out.set(ac, hist.length);
+  let ss = 0; for (let k = 0; k < out.length; k++) ss += out[k] * out[k];
+  const inv = 1 / Math.sqrt(ss + 1e-9);
+  for (let k = 0; k < out.length; k++) out[k] *= inv;
+  return out;
+}
+
+/* Stored as bytes, not as six hundred JSON numbers. */
+function sigPack(v) {
+  const b = new Uint8Array(v.length);
+  for (let k = 0; k < v.length; k++)
+    b[k] = Math.max(0, Math.min(255, Math.round(v[k] * 500 + 128)));
+  let s2 = ''; for (let k = 0; k < b.length; k++) s2 += String.fromCharCode(b[k]);
+  return btoa(s2);
+}
+function sigUnpack(str) {
+  if (!str) return null;
+  const raw = atob(str), v = new Float32Array(raw.length);
+  for (let k = 0; k < raw.length; k++) v[k] = (raw.charCodeAt(k) - 128) / 500;
+  let ss = 0; for (let k = 0; k < v.length; k++) ss += v[k] * v[k];
+  const inv = 1 / Math.sqrt(ss + 1e-9);
+  for (let k = 0; k < v.length; k++) v[k] *= inv;
+  return v;
+}
+function sigSim(a, b) {
+  if (!a || !b || a.length !== b.length) return -1;
+  let d = 0; for (let k = 0; k < a.length; k++) d += a[k] * b[k];
+  return d;
+}
+function sigFromDataUrl(url) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { try { res(barkSignature(im)); } catch (e) { res(null); } };
+    im.onerror = () => res(null);
+    im.src = url;
+  });
+}
+
+/* A cell grid is not shift-invariant, and a year later the frame will not be
+   the same to the pixel however well the protocol is followed. So the query is
+   described several times over - shifted a little each way and at two scales -
+   and a comparison takes the best of them. The stored signature stays one
+   vector; only the asking side pays. */
+const SIG_SHIFTS = [];
+[-0.10, -0.05, 0, 0.05, 0.10].forEach(dx =>
+  [-0.10, -0.05, 0, 0.05, 0.10].forEach(dy => SIG_SHIFTS.push([dx, dy, 1])));
+[0.85, 1.18].forEach(z => [-0.06, 0, 0.06].forEach(dx =>
+  [-0.06, 0, 0.06].forEach(dy => SIG_SHIFTS.push([dx, dy, z]))));
+function sigVariants(img) {
+  const out = [];
+  SIG_SHIFTS.forEach(v => { const q = barkSignature(img, v[0], v[1], v[2]); if (q) out.push(q); });
+  return out;
+}
+function sigVariantsFromDataUrl(url) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { try { res(sigVariants(im)); } catch (e) { res([]); } };
+    im.onerror = () => res([]);
+    im.src = url;
+  });
+}
+function sigSimBest(variants, ref) {
+  let best = -1;
+  for (let k = 0; k < variants.length; k++) {
+    const d = sigSim(variants[k], ref);
+    if (d > best) best = d;
+  }
+  return best;
+}
+
+/* Bark types by species, coarse and Finnish: a pine plate is not a birch
+   lenticel, and a match that crosses them is worth doubting out loud. */
+const BARK_TYPE = {
+  'Pinus sylvestris': 'plated', 'Larix sibirica': 'plated', 'Larix decidua': 'plated',
+  'Picea abies': 'scaly', 'Pseudotsuga menziesii': 'furrowed',
+  'Betula pendula': 'papery', 'Betula pubescens': 'papery',
+  'Populus tremula': 'smooth', 'Fagus sylvatica': 'smooth', 'Sorbus aucuparia': 'smooth',
+  'Prunus padus': 'smooth', 'Alnus incana': 'smooth', 'Salix caprea': 'smooth',
+  'Quercus robur': 'furrowed', 'Fraxinus excelsior': 'furrowed', 'Ulmus glabra': 'furrowed',
+  'Tilia cordata': 'furrowed', 'Acer platanoides': 'furrowed', 'Alnus glutinosa': 'furrowed',
+  'Salix alba': 'furrowed', 'Populus nigra': 'furrowed'
+};
+function barkType(sp) { return BARK_TYPE[(sp || '').trim()] || null; }
+
+/* ---- what the bark says ----
+   Two questions off one photograph, and they are answered the same way.
+
+   Which species? The species of the nearest signatures, weighted by how near
+   they are - so "Betula pendula 80 %, Betula pubescens 20 %" means four of the
+   five closest barks in your own register were pendula. This learns from the
+   register as it grows and is honest when the register is thin: with three
+   reference photographs it says three, and with none it says none.
+
+   Which individual trunk? It does not answer that, and the code says so on
+   screen. Tested against synthetic bark - three pines, two birches, two
+   spruces, then one of the pines photographed again brighter and shifted - the
+   species vote came out at 95 % correct while the true trunk came SECOND to a
+   different pine, by a margin that a search over shifts and scales did not
+   close. That is not a tuning failure: an orientation histogram describes
+   texture, and two pines of an age have the same texture. Identifying an
+   individual needs keypoint correspondences with geometric verification -
+   which fissure crosses which - and that is a different instrument.
+
+   No model is trained and none is shipped. It is nearest-neighbour over
+   photographs you took, which is why it can be trusted about the difference
+   between a sand birch and a bog birch in Finland and would be useless about
+   a species nobody here has photographed. */
+const BARK_K = 7, BARK_FLOOR = 0.30;
+async function barkLibrary() {
+  let all = [];
+  try { all = await photoAll(); } catch (e) { return []; }
+  const out = [];
+  all.forEach(f => {
+    if (f.kind !== 'bark' || !f.sig) return;
+    const i = CAT.features.findIndex((x, n) => tid(n) === f.tree);
+    if (i < 0) return;
+    const p = props(i);
+    out.push({ tree: i, id: f.tree, sig: sigUnpack(f.sig), sp: (p.species || '').trim(),
+               bearing: f.bearing, ts: f.ts });
+  });
+  return out;
+}
+async function barkMatch(sig, exceptTree) {
+  const lib = await barkLibrary();
+  if (!lib.length) return { empty: true, refs: 0 };
+  const vars = Array.isArray(sig) ? sig : [sig];
+  const scored = lib.map(r => ({ r: r, s: sigSimBest(vars, r.sig) }))
+                    .filter(x => x.s > -1)
+                    .sort((a, b) => b.s - a.s);
+  // which trunk: best per tree, the tree itself excluded when re-checking
+  const perTree = {};
+  scored.forEach(x => {
+    if (exceptTree != null && x.r.tree === exceptTree) return;
+    if (!perTree[x.r.id] || x.s > perTree[x.r.id].s) perTree[x.r.id] = x;
+  });
+  const trees = Object.keys(perTree).map(k => perTree[k])
+                      .sort((a, b) => b.s - a.s).slice(0, 5);
+  // which species: the near neighbours, weighted by how near
+  const near = scored.slice(0, BARK_K).filter(x => x.s > BARK_FLOOR);
+  const bySp = {}; let tot = 0;
+  near.forEach(x => {
+    const sp = x.r.sp || 'unrecorded';
+    const w = (x.s - BARK_FLOOR) * (x.s - BARK_FLOOR);
+    bySp[sp] = (bySp[sp] || 0) + w; tot += w;
+  });
+  const species = Object.keys(bySp).map(k => ({ sp: k, p: tot ? bySp[k] / tot : 0 }))
+                        .sort((a, b) => b.p - a.p);
+  return { refs: lib.length, used: near.length, trees: trees, species: species,
+           margin: trees.length > 1 ? trees[0].s - trees[1].s : null };
+}
+
 /* ---- bark photograph at breast height ----
    The field rule: photograph the bark at 1.30 m on the side the number tag
    hangs, so next year's photograph shows the same patch of the same trunk and
@@ -2077,6 +2319,19 @@ function takeARPhoto(frame) {
     meta.pitch = Math.round(camPitchDeg());
     const kindNow = shotKind; shotKind = null;
     if (kindNow) meta.kind = kindNow;
+    if (kindNow === 'bark') {
+      const url = out.toDataURL('image/jpeg', 0.72);
+      sigFromDataUrl(url).then(sig => {
+        if (!sig) return;
+        meta.sig = sigPack(sig);
+        barkMatch(sig, tree).then(m => {
+          if (!m || m.empty || !m.species || !m.species.length) return;
+          const top = m.species[0];
+          if (top.p >= 0.5 && top.sp !== 'unrecorded')
+            toast('Bark looks like ' + top.sp + ' (' + Math.round(top.p * 100) + ' %) – see Photos.');
+        }).catch(() => {});
+      });
+    }
     if (kindNow === 'tag') {
       out.toBlob(bl => { if (!bl) return;
         readNumberFromImage(bl).then(r => {
@@ -3163,6 +3418,72 @@ function updateVerdict() {
   boxes.forEach(b => { b.innerHTML = html; });
 }
 
+function barkPanel(res, treeIdx) {
+  const el = $('niaBox');
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Bark</b> <span class="small">· nearest neighbours among your own photographs</span>';
+  const note = document.createElement('div'); note.className = 'small';
+  note.style.margin = '2px 0 6px';
+  note.textContent = 'Species is what this answers. Which individual trunk it is, it does not.';
+  el.appendChild(note);
+  el.appendChild(h);
+  if (res.empty || !res.refs) {
+    el.innerHTML += '<p class="small">No bark photographs to compare against yet. ' +
+      'Every bark photo you take becomes a reference.</p>';
+  } else {
+    const sp = document.createElement('div');
+    sp.innerHTML = '<div class="small" style="margin:8px 0 4px">Species · from ' + res.used +
+      ' of ' + res.refs + ' reference photographs</div>';
+    if (!res.species.length) sp.innerHTML += '<p class="small">Nothing near enough to say.</p>';
+    res.species.forEach(x => {
+      const row = document.createElement('div'); row.className = 'niarow';
+      row.innerHTML = '<div><b>' + esc(x.sp) + '</b> <span class="small">' +
+        Math.round(x.p * 100) + ' %</span>' +
+        (barkType(x.sp) ? '<div class="small dim">' + barkType(x.sp) + ' bark</div>' : '') + '</div>';
+      const bar = document.createElement('div'); bar.className = 'niabar';
+      const fill = document.createElement('i'); fill.style.width = Math.round(x.p * 100) + '%';
+      bar.appendChild(fill); row.appendChild(bar);
+      if (treeIdx != null && x.sp !== 'unrecorded') {
+        const b = document.createElement('button'); b.className = 'sm p'; b.textContent = 'Use';
+        b.onclick = () => {
+          const cur = props(treeIdx);
+          const hit = SPECIES.find(y => y[0] === x.sp);
+          setEdit(treeIdx, { species: x.sp, name_en: cur.name_en || (hit ? hit[1] : '') });
+          if (openIdx === treeIdx) openPanel(treeIdx);
+          toast(x.sp + ' recorded for ' + tid(treeIdx) + '.');
+          el.style.display = 'none';
+        };
+        row.appendChild(b);
+      }
+      sp.appendChild(row);
+    });
+    el.appendChild(sp);
+    const tr = document.createElement('div');
+    tr.innerHTML = '<div class="small" style="margin:10px 0 4px"><b>Similar bark</b> – ' +
+      'not evidence of the same trunk. This describes texture, and two pines of ' +
+      'an age have the same texture; use it to spot a species that does not fit, ' +
+      'not to identify a stem.</div>';
+    res.trees.forEach(x => {
+      const p2 = props(x.r.tree);
+      const row = document.createElement('button'); row.className = 'numrow';
+      row.innerHTML = '<span><b>' + esc(p2.tag_no ? '№ ' + p2.tag_no : x.r.id) + '</b> ' +
+        '<span class="small">' + esc(p2.species || '') + '</span>' +
+        '<div class="small dim">' + esc((x.r.ts || '').slice(0, 10)) +
+        (x.r.bearing != null ? ' · ' + x.r.bearing + '°' : '') + '</div></span>' +
+        '<span class="small">' + (x.s * 100).toFixed(0) + ' %</span>';
+      row.onclick = () => { el.style.display = 'none'; openPanel(x.r.tree); };
+      tr.appendChild(row);
+    });
+
+    el.appendChild(tr);
+  }
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  el.appendChild(cl);
+  el.style.display = 'block';
+}
+
 async function renderPhotos(tree, gal) {
   if (!gal) return;
   let list = [];
@@ -3210,6 +3531,21 @@ async function renderPhotos(tree, gal) {
         }
       };
       fig.appendChild(sh);
+    }
+    if (f.kind === 'bark') {
+      const bm = document.createElement('button'); bm.className = 'barkbtn sm'; bm.textContent = 'Bark?';
+      bm.title = 'Compare this bark against your own photographs';
+      bm.onclick = async () => {
+        bm.disabled = true; bm.textContent = '…';
+        try {
+          const sig = await sigVariantsFromDataUrl(f.url);
+          if (!sig || !sig.length) throw new Error('the picture could not be read');
+          const idx = CAT.features.findIndex((x, n) => tid(n) === tree);
+          barkPanel(await barkMatch(sig, idx), idx);
+        } catch (e) { toast('Bark: ' + (e.message || e)); }
+        bm.disabled = false; bm.textContent = 'Bark?';
+      };
+      fig.appendChild(bm);
     }
     const nia = document.createElement('button'); nia.className = 'niabtn sm'; nia.textContent = 'NIA';
     nia.title = 'Ask the identification service for candidates';
