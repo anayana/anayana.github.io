@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -174,7 +174,7 @@ const LVLTXT = ['inconspicuous', 'minor findings', 'conspicuous – review measu
 /* ============================ STORAGE ============================ */
 
 const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1',
-      K_NIA = 'vta_nia_v1';
+      K_NIA = 'vta_nia_v1', K_EXP = 'vta_exported_v1';
 let mem = {};                                  // fallback when localStorage is blocked
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
@@ -2192,25 +2192,23 @@ function openPanel(i, tab) {
   /* --- history --- */
   const hs = secs.hist;
   const tb = document.createElement('table'); tb.className = 'hist';
-  tb.innerHTML = '<tr><th>Year</th><th>Girth cm</th><th>Vit.</th><th>Inspected</th><th>Finding</th></tr>' +
-    (p.history || []).map(r => '<tr><td>' + r.year + '</td><td>' + (r.girth_cm == null ? '' : r.girth_cm) + '</td><td>' +
-      (r.vitality_roloff == null ? '' : r.vitality_roloff) + '</td><td>' + (r.inspection || '') + '</td><td>' + (r.finding || '') + '</td></tr>').join('');
+  const hv = (r, k) => (r[k] == null || r[k] === '' ? '–' : r[k]);
+  tb.innerHTML = '<tr><th>Inspected</th><th>Lvl</th><th>Vit.</th><th>Dieback</th><th>t/R</th><th>DBH</th></tr>' +
+    (p.history || []).map(r => '<tr><td>' + (r.inspection || r.year) + '</td>' +
+      '<td>' + (r.level == null ? '–' : '<b style="color:' + LVLCOL[r.level] + '">' + r.level + '</b>') + '</td>' +
+      '<td>' + hv(r, 'vitality_roloff') + '</td>' +
+      '<td>' + (r.crown_dieback_pct == null ? '–' : r.crown_dieback_pct + ' %') + '</td>' +
+      '<td>' + hv(r, 't_R') + '</td><td>' + hv(r, 'dbh_cm') + '</td></tr>').join('');
+  const trend = historyTrend(p.history || []);
+  if (trend) { const tp = document.createElement('p'); tp.className = 'small'; tp.innerHTML = trend; hs.appendChild(tp); }
   hs.appendChild(tb);
   const badd = document.createElement('button');
   badd.className = 'sm'; badd.style.marginTop = '10px';
   badd.textContent = 'Add current inspection to history';
   badd.onclick = () => {
     savePanel(true);
-    const q = props(i), hist = (q.history || []).slice();
-    hist.push({
-      year: new Date().getFullYear(),
-      girth_cm: num(q.girth_cm),
-      vitality_roloff: num(q.vitality_roloff),
-      inspection: q.last_inspection || new Date().toISOString().slice(0, 10),
-      finding: (q.inspection_type || 'Inspection') + (q.remarks ? ': ' + q.remarks : '')
-    });
-    setEdit(i, { history: hist });
-    toast('Added to history.');
+    setEdit(i, { history: pushHistory(props(i)) });
+    toast('Inspection added to the history.');
     openPanel(i);
   };
   hs.appendChild(badd);
@@ -2368,6 +2366,104 @@ async function renderPhotos(tree, gal) {
   });
 }
 
+/* ============================ WORK LIST ============================
+   Urgency, actions and the next inspection date were recorded and then buried
+   one tree deep, which is no use to the crew that has to cut and no use to the
+   inspector who has to prove the round was walked. Here they are as a list:
+   what is overdue, and what is outstanding, worst first. */
+const URG_RANK = { 'immediate': 0, '1 month': 1, '3 months': 2, 'next growing season': 3, 'none': 9 };
+function dueDays(p) {
+  if (!p.next_inspection) return null;
+  const d = new Date(p.next_inspection);
+  if (isNaN(d)) return null;
+  return Math.floor((d.getTime() - Date.now()) / 86400000);
+}
+/* A snapshot has to carry what the assessment was made of, or a later reading
+   cannot tell whether the tree changed or the inspector did. */
+/* What changed between the first and the last record, which is the only
+   question a history is asked. */
+function historyTrend(h) {
+  if (h.length < 2) return '';
+  const a = h[0], b = h[h.length - 1], out = [];
+  const d = (k, lab, unit) => {
+    if (a[k] == null || b[k] == null) return;
+    const v = b[k] - a[k];
+    if (!v) return;
+    out.push(lab + ' ' + a[k] + ' → ' + b[k] + (unit || '') +
+             ' (' + (v > 0 ? '+' : '') + (+v.toFixed(2)) + ')');
+  };
+  d('level', 'level'); d('vitality_roloff', 'vitality');
+  d('crown_dieback_pct', 'dieback', ' %'); d('t_R', 't/R'); d('dbh_cm', 'DBH', ' cm');
+  if (!out.length) return '';
+  return 'Since ' + (a.inspection || a.year) + ': ' + out.join(' · ');
+}
+
+function pushHistory(q) {
+  const a = assess(q);
+  const hist = (q.history || []).slice();
+  const rec = {
+    year: new Date().getFullYear(),
+    inspection: q.last_inspection || new Date().toISOString().slice(0, 10),
+    level: a.lvl,
+    girth_cm: num(q.girth_cm),
+    dbh_cm: num(q.dbh_cm),
+    vitality_roloff: num(q.vitality_roloff),
+    crown_dieback_pct: num(q.crown_dieback_pct),
+    t_R: a.tr == null ? null : +a.tr.toFixed(3),
+    damage_class: q.damage_class || null,
+    symptoms: (q.symptoms || []).slice(),
+    fungi: (q.fungi || []).slice(),
+    urgency: q.urgency || null,
+    inspector: q.inspector || null,
+    finding: (q.inspection_type || 'Inspection') + (q.remarks ? ': ' + q.remarks : '')
+  };
+  const same = hist.findIndex(r => r.inspection === rec.inspection);
+  if (same >= 0) hist[same] = rec; else hist.push(rec);
+  hist.sort((x, y) => String(x.inspection).localeCompare(String(y.inspection)));
+  return hist;
+}
+
+function workItems() {
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const p = props(i), a = assess(p);
+    const acts = (p.actions || []).filter(Boolean);
+    const urg = p.urgency && p.urgency !== 'none' ? p.urgency : null;
+    const dd = dueDays(p);
+    if (!urg && !acts.length && !(dd != null && dd <= 30)) return;
+    out.push({ i: i, p: p, lvl: a.lvl, urg: urg, acts: acts, due: dd,
+               rank: urg ? URG_RANK[urg] : (dd != null && dd < 0 ? 1.5 : 4) });
+  });
+  out.sort((a, b) => a.rank - b.rank || b.lvl - a.lvl ||
+                     ((a.due == null ? 1e9 : a.due) - (b.due == null ? 1e9 : b.due)));
+  return out;
+}
+function renderWork() {
+  const box = $('workBox'); if (!box) return;
+  const items = workItems();
+  const head = $('workHead');
+  const overdue = items.filter(x => x.due != null && x.due < 0).length;
+  head.textContent = items.length
+    ? items.length + ' open' + (overdue ? ' · ' + overdue + ' overdue' : '')
+    : 'nothing outstanding';
+  box.innerHTML = '';
+  if (!items.length) return;
+  items.forEach(x => {
+    const b = document.createElement('button'); b.className = 'work';
+    const dueTxt = x.due == null ? '' :
+      x.due < 0 ? '<b class="od">' + (-x.due) + ' d overdue</b>' :
+      x.due <= 30 ? 'due in ' + x.due + ' d' : '';
+    b.innerHTML =
+      '<span class="dot" style="background:' + LVLCOL[x.lvl] + '"></span>' +
+      '<span class="m"><span class="t1">' + (x.p.tag_no ? '№ ' + x.p.tag_no : (x.p.tree_id || '?')) +
+        (x.urg ? ' · <b class="urg">' + x.urg + '</b>' : '') + '</span>' +
+      '<span class="t2">' + (x.acts.length ? x.acts.join(' · ') : 'no action recorded') + '</span>' +
+      '<span class="t3">' + (x.p.species || '') + (dueTxt ? ' · ' + dueTxt : '') + '</span></span>';
+    b.onclick = () => { showScreen('list'); openPanel(x.i); };
+    box.appendChild(b);
+  });
+}
+
 /* ========================= LIST / SCREENS ========================= */
 
 let sortByDist = true;
@@ -2411,7 +2507,7 @@ setInterval(() => { if ($('sc-list').classList.contains('on') && !mode && lastFi
 function showScreen(k) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
-  if (k === 'list') { startGPS(); startOrient(); renderList(); }   // sensors only on a user action
+  if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
   if (k === 'data') renderStats();
   if (k === 'map') { startGPS(); drawMap(); renderRefs(); syncMapSel(); }
 }
@@ -2423,9 +2519,13 @@ function renderStats() {
                '<div class="kv"><span>Trees in catalogue</span><span>' + n + '</span></div>' +
                '<div class="kv"><span>Edited in the field</span><span>' + ed + '</span></div>' +
                '<div class="kv"><span>Levels 0 / 1 / 2 / 3</span><span>' + lv.join(' / ') + '</span></div>';
+  const d = daysSinceExport();
+  const exp = '<div class="kv"><span>Last export</span><span>' +
+    (d == null ? 'never' : d < 1 ? 'today' : Math.floor(d) + ' days ago') + '</span></div>';
   photoAll().then(ps => {
-    $('stats').innerHTML = base + '<div class="kv"><span>Photos stored</span><span>' + ps.length + '</span></div>';
-  }).catch(() => { $('stats').innerHTML = base; });
+    $('stats').innerHTML = base + exp + '<div class="kv"><span>Photos stored</span><span>' + ps.length + '</span></div>';
+    backupWarning();
+  }).catch(() => { $('stats').innerHTML = base + exp; backupWarning(); });
 }
 
 function toast(t) {
@@ -2564,6 +2664,73 @@ function niaSheet(tree, list) {
   close.onclick = () => { el.style.display = 'none'; };
   el.appendChild(close);
   el.style.display = 'block';
+}
+
+/* ========================= IMPORT / EXPORT =========================
+   An import used to replace the register outright, which is a fine way to lose
+   a morning's work the moment two people survey the same stand and one opens
+   the other's file. It merges now: a tree the phone does not have is added, a
+   tree it has keeps everything it already knows and only takes what it is
+   missing, and a value that differs is reported rather than silently picked.
+   Nothing is ever deleted by an import. */
+let importReplace = false;
+const MERGE_SKIP = { tree_id: 1, orig_coordinates: 1, history: 1 };
+function mergeCatalogue(feats, replace) {
+  if (replace) {
+    CAT = { type: 'FeatureCollection', name: CAT.name, features: feats };
+    saveCat();
+    return { added: feats.length, filled: 0, kept: 0, conflicts: [] };
+  }
+  const byId = {};
+  CAT.features.forEach((f, i) => { byId[tid(i)] = i; });
+  const rep = { added: 0, filled: 0, kept: 0, conflicts: [] };
+  feats.forEach(x => {
+    const id = x.properties.tree_id;
+    if (byId[id] == null) { CAT.features.push(x); byId[id] = CAT.features.length - 1; rep.added++; return; }
+    const mine = CAT.features[byId[id]];
+    let filled = false;
+    Object.keys(x.properties).forEach(k => {
+      if (MERGE_SKIP[k]) return;
+      const a = mine.properties[k], b = x.properties[k];
+      const empty = a == null || a === '' || (Array.isArray(a) && !a.length);
+      const has = b != null && b !== '' && !(Array.isArray(b) && !b.length);
+      if (!has) return;
+      if (empty) { mine.properties[k] = b; filled = true; return; }
+      if (JSON.stringify(a) !== JSON.stringify(b)) rep.conflicts.push(id + ' · ' + k);
+    });
+    // history is additive: entries the phone does not have are taken on
+    const hb = x.properties.history || [];
+    if (hb.length) {
+      const ha = mine.properties.history || [];
+      const key = r => r.inspection + '|' + r.year;
+      const seen = {}; ha.forEach(r => { seen[key(r)] = 1; });
+      hb.forEach(r => { if (!seen[key(r)]) { ha.push(r); filled = true; } });
+      ha.sort((a, b) => String(a.inspection || a.year).localeCompare(String(b.inspection || b.year)));
+      mine.properties.history = ha;
+    }
+    if (filled) rep.filled++; else rep.kept++;
+  });
+  saveCat();
+  return rep;
+}
+
+/* Everything lives on one phone. Say how long it has been since any of it left. */
+function markExported() { lsSet(K_EXP, new Date().toISOString()); renderStats(); }
+function daysSinceExport() {
+  const t = lsGet(K_EXP);
+  if (!t) return null;
+  return (Date.now() - new Date(t).getTime()) / 86400000;
+}
+function backupWarning() {
+  const el = $('backupWarn'); if (!el) return;
+  const d = daysSinceExport(), n = CAT.features.length;
+  let msg = '';
+  if (!n) msg = '';
+  else if (d == null) msg = n + ' trees recorded and never exported. This phone is the only copy.';
+  else if (d >= 1) msg = 'Last export was ' + (d < 2 ? 'yesterday' : Math.floor(d) + ' days ago') +
+                         '. This phone is the only copy of anything since.';
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
 }
 
 /* ========================= IMPORT / EXPORT ========================= */
@@ -2742,8 +2909,14 @@ function wire() {
     toast('Tree ' + tid(i) + ' created at the coordinate you entered.');
   };
 
-  $('bExpGeo').onclick = () => dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
-  $('bExpCsv').onclick = () => dl('tree_register_' + stamp() + '.csv', csv(), 'text/csv');
+  $('bExpGeo').onclick = () => {
+    dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
+    markExported();
+  };
+  $('bExpCsv').onclick = () => {
+    dl('tree_register_' + stamp() + '.csv', csv(), 'text/csv');
+    markExported();
+  };
   $('bExpPhotos').onclick = async () => {
     let ps = [];
     try { ps = await photoAll(); } catch (e) {}
@@ -2755,7 +2928,11 @@ function wire() {
       await new Promise(r => setTimeout(r, 350));
     }
   };
-  $('bImp').onclick = () => $('fileImp').click();
+  $('bImp').onclick = () => { importReplace = false; $('fileImp').click(); };
+  $('bImpRep').onclick = () => {
+    if (!confirm('Replace the whole register with the file, losing everything on this phone that is not in it?')) return;
+    importReplace = true; $('fileImp').click();
+  };
   $('fileImp').onchange = () => {
     const f = $('fileImp').files && $('fileImp').files[0]; if (!f) return;
     const rd = new FileReader();
@@ -2770,8 +2947,8 @@ function wire() {
           if (!x.properties) x.properties = {};
           if (!x.properties.tree_id) x.properties.tree_id = x.properties.baum_id || ('IMP-' + (n + 1));
         });
-        CAT = { type: 'FeatureCollection', name: j.name || f.name, features: feats };
-        saveCat();
+        const rep = mergeCatalogue(feats, importReplace);
+        importReplace = false;
         if (refs.length) {
           refs.forEach(x => {
             const id = x.properties.tree_id || ('P' + (REFS.length + 1));
@@ -2783,7 +2960,13 @@ function wire() {
           saveRefs(); renderRefs();
         }
         buildMarkers(); renderList(); renderStats();
-        toast(feats.length + ' trees' + (refs.length ? ' and ' + refs.length + ' reference points' : '') + ' loaded.');
+        alert('Register loaded.\n\n' + rep.added + ' new tree' + (rep.added === 1 ? '' : 's') +
+              '\n' + rep.filled + ' existing filled in' +
+              '\n' + rep.kept + ' left as they were' +
+              (rep.conflicts.length ? '\n\nDiffering values kept as yours:\n· ' +
+                 rep.conflicts.slice(0, 12).join('\n· ') +
+                 (rep.conflicts.length > 12 ? '\n· … and ' + (rep.conflicts.length - 12) + ' more' : '') : '') +
+              (refs.length ? '\n\n' + refs.length + ' reference points' : ''));
       } catch (e) { toast('Import failed: ' + e.message); }
       $('fileImp').value = '';
     };

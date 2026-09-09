@@ -163,6 +163,16 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 .funrow>div:first-child{flex:1;min-width:0}
 .funrow .dim{color:#8ea396;margin-top:3px}
 .funrow button{flex:0 0 auto}
+.warnbox{background:#2a1f12;border:1px solid #5c4326;color:#ffcf8f;border-radius:10px;
+  padding:9px 11px;margin-bottom:8px;font-size:13px}
+#workWrap{margin-bottom:10px;border:1px solid #26332b;border-radius:12px;background:#111a15}
+#workWrap summary{padding:10px 12px;cursor:pointer;font-weight:600}
+#workWrap summary .small{font-weight:400;color:#9fb3a6;margin-left:6px}
+#workBox{padding:0 8px 8px}
+button.work{display:flex;gap:10px;align-items:center;background:#131c17;border:1px solid #26332b;
+  border-radius:10px;padding:9px 11px;margin-bottom:6px;width:100%;text-align:left;color:inherit}
+button.work .urg{color:#ffb347}
+button.work .od{color:#ff8f7a}
 .funrow .reflink{flex:0 0 auto;display:inline-block;padding:6px 9px;border:1px solid #2f4137;
   border-radius:8px;color:#8fd6a8;text-decoration:none;font-size:13px}
 .photos figure{position:relative}
@@ -229,6 +239,10 @@ table.hist th{color:#8fa697;font-weight:500}
         <h2 style="flex:1;margin:0">Trees <span class="small" id="listCount"></span></h2>
         <button class="sm" id="bSort">by distance</button>
       </div>
+      <details id="workWrap">
+        <summary>To do <span class="small" id="workHead"></span></summary>
+        <div id="workBox"></div>
+      </details>
       <div id="listBox"></div>
       <div class="btnrow">
         <button id="bNew">+ Tree at my GPS position</button>
@@ -286,7 +300,13 @@ table.hist th{color:#8fa697;font-weight:500}
         <button id="bExpPhotos">Save photos individually</button>
       </div>
       <h3>Import</h3>
-      <div class="btnrow"><button id="bImp">Load register…</button></div>
+      <div class="btnrow">
+        <button id="bImp">Merge a register…</button>
+        <button class="x" id="bImpRep">Replace…</button>
+      </div>
+      <p class="small">Merging adds trees this phone does not have and fills in what it is
+        missing. It never deletes, and where a value differs, yours is kept and the
+        difference reported.</p>
       <input type="file" id="fileImp" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
       <h3>Identification service</h3>
       <div class="row"><label>Endpoint (blank = public)</label>
@@ -303,6 +323,7 @@ table.hist th{color:#8fa697;font-weight:500}
       <p class="small">Throws the offline copy away and reloads from the server.
         Trees and photos stay.</p>
       <h3>Status</h3>
+      <div id="backupWarn" class="warnbox" style="display:none"></div>
       <div id="stats"></div>
       <h3>Reset</h3>
       <div class="btnrow">
@@ -363,8 +384,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.8.0"></script>
-<script src="data.js?v=1.8.0"></script>
-<script src="app.js?v=1.8.0"></script>
+<script src="vendor/three.min.js?v=1.9.0"></script>
+<script src="data.js?v=1.9.0"></script>
+<script src="app.js?v=1.9.0"></script>
 </body>
 </html>
