@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.7.1';
+const APP_VERSION = '2.7.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3490,8 +3490,15 @@ function wireMap() {
     if (mapSel == null) return;
     const v = mapCentre(), id = tid(mapSel);
     setCoords(mapSel, v.lon, v.lat, 'moved on the map', null);
-    drawMap(); syncMapSel();
-    toast(id + ' moved to the crosshair.');
+    drawMap(); syncMapSel(); renderMoved();
+    toast(id + ' moved to the crosshair – Undo puts it back.');
+  };
+  $('mUndo').onclick = () => {
+    if (mapSel == null) return;
+    const id = tid(mapSel);
+    if (!revertCoords(mapSel)) return;
+    drawMap(); syncMapSel(); renderMoved();
+    toast(id + ' put back where it came in.');
   };
   $('mAddTree').onclick = () => {
     const v = mapCentre();
@@ -3518,15 +3525,63 @@ function mapPick(e) {
   drawMap(); syncMapSel();
 }
 function syncMapSel() {
-  const b = $('mMove'), info = $('mSel');
+  const b = $('mMove'), info = $('mSel'), u = $('mUndo');
   if (mapSel == null || !CAT.features[mapSel]) {
-    mapSel = null; b.style.display = 'none'; info.textContent = 'Tap a tree on the map to pick it.';
+    mapSel = null; b.style.display = 'none'; u.style.display = 'none';
+    info.textContent = 'Tap a tree on the map to pick it.';
     return;
   }
-  const v = mapCentre(), c = CAT.features[mapSel].geometry.coordinates;
+  const f = CAT.features[mapSel], v = mapCentre(), c = f.geometry.coordinates;
   const d = distBear(c[1], c[0], v.lat, v.lon).d;
   b.style.display = ''; b.textContent = 'Move ' + tid(mapSel) + ' here (' + d.toFixed(1) + ' m)';
-  info.textContent = tid(mapSel) + ' picked · ' + (props(mapSel).species || 'no species');
+  const o = f.properties.orig_coordinates;
+  // undo sits next to the button that did it, not three screens away
+  u.style.display = o ? '' : 'none';
+  if (o) u.textContent = 'Undo – put ' + tid(mapSel) + ' back (' +
+    distBear(c[1], c[0], o[1], o[0]).d.toFixed(1) + ' m)';
+  info.textContent = tid(mapSel) + ' picked · ' + (props(mapSel).species || 'no species') +
+    (o ? ' · moved' : '');
+}
+/* Two trees moved by accident is two trees you have to find again. They are
+   listed instead. */
+function renderMoved() {
+  const box = $('movedList'); if (!box) return;
+  const list = movedTrees();
+  box.innerHTML = '';
+  if (!list.length) {
+    box.innerHTML = '<p class="small">No position has been changed. ' +
+      'Trees moved on the map or nudged on their own page appear here.</p>';
+    return;
+  }
+  list.forEach(x => {
+    const r = document.createElement('div'); r.className = 'trashrow';
+    const s = document.createElement('span');
+    s.innerHTML = '<b>' + esc(tid(x.i)) + '</b> ' + esc(props(x.i).species || '') +
+      ' <span class="small">' + x.d.toFixed(1) + ' m from ' +
+      esc(CAT.features[x.i].properties.orig_source || 'where it came in') + '</span>';
+    const go = document.createElement('button'); go.className = 'sm'; go.textContent = 'Show';
+    go.onclick = () => {
+      const c = CAT.features[x.i].geometry.coordinates;
+      showScreen('map'); mapSel = x.i;
+      const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapFollow = false;
+      drawMap(); syncMapSel();
+    };
+    const un = document.createElement('button'); un.className = 'sm p'; un.textContent = 'Undo';
+    un.onclick = () => { revertCoords(x.i); drawMap(); syncMapSel(); renderMoved();
+                         toast(tid(x.i) + ' put back.'); };
+    r.appendChild(s); r.appendChild(go); r.appendChild(un);
+    box.appendChild(r);
+  });
+  const all = document.createElement('div'); all.className = 'btnrow';
+  const ab = document.createElement('button'); ab.className = 'sm';
+  ab.textContent = 'Undo all ' + list.length;
+  ab.onclick = () => {
+    if (!confirm('Put all ' + list.length + ' trees back where they came in?')) return;
+    list.forEach(x => revertCoords(x.i));
+    drawMap(); syncMapSel(); renderMoved();
+    toast(list.length + ' positions put back.');
+  };
+  all.appendChild(ab); box.appendChild(all);
 }
 function renderRefs() {
   const box = $('refList'); if (!box) return;
@@ -3622,7 +3677,12 @@ function fieldRow(k, lab, typ, opt, p) {
    at the stem, or nudge the point in metres. */
 function setCoords(i, lon, lat, source, acc) {
   const f = CAT.features[i];
-  if (!f.properties.orig_coordinates) f.properties.orig_coordinates = f.geometry.coordinates.slice();
+  if (!f.properties.orig_coordinates) {
+    f.properties.orig_coordinates = f.geometry.coordinates.slice();
+    // and what it was, so undoing gives the tree its own history back rather
+    // than a guess: a register tree returns to being a register tree
+    f.properties.orig_source = f.properties.geometry_source || '';
+  }
   f.geometry.coordinates = [+(+lon).toFixed(7), +(+lat).toFixed(7)];
   if (source) f.properties.geometry_source = source;
   if (acc != null) {
@@ -3649,6 +3709,30 @@ function syncGeo(i) {
     '<div class="kv"><span>Accuracy</span><span>±' + (f.properties.position_accuracy_m == null ? '?' : f.properties.position_accuracy_m) + ' m</span></div>' +
     (o ? '<div class="kv"><span>Moved from catalogue</span><span>' + moved.toFixed(2) + ' m</span></div>' : '');
 }
+/* Putting a position back. One place, so the map, the tree's own page and the
+   list of moved trees all undo the same way and all the way: orig_coordinates
+   is written once, on the first change, so this returns the tree to where it
+   came in - not to the previous of five nudges. */
+function revertCoords(i) {
+  const f = CAT.features[i], o = f.properties.orig_coordinates;
+  if (!o) return false;
+  f.geometry.coordinates = o.slice();
+  f.properties.geometry_source = f.properties.orig_source || 'as recorded';
+  delete f.properties.orig_coordinates;
+  delete f.properties.orig_source;
+  saveCat(); placeMarkers(); renderList(); syncGeo(i);
+  return true;
+}
+function movedTrees() {
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const o = f.properties.orig_coordinates;
+    if (!o) return;
+    out.push({ i: i, d: distBear(f.geometry.coordinates[1], f.geometry.coordinates[0], o[1], o[0]).d });
+  });
+  return out;
+}
+
 /* A new tree is only ever as good as the position it is given, so record where
    it came from and let the caller pick the source. */
 /* Trees are numbered 00001, 00002, ... The number is the identity the whole
@@ -3817,13 +3901,9 @@ function geoEditor(i) {
   const row2 = document.createElement('div'); row2.className = 'btnrow';
   const bres = document.createElement('button'); bres.className = 'sm'; bres.textContent = 'Undo position change';
   bres.onclick = () => {
-    const o = CAT.features[i].properties.orig_coordinates;
-    if (!o) return toast('Position was never changed.');
-    CAT.features[i].geometry.coordinates = o.slice();
-    delete CAT.features[i].properties.orig_coordinates;
-    CAT.features[i].properties.geometry_source = 'as recorded';
-    saveCat(); placeMarkers(); renderList(); syncGeo(i);
-    toast('Position as first recorded.');
+    if (!revertCoords(i)) return toast('Position was never changed.');
+    drawMap(); renderMoved();
+    toast('Position as it came in.');
   };
   row2.appendChild(bres);
   wrap.appendChild(row2);
@@ -4786,7 +4866,7 @@ function showScreen(k) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
-  if (k === 'data') renderStats();
+  if (k === 'data') { renderStats(); renderMoved(); }
   if (k === 'map') { startGPS(); mapFollow = true; if (!mapToMe(true)) drawMap(); renderRefs(); syncMapSel(); }
 }
 function renderStats() {
