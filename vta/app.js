@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -67,6 +67,68 @@ const SPECIES = [
   ['Tilia platyphyllos', 'Large-leaved lime'], ['Tilia x europaea', 'Common lime'],
   ['Ulmus glabra', 'Wych elm'], ['Ulmus laevis', 'European white elm']
 ];
+
+/* ---- wood-decay fungi ----
+   A fruiting body is not a symptom like any other: which fungus it is decides
+   the kind of decay, where in the tree it sits, and therefore whether the
+   tree fails by uprooting or by snapping - and how much warning there will be.
+   So the finding is recorded as a species and the consequence is drawn from
+   it, rather than everything collapsing into one "fungi seen" tick.
+
+   Determination stays with the inspector. The app carries what each find
+   means, not what it looks like: telling species apart from a photograph is a
+   job for a mycologist, and a wrong answer here is a felled healthy tree or a
+   standing dangerous one.
+   [key, scientific, common, where, rot, minimum level, what it does] */
+const FUNGI = [
+  ['kdeu', 'Kretzschmaria deusta', 'Brittle cinder', 'root', 'soft rot', 3,
+   'Brittle failure of the butt with almost no external warning and no reaction growth. Easily overlooked as a crust. One of the most dangerous finds on beech and lime.'],
+  ['mgig', 'Meripilus giganteus', 'Giant polypore', 'root', 'white rot', 3,
+   'Advanced decay of the major roots by the time it fruits. Uprooting, often without a lean beforehand.'],
+  ['arme', 'Armillaria spp.', 'Honey fungus', 'root', 'white rot', 3,
+   'Kills and rots the root plate. Anchorage lost progressively; check for rhizomorphs under the bark.'],
+  ['gads', 'Ganoderma adspersum', 'Southern bracket', 'root', 'white rot', 3,
+   'Aggressive butt rot with little compartmentalisation. Both uprooting and stem failure.'],
+  ['gapp', 'Ganoderma applanatum', 'Artist\u2019s bracket', 'root', 'white rot', 3,
+   'Butt and lower stem rot, slower than G. adspersum but the section loss is real.'],
+  ['hann', 'Heterobasidion annosum', 'Root and butt rot', 'root', 'white rot', 3,
+   'Conifers. Hollows the butt from inside; spruce snaps at the base in wind.'],
+  ['pfra', 'Perenniporia fraxinea', 'Ash bracket', 'root', 'white rot', 3,
+   'Butt rot of ash, plane and robinia. Severe strength loss low on the stem.'],
+  ['pschw', 'Phaeolus schweinitzii', 'Dyer\u2019s polypore', 'root', 'brown rot', 3,
+   'Conifers. Brown cubical rot of roots and butt - brittle, low warning.'],
+  ['gfro', 'Grifola frondosa', 'Hen of the woods', 'root', 'white rot', 2,
+   'Usually oak, slow butt rot. Watch rather than panic, but measure the residual wall.'],
+  ['rulm', 'Rigidoporus ulmarius', 'Giant elm bracket', 'root', 'white rot', 2,
+   'Butt rot, often on elm and horse chestnut. Long-lived, slow.'],
+  ['ffom', 'Fomes fomentarius', 'Tinder fungus', 'stem', 'white rot', 3,
+   'Birch and beech. Extensive stem decay by the time brackets show; stem failure.'],
+  ['fpin', 'Fomitopsis pinicola', 'Red-belted conk', 'stem', 'brown rot', 3,
+   'Brown rot leaves brittle, cubically cracked wood with little residual strength.'],
+  ['ihis', 'Inonotus hispidus', 'Shaggy bracket', 'stem', 'white rot', 3,
+   'Ash and plane. Localised soft white rot at branch unions - branch and stem failure.'],
+  ['lsul', 'Laetiporus sulphureus', 'Chicken of the woods', 'stem', 'brown rot', 2,
+   'Brown cubical rot of the heartwood. Oak often compartmentalises well; judge by the residual wall, not the bracket.'],
+  ['psqu', 'Polyporus squamosus', 'Dryad\u2019s saddle', 'stem', 'white rot', 2,
+   'Enters through wounds; decay usually local to the wound but can be extensive.'],
+  ['post', 'Pleurotus ostreatus', 'Oyster mushroom', 'stem', 'white rot', 2,
+   'Often follows other damage. Take it as a sign to look for the wound that let it in.'],
+  ['iobl', 'Inonotus obliquus', 'Chaga', 'stem', 'white rot', 2,
+   'Birch. The sterile mass marks long-standing internal decay.'],
+  ['gres', 'Ganoderma resinaceum', 'Lacquered bracket', 'stem', 'white rot', 2,
+   'Lower stem of oak and plane. Slower than G. adspersum.'],
+  ['tver', 'Trametes versicolor', 'Turkey tail', 'stem', 'white rot', 1,
+   'Mostly on dead wood and dying parts. On living tissue, look for what killed it first.'],
+  ['badu', 'Bjerkandera adusta', 'Smoky bracket', 'stem', 'white rot', 1,
+   'Usually a secondary coloniser of already dead wood.'],
+  ['scom', 'Schizophyllum commune', 'Split gill', 'stem', 'white rot', 1,
+   'Weak parasite on stressed or damaged wood; a stress indicator more than a hazard.'],
+  ['cpur', 'Chondrostereum purpureum', 'Silver leaf', 'crown', 'white rot', 2,
+   'Enters through pruning wounds; dieback and brittle branches above the infection.']
+];
+const FUNGI_BY = {};
+FUNGI.forEach(f => { FUNGI_BY[f[0]] = f; });
+const FUNGI_WHERE = { root: 'Root plate and butt', stem: 'Stem', crown: 'Crown and branches' };
 
 const SAFE = ['adequate', 'restricted', 'not given'];
 const F_VTA = [
@@ -244,8 +306,14 @@ function assess(p) {
     if (hd > 80) up(1, 'h/d = ' + hd.toFixed(0) + ' – slender stem, raised sensitivity to wind and snow load.');
   }
 
-  if (has('t_fungi') || has('r_fungi'))
-    up(3, 'Fruiting bodies of wood-decay fungi – assume wood decay in the stem or root zone.');
+  const fun = p.fungi || [];
+  fun.forEach(k => {
+    const f = FUNGI_BY[k]; if (!f) return;
+    up(f[5], f[1] + ' (' + f[2] + ') – ' + f[4] + ' in the ' +
+       (f[3] === 'root' ? 'root plate or butt' : f[3] === 'stem' ? 'stem' : 'crown') + '. ' + f[6]);
+  });
+  if (!fun.length && (has('t_fungi') || has('r_fungi')))
+    up(3, 'Fruiting bodies of wood-decay fungi, species not recorded – assume decay and identify the fungus, the species decides how the tree fails.');
   if (has('r_heave')) up(3, 'Soil heave or tension cracks – indication of root failure, check stability now.');
   if (has('t_lean')) up(3, 'Lean or change of inclination – check stability now.');
   if (has('c_hanger')) up(3, 'Hangers or loose branches – immediate hazard, remove without delay.');
@@ -2065,6 +2133,49 @@ function openPanel(i, tab) {
     });
     v.appendChild(box);
   });
+  const h2f = document.createElement('h3'); h2f.textContent = 'Wood-decay fungi'; v.appendChild(h2f);
+  const funBox = document.createElement('div'); funBox.id = 'funBox'; v.appendChild(funBox);
+  const funSel = document.createElement('select');
+  const fh = document.createElement('option'); fh.value = ''; fh.textContent = 'Add a fruiting body…';
+  funSel.appendChild(fh);
+  ['root', 'stem', 'crown'].forEach(w => {
+    const gr = document.createElement('optgroup'); gr.label = FUNGI_WHERE[w];
+    FUNGI.filter(f => f[3] === w).forEach(f => {
+      const o = document.createElement('option'); o.value = f[0];
+      o.textContent = f[1] + ' · ' + f[2]; gr.appendChild(o);
+    });
+    funSel.appendChild(gr);
+  });
+  funSel.onchange = () => {
+    if (!funSel.value) return;
+    if (!funList.includes(funSel.value)) funList.push(funSel.value);
+    funSel.value = ''; renderFungi(); updateVerdict();
+  };
+  v.appendChild(funSel);
+  let funList = (p.fungi || []).slice();
+  function renderFungi() {
+    funBox.innerHTML = '';
+    if (!funList.length) {
+      funBox.innerHTML = '<p class="small">None recorded. The species decides whether the tree ' +
+        'uproots or snaps – it is worth naming.</p>';
+      return;
+    }
+    funList.forEach(k => {
+      const f = FUNGI_BY[k]; if (!f) return;
+      const d = document.createElement('div'); d.className = 'funrow';
+      d.innerHTML = '<div><b>' + f[1] + '</b> <span class="small">' + f[2] + '</span>' +
+        '<div class="small">' + FUNGI_WHERE[f[3]] + ' · ' + f[4] + ' · level ' + f[5] + '</div>' +
+        '<div class="small dim">' + f[6] + '</div></div>';
+      const hid = document.createElement('input');
+      hid.type = 'hidden'; hid.dataset.fun = k; d.appendChild(hid);
+      const x = document.createElement('button'); x.className = 'sm x'; x.textContent = '×';
+      x.onclick = () => { funList = funList.filter(y => y !== k); renderFungi(); updateVerdict(); };
+      d.appendChild(x);
+      funBox.appendChild(d);
+    });
+  }
+  renderFungi();
+
   v.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', updateVerdict));
 
   /* --- base data --- */
@@ -2156,6 +2267,10 @@ function collect() {
   panelEl.querySelectorAll('[data-sym]').forEach(cb => { if (cb.checked) sym.push(cb.dataset.sym); });
   o.symptoms = sym;
   o.symptom_labels = sym.map(k => SYM_LABEL[k]).filter(Boolean);
+  const fun = [];
+  panelEl.querySelectorAll('[data-fun]').forEach(el => fun.push(el.dataset.fun));
+  o.fungi = fun;
+  o.fungi_labels = fun.map(k => FUNGI_BY[k] && FUNGI_BY[k][1]).filter(Boolean);
   return o;
 }
 function setEdit(i, patch) {
@@ -2299,7 +2414,7 @@ function dl(name, content, mime) {
 const CSVCOLS = ['tree_id', 'lon', 'lat', 'species', 'name_en', 'planted', 'girth_cm', 'dbh_cm',
   'height_m', 'crown_d_m', 'vitality_roloff', 'crown_dieback_pct', 'damage_class', 'cavity',
   'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'target_type', 'target_distance_m', 'stability', 'breakage_resistance',
-  'traffic_safety', 'urgency', 'symptoms', 'actions', 'inspection_type', 'last_inspection',
+  'traffic_safety', 'urgency', 'symptoms', 'fungi_labels', 'actions', 'inspection_type', 'last_inspection',
   'next_inspection', 'interval_months', 'inspector', 'remarks'];
 function csv() {
   const q = v => {
