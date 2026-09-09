@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2168,6 +2168,12 @@ function openPanel(i, tab) {
         '<div class="small dim">' + f[6] + '</div></div>';
       const hid = document.createElement('input');
       hid.type = 'hidden'; hid.dataset.fun = k; d.appendChild(hid);
+      const ref = document.createElement('a');
+      ref.className = 'sm reflink'; ref.textContent = '↗';
+      ref.title = 'Look the species up';
+      ref.href = 'https://www.inaturalist.org/search?q=' + encodeURIComponent(f[1]);
+      ref.target = '_blank'; ref.rel = 'noopener';
+      d.appendChild(ref);
       const x = document.createElement('button'); x.className = 'sm x'; x.textContent = '×';
       x.onclick = () => { funList = funList.filter(y => y !== k); renderFungi(); updateVerdict(); };
       d.appendChild(x);
@@ -2314,6 +2320,28 @@ async function renderPhotos(tree, gal) {
     db2.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
     const cap = document.createElement('figcaption');
     if (f.kind === 'bark') fig.className = 'bark';
+    // Hand the picture to whatever identification app is on the phone. No API
+    // key, no terms to agree to, and the inspector picks the tool they trust -
+    // which is the right split, because the answer still has to be judged.
+    if (navigator.share) {
+      const sh = document.createElement('button'); sh.className = 'idbtn sm'; sh.textContent = 'ID…';
+      sh.title = 'Send this photo to an identification app';
+      sh.onclick = async () => {
+        try {
+          const blob = await (await fetch(f.url)).blob();
+          const file = new File([blob], tree + '-' + (f.id || '') + '.jpg',
+                                { type: blob.type || 'image/jpeg' });
+          if (navigator.canShare && !navigator.canShare({ files: [file] }))
+            throw new Error('this phone cannot share a file');
+          await navigator.share({ files: [file], title: tree,
+            text: tree + (f.kind === 'bark' ? ' · bark at 1.30 m' : '') });
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+          toast('Sharing failed: ' + (e.message || e));
+        }
+      };
+      fig.appendChild(sh);
+    }
     cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : '') +
       (f.ts || '').slice(0, 16).replace('T', ' ') +
       (f.bearing != null ? ' · ' + f.bearing + '°' : '') +
