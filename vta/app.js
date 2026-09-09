@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -650,6 +650,8 @@ function addTreeHere() {
       const north = (heading != null) ? heading : 0;
       S2P = { phi: THREE.MathUtils.degToRad(north), tx: c.x, tz: c.z };
       if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
+      s2pFrom = 'this spot'; s2pRms = null;
+      placeMarkers(); requestAnchors(); showFit();
       const others = CAT.features.filter((f, i) => hasLocal(props(i))).length;
       toast(others ? 'No GPS fix – recording into a fresh frame, so this tree is not measured ' +
                      'against the earlier ones. Lock on a known tree when you can.'
@@ -805,9 +807,14 @@ function setArMode(m) {
   arMode = m;
   ['survey', 'navigate'].forEach(k =>
     $('mode-' + k) && $('mode-' + k).classList.toggle('on', k === m));
-  $('navBox').style.display = (m === 'navigate' && !S2P) ? 'block' : 'none';
-  // Recording is the thing the app is for. It is never hidden, in any mode -
-  // hiding it behind a mode switch was a straightforward mistake.
+  // Two jobs, two bars. Recording carries the recording tools and nothing
+  // else; navigating asks for a number and shows a map. Everything that
+  // aligns the scene sits behind one button, in both.
+  const nav = (m === 'navigate');
+  $('ctl').style.display = nav ? 'none' : 'flex';
+  $('navbar').style.display = nav ? 'flex' : 'none';
+  $('navmap').style.display = nav ? 'block' : 'none';
+  closePopups();
   showFit(); placeMarkers(); updateNav();
 }
 
@@ -816,23 +823,19 @@ function setArMode(m) {
    honest to draw. */
 let navTarget = null;
 function updateNav() {
-  const box = $('navBox'); if (!box || box.style.display === 'none') return;
-  if (navTarget == null || !CAT.features[navTarget]) {
-    navTarget = nearestByGps();
-    if (navTarget == null) { box.innerHTML = '<p class="small">No trees in the register.</p>'; return; }
-  }
-  const p = props(navTarget), c = CAT.features[navTarget].geometry.coordinates;
-  if (!lastFix) { box.innerHTML = '<p class="small">Waiting for a GPS fix.</p>'; return; }
-  const db = distBear(c[1], c[0], lastFix.lat, lastFix.lon);
-  const rel = heading == null ? null : ((db.b - heading) % 360 + 360) % 360;
-  box.innerHTML =
-    '<div class="navhead"><b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b>' +
-    ' <span class="small">' + esc(p.species || '') + '</span></div>' +
-    '<div class="navbig"><span class="arrow" style="transform:rotate(' +
-      (rel == null ? 0 : rel) + 'deg)">↑</span><span class="m">' +
-      db.d.toFixed(db.d < 100 ? 1 : 0) + ' m</span></div>' +
-    '<div class="small">' + (rel == null ? 'no compass' : 'bearing ' + db.b.toFixed(0) + '°') +
-    ' · GPS ±' + lastFix.acc.toFixed(0) + ' m · no marker until the stand is locked</div>';
+  if (arMode !== 'navigate' || !$('xrui').classList.contains('on')) return;
+  const info = $('nmInfo');
+  if (navTarget == null || !CAT.features[navTarget]) navTarget = nearestByGps();
+  const p = navTarget == null ? null : props(navTarget);
+  const c = navTarget == null ? null : CAT.features[navTarget].geometry.coordinates;
+  const db = (c && lastFix) ? distBear(c[1], c[0], lastFix.lat, lastFix.lon) : null;
+  const rel = (db && heading != null) ? ((db.b - heading) % 360 + 360) % 360 : null;
+  info.innerHTML = !p ? '<span class="small">No trees in the register.</span>'
+    : '<span class="arw" style="transform:rotate(' + (rel == null ? 0 : rel) + 'deg)">↑</span>' +
+      '<b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b>' +
+      '<span>' + (db ? db.d.toFixed(db.d < 100 ? 1 : 0) + ' m' : 'no GPS fix') + '</span>' +
+      '<span class="small">' + esc(p.species || '') + '</span>';
+  drawNavMap();
 }
 function nearestByGps() {
   if (!lastFix) return null;
@@ -991,17 +994,17 @@ function correctPlotFrom(pairs) {          // [{ lat, lon, l:{lx,ly} }]
    Android ships BarcodeDetector but not TextDetector - so barcodes are read
    where the platform can, text where it can, and otherwise the number is
    typed, which is four digits and no worse than what a clipboard needs. */
-function findByNumber(numStr) {
+function findByNumber(numStr, emptyLists) {
   const q = String(numStr || '').trim().toLowerCase();
-  if (!q) return [];
+  if (!q && !emptyLists) return [];
   const here = lastFix;
   const out = [];
   CAT.features.forEach((f, i) => {
     const p = props(i);
     const tag = String(p.tag_no == null ? '' : p.tag_no).trim().toLowerCase();
     const id = String(p.tree_id || '').toLowerCase();
-    const exact = tag && tag === q;
-    if (!exact && tag.indexOf(q) < 0 && id.indexOf(q) < 0) return;
+    const exact = !!q && tag === q;
+    if (q && !exact && tag.indexOf(q) < 0 && id.indexOf(q) < 0) return;
     const c = f.geometry.coordinates;
     const d = here ? distBear(c[1], c[0], here.lat, here.lon).d : null;
     out.push({ i: i, p: p, exact: exact, d: d });
@@ -1717,7 +1720,7 @@ function tick() {
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
   compAt = nowMs;
   if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
-  if (arMode === 'navigate' && !S2P && (edgeTick % 15 === 5)) updateNav();
+  if (arMode === 'navigate' && (edgeTick % 15 === 5)) updateNav();
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
 }
 
@@ -2576,16 +2579,28 @@ function buildNumMenu(prefill) {
   const list = document.createElement('div'); el.appendChild(list);
   const draw = () => {
     list.innerHTML = '';
-    const hits = findByNumber(inp.value).slice(0, 8);
-    if (!inp.value.trim()) { list.innerHTML = '<p class="small">Type the number, or photograph the plate.</p>'; return; }
-    if (!hits.length) { list.innerHTML = '<p class="small">No tree with that number in the register.</p>'; return; }
+    const hits = findByNumber(inp.value, true).slice(0, 8);
+    if (!hits.length) {
+      list.innerHTML = '<p class="small">' + (inp.value.trim()
+        ? 'No tree with that number in the register.' : 'No trees in the register yet.') + '</p>';
+      return;
+    }
     hits.forEach(x => {
       const b = document.createElement('button'); b.className = 'numrow' + (x.exact ? ' ex' : '');
       b.innerHTML = '<span><b>' + esc(x.p.tag_no || x.p.tree_id) + '</b> ' +
         '<span class="small">' + esc(x.p.species || '') + '</span>' +
         (x.p.area ? '<div class="small dim">' + esc(x.p.area) + '</div>' : '') + '</span>' +
         '<span class="small">' + (x.d == null ? '' : x.d.toFixed(x.d < 100 ? 1 : 0) + ' m') + '</span>';
-      b.onclick = () => { selectTree(x.i); el.style.display = 'none'; openPanel(x.i); };
+      b.onclick = () => {
+        selectTree(x.i);
+        el.style.display = 'none';
+        if (arMode === 'navigate' && $('xrui').classList.contains('on')) {
+          navTarget = x.i;
+          $('navNo').value = x.p.tag_no || x.p.tree_id;
+          $('navNo').blur();
+          updateNav();
+        } else openPanel(x.i);
+      };
       list.appendChild(b);
     });
   };
@@ -2701,6 +2716,34 @@ function buildRefMenu() {
   x.onclick = () => { el.style.display = 'none'; };
   act.appendChild(x);
   el.appendChild(act);
+
+  /* The rest of what moves or freezes the scene. It is used once at the start
+     of a session and then never again, which is exactly why it does not
+     deserve a permanent button beside "+ Tree". */
+  const more = document.createElement('div'); more.className = 'btnrow'; more.style.marginTop = '4px';
+  const sb = document.createElement('button'); sb.className = 'sm';
+  sb.textContent = 'I stand at a known tree';
+  sb.onclick = () => { buildChooser(); closePopups('chooser'); $('chooser').style.display = 'block'; };
+  more.appendChild(sb);
+  const lk = document.createElement('button'); lk.className = 'sm' + (sceneLocked ? ' p' : '');
+  lk.textContent = sceneLocked ? 'Scene locked' : 'Lock the scene';
+  lk.onclick = () => {
+    sceneLocked = !sceneLocked;
+    if (sceneLocked) settleComp();
+    toast(sceneLocked ? 'Scene locked – nothing will move it until you unlock.'
+                      : 'Scene unlocked – it will correct itself again.');
+    showFit(); buildRefMenu();
+  };
+  more.appendChild(lk);
+  const fz = document.createElement('button'); fz.className = 'sm' + (fallZone ? ' p' : '');
+  fz.textContent = fallZone ? 'Fall zones on' : 'Fall zones';
+  fz.onclick = () => {
+    fallZone = !fallZone; updateFallZones();
+    toast(fallZone ? 'Fall zones shown – radius is the tree height.' : 'Fall zones hidden.');
+    buildRefMenu();
+  };
+  more.appendChild(fz);
+  el.appendChild(more);
 }
 
 function buildChooser() {
@@ -2786,35 +2829,41 @@ function mapToMe(zoom) {
   drawMap();
   return true;
 }
-function drawMap() {
-  const box = $('mapBox'); if (!box || !box.offsetWidth) return;
-  const v = mapCentre(), w = box.clientWidth, h = box.clientHeight, sc = Math.pow(2, v.z);
-  const cx = lon2px(v.lon, v.z), cy = lat2px(v.lat, v.z);
-  const left = cx - w / 2, top = cy - h / 2;
-  const t0x = Math.floor(left / 256), t1x = Math.floor((left + w) / 256);
-  const t0y = Math.floor(top / 256), t1y = Math.floor((top + h) / 256);
-  const layer = $('mapTiles'), seen = {};
-  for (let tx = t0x; tx <= t1x; tx++) {
-    for (let ty = t0y; ty <= t1y; ty++) {
+/* The tile grid for a view, into any container, out of any cache. The big map
+   and the strip in the AR overlay are the same thing at two sizes. */
+function paintTiles(layer, cache, v, w, h) {
+  const sc = Math.pow(2, v.z);
+  const left = lon2px(v.lon, v.z) - w / 2, top = lat2px(v.lat, v.z) - h / 2;
+  const seen = {};
+  for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
+    for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) {
       if (ty < 0 || ty >= sc) continue;
       const wx = ((tx % sc) + sc) % sc;                    // wrap around the globe
       const key = v.z + '/' + wx + '/' + ty;
       seen[key] = 1;
-      let img = mapTiles[key];
+      let img = cache[key];
       if (!img) {
         img = document.createElement('img');
         img.src = TILE.replace('{z}', v.z).replace('{x}', wx).replace('{y}', ty);
         img.alt = ''; img.loading = 'eager'; img.draggable = false;
         img.onerror = () => { img.style.visibility = 'hidden'; };
-        mapTiles[key] = img; layer.appendChild(img);
+        cache[key] = img; layer.appendChild(img);
       }
       img.style.left = (tx * 256 - left) + 'px';
       img.style.top = (ty * 256 - top) + 'px';
     }
   }
-  Object.keys(mapTiles).forEach(k => {
-    if (!seen[k]) { mapTiles[k].remove(); delete mapTiles[k]; }
+  Object.keys(cache).forEach(k => {
+    if (!seen[k]) { cache[k].remove(); delete cache[k]; }
   });
+  return { left: left, top: top };
+}
+
+function drawMap() {
+  const box = $('mapBox'); if (!box || !box.offsetWidth) return;
+  const v = mapCentre(), w = box.clientWidth, h = box.clientHeight;
+  const o = paintTiles($('mapTiles'), mapTiles, v, w, h);
+  const left = o.left, top = o.top;
   drawMapMarks(left, top, v.z);
   $('mapInfo').textContent = v.lat.toFixed(6) + ', ' + v.lon.toFixed(6) + '  ·  z' + v.z +
     (lastFix ? '  ·  GPS ±' + lastFix.acc.toFixed(0) + ' m' : '');
@@ -2851,6 +2900,56 @@ function drawMapMarks(left, top, z) {
   REFS.forEach(r => put(r.lat, r.lon, 'mkR', r.id));
   if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
 }
+/* Navigating is a map question: where am I, where is that tree. An arrow and
+   a number answer it badly in a wood that has paths - the map excerpt shows
+   both dots and everything between them, at whatever zoom fits the two. */
+let nmCache = {};
+function drawNavMap() {
+  const box = $('navmap');
+  if (!box || box.style.display === 'none' || !box.offsetWidth) return;
+  const w = box.clientWidth, h = box.clientHeight;
+  const tgt = (navTarget != null && CAT.features[navTarget] && CAT.features[navTarget].geometry)
+    ? { lat: CAT.features[navTarget].geometry.coordinates[1],
+        lon: CAT.features[navTarget].geometry.coordinates[0] } : null;
+  const me = lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null;
+  const marks = $('nmMarks');
+  if (!me && !tgt) { marks.innerHTML = '<div class="small" style="padding:8px">No position and no tree to walk to.</div>'; return; }
+  const a = me || tgt, b = tgt || me;
+  const v = { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2, z: MAPZ.max };
+  if (me && tgt) {
+    for (; v.z > MAPZ.min; v.z--) {
+      const dx = Math.abs(lon2px(a.lon, v.z) - lon2px(b.lon, v.z));
+      const dy = Math.abs(lat2px(a.lat, v.z) - lat2px(b.lat, v.z));
+      if (dx < w * 0.72 && dy < h * 0.62) break;
+    }
+  } else v.z = 18;
+  const o = paintTiles($('nmTiles'), nmCache, v, w, h);
+  const X = lon => lon2px(lon, v.z) - o.left, Y = lat => lat2px(lat, v.z) - o.top;
+  marks.innerHTML = '';
+  if (me && tgt) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    ln.setAttribute('x1', X(me.lon)); ln.setAttribute('y1', Y(me.lat));
+    ln.setAttribute('x2', X(tgt.lon)); ln.setAttribute('y2', Y(tgt.lat));
+    ln.setAttribute('stroke', '#ffe083'); ln.setAttribute('stroke-width', '2');
+    ln.setAttribute('stroke-dasharray', '5 4');
+    svg.appendChild(ln); marks.appendChild(svg);
+  }
+  const put = (lat, lon, cls, label) => {
+    const d = document.createElement('div'); d.className = 'mk ' + cls;
+    d.style.left = X(lon) + 'px'; d.style.top = Y(lat) + 'px';
+    if (label) { const t = document.createElement('span'); t.textContent = label; d.appendChild(t); }
+    marks.appendChild(d);
+  };
+  CAT.features.forEach((f, i) => {
+    if (i === navTarget || !f.geometry || f.geometry.type !== 'Point') return;
+    put(f.geometry.coordinates[1], f.geometry.coordinates[0], 't',
+        v.z >= 18 ? (props(i).tag_no || props(i).tree_id) : '');
+  });
+  if (tgt) put(tgt.lat, tgt.lon, 'go', props(navTarget).tag_no || tid(navTarget));
+  if (me) put(me.lat, me.lon, 'me', '');
+}
+
 function mapMoveBy(dx, dy) {
   mapFollow = false;
   const v = mapCentre();
@@ -4603,11 +4702,6 @@ function wire() {
   $('bnew').onclick = addTreeHere;
   $('mode-survey').onclick = () => setArMode('survey');
   $('mode-navigate').onclick = () => setArMode('navigate');
-  $('navNext').onclick = () => {
-    const list = CAT.features.map((f, i) => i);
-    navTarget = list[(list.indexOf(navTarget) + 1) % list.length];
-    updateNav();
-  };
   $('bnum').onclick = () => {
     const el = $('nummenu');
     const open = el.style.display !== 'block';
@@ -4615,34 +4709,15 @@ function wire() {
     closePopups('nummenu');
     el.style.display = open ? 'block' : 'none';
   };
-  $('bref').onclick = () => {
+  const alignMenu = () => {
     const el = $('refmenu');
     const open = el.style.display !== 'block';
     if (open) buildRefMenu();
     closePopups('refmenu');
     el.style.display = open ? 'block' : 'none';
   };
-  $('block').onclick = () => {
-    sceneLocked = !sceneLocked;
-    $('block').classList.toggle('p', sceneLocked);
-    $('block').textContent = sceneLocked ? 'Locked' : 'Lock scene';
-    if (sceneLocked) settleComp();
-    toast(sceneLocked ? 'Scene locked – nothing will move it until you unlock.'
-                      : 'Scene unlocked – it will correct itself again.');
-    showFit();
-  };
-  $('bfz').onclick = () => {
-    fallZone = !fallZone;
-    $('bfz').classList.toggle('p', fallZone);
-    updateFallZones();
-    toast(fallZone ? 'Fall zones shown – radius is the tree height.' : 'Fall zones hidden.');
-  };
-  $('bstand').onclick = () => {
-    const c = $('chooser');
-    const open = c.style.display !== 'block';
-    closePopups('chooser');
-    c.style.display = open ? 'block' : 'none';
-  };
+  $('bref').onclick = alignMenu;
+  $('balign').onclick = alignMenu;
   $('bmeas').onclick = () => {
     const m = $('mmenu');
     if (m.style.display === 'block') { m.style.display = 'none'; return; }
@@ -4661,6 +4736,15 @@ function wire() {
     if (t == null) return toast('No tree selected.');
     selectTree(t); startBark(t);
   };
+  const navQuery = () => {
+    const el = $('nummenu');
+    buildNumMenu($('navNo').value);
+    closePopups('nummenu');
+    el.style.display = 'block';
+  };
+  $('navNo').oninput = navQuery;
+  $('navNo').onfocus = navQuery;
+  $('bqn').onclick = () => $('bq').click();
   $('bq').onclick = () => {
     // the control measurements only exist inside this session's frame - leaving
     // throws them away, and there is no getting them back
