@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.7.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3349,6 +3349,20 @@ function wireMap() {
      system, not in degrees. Typed in as it stands in the register, it comes
      out where the phone will actually find it - projection and plate motion
      both taken off. */
+  /* Somewhere you have never been has no GPS fix to centre on. The places the
+     register is fetched for are the places you want to look at first. */
+  function mapGo(lat, lon, z) {
+    const v = mapCentre();
+    v.lat = lat; v.lon = lon; v.z = z || 18;
+    mapFollow = false; drawMap();
+  }
+  BERLIN_SPOTS.forEach(sp => {
+    const b = document.createElement('button'); b.className = 'sm';
+    b.textContent = '→ ' + sp.name;
+    b.onclick = () => { mapGo(sp.lat, sp.lon, 17); toast('Map at ' + sp.name + '.'); };
+    $('mSpots').appendChild(b);
+  });
+
   const crsSel = $('mRefCrs');
   Object.keys(CRS).forEach(k => {
     const o = document.createElement('option'); o.value = k; o.textContent = k + ' · ' + CRS[k].name;
@@ -3356,21 +3370,32 @@ function wireMap() {
   });
   crsSel.value = prefs().crs || 'EPSG:25833';
   crsSel.onchange = () => setPref('crs', crsSel.value);
-  $('mAddRefXY').onclick = () => {
+  const readXY = () => {
     const e = parseFloat(String($('mRefE').value).replace(',', '.'));
     const n = parseFloat(String($('mRefN').value).replace(',', '.'));
-    if (!isFinite(e) || !isFinite(n)) return toast('Type both coordinates.');
-    const c = CRS[crsSel.value];
-    const g = c.to(e, n);
-    if (!isFinite(g.lat) || !isFinite(g.lon) || Math.abs(g.lat) > 90)
-      return toast('Those are not coordinates in ' + crsSel.value + '.');
+    if (!isFinite(e) || !isFinite(n)) { toast('Type both coordinates.'); return null; }
+    const g = CRS[crsSel.value].to(e, n);
+    if (!isFinite(g.lat) || !isFinite(g.lon) || Math.abs(g.lat) > 90) {
+      toast('Those are not coordinates in ' + crsSel.value + '.'); return null;
+    }
+    g.e = e; g.n = n;
+    return g;
+  };
+  $('mShowXY').onclick = () => {
+    const g = readXY(); if (!g) return;
+    mapGo(g.lat, g.lon, 19);
+    toast('Map at ' + g.lat.toFixed(6) + ', ' + g.lon.toFixed(6) + '.');
+  };
+  $('mAddRefXY').onclick = () => {
+    const g = readXY(); if (!g) return;
+    const e = g.e, n = g.n;
     const id = ($('mRefId').value || '').trim() || ('P' + (REFS.length + 1));
     if (refById(id)) return toast('A reference point called ' + id + ' already exists.');
     REFS.push({ id: id, lat: +g.lat.toFixed(7), lon: +g.lon.toFixed(7),
                 note: crsSel.value + ' ' + e.toFixed(2) + ' / ' + n.toFixed(2), acc: 0.05 });
     saveRefs(); renderRefs();
     $('mRefId').value = ''; $('mRefE').value = ''; $('mRefN').value = '';
-    const v = mapCentre(); v.lat = g.lat; v.lon = g.lon; v.z = 19; mapFollow = false; drawMap();
+    mapGo(g.lat, g.lon, 19);
     toast(id + ' set from ' + crsSel.value + '.');
   };
   /* What the crosshair is, in the chosen system - to read a point off the map
@@ -3398,8 +3423,13 @@ function wireMap() {
       bMsg(r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + spot.name +
            (r.dup ? ' · ' + r.dup + ' were already here' : '') +
            (r.bad ? ' · ' + r.bad + ' without a position' : ''));
-      if (r.added) toast(r.added + ' trees imported – register positions, so stand at each ' +
-                         'stem and record it properly.');
+      if (r.added) {
+        toast(r.added + ' trees imported – register positions, so stand at each ' +
+              'stem and record it properly.');
+        showScreen('map');
+        mapCentre(); mapView.lat = spot.lat; mapView.lon = spot.lon; mapView.z = 17;
+        mapFollow = false; drawMap();
+      }
     } catch (e) {
       bMsg('Failed: ' + e.message);
     }

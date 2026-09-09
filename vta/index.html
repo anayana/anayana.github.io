@@ -346,6 +346,7 @@ table.hist th{color:#8fa697;font-weight:500}
         <button id="mMe">Centre on me</button>
         <button id="mAddTree">+ Tree at crosshair</button>
       </div>
+      <div class="btnrow" id="mSpots"></div>
       <div class="btnrow"><button id="mCache">Save this area offline</button></div>
       <div class="small" id="mSel"></div>
       <div class="btnrow"><button class="p" id="mMove" style="display:none"></button></div>
@@ -359,7 +360,8 @@ table.hist th{color:#8fa697;font-weight:500}
         <input type="text" id="mRefE" inputmode="decimal" placeholder="373505.67"></div>
       <div class="row"><label>North / Latitude</label>
         <input type="text" id="mRefN" inputmode="decimal" placeholder="5808524.08"></div>
-      <div class="btnrow"><button id="mAddRefXY">Set from coordinates</button></div>
+      <div class="btnrow"><button id="mShowXY">Go to these coordinates</button>
+        <button id="mAddRefXY">Set reference point there</button></div>
       <div class="small" id="mRefXY"></div>
       <div id="refList"></div>
       <p class="small">Measure three or four of these in AR (button <b>Refs</b>) before
@@ -510,8 +512,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.7.0"></script>
-<script src="data.js?v=2.7.0"></script>
-<script src="app.js?v=2.7.0"></script>
+<script src="vendor/three.min.js?v=2.7.1"></script>
+<script src="data.js?v=2.7.1"></script>
+<script src="app.js?v=2.7.1"></script>
 </body>
 </html>
