@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -946,6 +946,58 @@ function findByNumber(numStr) {
                      ((a.d == null ? 1e9 : a.d) - (b.d == null ? 1e9 : b.d)));
   return out;
 }
+/* ---- reading the number off the plate ----
+   Tesseract, vendored into the app rather than fetched: the whole point is a
+   wood with no signal. It is nine megabytes, so nothing loads until the first
+   plate is photographed, and the service worker keeps what it fetched. The
+   engine is told it is looking at one line of digits and nothing else, which
+   is most of what makes four digits on a plastic tag readable at all. */
+const OCR_DIR = 'vendor/tesseract/';
+let ocrWorker = null, ocrLoading = null, ocrBroken = false;
+function loadScriptOnce(src) {
+  return new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = () => res(true);
+    el.onerror = () => rej(new Error('not vendored'));
+    document.head.appendChild(el);
+  });
+}
+async function ocrGetWorker() {
+  if (ocrWorker) return ocrWorker;
+  if (ocrBroken) throw new Error('the OCR files are not in this build');
+  if (!ocrLoading) ocrLoading = (async () => {
+    try {
+      if (typeof Tesseract === 'undefined') await loadScriptOnce(OCR_DIR + 'tesseract.min.js');
+      const w = await Tesseract.createWorker('eng', 1, {
+        workerPath: OCR_DIR + 'worker.min.js',
+        corePath: OCR_DIR,
+        langPath: OCR_DIR,
+        gzip: true
+      });
+      await w.setParameters({
+        tessedit_char_whitelist: '0123456789',
+        tessedit_pageseg_mode: '7'                 // one line of text, not a page
+      });
+      ocrWorker = w;
+      return w;
+    } catch (e) { ocrBroken = true; ocrLoading = null; throw e; }
+  })();
+  return ocrLoading;
+}
+async function ocrDigits(blob) {
+  const w = await ocrGetWorker();
+  const r = await w.recognize(blob);
+  const txt = (r && r.data && r.data.text) || '';
+  const runs = txt.match(/\d{2,8}/g);
+  if (!runs) return null;
+  runs.sort((a, b) => b.length - a.length);
+  const conf = r.data.confidence == null ? null : Math.round(r.data.confidence);
+  // A plate read at four percent is the engine telling you it guessed. Pass it
+  // on with the number rather than dropping it, and let the caller decide
+  // whether to fill a field with it.
+  return { text: runs[0], how: 'ocr', conf: conf, sure: conf == null || conf >= 60 };
+}
+
 async function readNumberFromImage(blob) {
   // whatever the platform happens to offer, and nothing if it offers nothing
   try {
@@ -965,6 +1017,10 @@ async function readNumberFromImage(blob) {
         .join(' ').match(/\d{2,8}/g);
       if (digits && digits.length) return { text: digits[0], how: 'text' };
     }
+  } catch (e) {}
+  try {
+    const r = await ocrDigits(blob);
+    if (r) return r;
   } catch (e) {}
   return null;
 }
@@ -2336,9 +2392,13 @@ function takeARPhoto(frame) {
       out.toBlob(bl => { if (!bl) return;
         readNumberFromImage(bl).then(r => {
           if (!r) return;
-          meta.read = r.text; meta.readBy = r.how;
-          toast('Plate read as ' + r.text + ' – check it.');
-          $('nummenu').style.display = 'block'; buildNumMenu(r.text);
+          meta.read = r.text; meta.readBy = r.how; meta.readConf = r.conf;
+          const sure = r.sure !== false;
+          toast(sure ? 'Plate read as ' + r.text + (r.conf != null ? ' (' + r.conf + ' %)' : '')
+                     : 'Plate unreadable – it looked like ' + r.text +
+                       (r.conf != null ? ' at only ' + r.conf + ' %' : '') + '. Type it.');
+          $('nummenu').style.display = 'block';
+          buildNumMenu(sure ? r.text : '');
         }).catch(() => {});
       }, 'image/jpeg', 0.8);
     }

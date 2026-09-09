@@ -1,0 +1,4 @@
+tesseract.js 7.0.0
+tesseract.js-core 7.0.0 (lstm cores only: relaxedsimd, simd, plain)
+@tesseract.js-data/eng 1.0.0 (4.0.0_best_int, gzipped)
+vendored from registry.npmjs.org
