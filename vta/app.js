@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.7.2';
+const APP_VERSION = '2.8.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -662,14 +662,18 @@ function addTreeHere() {
   const g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
   if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
   const near = nearbyTree(g.lon, g.lat, 2.0, l);
-  s2pAuto = false;                    // trees are being measured into this frame now
   const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc, l, true);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+  // the measurement that matters: where this stem is in the session, which no
+  // later correction of the frame can spoil
+  sessScene.set(i, { x: c.x, z: c.z });
   placeMarkers();
   selectTree(i);
   openPanel(i);
+  const rough = s2pAuto && CAT.features.some((f, k) => k !== i && hasLocal(props(k)));
   toast('Tree ' + tid(i) + ' recorded where you stand.' +
-        (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : ''));
+        (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : '') +
+        (rough ? ' Against the trees already here it is only as good as GPS – tap three stems and it moves onto the right place.' : ''));
 }
 
 /* Standing at a tree you know is a whole fix: the position comes from that
@@ -685,6 +689,7 @@ function lockOnTree(i) {
   const at = s2pApply(l.lx, l.ly);
   S2P.tx = cam.x - at.x; S2P.tz = cam.z - at.z;
   s2pFrom = 'the tree you stand at'; s2pRms = null; s2pAuto = false;
+  rebaseSession();
   placeMarkers(); requestAnchors(); showFit();
   return true;
 }
@@ -719,11 +724,13 @@ function showFit() {
   if (!mode) { el.textContent = ''; return; }
   // say what it means for the markers, not what the maths is called
   el.textContent = S2P
-      ? 'locked on ' + s2pFrom + (s2pRms != null ? ' ±' + s2pRms.toFixed(1) + ' m' : '')
+      ? (s2pAuto ? 'rough – markers from ' + s2pFrom +
+                   (s2pRms != null ? ' ±' + s2pRms.toFixed(0) + ' m' : '') + ' · tap 3 stems'
+                 : 'locked on ' + s2pFrom + (s2pRms != null ? ' ±' + s2pRms.toFixed(2) + ' m' : ''))
     : arMode === 'survey' ? 'not locked – record a tree to start a survey'
     : done >= 2 ? 'ready – press Apply'
     : 'not locked – arrow only, no markers';
-  el.className = S2P ? 'ok' : 'warn';
+  el.className = (S2P && !s2pAuto) ? 'ok' : 'warn';
 }
 let lastFit = null;
 
@@ -1235,7 +1242,7 @@ function startGPS() {
     // of the day, yet everything on screen is drawn relative to the origin.
     // Keep taking the better fix until a session pins the scene down.
     trackFix(lastFix);
-    autoAlign();
+    if (autoAlign()) setTimeout(offerStemLock, 800);   // a first fix is also a first chance
     if (mapFollow && $('sc-map').classList.contains('on')) mapToMe(!mapView);
     if (!origin || (!mode && !originPinned && originAcc != null && lastFix.acc < originAcc - 1)) {
       origin = { lat: lastFix.lat, lon: lastFix.lon };
@@ -1461,9 +1468,42 @@ function fitS2P(pairs, source, auto) {
   S2P.tx = -at0.x; S2P.tz = -at0.z;
   s2pFrom = source || ''; s2pRms = f.rms; s2pAuto = !!auto;
   if (!sceneLocked) glideFrom(prev);
+  rebaseSession();
   placeMarkers(); requestAnchors(); showFit();
   return f;
 }
+/* ---- what a session recorded, in the session's own coordinates ----
+   A tree recorded in a session is measured by the session's tracking, which is
+   the accurate part: where it stands relative to the camera is centimetres,
+   and stays that way whatever anyone later decides about where the camera is.
+   Its plot coordinates are that measurement seen through the transform, so
+   they are only ever as good as the transform was at the moment of recording.
+
+   So the measurement is kept, and the plot coordinates are recomputed from it
+   every time the transform improves. Record first and lock later, in any
+   order: three stems tapped at the end of an hour put every tree recorded in
+   that hour where it belongs, instead of leaving them where a compass reading
+   from an hour ago said. Within one session the trees keep exact geometry
+   against each other throughout - the same transform moves all of them. */
+let sessScene = new Map();
+function rebaseSession() {
+  if (!S2P || !sessScene.size) return 0;
+  let n = 0;
+  sessScene.forEach((p, i) => {
+    const f = CAT.features[i];
+    if (!f) return;
+    const l = s2pInvert(p.x, p.z);
+    setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+    const g = plotToWgs(l.lx, l.ly);
+    // written straight in: this is the same measurement in better coordinates,
+    // not somebody moving a tree, so it is not a change to be undone
+    if (g) f.geometry.coordinates = [+g.lon.toFixed(7), +g.lat.toFixed(7)];
+    n++;
+  });
+  if (n) { saveCat(); renderList(); }
+  return n;
+}
+
 /* Whether the current alignment is the app's own guess (GPS, compass, walking)
    or something measured. A measured one is never overwritten, and neither is
    a frame that has trees recorded into it - two stems recorded either side of
@@ -1496,6 +1536,7 @@ function autoAlign(force) {
   S2P.tx = c.x - at.x; S2P.tz = c.z - at.z;
   s2pFrom = 'GPS and the compass'; s2pRms = lastFix.acc; s2pAuto = true;
   glideFrom(prev);
+  rebaseSession();
   placeMarkers(); requestAnchors(); showFit();
   if (!autoSaid) {
     autoSaid = true;
@@ -1703,7 +1744,9 @@ function enterAR() {
   buildEdge();
   $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
+  sessScene.clear(); stemOffered = false;
   autoAlign();                  // aligning is not a thing the user should have to ask for
+  setTimeout(offerStemLock, 1200);   // after the first frames have found the floor
 }
 function endAR() {
   renderer.setAnimationLoop(null);
@@ -2639,6 +2682,25 @@ function updateEdge() {
   });
 }
 
+/* Markers drawn from GPS and a compass are metres out, and that is the state
+   every session starts in. Three taps fix it exactly, so the session asks for
+   them rather than waiting to be found in a menu - once, at the start, only
+   where there is something to match against, and with a Cancel for anyone who
+   is only passing through. */
+let stemOffered = false;
+function offerStemLock() {
+  if (stemOffered || !hitOk || measure || sceneLocked) return false;
+  if (!S2P || !s2pAuto) return false;                 // already measured: nothing to offer
+  if (!plotGeoreferenced()) return false;
+  if (candidateTrees(60).length < 3) return false;
+  stemOffered = true;
+  startMeasure('stems');
+  mbar('<b>Markers are from GPS, ±' + (s2pRms == null ? '?' : s2pRms.toFixed(0)) + ' m</b><br>' +
+       'Aim at the base of three stems you can see, well spread, and tap each. ' +
+       'That puts every marker on its tree.', [['Not now', clearMeasure]]);
+  return true;
+}
+
 /* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
 function runStemMatch(pts) {
   const r = matchStems(pts.slice());
@@ -2650,12 +2712,24 @@ function runStemMatch(pts) {
          [['Cancel', clearMeasure]]);
     return;
   }
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
+  const pFrom = s2pFrom, pRms = s2pRms, pAuto = s2pAuto;
   const f = fitS2P(r.pairs.map(pp => ({ id: tid(pp.tree), l: pp.l, s: pp.s })), 'stems');
   if (!f) { toast('The stems are too close together to orient on.'); return; }
-  if (!confirm('Matched ' + r.n + ' stems:\n\n' + names + '\n\nresidual ' +
-               f.rms.toFixed(2) + ' m\n\nUse them?')) { S2P = null; placeMarkers(); return; }
+  // A metre of residual means the stems were not the trees the register
+  // thinks: say so and leave the old lock alone rather than taking it.
+  if (f.rms > 1.0) {
+    S2P = prev; s2pFrom = pFrom; s2pRms = pRms; s2pAuto = pAuto;
+    placeMarkers(); showFit();
+    mbar('<b>That does not fit</b><br>The spacing of those stems is ' + f.rms.toFixed(1) +
+         ' m away from any set of trees in the register. Mark them again, further apart, ' +
+         'or a different three.', [['Cancel', clearMeasure]]);
+    return;
+  }
   clearMeasure();
-  toast('Locked on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m');
+  const n = rebaseSession();
+  toast('Locked on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m · ' + names +
+        (n ? ' · ' + n + ' tree' + (n === 1 ? '' : 's') + ' recorded today moved onto it' : ''));
 }
 
 function buildNumMenu(prefill) {
