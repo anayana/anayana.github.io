@@ -157,6 +157,7 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 .row textarea{min-height:54px;resize:vertical;grid-column:1/-1}
 .row.wide{grid-template-columns:1fr}
 .spbox{display:flex;flex-direction:column;gap:5px}
+.photos figure.bark{outline:2px solid #8fd6a8;outline-offset:1px;border-radius:10px}
 .sym label{display:flex;gap:9px;align-items:flex-start;padding:6px 2px;border-bottom:1px solid #1a231d;font-size:13.5px}
 .sym input{width:20px;height:20px;flex:0 0 20px;accent-color:#3f8a60;margin:0}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
@@ -309,6 +310,7 @@ table.hist th{color:#8fa697;font-weight:500}
   <div id="mmenu"></div>
   <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
   <div class="bar" id="ctl2">
+    <button id="bshot">Photo</button>
     <button id="bstand">I am at…</button>
     <button id="bl">◀ −5°</button>
     <button id="br">+5° ▶</button>
@@ -320,7 +322,7 @@ table.hist th{color:#8fa697;font-weight:500}
     <button class="p" id="bnew">+ Tree</button>
     <button id="bref">Refs</button>
     <button id="bmeas">Measure</button>
-    <button id="bshot">Photo</button>
+    <button id="bbark">Bark</button>
     <button id="bmore">⋯</button>
     <button class="x" id="bq">Exit</button>
   </div>
@@ -330,8 +332,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.5.1"></script>
-<script src="data.js?v=1.5.1"></script>
-<script src="app.js?v=1.5.1"></script>
+<script src="vendor/three.min.js?v=1.6.0"></script>
+<script src="data.js?v=1.6.0"></script>
+<script src="app.js?v=1.6.0"></script>
 </body>
 </html>

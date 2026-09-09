@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -92,6 +92,7 @@ const F_VTA = [
 ];
 const F_BASE = [
   ['tree_id', 'Tree ID', 'text'],
+  ['tag_no', 'Number on the trunk', 'text'],
   ['species', 'Species (scientific)', 'species'],
   ['name_en', 'Common name', 'text'],
   ['name_fi', 'Name (Finnish)', 'text'],
@@ -618,7 +619,7 @@ let camGps = new THREE.Vector3(0, 1.55, 0);
 /* AR tools */
 let hitOk = false, hitSource = null, hitPt = null, reticle = null;
 let anchorsOk = false, anchorMap = new Map(), anchorsWanted = false;
-let camAccessOk = false, shotFor = null;
+let camAccessOk = false, shotFor = null, shotKind = null;
 let selIdx = null, measure = null, mGroup = null;
 let edgeEls = {}, edgeTick = 0;
 
@@ -663,7 +664,7 @@ function labelTexture(i) {
   g.lineWidth = 8; g.strokeStyle = col; roundRect(g, 4, 4, 632, 312, 26); g.stroke();
   g.fillStyle = col; g.beginPath(); g.arc(62, 74, 26, 0, 7); g.fill();
   g.fillStyle = '#fff'; g.font = 'bold 46px system-ui,sans-serif';
-  g.fillText(p.tree_id || '?', 104, 90);
+  g.fillText(p.tag_no ? ('№ ' + p.tag_no) : (p.tree_id || '?'), 104, 90);
   // the species is what you actually look for on a marker, so it gets weight,
   // and its absence gets said rather than left as a blank line
   const sp = (p.species || '').trim(), cn = (p.name_en || '').trim();
@@ -846,7 +847,7 @@ function enterAR() {
   showFit();
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
-  $('bshot').disabled = !(mode === 'WebXR' && camAccessOk);
+  $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
 }
 function endAR() {
@@ -854,7 +855,7 @@ function endAR() {
   clearMeasure();
   dropAnchors();
   if (hitSource) { try { hitSource.cancel(); } catch (e) {} hitSource = null; }
-  hitOk = anchorsOk = camAccessOk = false; shotFor = null;
+  hitOk = anchorsOk = camAccessOk = false; shotFor = null; barkFor = null; shotKind = null;
   if (xrSession) { try { xrSession.end(); } catch (e) {} xrSession = null; }
   renderer.xr.enabled = false;
   const v = $('video');
@@ -915,6 +916,7 @@ function tick() {
   });
   if ($('hud').classList.contains('open'))
     $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+  if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
 }
 
@@ -1260,6 +1262,71 @@ function buildMeasureMenu() {
   el.appendChild(row);
 }
 
+/* ---- bark photograph at breast height ----
+   The field rule: photograph the bark at 1.30 m on the side the number tag
+   hangs, so next year's photograph shows the same patch of the same trunk and
+   the two can be compared. Bark is individual, but only if the frame is
+   repeatable, so the three things that decide the frame are gated here rather
+   than left to the eye: how high the camera is, whether it is level, and which
+   way it faces. WebXR gives all three - local-floor makes the camera's y a
+   height above the ground, and the world is north-aligned once fitted.
+
+   The first bark photograph of a tree defines its side; later ones are held to
+   it. */
+const BARK_H = 1.30, BARK_H_TOL = 0.12, BARK_PITCH_TOL = 8, BARK_BEAR_TOL = 22;
+let barkFor = null, barkRef = null;
+
+function camPitchDeg() {
+  const d = camDir();
+  return Math.asin(THREE.MathUtils.clamp(d.y, -1, 1)) * 180 / Math.PI;
+}
+function barkState() {
+  const h = camPos().y, pitch = camPitchDeg();
+  const bear = (camYawDeg() + worldYaw + headOff) % 360;
+  const dh = h - BARK_H;
+  let db = null;
+  if (barkRef != null) {
+    db = ((bear - barkRef + 540) % 360) - 180;
+  }
+  return {
+    h: h, dh: dh, pitch: pitch, bearing: bear, dBear: db,
+    okH: Math.abs(dh) <= BARK_H_TOL,
+    okP: Math.abs(pitch) <= BARK_PITCH_TOL,
+    okB: db == null || Math.abs(db) <= BARK_BEAR_TOL
+  };
+}
+function barkHint() {
+  if (barkFor == null) return;
+  const st = barkState();
+  const arrow = v => v > 0 ? '↓ lower' : '↑ raise';
+  const parts = [
+    (st.okH ? '✓ ' : '') + st.h.toFixed(2) + ' m' + (st.okH ? '' : ' – ' + arrow(st.dh)),
+    (st.okP ? '✓ level' : (st.pitch > 0 ? 'tilt down' : 'tilt up') + ' ' + Math.abs(st.pitch).toFixed(0) + '°')
+  ];
+  if (st.dBear != null)
+    parts.push(st.okB ? '✓ right side'
+      : 'go ' + (st.dBear > 0 ? 'left' : 'right') + ' ' + Math.abs(st.dBear).toFixed(0) + '° round the stem');
+  else parts.push('side: where the number hangs');
+  const ready = st.okH && st.okP && st.okB;
+  mbar('<b>Bark at 1.30 m · ' + (props(barkFor).tag_no || props(barkFor).tree_id) + '</b><br>' +
+       parts.join(' · '),
+       [[ready ? 'Take it' : 'Not yet', ready ? () => { shotFor = barkFor; shotKind = 'bark';
+            barkFor = null; clearMeasure(); toast('Bark photo …'); } : () => {}, ready ? 'p' : ''],
+        ['Cancel', () => { barkFor = null; clearMeasure(); }]]);
+}
+function startBark(tree) {
+  if (mode !== 'WebXR') return toast('Bark photos need the WebXR mode – it is what measures the height.');
+  if (!camAccessOk) return toast('This session did not grant camera access.');
+  clearMeasure();
+  barkFor = tree; barkRef = null;
+  photoList(props(tree).tree_id).then(ps => {
+    const b = ps.filter(x => x.kind === 'bark' && x.bearing != null)
+               .sort((x, y) => (x.ts < y.ts ? 1 : -1))[0];
+    barkRef = b ? b.bearing : null;
+    if (b) toast('Earlier bark photo from ' + b.bearing + '° – line up with it.');
+  }).catch(() => {});
+}
+
 /* ---- photo from inside the session ----
    Without camera-access the file dialog is the only route, and Chrome blocks
    that during an immersive session. */
@@ -1301,6 +1368,9 @@ function takeARPhoto(frame) {
     const gp = sceneToWgs(c);
     if (gp) { meta.lat = +gp.lat.toFixed(7); meta.lon = +gp.lon.toFixed(7); }
     meta.bearing = Math.round((camYawDeg() + worldYaw + headOff) % 360);
+    meta.h = +c.y.toFixed(2);
+    meta.pitch = Math.round(camPitchDeg());
+    if (shotKind) { meta.kind = shotKind; shotKind = null; }
     const g = world.children.find(o => o.userData.idx === tree);
     if (g) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
 
@@ -2120,6 +2190,7 @@ async function renderPhotos(tree, gal) {
   try { list = await photoList(tree); } catch (e) { gal.innerHTML = '<p class="small">Photos could not be read.</p>'; return; }
   gal.innerHTML = '';
   if (!list.length) { gal.innerHTML = '<p class="small">No photos yet.</p>'; return; }
+  list.sort((a, b) => ((b.kind === 'bark') - (a.kind === 'bark')) || (a.ts < b.ts ? 1 : -1));
   list.forEach(f => {
     const fig = document.createElement('figure');
     const im = document.createElement('img'); im.src = f.url; im.alt = tree;
@@ -2127,8 +2198,11 @@ async function renderPhotos(tree, gal) {
     const db2 = document.createElement('button'); db2.className = 'del sm'; db2.textContent = '×';
     db2.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
     const cap = document.createElement('figcaption');
-    cap.textContent = (f.ts || '').slice(0, 16).replace('T', ' ') +
+    if (f.kind === 'bark') fig.className = 'bark';
+    cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : '') +
+      (f.ts || '').slice(0, 16).replace('T', ' ') +
       (f.bearing != null ? ' · ' + f.bearing + '°' : '') +
+      (f.h != null ? ' · ' + f.h.toFixed(2) + ' m' : '') +
       (f.dist != null ? ' · ' + f.dist + ' m' : '');
     fig.appendChild(im); fig.appendChild(db2); fig.appendChild(cap);
     gal.appendChild(fig);
@@ -2321,8 +2395,13 @@ function wire() {
   $('bshot').onclick = () => {
     const t = selIdx == null ? nearestTree() : selIdx;
     if (t == null) return toast('No tree selected.');
-    selectTree(t); shotFor = t;
+    selectTree(t); shotFor = t; shotKind = null;
     toast('Capturing photo of ' + props(t).tree_id + ' …');
+  };
+  $('bbark').onclick = () => {
+    const t = selIdx == null ? nearestTree() : selIdx;
+    if (t == null) return toast('No tree selected.');
+    selectTree(t); startBark(t);
   };
   $('bmore').onclick = () => {
     $('ctl2').classList.toggle('on');
