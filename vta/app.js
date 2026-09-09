@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.11.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -145,6 +145,8 @@ const F_VTA = [
   ['breakage_resistance', 'Breakage resistance', 'select', SAFE],
   ['target_type', 'Target', 'select', ['none', 'path', 'road', 'parking', 'building', 'playground', 'other']],
   ['target_distance_m', 'Distance to target (m)', 'number'],
+  ['target_occupancy', 'Use of the target', 'select',
+   ['', 'rarely used', 'occasional', 'frequent', 'constant']],
   ['traffic_safety', 'Traffic safety', 'select', SAFE],
   ['urgency', 'Urgency', 'select', ['none', 'next growing season', '3 months', '1 month', 'immediate']],
   ['actions', 'Actions', 'list'],
@@ -174,7 +176,8 @@ const LVLTXT = ['inconspicuous', 'minor findings', 'conspicuous – review measu
 /* ============================ STORAGE ============================ */
 
 const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1',
-      K_NIA = 'vta_nia_v1', K_EXP = 'vta_exported_v1';
+      K_NIA = 'vta_nia_v1', K_EXP = 'vta_exported_v1', K_TRASH = 'vta_trash_v1',
+      K_ROUND = 'vta_round_v1', K_PREF = 'vta_prefs_v1';
 let mem = {};                                  // fallback when localStorage is blocked
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
@@ -215,6 +218,89 @@ function saveEdits() { lsSet(K_EDIT, JSON.stringify(edits)); }
 function tid(i) { return (CAT.features[i].properties || {}).tree_id || ('#' + i); }
 function props(i) { return Object.assign({}, CAT.features[i].properties, edits[tid(i)] || {}); }
 function isEdited(i) { return !!edits[tid(i)]; }
+
+/* --------- keeping the data ---------
+   Photos live in IndexedDB, which a browser is entitled to evict when the disk
+   runs short - quietly, and noticed only when the record is wanted. Asking for
+   persistence takes that decision away from the browser, and the fill level is
+   worth a line on screen before it becomes a problem rather than after. */
+let storeInfo = { used: 0, quota: 0, persisted: false, ok: false };
+async function storageCheck(ask) {
+  if (!navigator.storage) return storeInfo;
+  try {
+    if (ask && navigator.storage.persist && navigator.storage.persisted &&
+        !(await navigator.storage.persisted())) await navigator.storage.persist();
+    if (navigator.storage.persisted) storeInfo.persisted = await navigator.storage.persisted();
+    if (navigator.storage.estimate) {
+      const e = await navigator.storage.estimate();
+      storeInfo.used = e.usage || 0; storeInfo.quota = e.quota || 0;
+    }
+    storeInfo.ok = true;
+  } catch (e) {}
+  return storeInfo;
+}
+function mb(n) { return (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + ' MB'; }
+
+/* --------- deleted trees are kept for a while ---------
+   A mis-tap on Delete used to end a tree and its history. The record waits in
+   a bin instead; its photographs are keyed by tree id and are never deleted,
+   so restoring brings them back with it. */
+function trashList() {
+  try { return JSON.parse(lsGet(K_TRASH)) || []; } catch (e) { return []; }
+}
+function trashPush(feature, edit) {
+  const t = trashList();
+  t.unshift({ ts: new Date().toISOString(), feature: feature, edit: edit || null });
+  lsSet(K_TRASH, JSON.stringify(t.slice(0, 20)));
+}
+function trashRestore(n) {
+  const t = trashList(), it = t[n];
+  if (!it) return null;
+  const id = it.feature.properties.tree_id;
+  if (CAT.features.some(f => f.properties.tree_id === id)) return 'exists';
+  CAT.features.push(it.feature);
+  if (it.edit) { edits[id] = it.edit; saveEdits(); }
+  saveCat(); t.splice(n, 1); lsSet(K_TRASH, JSON.stringify(t));
+  buildMarkers(); renderList(); renderStats(); renderTrash();
+  return id;
+}
+
+/* --------- plausibility ---------
+   Nothing here blocks a value: the field is always right and the form is
+   always wrong. But a residual wall thicker than the stem radius, or a
+   twenty-four metre tree entered as two hundred and forty, should be seen
+   before it reaches a report with a signature under it. */
+function plausible(p) {
+  const w = [], n = num;
+  const t = n(p.wall_t_cm), R = n(p.radius_r_cm), h = n(p.height_m),
+        d = n(p.dbh_cm), g = n(p.girth_cm), cd = n(p.crown_dieback_pct);
+  if (t != null && R != null && t >= R) w.push('Residual wall t (' + t + ') is not smaller than the radius R (' + R + ').');
+  if (h != null && (h < 1 || h > 70)) w.push('Height ' + h + ' m is outside 1–70 m.');
+  if (d != null && (d < 1 || d > 300)) w.push('DBH ' + d + ' cm is outside 1–300 cm.');
+  if (d != null && g != null) {
+    const fromG = g / Math.PI;
+    if (Math.abs(fromG - d) > Math.max(6, 0.3 * d))
+      w.push('DBH ' + d + ' cm and girth ' + g + ' cm disagree – the girth implies ' + fromG.toFixed(0) + ' cm.');
+  }
+  if (cd != null && (cd < 0 || cd > 100)) w.push('Crown dieback ' + cd + ' % is outside 0–100.');
+  if (p.last_inspection && p.next_inspection && p.next_inspection < p.last_inspection)
+    w.push('The next inspection is dated before the last one.');
+  if (n(p.target_distance_m) != null && n(p.target_distance_m) > 200)
+    w.push('Distance to target ' + p.target_distance_m + ' m – beyond any fall zone.');
+  return w;
+}
+
+/* Two people, or one person twice, recording the same stem. */
+function nearbyTree(lon, lat, within) {
+  let best = null, bd = within;
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    const d = distBear(c[1], c[0], lat, lon).d;
+    if (d < bd) { bd = d; best = { i: i, d: d }; }
+  });
+  return best;
+}
 
 /* --------- photos in IndexedDB --------- */
 let PDB = null, photosOk = ('indexedDB' in window);
@@ -334,9 +420,17 @@ function assess(p) {
   const tgt = num(p.target_distance_m);
   if (tgt != null && h > 0 && p.target_type && p.target_type !== 'none' && tgt <= h) {
     // a target inside the fall zone does not make the tree worse, it makes a
-    // failure more costly - so it only sharpens an already conspicuous tree
-    if (lvl >= 2) up(3, 'Target (' + p.target_type + ') ' + tgt.toFixed(1) + ' m from the stem, inside the fall zone of a ' + h.toFixed(1) + ' m tree.');
-    else notes.push('Target (' + p.target_type + ') inside the fall zone – a failure would be costly.');
+    // failure more costly - so it only sharpens an already conspicuous tree.
+    // How often the target is occupied is the difference between a hazard and
+    // a risk: a footpath walked twice a week is not a playground.
+    const occ = p.target_occupancy || '';
+    const busy = occ === 'frequent' || occ === 'constant';
+    const where = 'Target (' + p.target_type + ')' + (occ ? ', ' + occ + ' use,' : '') +
+                  ' ' + tgt.toFixed(1) + ' m from the stem, inside the fall zone of a ' +
+                  h.toFixed(1) + ' m tree.';
+    if (lvl >= 2) up(3, where);
+    else if (busy && lvl >= 1) up(2, where + ' Frequented target sharpens an already noticeable tree.');
+    else notes.push(where);
   }
 
   if (p.traffic_safety === 'not given') up(3, 'Traffic safety rated as not given.');
@@ -1991,6 +2085,9 @@ function syncGeo(i) {
 /* A new tree is only ever as good as the position it is given, so record where
    it came from and let the caller pick the source. */
 function addTree(lon, lat, source, acc) {
+  const near = nearbyTree(lon, lat, 2.5);
+  if (near && !confirm(tid(near.i) + ' is already recorded ' + near.d.toFixed(1) +
+      ' m from here. Add another tree anyway?')) return near.i;
   const id = 'NEW-' + stamp().replace(/-/g, '').slice(4, 12) + '-' + Math.random().toString(36).slice(2, 5);
   const today = new Date().toISOString().slice(0, 10);
   CAT.features.push({
@@ -2013,6 +2110,7 @@ function addTree(lon, lat, source, acc) {
    all of them rather than trying to renumber. */
 function deleteTree(i) {
   const id = tid(i);
+  trashPush(JSON.parse(JSON.stringify(CAT.features[i])), edits[id] || null);
   CAT.features.splice(i, 1);
   if (edits[id]) { delete edits[id]; saveEdits(); }
   saveCat();
@@ -2139,7 +2237,7 @@ function geoEditor(i) {
 }
 
 function openPanel(i, tab) {
-  openIdx = i; panelTab = tab || 'vta';
+  openIdx = i; panelTab = tab || prefs().tab || 'quick';
   const p = props(i);
   const el = panelTarget(); panelEl = el;
   el.innerHTML = '';
@@ -2156,12 +2254,12 @@ function openPanel(i, tab) {
   const tabs = document.createElement('div'); tabs.className = 'ptabs';
   const body = document.createElement('div'); body.className = 'pb';
   const secs = {};
-  [['vta', 'VTA'], ['base', 'Base data'], ['hist', 'History'], ['photo', 'Photos']].forEach(pair => {
+  [['quick', 'Quick'], ['vta', 'VTA'], ['base', 'Base data'], ['hist', 'History'], ['photo', 'Photos']].forEach(pair => {
     const k = pair[0], lab = pair[1];
     const b = document.createElement('button'); b.textContent = lab; b.dataset.tab = k;
     if (k === panelTab) b.className = 'on';
     b.onclick = () => {
-      panelTab = k;
+      panelTab = k; setPref('tab', k);
       tabs.querySelectorAll('button').forEach(x => x.className = (x.dataset.tab === k ? 'on' : ''));
       Object.keys(secs).forEach(x => secs[x].style.display = (x === k ? 'block' : 'none'));
       body.scrollTop = 0;
@@ -2171,6 +2269,20 @@ function openPanel(i, tab) {
     secs[k] = s; body.appendChild(s);
   });
   el.appendChild(tabs); el.appendChild(body);
+
+  /* --- quick: the handful of fields most trees actually need --- */
+  const qk = secs.quick;
+  const qv = document.createElement('div'); qv.id = 'verdictQuick'; qk.appendChild(qv);
+  [['tag_no', 'Number on the trunk', 'text'],
+   ['species', 'Species (scientific)', 'species'],
+   ['dbh_cm', 'DBH at 1.3 m (cm)', 'number'],
+   ['vitality_roloff', 'Vitality (Roloff 0–3)', 'select', [0, 1, 2, 3]],
+   ['crown_dieback_pct', 'Crown dieback (%)', 'number'],
+   ['damage_class', 'Damage class', 'select', ['none', 'slight', 'moderate', 'severe']],
+   ['traffic_safety', 'Traffic safety', 'select', SAFE],
+   ['urgency', 'Urgency', 'select', ['none', 'next growing season', '3 months', '1 month', 'immediate']],
+   ['remarks', 'Remarks', 'area']].forEach(f => qk.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  qk.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', updateVerdict));
 
   /* --- VTA --- */
   const v = secs.vta;
@@ -2297,6 +2409,12 @@ function openPanel(i, tab) {
     inb.disabled = !!mode;          // the file dialog is blocked inside a session
     fs.appendChild(inb); fs.appendChild(fi);
     var gal = document.createElement('div'); gal.className = 'photos';
+    if (recSupported()) {
+      const vb = document.createElement('button'); vb.className = 'sm voice';
+      vb.textContent = '● Voice note';
+      vb.onclick = () => voiceStart(i, vb);
+      fs.appendChild(vb);
+    }
     fs.appendChild(gal);
     renderPhotos(p.tree_id, gal);
   }
@@ -2346,24 +2464,57 @@ function setEdit(i, patch) {
 }
 function savePanel(silent) {
   if (openIdx === null) return;
-  setEdit(openIdx, collect());
-  if (!silent) toast('Saved.');
+  const patch = collect();
+  const r = roundGet();
+  if (r) {                                   // the round signs and dates the record
+    if (!patch.inspector) patch.inspector = r.inspector;
+    if (!patch.last_inspection) patch.last_inspection = r.date;
+  }
+  if (!patch.next_inspection) {              // and the level says when to come back
+    const due = proposeNext(Object.assign({}, props(openIdx), patch));
+    if (due) patch.next_inspection = due;
+  }
+  setEdit(openIdx, patch);
+  if (r) roundTouch(openIdx);
+  const warn = plausible(props(openIdx));
+  if (!silent) toast(warn.length ? 'Saved – ' + warn.length + ' value' + (warn.length > 1 ? 's look' : ' looks') +
+                                   ' odd, see the panel.' : 'Saved.');
+}
+
+/* Re-inspection interval from the assessment: a level 3 tree is not left for a
+   year because a form defaulted to twelve months. Only ever a proposal - the
+   field stays editable and an entered date is never overwritten. */
+const LVL_MONTHS = [24, 12, 6, 1];
+function proposeNext(p) {
+  const base = p.last_inspection || new Date().toISOString().slice(0, 10);
+  const d = new Date(base);
+  if (isNaN(d)) return null;
+  // an interval entered by hand narrows the proposal but never stretches it:
+  // a level 3 tree does not get twelve months because a form defaulted to it
+  const m = num(p.interval_months), byLvl = LVL_MONTHS[assess(p).lvl];
+  const months = (m != null && m > 0) ? Math.min(m, byLvl) : byLvl;
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
 }
 function updateVerdict() {
   if (!panelEl || openIdx === null) return;
-  const box = panelEl.querySelector('#verdictBox'); if (!box) return;
+  const boxes = [panelEl.querySelector('#verdictBox'), panelEl.querySelector('#verdictQuick')]
+                  .filter(Boolean);
+  if (!boxes.length) return;
   const p = Object.assign({}, props(openIdx), collect());
   const a = assess(p), col = LVLCOL[a.lvl];
-  box.className = 'verdict';
-  box.style.borderColor = col; box.style.background = col + '18';
+  boxes.forEach(b => { b.className = 'verdict';
+    b.style.borderColor = col; b.style.background = col + '18'; });
   let html = '<b style="color:' + col + '">Level ' + a.lvl + ' · ' + LVLTXT[a.lvl] + '</b>';
+  const warn = plausible(p);
+  if (warn.length) html += '<div class="plaus">⚠ ' + warn.map(esc).join('<br>⚠ ') + '</div>';
   const kv = [];
   if (a.tr != null) kv.push('t/R ' + a.tr.toFixed(2));
   if (a.hd != null) kv.push('h/d ' + a.hd.toFixed(0));
   if (kv.length) html += '<div class="small">' + kv.join(' · ') + '</div>';
   html += a.notes.length ? '<ul>' + a.notes.map(n => '<li>' + n + '</li>').join('') + '</ul>'
                          : '<div class="small">No triggering criteria recorded.</div>';
-  box.innerHTML = html;
+  boxes.forEach(b => { b.innerHTML = html; });
 }
 
 async function renderPhotos(tree, gal) {
@@ -2375,6 +2526,17 @@ async function renderPhotos(tree, gal) {
   list.sort((a, b) => ((b.kind === 'bark') - (a.kind === 'bark')) || (a.ts < b.ts ? 1 : -1));
   list.forEach(f => {
     const fig = document.createElement('figure');
+    if (f.kind === 'audio') {
+      fig.className = 'audio';
+      const au = document.createElement('audio'); au.controls = true; au.src = f.url;
+      const db3 = document.createElement('button'); db3.className = 'del sm'; db3.textContent = '×';
+      db3.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
+      const cp = document.createElement('figcaption');
+      cp.textContent = 'Voice · ' + (f.secs || '?') + ' s · ' + (f.ts || '').slice(0, 16).replace('T', ' ');
+      fig.appendChild(au); fig.appendChild(db3); fig.appendChild(cp);
+      gal.appendChild(fig);
+      return;
+    }
     const im = document.createElement('img'); im.src = f.url; im.alt = tree;
     im.onclick = () => { $('lbImg').src = f.url; $('lightbox').style.display = 'flex'; };
     const db2 = document.createElement('button'); db2.className = 'del sm'; db2.textContent = '×';
@@ -2426,6 +2588,124 @@ async function renderPhotos(tree, gal) {
     fig.appendChild(im); fig.appendChild(db2); fig.appendChild(cap);
     gal.appendChild(fig);
   });
+}
+
+/* ---- voice notes ----
+   Typing a remark with wet gloves is how remarks stop being written. The note
+   is recorded, stored beside the photographs and played back from the same
+   gallery; whoever writes it up later types it out warm and indoors. */
+let recFor = null, recorder = null, recChunks = [], recStart = 0, recTimer = null;
+function recSupported() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+            typeof MediaRecorder !== 'undefined');
+}
+async function voiceStart(tree, btn) {
+  if (!recSupported()) return toast('This browser cannot record audio.');
+  if (recorder) return voiceStop();
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recChunks = []; recFor = tree; recStart = Date.now();
+    recorder = new MediaRecorder(st);
+    recorder.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+    recorder.onstop = async () => {
+      st.getTracks().forEach(t => t.stop());
+      clearInterval(recTimer); recTimer = null;
+      const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/webm' });
+      recorder = null;
+      const secs = Math.round((Date.now() - recStart) / 1000);
+      if (btn) { btn.classList.remove('rec'); btn.textContent = '● Voice note'; }
+      if (secs < 1) return toast('Too short.');
+      const rd = new FileReader();
+      rd.onload = async () => {
+        try {
+          await photoAdd(tid(recFor), rd.result, { kind: 'audio', secs: secs, mime: blob.type });
+          toast('Voice note of ' + secs + ' s stored.');
+          if (openIdx === recFor) openPanel(recFor, 'photo');
+        } catch (e) { toast('Could not store the note: ' + e.message); }
+      };
+      rd.readAsDataURL(blob);
+    };
+    recorder.start();
+    if (btn) {
+      btn.classList.add('rec');
+      recTimer = setInterval(() => {
+        btn.textContent = '■ Stop ' + Math.round((Date.now() - recStart) / 1000) + ' s';
+      }, 250);
+    }
+  } catch (e) { toast('Microphone: ' + e.message); }
+}
+function voiceStop() { if (recorder && recorder.state !== 'inactive') recorder.stop(); }
+
+/* ============================== THE ROUND ==============================
+   A register proves nothing on its own; what a duty of care asks is whether
+   the round was walked, by whom, and which trees were actually seen. That was
+   a free-text inspector field retyped fifty times and no record of coverage at
+   all. A round names itself once, stamps every tree saved while it is open,
+   and can say what it has not reached yet. */
+function prefs() { try { return JSON.parse(lsGet(K_PREF)) || {}; } catch (e) { return {}; } }
+function setPref(k, v) { const p = prefs(); p[k] = v; lsSet(K_PREF, JSON.stringify(p)); }
+function roundGet() { try { return JSON.parse(lsGet(K_ROUND)) || null; } catch (e) { return null; } }
+function roundSet(r) { if (r) lsSet(K_ROUND, JSON.stringify(r)); else lsDel(K_ROUND); }
+function roundStart(who) {
+  roundSet({ inspector: who, started: new Date().toISOString(),
+             date: new Date().toISOString().slice(0, 10), trees: [] });
+  renderRound(); renderList();
+}
+function roundTouch(i) {
+  const r = roundGet(); if (!r) return null;
+  const id = tid(i);
+  if (r.trees.indexOf(id) < 0) { r.trees.push(id); roundSet(r); renderRound(); }
+  return r;
+}
+function renderTrash() {
+  const box = $('trashBox'); if (!box) return;
+  const t = trashList();
+  box.innerHTML = '';
+  if (!t.length) { box.innerHTML = '<p class="small">Nothing deleted. Trees you delete wait here.</p>'; return; }
+  t.forEach((it, n) => {
+    const row = document.createElement('div'); row.className = 'trashrow';
+    const sp = document.createElement('span');
+    const pr = it.feature.properties || {};
+    sp.innerHTML = '<b>' + esc(pr.tag_no ? '№ ' + pr.tag_no : pr.tree_id) + '</b> <span class="small">' +
+      esc(pr.species || '') + ' · deleted ' + esc((it.ts || '').slice(0, 10)) + '</span>';
+    const b = document.createElement('button'); b.className = 'sm p'; b.textContent = 'Restore';
+    b.onclick = () => {
+      const r = trashRestore(n);
+      toast(r === 'exists' ? 'A tree with that id is back in the register already.'
+                           : r ? r + ' restored – its photos come back with it.' : 'Could not restore.');
+    };
+    row.appendChild(sp); row.appendChild(b);
+    box.appendChild(row);
+  });
+  const c = document.createElement('button'); c.className = 'sm x'; c.id = 'bTrashClear';
+  c.textContent = 'Empty the bin'; c.style.marginTop = '8px';
+  box.appendChild(c);
+  c.onclick = () => {
+    if (!confirm('Empty the bin? The trees in it cannot be brought back afterwards.')) return;
+    lsDel(K_TRASH); renderTrash(); toast('Bin emptied.');
+  };
+}
+
+function renderRound() {
+  const box = $('roundBox'); if (!box) return;
+  const r = roundGet();
+  const n = CAT.features.length;
+  if (!r) {
+    box.innerHTML = '<p class="small">No round open. Start one and every tree you save is ' +
+      'stamped with your name and today\u2019s date, and counted as walked.</p>';
+    $('roundStart').style.display = ''; $('roundEnd').style.display = 'none';
+    $('roundHead').textContent = '';
+    return;
+  }
+  const done = r.trees.length;
+  box.innerHTML = '<div class="kv"><span>Inspector</span><span>' + esc(r.inspector) + '</span></div>' +
+    '<div class="kv"><span>Started</span><span>' + esc(r.date) + '</span></div>' +
+    '<div class="kv"><span>Walked</span><span>' + done + ' of ' + n + '</span></div>' +
+    (done < n ? '<p class="small">Not yet reached: ' +
+      esc(CAT.features.map((f, i) => tid(i)).filter(id => r.trees.indexOf(id) < 0).slice(0, 20).join(', ')) +
+      (n - done > 20 ? ' …' : '') + '</p>' : '<p class="small">Every tree in the register has been walked.</p>');
+  $('roundStart').style.display = 'none'; $('roundEnd').style.display = '';
+  $('roundHead').textContent = done + '/' + n;
 }
 
 /* ============================== REPORT ==============================
@@ -2716,8 +2996,52 @@ function renderStats() {
     (d == null ? 'never' : d < 1 ? 'today' : Math.floor(d) + ' days ago') + '</span></div>';
   photoAll().then(ps => {
     $('stats').innerHTML = base + exp + '<div class="kv"><span>Photos stored</span><span>' + ps.length + '</span></div>';
+    storageCheck(false).then(si => {
+      if (!si.ok) return;
+      $('stats').innerHTML += '<div class="kv"><span>Storage used</span><span>' + mb(si.used) +
+        (si.quota ? ' of ' + mb(si.quota) : '') + (si.persisted ? ' · kept' : ' · evictable') + '</span></div>';
+      const el = $('storeWarn'); if (!el) return;
+      const tight = si.quota && si.used / si.quota > 0.8;
+      const msg = tight ? 'Storage is ' + Math.round(si.used / si.quota * 100) + ' % full. Export and clear photos.'
+        : (!si.persisted && ps.length) ? 'The browser has not promised to keep this data and may clear it when the phone runs short. Export regularly.'
+        : '';
+      el.textContent = msg; el.style.display = msg ? 'block' : 'none';
+    });
     backupWarning();
   }).catch(() => { $('stats').innerHTML = base + exp; backupWarning(); });
+  renderTrash(); renderRound();
+}
+
+/* A dark interface is unreadable on a phone in autumn sun, which is exactly
+   where this one is used. */
+function applyDay() {
+  const on = prefs().day;
+  document.documentElement.classList.toggle('day', !!on);
+  const b = $('bDay'); if (b) b.textContent = on ? 'Daylight: on' : 'Daylight: off';
+}
+
+/* AR, GPS and a bright screen empty a battery in about an hour, and the
+   session dies in the middle of a stand without a word. */
+let batt = null;
+function watchBattery() {
+  if (!navigator.getBattery) return;
+  navigator.getBattery().then(b => {
+    batt = b;
+    const upd = () => {
+      const el = $('hBatt'); if (!el) return;
+      const pc = Math.round(b.level * 100);
+      const low = pc <= 25 && !b.charging;
+      el.textContent = low ? ' · ' + pc + ' %' : '';
+      el.className = pc <= 15 ? 'warn' : '';
+    };
+    b.addEventListener('levelchange', upd); b.addEventListener('chargingchange', upd); upd();
+  }).catch(() => {});
+}
+function batteryOkForAR() {
+  if (!batt || batt.charging) return true;
+  const pc = Math.round(batt.level * 100);
+  if (pc > 20) return true;
+  return confirm('Battery at ' + pc + ' %. An AR session drains it fast and ends without warning. Start anyway?');
 }
 
 function toast(t) {
@@ -2949,7 +3273,7 @@ function dl(name, content, mime) {
 const CSVCOLS = ['tree_id', 'lon', 'lat', 'species', 'name_en', 'planted', 'girth_cm', 'dbh_cm',
   'height_m', 'crown_d_m', 'vitality_roloff', 'crown_dieback_pct', 'damage_class', 'cavity',
   'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'target_type', 'target_distance_m', 'stability', 'breakage_resistance',
-  'traffic_safety', 'urgency', 'symptoms', 'fungi_labels', 'actions', 'inspection_type', 'last_inspection',
+  'traffic_safety', 'target_occupancy', 'urgency', 'symptoms', 'fungi_labels', 'actions', 'inspection_type', 'last_inspection',
   'next_inspection', 'interval_months', 'inspector', 'remarks'];
 function csv() {
   const q = v => {
@@ -3003,6 +3327,7 @@ function wire() {
   document.querySelectorAll('#tabbar button').forEach(b => b.onclick = () => showScreen(b.dataset.sc));
 
   $('bxr').onclick = async () => {
+    if (!batteryOkForAR()) return;
     msg('starting …');
     try { await startOrient(); startGPS(); await startXR(); msg(''); }
     catch (e) { msg('WebXR: ' + e.message + ' → try camera mode'); }
@@ -3176,6 +3501,23 @@ function wire() {
     if (!confirm('Delete every inspection record captured in the field?')) return;
     edits = {}; lsDel(K_EDIT); buildMarkers(); renderList(); renderStats(); toast('Field records deleted.');
   };
+  const pf = prefs();
+  $('prefInspector').value = pf.inspector || '';
+  $('prefInspector').onchange = () => setPref('inspector', $('prefInspector').value.trim());
+  $('roundStart').onclick = () => {
+    const who = ($('prefInspector').value || '').trim();
+    if (!who) return toast('Put your name in first – a round has to be signed.');
+    setPref('inspector', who); roundStart(who);
+    toast('Round started. Every tree you save is stamped and counted.');
+  };
+  $('roundEnd').onclick = () => {
+    const r = roundGet(); if (!r) return;
+    if (!confirm('Close the round?\n\n' + r.trees.length + ' of ' + CAT.features.length +
+                 ' trees walked. The report can then be printed for it.')) return;
+    roundSet(null); renderRound(); renderList();
+    toast('Round closed – print the report while it is fresh.');
+  };
+  $('bDay').onclick = () => { setPref('day', !prefs().day); applyDay(); };
   const nc = niaCfg();
   $('niaUrl').value = nc.url || '';
   $('niaTok').value = nc.token || '';
@@ -3224,6 +3566,9 @@ buildScene();
 buildMarkers();
 wire();
 wireMap();
+applyDay();
+watchBattery();
+storageCheck(true);
 checks();
 renderList();
 renderStats();

@@ -67,6 +67,25 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 .tree .arr{font-size:22px;line-height:1;display:block}
 .tree .dist{font-size:12px;color:#9fb3a6;font-variant-numeric:tabular-nums}
 
+/* ---------- daylight ----------
+   Not a theme, a legibility mode: the surfaces go light and the type goes dark
+   so the screen can be read in open sun. The level colours stay as they are -
+   they mean something. */
+html.day body{background:#f3f4f1;color:#15201a}
+html.day #topbar,html.day #tabbar{background:#e7eae4;border-color:#c3ccc2}
+html.day .tree,html.day button.work,html.day .funrow,html.day #workWrap,
+html.day .panel,html.day .bar,html.day #chooser,html.day #mmenu,html.day #refmenu,
+html.day #niaBox{background:#fff;border-color:#c3ccc2;color:#15201a}
+html.day button{background:#eceee9;border-color:#c3ccc2;color:#15201a}
+html.day button.p{background:#2f7a4d;border-color:#2f7a4d;color:#fff}
+html.day button.x{background:#a33a2c;border-color:#a33a2c;color:#fff}
+html.day .row input,html.day .row select,html.day .row textarea{background:#fff;
+  border-color:#c3ccc2;color:#15201a}
+html.day .small,html.day .row label,html.day .kv span:first-child{color:#4a5a50}
+html.day .row,html.day .kv,html.day .sym label,html.day .trashrow{border-color:#dde2da}
+html.day #mapBox{background:#e7eae4}
+html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:#6b4c12}
+
 /* ---------- map ---------- */
 #mapWrap{position:relative;border:1px solid #2b3a31;border-radius:12px;overflow:hidden;margin-bottom:6px}
 #mapBox{position:relative;height:52vh;min-height:260px;background:#16211b;overflow:hidden;
@@ -165,6 +184,16 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 .funrow button{flex:0 0 auto}
 .warnbox{background:#2a1f12;border:1px solid #5c4326;color:#ffcf8f;border-radius:10px;
   padding:9px 11px;margin-bottom:8px;font-size:13px}
+.plaus{background:#2a1f12;border:1px solid #5c4326;color:#ffcf8f;border-radius:8px;
+  padding:6px 9px;margin:6px 0;font-size:12.5px;line-height:1.4}
+#hBatt.warn{color:#ff8f7a;font-weight:600}
+button.voice{margin-bottom:8px}
+button.voice.rec{background:#5a1f1f;border-color:#a33;color:#ffd9d4}
+.photos figure.audio{width:100%}
+.photos figure.audio audio{width:100%}
+.trashrow{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #223027;
+  font-size:13px}
+.trashrow span{flex:1;min-width:0}
 #workWrap{margin-bottom:10px;border:1px solid #26332b;border-radius:12px;background:#111a15}
 #workWrap summary{padding:10px 12px;cursor:pointer;font-weight:600}
 #workWrap summary .small{font-weight:400;color:#9fb3a6;margin-left:6px}
@@ -292,6 +321,16 @@ table.hist th{color:#8fa697;font-weight:500}
 
     <section class="screen" id="sc-data">
       <h2>Data</h2>
+
+      <h3>Round <span class="small" id="roundHead"></span></h3>
+      <div class="row"><label>Inspector</label>
+        <input type="text" id="prefInspector" placeholder="your name"></div>
+      <div class="btnrow">
+        <button class="p" id="roundStart">Start a round</button>
+        <button id="roundEnd">Close the round</button>
+      </div>
+      <div id="roundBox"></div>
+
       <h3>Report</h3>
       <div class="btnrow">
         <button class="p" id="bRepPlain">Inspection report</button>
@@ -326,12 +365,19 @@ table.hist th{color:#8fa697;font-weight:500}
         token the public endpoint allows ten identifications a day. Suggestions are never
         recorded on their own.</p>
 
+      <h3>Deleted trees</h3>
+      <div id="trashBox"></div>
+
       <h3>App</h3>
+      <div class="btnrow">
+        <button id="bDay">Daylight: off</button>
+      </div>
       <div class="btnrow"><button id="bUpdate">Fetch the current version</button></div>
       <p class="small">Throws the offline copy away and reloads from the server.
         Trees and photos stay.</p>
       <h3>Status</h3>
       <div id="backupWarn" class="warnbox" style="display:none"></div>
+      <div id="storeWarn" class="warnbox" style="display:none"></div>
       <div id="stats"></div>
       <h3>Reset</h3>
       <div class="btnrow">
@@ -357,7 +403,7 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="xrui">
   <div id="edge"></div>
   <div class="bar" id="hud">
-    <span>±<b id="hAcc">–</b> m · <b id="hHead">–</b>° · <span id="hFit"></span></span>
+    <span>±<b id="hAcc">–</b> m · <b id="hHead">–</b>° · <span id="hFit"></span><span id="hBatt"></span></span>
     <span id="hMore">
       <span>Mode <b id="hMode">–</b></span>
       <span>North <b id="hOff">0</b>°</span>
@@ -393,8 +439,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.10.0"></script>
-<script src="data.js?v=1.10.0"></script>
-<script src="app.js?v=1.10.0"></script>
+<script src="vendor/three.min.js?v=1.11.0"></script>
+<script src="data.js?v=1.11.0"></script>
+<script src="app.js?v=1.11.0"></script>
 </body>
 </html>
