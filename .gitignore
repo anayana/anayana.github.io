@@ -12,3 +12,4 @@
 
 **/*.quarto_ipynb
 !vta/index.html
+!companions/index.html

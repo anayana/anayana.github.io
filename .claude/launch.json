@@ -1,23 +1,53 @@
-{
-  "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "webar-preview",
-      "runtimeExecutable": "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
-      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "C:/Users/Admin/Desktop/ARiF/WebAR"],
-      "port": 8765
-    },
-    {
-      "name": "for3d-docs",
-      "runtimeExecutable": "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
-      "runtimeArgs": ["-m", "http.server", "8771", "--directory", "C:/Users/Admin/R/For3Dsuite/docs"],
-      "port": 8771
-    },
-    {
-      "name": "vta",
-      "runtimeExecutable": "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
-      "runtimeArgs": ["-m", "http.server", "8790", "--directory", "C:/Users/Admin/R/PersPage/vta"],
-      "port": 8790
-    }
-  ]
+﻿{
+    "version":  "0.0.1",
+    "configurations":  [
+                           {
+                               "name":  "webar-preview",
+                               "runtimeExecutable":  "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
+                               "runtimeArgs":  [
+                                                   "-m",
+                                                   "http.server",
+                                                   "8765",
+                                                   "--directory",
+                                                   "C:/Users/Admin/Desktop/ARiF/WebAR"
+                                               ],
+                               "port":  8765
+                           },
+                           {
+                               "name":  "for3d-docs",
+                               "runtimeExecutable":  "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
+                               "runtimeArgs":  [
+                                                   "-m",
+                                                   "http.server",
+                                                   "8771",
+                                                   "--directory",
+                                                   "C:/Users/Admin/R/For3Dsuite/docs"
+                                               ],
+                               "port":  8771
+                           },
+                           {
+                               "name":  "vta",
+                               "runtimeExecutable":  "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
+                               "runtimeArgs":  [
+                                                   "-m",
+                                                   "http.server",
+                                                   "8790",
+                                                   "--directory",
+                                                   "C:/Users/Admin/R/PersPage/vta"
+                                               ],
+                               "port":  8790
+                           },
+                           {
+                               "name":  "companions",
+                               "runtimeExecutable":  "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
+                               "runtimeArgs":  [
+                                                   "-m",
+                                                   "http.server",
+                                                   "8791",
+                                                   "--directory",
+                                                   "C:/Users/Admin/R/PersPage/companions"
+                                               ],
+                               "port":  8791
+                           }
+                       ]
 }

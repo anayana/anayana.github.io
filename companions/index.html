@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#fff6ea">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Home Companions – Tiere in deiner Wohnung</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#fff6ea; --card:#ffffff; --ink:#3d2e23; --soft:#8a7565;
+  --line:#f2ddc4; --orange:#f08a2e; --orange-d:#d9741b;
+  --green:#4caf72; --blue:#47a0e0; --pink:#ef7d8e; --yellow:#ffd166;
+  --shadow:0 2px 0 #f0ddc6, 0 6px 18px rgba(180,140,90,.13);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;font:16px/1.5 "Segoe UI Variable Text",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:var(--bg);color:var(--ink);overscroll-behavior:none}
+body{overflow:hidden}
+#video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:0}
+canvas.ar{position:fixed;inset:0;z-index:1;display:none}
+button,select,input,textarea{font:inherit}
+button{background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:16px;
+  padding:12px 16px;cursor:pointer;touch-action:manipulation;font-weight:600;box-shadow:var(--shadow)}
+button:active{transform:translateY(1px)}
+button.p{background:var(--orange);border-color:var(--orange-d);color:#fff}
+button.x{background:#fff0f0;border-color:#f5c9c9;color:#b34a4a}
+button.sm{padding:7px 12px;font-size:14px;border-radius:12px}
+button[disabled]{opacity:.45;box-shadow:none}
+a{color:var(--orange-d);font-weight:600}
+
+#app{position:fixed;inset:0;z-index:3;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#app.hidden{display:none}
+#topbar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--orange);color:#fff}
+#topbar h1{font-size:19px;margin:0;flex:1;font-weight:800;letter-spacing:-.01em}
+#topbar .badge{font-size:13px;background:rgba(255,255,255,.25);border-radius:20px;padding:4px 12px;font-weight:600}
+#screens{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.screen{display:none;padding:16px 14px 44px}
+.screen.on{display:block}
+#tabbar{display:flex;background:#fff;border-top:2px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar button{flex:1;border:0;border-radius:0;background:none;color:var(--soft);padding:9px 4px 11px;
+  font-size:12.5px;box-shadow:none;font-weight:600}
+#tabbar button.on{color:var(--orange-d)}
+#tabbar .ic{display:block;font-size:24px;line-height:1.25}
+
+h2{font-size:22px;margin:0 0 6px;font-weight:800;letter-spacing:-.01em}
+h3{margin:22px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);font-weight:700}
+p.lead{color:var(--soft);margin:0 0 16px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:14px 16px;
+  margin:0 0 12px;box-shadow:var(--shadow)}
+.note{background:#fff9ec;border:2px solid var(--yellow);border-radius:16px;
+  padding:12px 14px;margin:14px 0;font-size:14.5px;color:#6b543f}
+.note.warn{background:#fff4e2;border-color:#f6c88a}
+.chk{display:flex;gap:11px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f6eadb;font-size:15px}
+.chk:last-child{border-bottom:0}
+.chk .i{width:26px;flex:0 0 26px;text-align:center;font-size:17px;font-weight:800}
+.ok{color:var(--green)}.no{color:#e05a4a}.wa{color:#e0a232}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.btnrow button{flex:1 1 auto;min-width:44%}
+#msg{margin-top:10px;font-size:14.5px;color:#b34a4a;min-height:20px;font-weight:600}
+.muted{color:var(--soft);font-size:14px}
+
+.row{display:flex;gap:12px;align-items:center;background:var(--card);border:2px solid var(--line);
+  border-radius:18px;padding:12px 14px;margin-bottom:10px;width:100%;text-align:left;color:inherit;
+  box-shadow:var(--shadow);font-weight:400}
+.row .em{font-size:34px;flex:0 0 44px;text-align:center;line-height:1}
+.row .m{flex:1;min-width:0}
+.row .t1{font-weight:700;font-size:17px;display:block}
+.row .t2{color:var(--soft);font-size:13.5px;display:block}
+.row .st{font-size:12px;border-radius:20px;padding:4px 10px;white-space:nowrap;font-weight:700;
+  background:#f6efe4;color:var(--soft)}
+.row .st.set{background:#e4f5ea;color:#2f8c55}
+.row.dog{border-color:#f6d9b4}.row.parrots{border-color:#c9ecd4}
+.row.frog{border-color:#d5efc6}.row.monkey{border-color:#f3dcc6}
+
+table.stats{width:100%;border-collapse:collapse;font-size:14px}
+table.stats th,table.stats td{text-align:left;padding:8px;border-bottom:1px solid #f6eadb}
+table.stats th{color:var(--soft);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+table.stats td.n{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:14px;border-radius:10px;background:#f6eadb;overflow:hidden}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:10px}
+
+#xrui{position:fixed;inset:0;z-index:4;display:none;pointer-events:none}
+#xrui.on{display:block}
+#xrui>*{pointer-events:auto}
+.hbar{position:absolute;left:10px;right:10px;background:rgba(255,250,242,.93);backdrop-filter:blur(10px);
+  border:2px solid rgba(240,138,46,.35);border-radius:18px;padding:9px 12px;
+  box-shadow:0 6px 20px rgba(120,80,40,.18);color:var(--ink)}
+#hud{top:calc(10px + env(safe-area-inset-top));font-size:13.5px;display:flex;gap:8px;flex-wrap:wrap;
+  align-items:center;font-weight:600}
+#hud b{color:var(--orange-d)}
+#hud .sep{color:#d9c3a6}
+#ctl{bottom:calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;padding:10px}
+#ctl button{font-size:14px;padding:10px 12px;flex:1 1 auto}
+#chooser{position:absolute;left:12px;right:12px;bottom:96px;background:rgba(255,250,242,.98);
+  border:2px solid rgba(240,138,46,.35);border-radius:22px;padding:12px;display:none;max-height:54vh;overflow:auto;
+  box-shadow:0 10px 30px rgba(120,80,40,.22)}
+#chooser.on{display:block}
+#chooser h4{margin:2px 4px 10px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--soft)}
+#toast{position:absolute;left:12px;right:12px;top:calc(116px + env(safe-area-inset-top));
+  background:#fff;border:2px solid var(--yellow);border-radius:18px;
+  padding:12px 14px;font-size:15px;display:none;font-weight:600;color:var(--ink);
+  box-shadow:0 8px 24px rgba(120,80,40,.2)}
+#toast.on{display:block}
+#task{position:absolute;left:12px;right:12px;bottom:96px;background:rgba(255,250,242,.98);
+  border:2px solid rgba(240,138,46,.35);border-radius:22px;padding:14px;display:none;
+  box-shadow:0 10px 30px rgba(120,80,40,.22)}
+#task.on{display:block}
+#task .tt{font-weight:800;font-size:18px;margin-bottom:4px}
+#task .ts{font-size:14px;color:var(--soft);margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<video id="video" playsinline muted></video>
+
+<div id="app">
+  <div id="topbar">
+    <h1>Home Companions</h1>
+    <span class="badge" id="phaseBadge">–</span>
+  </div>
+
+  <div id="screens">
+
+    <!-- ---------------- HOME ---------------- -->
+    <section class="screen on" id="sHome">
+      <h2>Deine Tiere wohnen mit</h2>
+      <p class="lead">Vier Tiere leben an festen Plätzen in eurer Wohnung und machen je nach
+      Tageszeit etwas anderes. Ihr sucht die Plätze selbst aus.</p>
+
+      <h3>Klappt das auf diesem Handy?</h3>
+      <div class="card" id="devcheck"></div>
+
+      <div class="btnrow">
+        <button class="p" id="bStartXR">AR starten</button>
+        <button id="bStartCam">Kamera-Vorschau</button>
+      </div>
+      <div id="msg"></div>
+
+      <h3>So geht es los</h3>
+      <div class="card">
+        <div class="chk"><span class="i">1</span><span>Stellt euch auf euren <b>Startplatz</b> – am besten gleich hinter der Wohnungstür. Von dort startet ihr die App immer.</span></div>
+        <div class="chk"><span class="i">2</span><span>Auf <b>Platzieren</b> tippen, ein Tier aussuchen und auf die Stelle im Raum tippen.</span></div>
+        <div class="chk"><span class="i">3</span><span>Beim nächsten Mal <b>Layout laden</b> – dann sind alle wieder da, wo sie hingehören.</span></div>
+        <div class="chk"><span class="i">4</span><span>Tier antippen und schauen, was passiert. Der Frosch macht Dreck, der Affe putzt Zähne.</span></div>
+      </div>
+
+      <div class="note">Alles bleibt auf dem Handy: kein Konto, kein Server, keine Fotos,
+        kein Standort. <a href="#" id="lnkData">Was gespeichert wird</a></div>
+    </section>
+
+    <!-- ---------------- ANIMALS ---------------- -->
+    <section class="screen" id="sAnimals">
+      <h2>Die vier Mitbewohner</h2>
+      <p class="lead">Platziert wird in AR. Hier seht ihr, wer schon einen Platz hat.</p>
+      <div id="animalList"></div>
+      <div class="btnrow">
+        <button class="x" id="bClearLayout">Alle Plätze löschen</button>
+      </div>
+      <div class="note warn" id="anchorNote"></div>
+    </section>
+
+    <!-- ---------------- STATS ---------------- -->
+    <section class="screen" id="sStats">
+      <h2>Eure Routinen</h2>
+      <p class="lead">Wie lange und wie oft. Nur für euch – diese Zahlen verlassen
+      das Handy nicht.</p>
+      <div id="statsBody"></div>
+    </section>
+
+    <!-- ---------------- DATA ---------------- -->
+    <section class="screen" id="sData">
+      <h2>Daten und Privatsphäre</h2>
+      <div class="card">
+        <div class="chk"><span class="i ok">✔</span><span>Kamerabilder werden <b>nie</b> gespeichert und nie verschickt. Das Bild bleibt im Browser.</span></div>
+        <div class="chk"><span class="i ok">✔</span><span>Tierplätze und Routinen liegen im Speicher dieses Browsers, auf diesem Gerät.</span></div>
+        <div class="chk"><span class="i ok">✔</span><span>Kein Konto, keine Cloud, kein Tracking, keine Netzwerkzugriffe nach dem Laden.</span></div>
+        <div class="chk"><span class="i wa">!</span><span>Der Kompass wird nur benutzt, um euer Layout richtig zu drehen. Kein GPS.</span></div>
+      </div>
+      <h3>Was gerade gespeichert ist</h3>
+      <div class="card" id="dataSummary"></div>
+      <div class="btnrow">
+        <button id="bExport">Daten exportieren</button>
+        <button class="x" id="bWipe">Alles löschen</button>
+      </div>
+      <h3>Über</h3>
+      <p class="muted">Home Companions – Prototyp mit WebXR und three.js.
+      Läuft in Chrome für Android mit den Google Play-Diensten für AR.</p>
+    </section>
+
+  </div>
+
+  <div id="tabbar">
+    <button class="on" data-s="sHome"><span class="ic">🏠</span>Start</button>
+    <button data-s="sAnimals"><span class="ic">🐾</span>Tiere</button>
+    <button data-s="sStats"><span class="ic">⭐</span>Routinen</button>
+    <button data-s="sData"><span class="ic">🔒</span>Daten</button>
+  </div>
+</div>
+
+<!-- ---------------- AR OVERLAY ---------------- -->
+<div id="xrui">
+  <div class="hbar" id="hud">
+    <span id="hMode">–</span>
+    <span class="sep">•</span>
+    <span id="hPhase">–</span>
+    <span class="sep">•</span>
+    <span><b id="hCount">0</b> Tiere</span>
+    <span id="hHint" style="flex:1 1 100%;color:#8a7565;font-weight:400"></span>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="chooser">
+    <h4 id="chTitle">Tier platzieren</h4>
+    <div id="chList"></div>
+  </div>
+
+  <div id="task">
+    <div class="tt" id="taskTitle">–</div>
+    <div class="ts" id="taskSub">–</div>
+    <div class="bar"><i id="taskBar" style="width:0%"></i></div>
+    <div class="btnrow" style="margin-bottom:0">
+      <button class="sm x" id="taskStop">Abbrechen</button>
+    </div>
+  </div>
+
+  <div class="hbar" id="ctl">
+    <button id="bPlace">Platzieren</button>
+    <button id="bRestore">Layout laden</button>
+    <button id="bNudge">Verschieben</button>
+    <button class="x" id="bExit">Ende</button>
+  </div>
+</div>
+
+<script src="vendor/three.min.js?v=1.0.0"></script>
+<script src="app.js?v=1.0.3"></script>
+</body>
+</html>

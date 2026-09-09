@@ -1,6 +1,9 @@
 project:
   type: website
   output-dir: _site
+  render:
+    - "**/*.qmd"      # notes under ideas/ stay out of the site
+    - "!ideas/**"
   resources:
     - GreenEquity_HN.html
     - BergWaldDynamik.html
@@ -10,6 +13,7 @@ project:
     - psm_data.js
     - KieferMistel.html
     - vta/
+    - companions/
 
 website:
   title: "A. Naya"
