@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.6.1';
+const APP_VERSION = '2.7.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2885,6 +2885,250 @@ function buildChooser() {
   c.appendChild(row);
 }
 
+
+/* ===================== NATIONAL COORDINATES =====================
+   Everything in the app is WGS84 because that is what a phone produces. The
+   points worth standing on - cadastral boundary marks, building corners,
+   trig points - are published in a national plane system, and so are the city
+   tree registers. Two conversions stand between them:
+
+   1. The projection. Berlin publishes in ETRS89 / UTM zone 33N (EPSG:25833),
+      metres east and north on a Transverse Mercator. The series below is the
+      Krueger expansion to n^4, which is sub-millimetre inside a zone - far
+      beyond anything that matters here, and short enough to read.
+
+   2. The datum epoch, which is the one that actually bites. ETRS89 is nailed
+      to the Eurasian plate as it stood in 1989. A phone's WGS84 is an ITRF
+      realisation, and the plate has carried Berlin about 25 mm a year to the
+      east-north-east ever since - by now some nine decimetres. Enter a
+      cadastral point as if it were WGS84 and the whole stand sits three
+      quarters of a metre north-east of where it belongs: with a boundary mark
+      good to two centimetres, that shift is the entire error budget. */
+
+const GRS80_A = 6378137.0, GRS80_F = 1 / 298.257222101;
+const ETRS_EPOCH = 1989.0;
+/* Eurasia's motion in ITRF at Berlin, metres per year. From the plate's Euler
+   pole; at 52.5 N it comes out as 25 mm/yr towards ENE. */
+const ETRS_V = { e: 0.0205, n: 0.0145 };
+
+function utmToLatLon(E, N, zone) {
+  const a = GRS80_A, f = GRS80_F, k0 = 0.9996;
+  const n = f / (2 - f), n2 = n * n, n3 = n2 * n, n4 = n3 * n;
+  const A = a / (1 + n) * (1 + n2 / 4 + n4 / 64);
+  const b1 = n / 2 - 2 * n2 / 3 + 37 * n3 / 96 - n4 / 360;
+  const b2 = n2 / 48 + n3 / 15 - 437 * n4 / 1440;
+  const b3 = 17 * n3 / 480 - 37 * n4 / 840;
+  const b4 = 4397 * n4 / 161280;
+  const d1 = 2 * n - 2 * n2 / 3 - 2 * n3;
+  const d2 = 7 * n2 / 3 - 8 * n3 / 5;
+  const d3 = 56 * n3 / 15, d4 = 4279 * n4 / 630;
+  const xi = (N) / (k0 * A), eta = (E - 500000) / (k0 * A);
+  let xi1 = xi, eta1 = eta;
+  [[b1, 1], [b2, 2], [b3, 3], [b4, 4]].forEach(([b, j]) => {
+    xi1 -= b * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta);
+    eta1 -= b * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta);
+  });
+  const chi = Math.asin(Math.sin(xi1) / Math.cosh(eta1));
+  let lat = chi;
+  [[d1, 1], [d2, 2], [d3, 3], [d4, 4]].forEach(([d, j]) => { lat += d * Math.sin(2 * j * chi); });
+  const lon0 = (zone * 6 - 183) * Math.PI / 180;
+  const lon = lon0 + Math.atan2(Math.sinh(eta1), Math.cos(xi1));
+  return { lat: lat * 180 / Math.PI, lon: lon * 180 / Math.PI };
+}
+
+function latLonToUtm(lat, lon, zone) {
+  const a = GRS80_A, f = GRS80_F, k0 = 0.9996;
+  const n = f / (2 - f), n2 = n * n, n3 = n2 * n, n4 = n3 * n;
+  const A = a / (1 + n) * (1 + n2 / 4 + n4 / 64);
+  const al1 = n / 2 - 2 * n2 / 3 + 5 * n3 / 16 + 41 * n4 / 180;
+  const al2 = 13 * n2 / 48 - 3 * n3 / 5 + 557 * n4 / 1440;
+  const al3 = 61 * n3 / 240 - 103 * n4 / 140;
+  const al4 = 49561 * n4 / 161280;
+  const p = lat * Math.PI / 180, l = lon * Math.PI / 180;
+  const lon0 = (zone * 6 - 183) * Math.PI / 180;
+  const t = Math.sinh(Math.atanh(Math.sin(p)) -
+            2 * Math.sqrt(n) / (1 + n) * Math.atanh(2 * Math.sqrt(n) / (1 + n) * Math.sin(p)));
+  const xi0 = Math.atan(t / Math.cos(l - lon0));
+  const eta0 = Math.atanh(Math.sin(l - lon0) / Math.sqrt(1 + t * t));
+  let xi = xi0, eta = eta0;
+  [[al1, 1], [al2, 2], [al3, 3], [al4, 4]].forEach(([al, j]) => {
+    xi += al * Math.sin(2 * j * xi0) * Math.cosh(2 * j * eta0);
+    eta += al * Math.cos(2 * j * xi0) * Math.sinh(2 * j * eta0);
+  });
+  return { e: k0 * A * eta + 500000, n: k0 * A * xi };
+}
+
+function nowEpoch() {
+  const d = new Date();
+  return d.getUTCFullYear() + (d.getUTCMonth() * 30.4 + d.getUTCDate()) / 365.25;
+}
+/* ETRS89 coordinates carried forward to today, which is what the phone reads. */
+function etrsToWgs(lat, lon) {
+  const yr = nowEpoch() - ETRS_EPOCH;
+  return { lat: lat + ETRS_V.n * yr / mLat(lat), lon: lon + ETRS_V.e * yr / mLon(lat) };
+}
+function wgsToEtrs(lat, lon) {
+  const yr = nowEpoch() - ETRS_EPOCH;
+  return { lat: lat - ETRS_V.n * yr / mLat(lat), lon: lon - ETRS_V.e * yr / mLon(lat) };
+}
+/* The two systems the app speaks, and how a point comes in and goes out. */
+const CRS = {
+  'EPSG:25833': {
+    name: 'ETRS89 / UTM 33N · Berlin, Brandenburg',
+    to: (e, n) => { const g = utmToLatLon(e, n, 33); return etrsToWgs(g.lat, g.lon); },
+    from: (lat, lon) => { const g = wgsToEtrs(lat, lon); return latLonToUtm(g.lat, g.lon, 33); }
+  },
+  'EPSG:4326': {
+    name: 'WGS84 · what the phone reads',
+    to: (e, n) => ({ lat: n, lon: e }),
+    from: (lat, lon) => ({ e: lon, n: lat })
+  }
+};
+
+/* ================= THE BERLIN TREE REGISTER =================
+   Berlin publishes its street and park trees as open data - some 880 000 of
+   them, with species, planting year, girth, height and crown - through the
+   city's WFS. It is a register, not a survey: the positions are metre-level
+   and were mapped by the districts, so a tree fetched here is a name and a
+   rough place to start from, and the stem it belongs to is still put on the
+   map properly by standing at it.
+
+   The service's layer names have moved between the old FIS-Broker and the new
+   geoportal, so nothing is guessed: the capabilities document is asked what it
+   serves and every tree layer in it is fetched. Coordinates come back in
+   ETRS89 / UTM 33N and go through the epoch shift like everything else. */
+
+const BERLIN_WFS = 'https://gdi.berlin.de/services/wfs/baumbestand';
+/* Places, as a centre and a radius in metres. Berlin's south-west corner, the
+   two the register is being tried on first. */
+const BERLIN_SPOTS = [
+  { id: 'teerofen', name: 'Albrechts Teerofen', lat: 52.4123, lon: 13.1402, r: 700 },
+  { id: 'steinst',  name: 'Steinstücken',       lat: 52.3897, lon: 13.1231, r: 700 }
+];
+
+function pick(o, keys) {
+  for (let i = 0; i < keys.length; i++) {
+    const k = Object.keys(o).find(x => x.toLowerCase() === keys[i]);
+    if (k != null && o[k] != null && o[k] !== '') return o[k];
+  }
+  return null;
+}
+function numOr(v) { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : null; }
+
+/* One register feature -> one tree of ours. Everything the register knows that
+   we have a field for is carried over; what is left goes into the remarks
+   rather than being thrown away. */
+function berlinTree(f, srsIsLatLon) {
+  const g = f.geometry;
+  if (!g) return null;
+  let c = g.coordinates;
+  if (g.type === 'MultiPoint' && c.length) c = c[0];
+  if (!c || c.length < 2) return null;
+  const wgs = (srsIsLatLon || (Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90))
+    ? { lat: +c[1], lon: +c[0] }
+    : CRS['EPSG:25833'].to(+c[0], +c[1]);
+  const p = f.properties || {};
+  const no = pick(p, ['kennzeich', 'baumnummer', 'baum_nr', 'nummer', 'standortnr', 'standort_nr']);
+  const bot = pick(p, ['art_bot', 'artbot', 'art_botanisch', 'gattung_art']);
+  const de = pick(p, ['art_dtsch', 'art_deutsch', 'artdtsch', 'art']);
+  const street = pick(p, ['strname', 'strasse', 'str_name']);
+  const hnr = pick(p, ['hausnr', 'hausnummer']);
+  const bez = pick(p, ['bezirk', 'bez_name']);
+  const girth = numOr(pick(p, ['stammumfg', 'stammumfang', 'umfang']));
+  const src = String(pick(p, ['gml_id', 'id', 'objectid']) || (no || ''));
+  const extra = [];
+  if (de) extra.push(String(de));
+  if (street) extra.push(String(street) + (hnr ? ' ' + hnr : ''));
+  return {
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [+wgs.lon.toFixed(7), +wgs.lat.toFixed(7)] },
+    properties: {
+      tag_no: no == null ? '' : String(no),
+      species: bot ? String(bot) : '',
+      name_en: de ? String(de) : '',
+      area: [bez, street].filter(Boolean).join(' · '),
+      planted: numOr(pick(p, ['pflanzjahr', 'pflanz_jahr'])),
+      girth_cm: girth,
+      // the register gives the girth at 1.30 m; the diameter follows from it
+      dbh_cm: girth == null ? null : Math.round(girth / Math.PI),
+      height_m: numOr(pick(p, ['baumhoehe', 'hoehe', 'baum_hoehe'])),
+      crown_d_m: numOr(pick(p, ['kronedurch', 'kronendurchmesser', 'krone_durchmesser'])),
+      geometry_source: 'Berlin tree register',
+      source_id: src,
+      remarks: extra.join(' · ')
+    }
+  };
+}
+
+async function wfsLayers(base) {
+  const u = base + (base.indexOf('?') < 0 ? '?' : '&') +
+            'SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities';
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('capabilities: HTTP ' + r.status);
+  const x = new DOMParser().parseFromString(await r.text(), 'application/xml');
+  const out = [];
+  x.querySelectorAll('FeatureType > Name').forEach(n => {
+    const t = (n.textContent || '').trim();
+    if (t) out.push(t);
+  });
+  if (!out.length) throw new Error('the service lists no layers');
+  return out;
+}
+
+async function berlinImport(spot, base, onSay) {
+  const say = onSay || (() => {});
+  const b = base || BERLIN_WFS;
+  const c = CRS['EPSG:25833'].from(spot.lat, spot.lon);
+  const bbox = [c.e - spot.r, c.n - spot.r, c.e + spot.r, c.n + spot.r]
+    .map(v => v.toFixed(1)).join(',');
+  say('Asking the service what it serves …');
+  const layers = (await wfsLayers(b)).filter(n => /baum|tree/i.test(n));
+  if (!layers.length) throw new Error('no tree layer in the service');
+  const feats = [];
+  for (let i = 0; i < layers.length && i < 4; i++) {
+    say('Fetching ' + layers[i] + ' …');
+    const u = b + (b.indexOf('?') < 0 ? '?' : '&') +
+      'SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=' + encodeURIComponent(layers[i]) +
+      '&SRSNAME=EPSG:25833&COUNT=800&OUTPUTFORMAT=' + encodeURIComponent('application/json') +
+      '&BBOX=' + encodeURIComponent(bbox + ',EPSG:25833');
+    let r;
+    try { r = await fetch(u); } catch (e) { throw new Error('the phone could not reach the service: ' + e.message); }
+    if (!r.ok) throw new Error(layers[i] + ': HTTP ' + r.status + ' ' + (await r.text()).slice(0, 160));
+    let j;
+    try { j = JSON.parse(await r.text()); }
+    catch (e) { throw new Error(layers[i] + ': the service did not answer with GeoJSON'); }
+    (j.features || []).forEach(f => feats.push(f));
+  }
+  return feats;
+}
+
+/* Adding them: a register tree already on the phone is left alone, matched on
+   the register's own id, so fetching the same corner twice changes nothing. */
+function addBerlin(feats) {
+  const seen = {};
+  CAT.features.forEach((f, i) => { const s = props(i).source_id; if (s) seen[s] = 1; });
+  let added = 0, dup = 0, bad = 0;
+  feats.forEach(f => {
+    const t = berlinTree(f);
+    if (!t) { bad++; return; }
+    if (t.properties.source_id && seen[t.properties.source_id]) { dup++; return; }
+    seen[t.properties.source_id] = 1;
+    const today = new Date().toISOString().slice(0, 10);
+    t.properties = Object.assign({
+      tree_id: '', inspector: '', vitality_roloff: 0, crown_dieback_pct: 0,
+      damage_class: 'none', cavity: 'no', stability: 'adequate',
+      breakage_resistance: 'adequate', traffic_safety: 'adequate', urgency: 'none',
+      inspection_type: 'Not yet inspected', last_inspection: '', interval_months: 12,
+      symptoms: [], actions: [], history: [], position_accuracy_m: null
+    }, t.properties);
+    t.properties.tree_id = nextTreeId();
+    CAT.features.push(t);
+    added++;
+  });
+  if (added) { saveCat(); buildMarkers(); renderList(); renderStats(); }
+  return { added: added, dup: dup, bad: bad };
+}
+
 /* ============================== MAP ==============================
    A slippy map is a few lines of Web Mercator and a grid of images, and a
    library would be a bigger dependency than the whole feature. Tiles come from
@@ -3101,6 +3345,75 @@ function wireMap() {
 
   $('mZin').onclick = () => mapZoom(1);
   $('mZout').onclick = () => mapZoom(-1);
+  /* A boundary mark or a building corner is published in the national plane
+     system, not in degrees. Typed in as it stands in the register, it comes
+     out where the phone will actually find it - projection and plate motion
+     both taken off. */
+  const crsSel = $('mRefCrs');
+  Object.keys(CRS).forEach(k => {
+    const o = document.createElement('option'); o.value = k; o.textContent = k + ' · ' + CRS[k].name;
+    crsSel.appendChild(o);
+  });
+  crsSel.value = prefs().crs || 'EPSG:25833';
+  crsSel.onchange = () => setPref('crs', crsSel.value);
+  $('mAddRefXY').onclick = () => {
+    const e = parseFloat(String($('mRefE').value).replace(',', '.'));
+    const n = parseFloat(String($('mRefN').value).replace(',', '.'));
+    if (!isFinite(e) || !isFinite(n)) return toast('Type both coordinates.');
+    const c = CRS[crsSel.value];
+    const g = c.to(e, n);
+    if (!isFinite(g.lat) || !isFinite(g.lon) || Math.abs(g.lat) > 90)
+      return toast('Those are not coordinates in ' + crsSel.value + '.');
+    const id = ($('mRefId').value || '').trim() || ('P' + (REFS.length + 1));
+    if (refById(id)) return toast('A reference point called ' + id + ' already exists.');
+    REFS.push({ id: id, lat: +g.lat.toFixed(7), lon: +g.lon.toFixed(7),
+                note: crsSel.value + ' ' + e.toFixed(2) + ' / ' + n.toFixed(2), acc: 0.05 });
+    saveRefs(); renderRefs();
+    $('mRefId').value = ''; $('mRefE').value = ''; $('mRefN').value = '';
+    const v = mapCentre(); v.lat = g.lat; v.lon = g.lon; v.z = 19; mapFollow = false; drawMap();
+    toast(id + ' set from ' + crsSel.value + '.');
+  };
+  /* What the crosshair is, in the chosen system - to read a point off the map
+     and check it against a register, or the other way round. */
+  const showXY = () => {
+    const v = mapCentre(), c = CRS[crsSel.value];
+    if (!c) return;
+    const q = c.from(v.lat, v.lon), d = (crsSel.value === 'EPSG:4326') ? 6 : 2;
+    $('mRefXY').textContent = 'Crosshair in ' + crsSel.value + ': ' +
+      q.e.toFixed(d) + ' / ' + q.n.toFixed(d);
+  };
+  setInterval(() => { if ($('sc-map').classList.contains('on')) showXY(); }, 500);
+
+  /* --- the Berlin register --- */
+  const bMsg = t => { $('berlinMsg').textContent = t; };
+  $('berlinUrl').value = prefs().berlinUrl || BERLIN_WFS;
+  $('berlinUrl').onchange = () => setPref('berlinUrl', $('berlinUrl').value.trim());
+  const runBerlin = async (spot) => {
+    const base = ($('berlinUrl').value || '').trim() || BERLIN_WFS;
+    bMsg('Fetching ' + spot.name + ' …');
+    try {
+      const feats = await berlinImport(spot, base, bMsg);
+      if (!feats.length) { bMsg('The service answered, with no trees in that area.'); return; }
+      const r = addBerlin(feats);
+      bMsg(r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + spot.name +
+           (r.dup ? ' · ' + r.dup + ' were already here' : '') +
+           (r.bad ? ' · ' + r.bad + ' without a position' : ''));
+      if (r.added) toast(r.added + ' trees imported – register positions, so stand at each ' +
+                         'stem and record it properly.');
+    } catch (e) {
+      bMsg('Failed: ' + e.message);
+    }
+  };
+  BERLIN_SPOTS.forEach(sp => {
+    const b = document.createElement('button'); b.className = 'sm'; b.textContent = sp.name;
+    b.onclick = () => runBerlin(sp);
+    $('berlinSpots').appendChild(b);
+  });
+  $('berlinHere').onclick = () => {
+    const v = mapCentre();
+    runBerlin({ name: 'the area on the map', lat: v.lat, lon: v.lon, r: 500 });
+  };
+
   $('mMe').onclick = () => {
     if (!mapToMe(true)) toast('No GPS fix yet – the map centres itself as soon as there is one.');
   };
@@ -4921,8 +5234,26 @@ function wire() {
     rd.onload = () => {
       try {
         const j = JSON.parse(rd.result);
-        const all = (j.features || []).filter(x => x.geometry && x.geometry.type === 'Point');
+        const all = (j.features || []).filter(x => x.geometry &&
+          (x.geometry.type === 'Point' || x.geometry.type === 'MultiPoint'));
         if (!all.length) throw new Error('no point features found');
+        /* A file straight from the Berlin portal is not one of ours: no
+           tree_id, but art_bot and kennzeich. Take it through the register
+           reader instead of pretending it is a register of ours. */
+        const looksBerlin = all.length && !all[0].properties.tree_id &&
+          Object.keys(all[0].properties || {}).some(k =>
+            /^(art_bot|art_dtsch|kennzeich|standortnr|stammumfg|baumhoehe)$/i.test(k));
+        if (looksBerlin) {
+          const r = addBerlin(all);
+          $('fileImp').value = ''; importReplace = false;
+          alert('Berlin tree register loaded.\n\n' + r.added + ' new tree' +
+                (r.added === 1 ? '' : 's') +
+                (r.dup ? '\n' + r.dup + ' already here' : '') +
+                (r.bad ? '\n' + r.bad + ' without a usable position' : '') +
+                '\n\nThese are register positions, metre-level. Stand at each stem ' +
+                'and record it to get a survey.');
+          return;
+        }
         const refs = all.filter(x => x.properties && x.properties.is_reference);
         const feats = all.filter(x => !(x.properties && x.properties.is_reference));
         feats.forEach((x, n) => {

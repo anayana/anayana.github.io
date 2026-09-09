@@ -353,6 +353,14 @@ table.hist th{color:#8fa697;font-weight:500}
       <div class="row"><label>Name for the next point</label>
         <input type="text" id="mRefId" placeholder="P1" inputmode="text"></div>
       <div class="btnrow"><button class="p" id="mAddRef">Set reference point at crosshair</button></div>
+      <div class="row"><label>…or from coordinates</label>
+        <select id="mRefCrs"></select></div>
+      <div class="row"><label>East / Longitude</label>
+        <input type="text" id="mRefE" inputmode="decimal" placeholder="373505.67"></div>
+      <div class="row"><label>North / Latitude</label>
+        <input type="text" id="mRefN" inputmode="decimal" placeholder="5808524.08"></div>
+      <div class="btnrow"><button id="mAddRefXY">Set from coordinates</button></div>
+      <div class="small" id="mRefXY"></div>
       <div id="refList"></div>
       <p class="small">Measure three or four of these in AR (button <b>Refs</b>) before
         recording trees. Two fix the scene's position and heading, more give a
@@ -402,6 +410,15 @@ table.hist th{color:#8fa697;font-weight:500}
         missing. It never deletes, and where a value differs, yours is kept and the
         difference reported.</p>
       <input type="file" id="fileImp" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
+      <h3>Berlin tree register</h3>
+      <p class="small">The city's open register of street and park trees. Positions in
+        it are metre-level – it says which tree is which, not where the stem is.</p>
+      <div class="btnrow" id="berlinSpots"></div>
+      <div class="btnrow"><button id="berlinHere">The area on the map</button></div>
+      <div class="row"><label>Service</label>
+        <input type="url" id="berlinUrl" placeholder="gdi.berlin.de/services/wfs/baumbestand"></div>
+      <div class="small" id="berlinMsg"></div>
+
       <h3>Identification service</h3>
       <div class="row"><label>Endpoint (blank = public)</label>
         <input type="url" id="niaUrl" placeholder="multi-source.identify.biodiversityanalysis.eu"></div>
@@ -493,8 +510,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.6.1"></script>
-<script src="data.js?v=2.6.1"></script>
-<script src="app.js?v=2.6.1"></script>
+<script src="vendor/three.min.js?v=2.7.0"></script>
+<script src="data.js?v=2.7.0"></script>
+<script src="app.js?v=2.7.0"></script>
 </body>
 </html>
