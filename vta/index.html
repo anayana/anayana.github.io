@@ -133,10 +133,16 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #ctl{bottom:calc(72px + env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;padding:8px}
 #ctl{flex-wrap:nowrap}
 #ctl button{font-size:13px;padding:7px 8px;white-space:nowrap}
-#chooser,#mmenu,#refmenu{position:absolute;left:12px;right:12px;bottom:150px;background:rgba(10,16,13,.96);
+#chooser,#mmenu,#refmenu,#nummenu{position:absolute;left:12px;right:12px;bottom:150px;background:rgba(10,16,13,.96);
   border:1px solid #34483c;border-radius:14px;padding:12px;display:none}
 #chooser .btnrow button,#mmenu .btnrow button,#refmenu .btnrow button{min-width:30%}
-#refmenu{max-height:56vh;overflow:auto}
+#refmenu,#nummenu{max-height:56vh;overflow:auto}
+#nummenu{display:none}
+button.numrow{display:flex;gap:8px;align-items:center;justify-content:space-between;width:100%;
+  text-align:left;background:#131c17;border:1px solid #26332b;border-radius:10px;
+  padding:8px 10px;margin-top:6px;color:inherit}
+button.numrow.ex{border-color:#8fd6a8}
+button.numrow .dim{color:#8ea396}
 .refrow{display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #223027}
 .refrow .nm{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .refrow.has .nm{color:#8fd6a8}
@@ -333,6 +339,11 @@ table.hist th{color:#8fa697;font-weight:500}
 
       <h3>Report</h3>
       <div class="btnrow">
+        <button id="bMapPage">Map page</button>
+      </div>
+      <p class="small">One HTML file with the trees in it – opens in any browser, can be
+        mailed or put on a web server as it is.</p>
+      <div class="btnrow">
         <button class="p" id="bRepPlain">Inspection report</button>
         <button id="bRepPhoto">…with photos</button>
       </div>
@@ -417,6 +428,7 @@ table.hist th{color:#8fa697;font-weight:500}
   <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
   <div class="bar" id="ctl2">
     <button id="bshot">Photo</button>
+    <button id="block">Lock scene</button>
     <button id="bfz">Fall zone</button>
     <button id="bstand">I am at…</button>
     <button id="bl">◀ −5°</button>
@@ -425,8 +437,10 @@ table.hist th{color:#8fa697;font-weight:500}
     <button id="bo">Origin = GPS</button>
   </div>
   <div id="refmenu"></div>
+  <div id="nummenu"></div>
   <div class="bar" id="ctl">
     <button class="p" id="bnew">+ Tree</button>
+    <button id="bnum">№</button>
     <button id="bref">Refs</button>
     <button id="bmeas">Measure</button>
     <button id="bbark">Bark</button>
@@ -439,8 +453,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=1.12.0"></script>
-<script src="data.js?v=1.12.0"></script>
-<script src="app.js?v=1.12.0"></script>
+<script src="vendor/three.min.js?v=1.13.0"></script>
+<script src="data.js?v=1.13.0"></script>
+<script src="app.js?v=1.13.0"></script>
 </body>
 </html>

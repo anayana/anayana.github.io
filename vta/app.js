@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.13.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -157,6 +157,7 @@ const F_VTA = [
 const F_BASE = [
   ['tree_id', 'Tree ID', 'text'],
   ['tag_no', 'Number on the trunk', 'text'],
+  ['area', 'District / compartment', 'text'],
   ['species', 'Species (scientific)', 'species'],
   ['name_en', 'Common name', 'text'],
   ['name_fi', 'Name (Finnish)', 'text'],
@@ -465,6 +466,7 @@ function enu(lat, lon, lat0, lon0) {
    the session; in absolute terms it inherits the error of the origin fix. */
 function sceneToWgs(v) {
   if (!origin || !world) return null;
+  settleComp();                       // a placement ends the glide rather than inheriting it
   // worldToLocal inverts the cached matrix, and applyYaw() has just turned the
   // world without a render in between - refresh it or the answer is the old
   // heading's answer
@@ -479,6 +481,7 @@ function sceneToWgs(v) {
    otherwise walking twenty metres before saying "I am at ..." puts the whole
    scene twenty metres out. */
 function setOriginHere(lat, lon, acc) {
+  settleComp();
   if (world && mode) {
     world.updateMatrixWorld(true);
     const l = world.worldToLocal(camPos());
@@ -627,7 +630,8 @@ function showFit() {
   const done = controlList().filter(r => refFix.has(r.key)).length;
   if (!mode) { el.textContent = ''; return; }
   // say what it means for the markers, not what the maths is called
-  el.textContent = lastFit
+  el.textContent = sceneLocked ? 'markers locked'
+    : lastFit
       ? (lastFit.auto ? 'markers aligned by walking' : 'markers aligned ±' + lastFit.rms.toFixed(1) + ' m')
     : done >= 2 ? 'ready – press Apply'
     : done === 1 ? 'markers roughly placed'
@@ -636,13 +640,124 @@ function showFit() {
 }
 let lastFit = null;
 
+/* ---- correcting without moving ----
+   When the fit improves, the markers are in a better place than they were -
+   but the tree has not moved and neither have you, so nothing on screen should
+   jump. The correction is applied to the transform immediately, which is what
+   every coordinate is computed from, and cancelled out of the *drawing* by an
+   equal and opposite offset that then decays to nothing. The markers stay
+   where they were and glide the last metre or two over a couple of seconds.
+
+   Algebra: a marker sits at R(phi0)(w1 + delta) before and R(phi1)w1 after,
+   where delta is the old origin seen from the new one. The offset that makes
+   the second look like the first is a rotation by phi0-phi1 followed by a
+   translation of R(phi0)delta. */
+let worldComp = null, compRot = 0, compPos = new THREE.Vector3(), compAt = 0;
+/* Any correction is walked off in about this long, with a floor so a
+   centimetre does not snap and a ceiling so five metres does not take a
+   minute. */
+const COMP_SECS = 2.5, COMP_ROT_MIN = 3 * Math.PI / 180, COMP_POS_MIN = 0.25;
+function rotY(v, a) {
+  return new THREE.Vector3(v.x * Math.cos(a) + v.z * Math.sin(a), 0,
+                          -v.x * Math.sin(a) + v.z * Math.cos(a));
+}
+function applyComp() {
+  if (!worldComp) return;
+  worldComp.rotation.y = compRot;
+  worldComp.position.copy(compPos);
+  worldComp.updateMatrixWorld(true);
+}
+function compActive() { return Math.abs(compRot) > 1e-4 || compPos.lengthSq() > 1e-6; }
+function settleComp() {          // anything that needs the truth ends the glide
+  compRot = 0; compPos.set(0, 0, 0); applyComp();
+}
+function decayComp(dt) {
+  if (!compActive()) return;
+  const rRate = Math.max(COMP_ROT_MIN, Math.abs(compRot) / COMP_SECS);
+  const r = Math.min(Math.abs(compRot), rRate * dt);
+  compRot -= Math.sign(compRot) * r;
+  const len = compPos.length();
+  const pRate = Math.max(COMP_POS_MIN, len / COMP_SECS);
+  if (len > 0) compPos.multiplyScalar(Math.max(0, len - pRate * dt) / len);
+  if (Math.abs(compRot) < 1e-4 && compPos.lengthSq() < 1e-6) settleComp(); else applyComp();
+}
+
 function applyFit(f, lat0, lon0, auto) {
+  const o0 = origin, phi0 = THREE.MathUtils.degToRad(worldYaw + headOff);
   origin = { lat: lat0 + f.n0 / mLat(lat0), lon: lon0 + f.e0 / mLon(lat0) };
   originAcc = f.rms; originPinned = true;
   worldYaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360; headOff = 0;
+  if (o0 && worldComp && mode) {
+    const phi1 = THREE.MathUtils.degToRad(worldYaw);
+    const d = enu(origin.lat, origin.lon, o0.lat, o0.lon);   // new origin seen from the old
+    const dTrans = rotY(new THREE.Vector3(d.e, 0, -d.n), phi0);
+    const dRot = phi0 - phi1;
+    // compose onto whatever glide is still running
+    compPos.add(rotY(dTrans, compRot));
+    compRot += dRot;
+    while (compRot > Math.PI) compRot -= 2 * Math.PI;
+    while (compRot < -Math.PI) compRot += 2 * Math.PI;
+    if (compPos.length() > 60) settleComp();     // a jump this large is a re-anchor, not a nudge
+    else applyComp();
+  }
   applyYaw(); placeMarkers(); requestAnchors();
   f.auto = !!auto; lastFit = f;
+  compAt = performance.now();
   showFit();
+}
+
+/* ---- finding a tree by the number on its trunk ----
+   The plates are small, they hang high, and the same number is used again in
+   the next district - so a number alone identifies nothing. Where you are
+   standing settles it: the same number twenty metres away and the same number
+   four kilometres away are not a hard choice. Candidates are therefore ranked
+   by distance, and the district is shown so a wrong pick is visible.
+
+   Reading the number off the photograph would be better than typing it. The
+   browser offers no reliable text recognition to do it with - Chrome on
+   Android ships BarcodeDetector but not TextDetector - so barcodes are read
+   where the platform can, text where it can, and otherwise the number is
+   typed, which is four digits and no worse than what a clipboard needs. */
+function findByNumber(numStr) {
+  const q = String(numStr || '').trim().toLowerCase();
+  if (!q) return [];
+  const here = lastFix;
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const p = props(i);
+    const tag = String(p.tag_no == null ? '' : p.tag_no).trim().toLowerCase();
+    const id = String(p.tree_id || '').toLowerCase();
+    const exact = tag && tag === q;
+    if (!exact && tag.indexOf(q) < 0 && id.indexOf(q) < 0) return;
+    const c = f.geometry.coordinates;
+    const d = here ? distBear(c[1], c[0], here.lat, here.lon).d : null;
+    out.push({ i: i, p: p, exact: exact, d: d });
+  });
+  out.sort((a, b) => (b.exact - a.exact) ||
+                     ((a.d == null ? 1e9 : a.d) - (b.d == null ? 1e9 : b.d)));
+  return out;
+}
+async function readNumberFromImage(blob) {
+  // whatever the platform happens to offer, and nothing if it offers nothing
+  try {
+    if (typeof BarcodeDetector !== 'undefined') {
+      const det = new BarcodeDetector();
+      const bmp = await createImageBitmap(blob);
+      const codes = await det.detect(bmp);
+      if (codes && codes.length) return { text: codes[0].rawValue, how: 'barcode' };
+    }
+  } catch (e) {}
+  try {
+    if (typeof TextDetector !== 'undefined') {
+      const det = new TextDetector();
+      const bmp = await createImageBitmap(blob);
+      const blocks = await det.detect(bmp);
+      const digits = (blocks || []).map(b => b.rawValue)
+        .join(' ').match(/\d{2,8}/g);
+      if (digits && digits.length) return { text: digits[0], how: 'text' };
+    }
+  } catch (e) {}
+  return null;
 }
 
 /* ---- recognising the stand by its own pattern ----
@@ -761,7 +876,9 @@ function trackSpan() {
       mx = Math.max(mx, Math.hypot(track[i].x - track[j].x, track[i].z - track[j].z));
   return mx;
 }
+let sceneLocked = false;
 function autoFit() {
+  if (sceneLocked) return;
   if (controlList().filter(r => refFix.has(r.key)).length >= 2) return;   // hand-measured wins
   if (lastFit && !lastFit.auto) return;
   if (track.length < T_MIN || trackSpan() < T_SPAN) return;
@@ -882,7 +999,11 @@ let edgeEls = {}, edgeTick = 0;
 function buildScene() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 500);
-  world = new THREE.Group(); scene.add(world);
+  // worldComp holds the difference between where the markers are drawn and
+  // where the current best transform says they belong, and decays it to
+  // nothing over a couple of seconds. See applyFit().
+  worldComp = new THREE.Group(); scene.add(worldComp);
+  world = new THREE.Group(); worldComp.add(world);
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
@@ -1132,6 +1253,7 @@ function enterAR() {
   buildMeasureMenu();
   buildRefMenu();
   refFix.clear(); lastFit = null; track = []; autoState = null;   // new session, new frame
+  sceneLocked = false; settleComp();
   showFit();
   buildEdge();
   $('bmeas').disabled = !(mode === 'WebXR' && hitOk);
@@ -1155,6 +1277,7 @@ function endAR() {
   $('chooser').style.display = 'none';
   $('mmenu').style.display = 'none';
   $('refmenu').style.display = 'none';
+  $('nummenu').style.display = 'none';
   $('ctl2').classList.remove('on');
   $('edge').innerHTML = ''; edgeEls = {};
   $('hwarnT').textContent = ''; $('hwarn').classList.remove('on'); warnOff = false;
@@ -1204,6 +1327,9 @@ function tick() {
   });
   if ($('hud').classList.contains('open'))
     $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+  const nowMs = performance.now();
+  decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
+  compAt = nowMs;
   if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
 }
@@ -1296,6 +1422,7 @@ function updateAnchors(frame) {
     });
     return;
   }
+  if (compActive()) return;            // let the glide finish before nudging anything
   const now = performance.now();
   const dt = anchTime ? Math.min(0.1, (now - anchTime) / 1000) : 0;
   anchTime = now;
@@ -1674,7 +1801,18 @@ function takeARPhoto(frame) {
     meta.bearing = Math.round((camYawDeg() + worldYaw + headOff) % 360);
     meta.h = +c.y.toFixed(2);
     meta.pitch = Math.round(camPitchDeg());
-    if (shotKind) { meta.kind = shotKind; shotKind = null; }
+    const kindNow = shotKind; shotKind = null;
+    if (kindNow) meta.kind = kindNow;
+    if (kindNow === 'tag') {
+      out.toBlob(bl => { if (!bl) return;
+        readNumberFromImage(bl).then(r => {
+          if (!r) return;
+          meta.read = r.text; meta.readBy = r.how;
+          toast('Plate read as ' + r.text + ' – check it.');
+          $('nummenu').style.display = 'block'; buildNumMenu(r.text);
+        }).catch(() => {});
+      }, 'image/jpeg', 0.8);
+    }
     const g = world.children.find(o => o.userData.idx === tree);
     if (g) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
 
@@ -1762,6 +1900,52 @@ function runStemMatch(pts) {
   lastFit.worst = 'stems';
   clearMeasure();
   toast('Scene matched to ' + r.n + ' stems · ±' + r.fit.rms.toFixed(2) + ' m');
+}
+
+function buildNumMenu(prefill) {
+  const el = $('nummenu');
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Tree by number</b> <span class="small">· nearest first</span>';
+  el.appendChild(h);
+  const row = document.createElement('div'); row.className = 'row';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.inputMode = 'numeric'; inp.id = 'numIn';
+  inp.placeholder = 'number on the plate'; inp.value = prefill || '';
+  const lab = document.createElement('label'); lab.textContent = 'Number';
+  row.appendChild(lab); row.appendChild(inp); el.appendChild(row);
+  const list = document.createElement('div'); el.appendChild(list);
+  const draw = () => {
+    list.innerHTML = '';
+    const hits = findByNumber(inp.value).slice(0, 8);
+    if (!inp.value.trim()) { list.innerHTML = '<p class="small">Type the number, or photograph the plate.</p>'; return; }
+    if (!hits.length) { list.innerHTML = '<p class="small">No tree with that number in the register.</p>'; return; }
+    hits.forEach(x => {
+      const b = document.createElement('button'); b.className = 'numrow' + (x.exact ? ' ex' : '');
+      b.innerHTML = '<span><b>' + esc(x.p.tag_no || x.p.tree_id) + '</b> ' +
+        '<span class="small">' + esc(x.p.species || '') + '</span>' +
+        (x.p.area ? '<div class="small dim">' + esc(x.p.area) + '</div>' : '') + '</span>' +
+        '<span class="small">' + (x.d == null ? '' : x.d.toFixed(x.d < 100 ? 1 : 0) + ' m') + '</span>';
+      b.onclick = () => { selectTree(x.i); el.style.display = 'none'; openPanel(x.i); };
+      list.appendChild(b);
+    });
+  };
+  inp.oninput = draw; draw();
+  const act = document.createElement('div'); act.className = 'btnrow'; act.style.marginTop = '8px';
+  const ph = document.createElement('button'); ph.className = 'sm p'; ph.textContent = 'Photograph the plate';
+  ph.disabled = !(mode === 'WebXR' && camAccessOk);
+  ph.onclick = () => {
+    const t = selIdx == null ? nearestTree() : selIdx;
+    if (t == null) return toast('Select a tree first, or record one.');
+    shotFor = t; shotKind = 'tag'; el.style.display = 'none';
+    toast('Photographing the number plate …');
+  };
+  act.appendChild(ph);
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl);
+  el.appendChild(act);
+  setTimeout(() => inp.focus(), 50);
 }
 
 function buildRefMenu() {
@@ -2730,7 +2914,8 @@ async function renderPhotos(tree, gal) {
       nia.disabled = false; nia.textContent = 'NIA';
     };
     fig.appendChild(nia);
-    cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : '') +
+    cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : f.kind === 'tag' ? 'PLATE · ' : '') +
+      (f.read ? 'read ' + f.read + ' · ' : '') +
       (f.ts || '').slice(0, 16).replace('T', ' ') +
       (f.bearing != null ? ' · ' + f.bearing + '°' : '') +
       (f.h != null ? ' · ' + f.h.toFixed(2) + ' m' : '') +
@@ -2976,6 +3161,119 @@ async function buildReport(withPhotos) {
       '<th>Action</th><th>Next inspection</th></tr>' + workRows + '</table>' : '') +
     trees;
 }
+/* ---- the register as a map anyone can open ----
+   A GeoJSON is a file for a GIS. This is the same data as a page: one HTML
+   file with the trees inside it, an OpenStreetMap background and a click for
+   each tree. It opens in any browser, it can be mailed, and it can be dropped
+   on a web server as it is - which is what "the trees should appear on a map"
+   actually asks for. */
+function buildMapPage() {
+  const feats = CAT.features.map((f, i) => {
+    const p = props(i), a = assess(p), c = f.geometry.coordinates;
+    return { lat: c[1], lon: c[0], lvl: a.lvl,
+             id: p.tag_no ? 'No. ' + p.tag_no : (p.tree_id || ''),
+             sp: p.species || '', dbh: p.dbh_cm == null ? '' : p.dbh_cm,
+             h: p.height_m == null ? '' : p.height_m,
+             urg: p.urgency && p.urgency !== 'none' ? p.urgency : '',
+             next: p.next_inspection || '', area: p.area || '' };
+  });
+  const refs = REFS.map(r => ({ lat: r.lat, lon: r.lon, id: r.id }));
+  const data = JSON.stringify({ trees: feats, refs: refs, made: new Date().toISOString() });
+  return '<!doctype html><meta charset="utf-8">' +
+  '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+  '<title>Tree register</title><style>' +
+  'html,body{margin:0;height:100%;font:13px/1.4 system-ui,sans-serif;background:#101512;color:#e8ece9}' +
+  '#m{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:grab}' +
+  '#t img{position:absolute;width:256px;height:256px}' +
+  '#k{position:absolute;inset:0;pointer-events:none}' +
+  '.d{position:absolute;width:12px;height:12px;margin:-7px 0 0 -7px;border-radius:50%;' +
+  'border:2px solid #0b110e;pointer-events:auto;cursor:pointer}' +
+  '.r{background:#ffb347;border-radius:2px}' +
+  '#z{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}' +
+  '#z button{width:36px;height:36px;font-size:18px;background:#182019;color:#e8ece9;' +
+  'border:1px solid #34483c;border-radius:9px}' +
+  '#i{position:absolute;left:10px;bottom:26px;max-width:min(340px,80vw);background:rgba(12,18,15,.95);' +
+  'border:1px solid #34483c;border-radius:12px;padding:10px 12px;display:none}' +
+  '#a{position:absolute;right:0;bottom:0;background:rgba(12,18,15,.8);font-size:10px;padding:2px 6px}' +
+  '#a a{color:#8fd6a8}#l{position:absolute;left:10px;top:10px;background:rgba(12,18,15,.9);' +
+  'border:1px solid #34483c;border-radius:10px;padding:8px 10px;font-size:12px}' +
+  '#l i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}' +
+  '</style><div id="m"><div id="t"></div><div id="k"></div></div>' +
+  '<div id="l"></div><div id="z"><button id="zi">+</button><button id="zo">\u2212</button></div>' +
+  '<div id="i"></div>' +
+  '<div id="a">\u00a9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</div>' +
+  '<script>var D=' + data + ';' + MAPPAGE_JS + '<\/script>';
+}
+const MAPPAGE_JS = [
+'var COL=["#54c07a","#c9c24a","#e0a94a","#e0614a"],' +
+'TXT=["inconspicuous","watch","conspicuous","urgent"];',
+'var m=document.getElementById("m"),T=document.getElementById("t"),K=document.getElementById("k"),',
+'I=document.getElementById("i"),tiles={};',
+'function lo2p(l,z){return (l+180)/360*256*Math.pow(2,z);}',
+'function la2p(l,z){var s=Math.sin(Math.max(-85,Math.min(85,l))*Math.PI/180);',
+'return (0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*256*Math.pow(2,z);}',
+'function p2lo(x,z){return x/(256*Math.pow(2,z))*360-180;}',
+'function p2la(y,z){var n=Math.PI-2*Math.PI*y/(256*Math.pow(2,z));',
+'return 180/Math.PI*Math.atan(Math.sinh(n));}',
+'var all=D.trees.concat(D.refs),V={lat:0,lon:0,z:17};',
+'function pct(a,q){a=a.slice().sort(function(x,y){return x-y;});',
+'return a[Math.min(a.length-1,Math.max(0,Math.round(q*(a.length-1))))];}',
+'if(all.length){var La=all.map(function(x){return x.lat;}),Lo=all.map(function(x){return x.lon;});',
+// the middle of the bulk, not the mean: one tree four kilometres away should
+// not decide where the map opens or how far out it starts
+'var la0=pct(La,0.05),la1=pct(La,0.95),lo0=pct(Lo,0.05),lo1=pct(Lo,0.95);',
+'V.lat=(la0+la1)/2;V.lon=(lo0+lo1)/2;',
+'var mLat=111132,mLon=111320*Math.cos(V.lat*Math.PI/180);',
+'var spanM=Math.max((la1-la0)*mLat,(lo1-lo0)*mLon,20);',
+'V.z=Math.max(3,Math.min(19,Math.round(Math.log2(156543.03*Math.cos(V.lat*Math.PI/180)*600/spanM/1))-8));}',
+'function draw(){var w=m.clientWidth,h=m.clientHeight,sc=Math.pow(2,V.z);',
+'var left=lo2p(V.lon,V.z)-w/2,top=la2p(V.lat,V.z)-h/2,seen={};',
+'for(var tx=Math.floor(left/256);tx<=Math.floor((left+w)/256);tx++)',
+'for(var ty=Math.floor(top/256);ty<=Math.floor((top+h)/256);ty++){',
+'if(ty<0||ty>=sc)continue;var wx=((tx%sc)+sc)%sc,k=V.z+"/"+wx+"/"+ty;seen[k]=1;',
+'var im=tiles[k];if(!im){im=new Image();im.src="https://tile.openstreetmap.org/"+V.z+"/"+wx+"/"+ty+".png";',
+'im.alt="";tiles[k]=im;T.appendChild(im);}',
+'im.style.left=(tx*256-left)+"px";im.style.top=(ty*256-top)+"px";}',
+'for(var q in tiles){if(!seen[q]){tiles[q].remove();delete tiles[q];}}',
+'K.innerHTML="";',
+'D.refs.forEach(function(r){var d=document.createElement("div");d.className="d r";',
+'d.style.left=(lo2p(r.lon,V.z)-left)+"px";d.style.top=(la2p(r.lat,V.z)-top)+"px";',
+'d.title=r.id;K.appendChild(d);});',
+'D.trees.forEach(function(t){var d=document.createElement("div");d.className="d";',
+'d.style.background=COL[t.lvl];d.style.left=(lo2p(t.lon,V.z)-left)+"px";',
+'d.style.top=(la2p(t.lat,V.z)-top)+"px";d.onclick=function(e){e.stopPropagation();',
+'I.style.display="block";I.innerHTML="<b>"+t.id+"</b> <span style=\'color:"+COL[t.lvl]+"\'>level "',
+'+t.lvl+" \u00b7 "+TXT[t.lvl]+"</span><br>"+(t.sp?"<i>"+t.sp+"</i><br>":"")',
+'+(t.dbh?"DBH "+t.dbh+" cm ":"")+(t.h?"\u00b7 H "+t.h+" m":"")',
+'+(t.urg?"<br>urgency: "+t.urg:"")+(t.next?"<br>next inspection "+t.next:"")',
+'+(t.area?"<br>"+t.area:"")+"<br><span style=\'opacity:.6\'>"+t.lat.toFixed(6)+", "+t.lon.toFixed(6)+"</span>";};',
+'K.appendChild(d);});',
+'var n=[0,0,0,0];D.trees.forEach(function(t){n[t.lvl]++;});',
+'document.getElementById("l").innerHTML=D.trees.length+" trees<br>"+n.map(function(c,k){',
+'return "<i style=\'background:"+COL[k]+"\'></i>"+k+" "+TXT[k]+" ("+c+")";}).join("<br>");}',
+'var dr=null;m.addEventListener("pointerdown",function(e){dr={x:e.clientX,y:e.clientY};',
+'m.setPointerCapture(e.pointerId);});',
+'m.addEventListener("pointermove",function(e){if(!dr)return;',
+'var cx=lo2p(V.lon,V.z)-(e.clientX-dr.x),cy=la2p(V.lat,V.z)-(e.clientY-dr.y);',
+'V.lon=p2lo(cx,V.z);V.lat=p2la(cy,V.z);dr={x:e.clientX,y:e.clientY};draw();});',
+'m.addEventListener("pointerup",function(){dr=null;});',
+'m.addEventListener("click",function(){I.style.display="none";});',
+'document.getElementById("zi").onclick=function(){V.z=Math.min(19,V.z+1);draw();};',
+'document.getElementById("zo").onclick=function(){V.z=Math.max(3,V.z-1);draw();};',
+'addEventListener("resize",draw);draw();'
+].join('\n');
+
+function openMapPage() {
+  try {
+    const blob = new Blob([buildMapPage()], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) { dl('tree_map_' + stamp() + '.html', blob); toast('Map saved as a file.'); }
+    else toast('Map opened – save the page to keep or publish it.');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast('Map failed: ' + e.message); }
+}
+
 async function openReport(withPhotos) {
   toast('Building the report …');
   try {
@@ -3498,12 +3796,29 @@ function wire() {
   };
   $('hud').onclick = () => $('hud').classList.toggle('open');
   $('bnew').onclick = addTreeHere;
+  $('bnum').onclick = () => {
+    const el = $('nummenu');
+    const open = el.style.display !== 'block';
+    if (open) buildNumMenu('');
+    el.style.display = open ? 'block' : 'none';
+    $('mmenu').style.display = 'none'; $('refmenu').style.display = 'none';
+    $('chooser').style.display = 'none';
+  };
   $('bref').onclick = () => {
     const el = $('refmenu');
     const open = el.style.display !== 'block';
     if (open) buildRefMenu();
     el.style.display = open ? 'block' : 'none';
     $('mmenu').style.display = 'none'; $('chooser').style.display = 'none';
+  };
+  $('block').onclick = () => {
+    sceneLocked = !sceneLocked;
+    $('block').classList.toggle('p', sceneLocked);
+    $('block').textContent = sceneLocked ? 'Locked' : 'Lock scene';
+    if (sceneLocked) settleComp();
+    toast(sceneLocked ? 'Scene locked – nothing will move it until you unlock.'
+                      : 'Scene unlocked – it will correct itself again.');
+    showFit();
   };
   $('bfz').onclick = () => {
     fallZone = !fallZone;
@@ -3582,6 +3897,7 @@ function wire() {
     toast('Tree ' + tid(i) + ' created at the coordinate you entered.');
   };
 
+  $('bMapPage').onclick = openMapPage;
   $('bRepPlain').onclick = () => openReport(false);
   $('bRepPhoto').onclick = () => openReport(true);
   $('bExpGeo').onclick = () => {
