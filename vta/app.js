@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '2.2.3';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -292,12 +292,20 @@ function plausible(p) {
 }
 
 /* Two people, or one person twice, recording the same stem. */
-function nearbyTree(lon, lat, within) {
+/* Comparing a new stem against the register in lat/lon compares it against
+   other people's GPS errors, which is how a tree ends up "0.0 m" from one it
+   is nowhere near. Where the new stem has been surveyed, only surveyed trees
+   are candidates and the distance is measured inside the survey, where it
+   means something. */
+function nearbyTree(lon, lat, within, local) {
   let best = null, bd = within;
   CAT.features.forEach((f, i) => {
     if (!f.geometry || f.geometry.type !== 'Point') return;
-    const c = f.geometry.coordinates;
-    const d = distBear(c[1], c[0], lat, lon).d;
+    const p = props(i);
+    let d;
+    if (local && hasLocal(p)) d = Math.hypot(+p.lx - local.lx, +p.ly - local.ly);
+    else if (local) return;                       // unsurveyed: nothing to compare with
+    else d = distBear(f.geometry.coordinates[1], f.geometry.coordinates[0], lat, lon).d;
     if (d < bd) { bd = d; best = { i: i, d: d }; }
   });
   return best;
@@ -623,13 +631,16 @@ function addTreeHere() {
   if (!S2P) {
     const north = (heading != null) ? heading : (worldYaw + headOff);
     S2P = { phi: THREE.MathUtils.degToRad(north), tx: c.x, tz: c.z };
-    if (!plotGeoreferenced() && lastFix) plotAbsorbFix(lastFix, 0, 0);
+    // The plot origin is HERE. It was borrowed from whatever tree happened to
+    // be first in the register, which put the first tree of every survey
+    // exactly on top of it - hence "already recorded 0.0 m from here".
+    if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
     toast('Survey started here – this spot is the plot origin.');
   }
   const l = s2pInvert(c.x, c.z);
   const g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
   if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
-  const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc);
+  const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc, l);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
   selectTree(i);
   openPanel(i);
@@ -839,6 +850,7 @@ function ensurePlotOrigin() {
   PLOT.lon = f.geometry.coordinates[0];
   PLOT.yaw = 0; PLOT.n = 0;
   PLOT.acc = num((f.properties || {}).position_accuracy_m);
+  PLOT.provisional = true;        // borrowed from a tree, not measured for the plot
   savePlot();
   return true;
 }
@@ -873,8 +885,9 @@ function refreshPlotGeo() {
 function plotAbsorbFix(fix, lx, ly) {
   if (!(fix.acc <= 20)) return;
   const back = { lat: fix.lat - ly / mLat(fix.lat), lon: fix.lon - lx / mLon(fix.lat) };
-  if (!plotGeoreferenced()) {
+  if (!plotGeoreferenced() || PLOT.provisional) {
     PLOT.lat = back.lat; PLOT.lon = back.lon; PLOT.n = 1; PLOT.acc = fix.acc;
+    delete PLOT.provisional;
   } else {
     const w = 1 / Math.max(1, PLOT.n + 1);
     PLOT.lat += (back.lat - PLOT.lat) * w;
@@ -1947,9 +1960,9 @@ function measureTap() {
   if (m.kind === 'newtree') {
     const g = sceneToWgs(hitPt);
     if (!g) { toast('The session is not tied to the stand yet.'); return clearMeasure(); }
-    const i = addTree(g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null);
-    if (S2P) { const l = s2pInvert(hitPt.x, hitPt.z);
-               setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) }); }
+    const la = S2P ? s2pInvert(hitPt.x, hitPt.z) : null;
+    const i = addTree(g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null, la);
+    if (la) setEdit(i, { lx: +la.lx.toFixed(3), ly: +la.ly.toFixed(3) });
     selectTree(i);
     clearMeasure();
     toast('New tree ' + props(i).tree_id + ' placed where you aimed.');
@@ -3030,8 +3043,8 @@ function nextTreeId() {
   return pre + String(max + 1).padStart(5, '0');
 }
 
-function addTree(lon, lat, source, acc) {
-  const near = nearbyTree(lon, lat, 2.5);
+function addTree(lon, lat, source, acc, local) {
+  const near = nearbyTree(lon, lat, 2.5, local);
   if (near && !confirm(tid(near.i) + ' is already recorded ' + near.d.toFixed(1) +
       ' m from here. Add another tree anyway?')) return near.i;
   const id = nextTreeId();
