@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.11.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1256,7 +1256,9 @@ function matchStems(obs) {
                        second.err < best.err * 2.5 && second.key !== best.key);
   return { pairs: best.pairs.map(pp => ({ obs: pp.k, tree: cands[pp.c].i,
              l: { lx: cands[pp.c].e, ly: cands[pp.c].n }, s: obs[pp.k] })),
-           ambiguous: ambiguous, n: best.n };
+           ambiguous: ambiguous, n: best.n,
+           err: best.err, alt: second ? { n: second.n, err: second.err, key: second.key } : null,
+           key: best.key };
 }
 
 /* ---- the walk as its own control survey ----
@@ -1804,6 +1806,7 @@ async function startXR() {
       updateHitTest(frame);
       updateAnchors(frame);
       if (edgeTick % 40 === 7) probeDepth(frame);
+      if (depthOk && performance.now() - stemScanAt > 1500) { stemScanAt = performance.now(); stemScan(); }
       if (shotFor !== null) takeARPhoto(frame);
     }
     tick(); renderer.render(scene, camera);
@@ -1851,6 +1854,7 @@ function enterAR() {
   $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
   sessScene.clear(); stemOffered = false;
+  stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false;
   const healed = plotHeal();
   if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
                     'put back together. Record a tree to fix it on the earth.');
@@ -2370,9 +2374,46 @@ function startMeasure(kind, refArg) {
   mbar('<b>' + cfg.label + who + '</b><br>' + ask, [['Cancel', clearMeasure]]);
 }
 
+/* The hit test needs ARCore to have found a plane along the screen's centre
+   ray, and at the foot of a tree on rough grass it often has not - which is
+   why marking a stem took tap after tap before a ring appeared. The depth
+   image needs no plane: it has a distance for almost every pixel. So a stem
+   tap asks for the trunk first, falls back to the raw depth straight ahead,
+   and only then to the hit test. */
+function depthAhead() {
+  const pts = depthSlice(lastFrame);
+  if (!pts || !pts.length) return null;
+  const c = camPos(), d = camDir();
+  const fl = Math.hypot(d.x, d.z) || 1;
+  const fx = d.x / fl, fz = d.z / fl;
+  let best = null, bd = 1e9;
+  pts.forEach(p => {
+    const vx = p.x - c.x, vz = p.z - c.z, dist = Math.hypot(vx, vz);
+    if (dist < 0.25 || dist > STEM_MAXD) return;
+    const cos = (vx * fx + vz * fz) / dist;
+    if (cos < 0.985) return;                       // within ten degrees of the middle
+    if (dist < bd) { bd = dist; best = p; }
+  });
+  return best ? new THREE.Vector3(best.x, 0, best.z) : null;
+}
+function tapPoint(wantStem) {
+  if (wantStem) {
+    const st = findStem();
+    if (st && !st.error) return new THREE.Vector3(st.x, 0, st.z);
+  }
+  const d = depthAhead();
+  if (d) return d;
+  return hitPt ? hitPt.clone() : null;
+}
+
 function measureTap() {
   const m = measure, cfg = m.cfg;
-  if (m.wantsHit && !hitPt) { toast('No surface found – aim at the ground.'); return; }
+  const tp = m.wantsHit ? tapPoint(m.kind === 'stems' || m.kind === 'stem' || m.kind === 'newtree') : null;
+  if (m.wantsHit && !tp) {
+    toast('Nothing measurable straight ahead – point at the trunk, or a little lower.');
+    return;
+  }
+  if (tp) hitPt = tp;
 
   if (cfg.aim) {
     if (m.step === 0) {                                   // remember the base, then aim high
@@ -3009,9 +3050,70 @@ function updateEdge() {
    them rather than waiting to be found in a menu - once, at the start, only
    where there is something to match against, and with a Cancel for anyone who
    is only passing through. */
+/* ---- alignment without being asked ----
+   Every trunk the phone looks at is a measurement of where that trunk is in
+   the session. Collect them while walking - no tapping, no menu - and as soon
+   as three distinct ones have been seen twice each, their spacing says which
+   trees of the register they are, and the session locks itself onto the stand
+   to the centimetre. It keeps watching: a match on more stems replaces one on
+   fewer, and nothing else is ever asked of anyone. */
+let stemObs = [], stemMatchN = 0, stemScanAt = 0, lockStems = 0, ambigSaid = false;
+function stemScan() {
+  if (mode !== 'WebXR' || measure || sceneLocked || !depthOk) return;
+  if (!plotGeoreferenced() || candidateTrees(60).length < 3) return;
+  const s = findStem();
+  if (!s || s.error || s.rms > 0.03) return;
+  const hit = stemObs.find(o => Math.hypot(o.x - s.x, o.z - s.z) < 0.6);
+  if (hit) {
+    hit.x += (s.x - hit.x) / (hit.n + 1);
+    hit.z += (s.z - hit.z) / (hit.n + 1);
+    hit.n++;
+  } else if (stemObs.length < 24) {
+    stemObs.push({ x: s.x, z: s.z, n: 1 });
+  }
+  tryAutoMatch();
+}
+function tryAutoMatch() {
+  // seen twice from two moments: a glimpse of a passing leg is not a stem
+  const good = stemObs.filter(o => o.n >= 2);
+  if (good.length < 3) return;
+  // Retry while the lock rests on fewer stems than have been seen: three
+  // stems out of a regular planting often fit two sets of trees equally well
+  // and are refused, and the fourth is what settles it.
+  if (lockStems >= good.length) return;
+  stemMatchN = good.length;
+  const r = matchStems(good.map(o => ({ x: o.x, z: o.z })));
+  if (r.error || r.n < 3) return;
+  if (r.ambiguous) {
+    // a regular planting looks the same shifted along, and a stand can be
+    // symmetric by accident: one more stem breaks the tie
+    if (!ambigSaid) {
+      ambigSaid = true;
+      toast('Those stems fit more than one group of trees – look at one more and it settles.');
+    }
+    return;
+  }
+  // a lock already resting on at least as many stems is not replaced
+  if (!s2pAuto && lockStems >= r.n) return;
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
+  const pFrom = s2pFrom, pRms = s2pRms, pAuto = s2pAuto;
+  const f = fitS2P(r.pairs.map(pp => ({ id: tid(pp.tree), l: pp.l, s: pp.s })),
+                   r.n + ' stems it recognised');
+  if (!f) return;
+  if (f.rms > 0.4) {                    // not those trees: put it back
+    S2P = prev; s2pFrom = pFrom; s2pRms = pRms; s2pAuto = pAuto;
+    placeMarkers(); showFit();
+    return;
+  }
+  lockStems = r.n;
+  toast('Aligned itself on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m · ' +
+        r.pairs.map(pp => tid(pp.tree)).join(', '));
+}
+
 let stemOffered = false;
 function offerStemLock() {
   if (stemOffered || !hitOk || measure || sceneLocked) return false;
+  if (depthOk) return false;          // it aligns itself; nobody needs to be asked
   if (!S2P || !s2pAuto) return false;                 // already measured: nothing to offer
   if (!plotGeoreferenced()) return false;
   if (candidateTrees(60).length < 3) return false;
@@ -3049,6 +3151,7 @@ function runStemMatch(pts) {
     return;
   }
   clearMeasure();
+  lockStems = r.n;
   const n = rebaseSession();
   toast('Locked on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m · ' + names +
         (n ? ' · ' + n + ' tree' + (n === 1 ? '' : 's') + ' recorded today moved onto it' : ''));
