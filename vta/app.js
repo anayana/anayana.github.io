@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.12.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1938,7 +1938,13 @@ function tick() {
 /* ---- tapping ---- */
 function pickFromRay(o, d) {
   ray.set(o, d);
-  const hit = ray.intersectObjects(sprites, false);
+  /* A sprite is raycast against the camera it faces, and three.js reads that
+     off the raycaster. Set from a bare ray it is null, and every tap in AR
+     threw before it could reach a tree - which is why tapping a marker in the
+     camera view did nothing at all. */
+  ray.camera = xrCam();
+  let hit = [];
+  try { hit = ray.intersectObjects(sprites, false); } catch (e) { hit = []; }
   if (hit.length) return hit[0].object.userData.idx;
   let best = null, ba = Infinity;                          // tolerance: nearest sprite within 12 degrees
   sprites.forEach(sp => {
@@ -3058,11 +3064,23 @@ function updateEdge() {
    to the centimetre. It keeps watching: a match on more stems replaces one on
    fewer, and nothing else is ever asked of anyone. */
 let stemObs = [], stemMatchN = 0, stemScanAt = 0, lockStems = 0, ambigSaid = false;
+/* Why it is or is not aligned, in the app's own words. Every refusal above
+   writes here, so the answer to "why has nothing happened" is on the screen
+   instead of in my head. */
+let diag = { look: 'not looked yet', match: 'not tried yet', scans: 0 };
 function stemScan() {
-  if (mode !== 'WebXR' || measure || sceneLocked || !depthOk) return;
-  if (!plotGeoreferenced() || candidateTrees(60).length < 3) return;
+  diag.scans++;
+  if (mode !== 'WebXR') { diag.look = 'not in AR'; return; }
+  if (measure) { diag.look = 'a measurement is running'; return; }
+  if (sceneLocked) { diag.look = 'the scene is locked by hand'; return; }
+  if (!depthOk) { diag.look = 'this phone gives no depth – nothing can be found automatically'; return; }
+  if (!plotGeoreferenced()) { diag.look = 'no plot yet – record a tree first'; return; }
+  const near = candidateTrees(60).length;
+  if (near < 3) { diag.look = 'only ' + near + ' surveyed trees to match against'; return; }
   const s = findStem();
-  if (!s || s.error || s.rms > 0.03) return;
+  if (!s || s.error) { diag.look = 'no trunk in view: ' + ((s && s.error) || 'no depth'); return; }
+  if (s.rms > 0.03) { diag.look = 'the surface in view is not round enough (±' + s.rms.toFixed(2) + ' m)'; return; }
+  diag.look = 'trunk seen, Ø ' + Math.round(s.r * 200) + ' cm over ' + s.span.toFixed(0) + '°';
   const hit = stemObs.find(o => Math.hypot(o.x - s.x, o.z - s.z) < 0.6);
   if (hit) {
     hit.x += (s.x - hit.x) / (hit.n + 1);
@@ -3076,15 +3094,21 @@ function stemScan() {
 function tryAutoMatch() {
   // seen twice from two moments: a glimpse of a passing leg is not a stem
   const good = stemObs.filter(o => o.n >= 2);
-  if (good.length < 3) return;
+  diag.seen = stemObs.length; diag.twice = good.length;
+  if (good.length < 3) {
+    diag.match = good.length + ' of the 3 stems needed have been seen twice';
+    return;
+  }
   // Retry while the lock rests on fewer stems than have been seen: three
   // stems out of a regular planting often fit two sets of trees equally well
   // and are refused, and the fourth is what settles it.
   if (lockStems >= good.length) return;
   stemMatchN = good.length;
   const r = matchStems(good.map(o => ({ x: o.x, z: o.z })));
-  if (r.error || r.n < 3) return;
+  if (r.error) { diag.match = r.error; return; }
+  if (r.n < 3) { diag.match = 'only ' + r.n + ' of them could be placed'; return; }
   if (r.ambiguous) {
+    diag.match = 'those ' + good.length + ' stems fit two different groups of trees – one more settles it';
     // a regular planting looks the same shifted along, and a stand can be
     // symmetric by accident: one more stem breaks the tie
     if (!ambigSaid) {
@@ -3103,11 +3127,48 @@ function tryAutoMatch() {
   if (f.rms > 0.4) {                    // not those trees: put it back
     S2P = prev; s2pFrom = pFrom; s2pRms = pRms; s2pAuto = pAuto;
     placeMarkers(); showFit();
+    diag.match = 'a match on ' + r.n + ' stems was ±' + f.rms.toFixed(1) +
+                 ' m out – refused, the old alignment kept';
     return;
   }
   lockStems = r.n;
+  diag.match = 'locked on ' + r.n + ' stems, ±' + f.rms.toFixed(2) + ' m';
   toast('Aligned itself on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m · ' +
         r.pairs.map(pp => tid(pp.tree)).join(', '));
+}
+
+/* Anything that throws inside the AR overlay is invisible - no console, no
+   line, nothing on screen, and the tap that caused it simply does nothing.
+   The last one is kept and shown, because "tapping a marker does nothing" and
+   "tapping a marker throws" look exactly the same in the field. */
+let lastErr = null;
+addEventListener('error', e => {
+  lastErr = (e.message || 'error') + ' · ' + String(e.filename || '').split('/').pop() + ':' + e.lineno;
+});
+addEventListener('unhandledrejection', e => {
+  lastErr = 'promise: ' + ((e.reason && e.reason.message) || String(e.reason));
+});
+
+function alignReport() {
+  const good = stemObs.filter(o => o.n >= 2).length;
+  const L = [];
+  L.push(['Depth from the phone', depthOk == null ? 'not asked yet' :
+          depthOk ? 'yes – stems can be found automatically'
+                  : 'NO – this phone cannot find stems by itself']);
+  L.push(['Alignment now', S2P ? (s2pAuto ? 'rough, from ' + s2pFrom : 'locked on ' + s2pFrom) +
+          (s2pRms == null ? '' : ' ±' + s2pRms.toFixed(2) + ' m') : 'none – nothing is drawn']);
+  L.push(['Surveyed trees around you', String(candidateTrees(60).length)]);
+  L.push(['Stems seen this session', stemObs.length + ' · ' + good + ' of them twice']);
+  L.push(['Last look', diag.look]);
+  L.push(['Last match attempt', diag.match]);
+  L.push(['Looks taken', String(diag.scans)]);
+  L.push(['GPS', lastFix ? '±' + lastFix.acc.toFixed(0) + ' m' : 'no fix']);
+  L.push(['Compass', heading == null ? 'none' : heading.toFixed(0) + '°']);
+  L.push(['Plot', plotGeoreferenced() ? (PLOT.provisional ? 'provisional' : 'set') +
+          ', drift ' + plotDrift().worst.toFixed(1) + ' m' : 'none']);
+  L.push(['Last error', lastErr || 'none']);
+  L.push(['Version', APP_VERSION]);
+  return L;
 }
 
 let stemOffered = false;
@@ -3313,6 +3374,30 @@ function buildRefMenu() {
   /* The rest of what moves or freezes the scene. It is used once at the start
      of a session and then never again, which is exactly why it does not
      deserve a permanent button beside "+ Tree". */
+  /* Why it is not aligned, on the screen, at the moment it is not. */
+  const dg = document.createElement('div'); dg.className = 'small';
+  dg.style.cssText = 'margin-top:8px;border-top:1px solid #223027;padding-top:6px';
+  const paint = () => {
+    dg.innerHTML = alignReport().map(r =>
+      '<div class="kv"><span>' + r[0] + '</span><span>' + esc(String(r[1])) + '</span></div>').join('');
+  };
+  paint();
+  el.appendChild(dg);
+  const dgr = document.createElement('div'); dgr.className = 'btnrow';
+  const look = document.createElement('button'); look.className = 'sm p';
+  look.textContent = 'Look for stems now';
+  look.onclick = () => {
+    for (let k = 0; k < 3; k++) stemScan();
+    paint();
+    toast(diag.look);
+  };
+  dgr.appendChild(look);
+  const fgt = document.createElement('button'); fgt.className = 'sm';
+  fgt.textContent = 'Forget the stems seen';
+  fgt.onclick = () => { stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false; paint(); };
+  dgr.appendChild(fgt);
+  el.appendChild(dgr);
+
   const more = document.createElement('div'); more.className = 'btnrow'; more.style.marginTop = '4px';
   const sb = document.createElement('button'); sb.className = 'sm';
   sb.textContent = 'I stand at a known tree';
@@ -4097,6 +4182,11 @@ function drawTreeMap(i) {
 /* What the register is standing on, in numbers. When something is hundreds of
    metres out this is the page that says why, and the two buttons that put it
    back are next to it. */
+function renderAlignBox() {
+  const box = $('alignBox'); if (!box) return;
+  box.innerHTML = alignReport().map(r =>
+    '<div class="kv"><span>' + r[0] + '</span><span>' + esc(String(r[1])) + '</span></div>').join('');
+}
 function renderPlotBox() {
   const box = $('plotBox'); if (!box) return;
   const withL = CAT.features.filter((f, i) => hasLocal(props(i))).length;
@@ -4707,7 +4797,10 @@ function openPanel(i, tab) {
     if (!confirm('Delete ' + tid(i) + ' from the register? Photos of it are kept.')) return;
     toast(deleteTree(i) + ' deleted.');
   };
-  pf.appendChild(bs); pf.appendChild(br2); pf.appendChild(bd);
+  const bar = document.createElement('button'); bar.textContent = 'AR';
+  bar.title = 'Show this tree in the camera';
+  bar.onclick = () => { savePanel(true); toAR(i); };
+  pf.appendChild(bs); pf.appendChild(bar); pf.appendChild(br2); pf.appendChild(bd);
   el.appendChild(pf);
 
   /* The Quick tab repeats fields that also live under VTA and Base data, and
@@ -5444,6 +5537,11 @@ function renderList() {
       '<span class="nav"><span class="arr" data-b="' + (o.b == null ? '' : o.b) + '">' + (o.b == null ? '·' : '↑') + '</span>' +
       '<span class="dist">' + (o.d == null ? '– m' : o.d.toFixed(o.d < 100 ? 1 : 0) + ' m') + '</span></span>';
     b.onclick = () => openPanel(o.i);
+    const ar = document.createElement('button');
+    ar.className = 'sm arbtn'; ar.textContent = 'AR';
+    ar.title = 'Show this tree in the camera';
+    ar.onclick = ev => { ev.stopPropagation(); toAR(o.i); };
+    b.appendChild(ar);
     box.appendChild(b);
   });
   $('listCount').textContent = '(' + CAT.features.length + ')';
@@ -5464,7 +5562,7 @@ function showScreen(k) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
-  if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); }
+  if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); }
   if (k === 'map') { startGPS(); mapFollow = true; if (!mapToMe(true)) drawMap(); renderRefs(); syncMapSel(); }
 }
 function renderStats() {
@@ -5809,6 +5907,39 @@ async function checks() {
   $('bcam').disabled = !navigator.mediaDevices;
   chk(photosOk ? 'ok' : 'wa', 'Photo storage');
   chk('serviceWorker' in navigator ? 'ok' : 'wa', 'Offline use');
+}
+
+/* AR and the register are two views of the same tree, not two places. Going
+   from one to the other is one press either way, and the session is never
+   torn down to do it: the panel is drawn inside the AR overlay, so closing it
+   drops straight back into the camera with the survey still locked. */
+async function toAR(i) {
+  if (i != null) { selectTree(i); navTarget = i; }
+  if (mode) {                       // a session is already running
+    closePanel();
+    $('app').classList.add('hidden');
+    $('xrui').classList.add('on');
+    if (i != null) { placeMarkers(); toast('AR · ' + tid(i) + (arMode === 'navigate' ? '' : '')); }
+    return true;
+  }
+  if (!batteryOkForAR()) return false;
+  try {
+    await startOrient(); startGPS(); await startXR();
+    if (i != null) { selectTree(i); navTarget = i; updateNav(); }
+    return true;
+  } catch (e) {
+    msg('WebXR: ' + e.message + ' → try camera mode');
+    toast('AR did not start: ' + e.message);
+    return false;
+  }
+}
+/* And back: the tree's page, over the camera if AR is running, on the list
+   screen if it is not. */
+function toTable(i) {
+  if (i == null) return;
+  selectTree(i);
+  if (!mode) { showScreen('list'); }
+  openPanel(i);
 }
 
 function wire() {
