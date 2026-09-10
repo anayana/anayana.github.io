@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.10.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -658,7 +658,12 @@ function addTreeHere() {
                    : 'Survey started here – this spot is the plot origin.');
     }
   }
-  const l = s2pInvert(c.x, c.z);
+  /* Where the tree is, rather than where you are: the depth image says where
+     the trunk in front of the phone stands, to a couple of centimetres, and
+     that is a metre better than the standing position. */
+  const st = findStem();
+  const at = (st && !st.error) ? { x: st.x, z: st.z } : c;
+  const l = s2pInvert(at.x, at.z);
   let g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
   if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
   /* You are standing at this stem and the phone knows where you are to a few
@@ -678,16 +683,23 @@ function addTreeHere() {
     }
   }
   const near = nearbyTree(g.lon, g.lat, 2.0, l);
-  const i = addTree(g.lon, g.lat, 'AR survey', PLOT.acc, l, true);
+  const i = addTree(g.lon, g.lat, st && !st.error ? 'AR survey · stem from depth' : 'AR survey',
+                    PLOT.acc, l, true);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+  // a diameter measured off the trunk beats one nobody entered, but only when
+  // enough of the trunk was seen to determine it
+  if (st && st.firm) setEdit(i, { dbh_cm: Math.round(st.r * 200) });
   // the measurement that matters: where this stem is in the session, which no
   // later correction of the frame can spoil
-  sessScene.set(i, { x: c.x, z: c.z });
+  sessScene.set(i, { x: at.x, z: at.z });
   placeMarkers();
   selectTree(i);
   openPanel(i);
   const rough = s2pAuto && CAT.features.some((f, k) => k !== i && hasLocal(props(k)));
-  toast('Tree ' + tid(i) + ' recorded where you stand.' +
+  toast('Tree ' + tid(i) + (st && !st.error
+          ? ' recorded on the stem in front of you' +
+            (st.firm ? ', Ø ' + Math.round(st.r * 200) + ' cm' : '') + '.'
+          : ' recorded where you stand.') +
         (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : '') +
         (rough ? ' Against the trees already here it is only as good as GPS – tap three stems and it moves onto the right place.' : ''));
 }
@@ -1748,8 +1760,15 @@ async function startXR() {
   try {
     s = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['local-floor'],
-      optionalFeatures: ['dom-overlay', 'hit-test', 'anchors', 'camera-access'],
-      domOverlay: { root: $('xrui') }
+      optionalFeatures: ['dom-overlay', 'hit-test', 'anchors', 'camera-access', 'depth-sensing'],
+      domOverlay: { root: $('xrui') },
+      // ARCore's own depth, read on the CPU: the stem in front of the phone
+      // measured rather than assumed. Optional - a phone without it records
+      // where you stand, as before.
+      depthSensing: {
+        usagePreference: ['cpu-optimized'],
+        dataFormatPreference: ['luminance-alpha', 'float32']
+      }
     });
   } catch (err) {
     $('xrui').classList.remove('on');
@@ -1784,6 +1803,7 @@ async function startXR() {
     if (frame) {
       updateHitTest(frame);
       updateAnchors(frame);
+      if (edgeTick % 40 === 7) probeDepth(frame);
       if (shotFor !== null) takeARPhoto(frame);
     }
     tick(); renderer.render(scene, camera);
@@ -1857,6 +1877,7 @@ function endAR() {
   $('nummenu').style.display = 'none';
   $('edge').innerHTML = ''; edgeEls = {};
   $('hwarnT').textContent = ''; $('hwarn').classList.remove('on'); warnOff = false;
+  depthOk = null; if ($('hDepth')) $('hDepth').textContent = '';
   $('hud').classList.remove('open');
   $('hFit').textContent = '';
   $('app').classList.remove('hidden');
@@ -2039,6 +2060,199 @@ function updateAnchors(frame) {
   const k = Math.min(len - ANCH_DEAD, ANCH_RATE * dt) / len;
   S2P.tx += dx * k; S2P.tz += dz * k;
   placeMarkers();
+}
+
+/* ================== FINDING THE STEM ITSELF ==================
+   Standing at a tree and pressing the button records where the phone is,
+   which is a metre in front of the stem - so the ring lands on the grass
+   between you and the trunk. The trunk is not a guess though: ARCore already
+   solves the scene's geometry to place anything at all, and Chrome hands that
+   out as a depth image. A horizontal slice of it at breast height, in front
+   of the camera, is the front arc of the trunk in plan view. A circle through
+   that arc gives the centre - which is where the tree is - and the diameter,
+   which is the DBH nobody wants to measure with a tape.
+
+   Only the arc facing the phone is visible, so the fit is only as good as the
+   arc is wide: a narrow one determines a centre but not a radius, and the
+   diameter is then left alone rather than invented. */
+
+const STEM_H = 1.30,        // the height the diameter is defined at
+      STEM_BAND = 0.16,     // and the slice taken around it
+      STEM_MAXD = 5.0;      // no trunk further away than this is being pointed at
+
+/* Kasa's algebraic circle fit: minimise the algebraic distance, which is one
+   linear system and no iteration. Two rounds, the second without the points
+   the first found to be nowhere near the circle. */
+function median(v) {
+  const a = v.slice().sort((x, y) => x - y);
+  return a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2;
+}
+function fitCircle(pts) {
+  if (pts.length < 5) return null;
+  /* An algebraic fit is fast and needs no starting guess, and one stray point
+     three metres away drags it into a circle of its own. The median position
+     cannot be dragged, so anything more than a trunk's width from it is
+     dropped before the first fit rather than after it. */
+  const mx = median(pts.map(p => p.x)), my = median(pts.map(p => p.y));
+  let use = pts.filter(p => Math.hypot(p.x - mx, p.y - my) < 1.2);
+  if (use.length < 5) use = pts;
+  let out = null;
+  for (let pass = 0; pass < 3; pass++) {
+    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, sz = 0, sxz = 0, syz = 0;
+    const m = use.length;
+    if (m < 5) break;
+    use.forEach(p => {
+      const z = p.x * p.x + p.y * p.y;
+      sx += p.x; sy += p.y; sxx += p.x * p.x; syy += p.y * p.y; sxy += p.x * p.y;
+      sz += z; sxz += p.x * z; syz += p.y * z;
+    });
+    // normal equations for x^2+y^2 + D x + E y + F = 0
+    const a = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, m]];
+    const b = [-sxz, -syz, -sz];
+    const sol = solve3(a, b);
+    if (!sol) break;
+    const cx = -sol[0] / 2, cy = -sol[1] / 2;
+    const rr = cx * cx + cy * cy - sol[2];
+    if (!(rr > 0)) break;
+    const r = Math.sqrt(rr);
+    let e2 = 0;
+    use.forEach(p => { const d = Math.hypot(p.x - cx, p.y - cy) - r; e2 += d * d; });
+    const rms = Math.sqrt(e2 / use.length);
+    out = { cx: cx, cy: cy, r: r, rms: rms, n: use.length };
+    if (pass < 2) {
+      // trimmed on the median residual: one wild point cannot widen the gate
+      const res = use.map(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r));
+      const lim = Math.max(0.02, median(res) * 3);
+      const keep = use.filter(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r) <= lim);
+      if (keep.length < 5 || keep.length === use.length) break;
+      use = keep;
+    }
+  }
+  return out;
+}
+function solve3(a, b) {
+  const m = [[a[0][0], a[0][1], a[0][2], b[0]],
+             [a[1][0], a[1][1], a[1][2], b[1]],
+             [a[2][0], a[2][1], a[2][2], b[2]]];
+  for (let c = 0; c < 3; c++) {
+    let piv = c;
+    for (let r = c + 1; r < 3; r++) if (Math.abs(m[r][c]) > Math.abs(m[piv][c])) piv = r;
+    if (Math.abs(m[piv][c]) < 1e-12) return null;
+    const t = m[c]; m[c] = m[piv]; m[piv] = t;
+    for (let r = 0; r < 3; r++) {
+      if (r === c) continue;
+      const f = m[r][c] / m[c][c];
+      for (let k = c; k < 4; k++) m[r][k] -= f * m[c][k];
+    }
+  }
+  return [m[0][3] / m[0][0], m[1][3] / m[1][1], m[2][3] / m[2][2]];
+}
+
+/* Points are world (x, z) at breast height; cam is where the phone is and dir
+   which way it looks. Take the nearest thing in front, keep what belongs to
+   the same trunk, fit the circle, and say how much of it was actually seen. */
+function stemFromPoints(pts, cam, dir) {
+  const fwd = Math.hypot(dir.x, dir.z) < 1e-6 ? { x: 0, z: -1 }
+            : { x: dir.x / Math.hypot(dir.x, dir.z), z: dir.z / Math.hypot(dir.x, dir.z) };
+  const inFront = [];
+  pts.forEach(p => {
+    const vx = p.x - cam.x, vz = p.z - cam.z;
+    const d = Math.hypot(vx, vz);
+    if (d < 0.25 || d > STEM_MAXD) return;
+    const cos = (vx * fwd.x + vz * fwd.z) / d;
+    if (cos < 0.62) return;                       // roughly the middle 100 degrees
+    inFront.push({ x: p.x, y: p.z, d: d });       // plan view: y here is world z
+  });
+  if (inFront.length < 8) return { error: 'nothing in front' };
+  inFront.sort((a, b) => a.d - b.d);
+  // the nearest surface is the trunk you are standing at; a trunk is under a
+  // metre across, so anything more than that away from it is the wood behind
+  const seed = inFront[0];
+  const cl = inFront.filter(p => Math.hypot(p.x - seed.x, p.y - seed.y) < 1.0);
+  if (cl.length < 8) return { error: 'too few points on it' };
+  const f = fitCircle(cl);
+  if (!f) return { error: 'no circle in it' };
+  if (!(f.r > 0.02 && f.r < 1.6)) return { error: 'that is not a trunk' };
+  if (f.rms > 0.05) return { error: 'the surface is not round' };
+  // how much of the circle was seen: a narrow arc places the centre badly
+  let a0 = Infinity, a1 = -Infinity;
+  const base = Math.atan2(cl[0].y - f.cy, cl[0].x - f.cx);
+  cl.forEach(p => {
+    let a = Math.atan2(p.y - f.cy, p.x - f.cx) - base;
+    while (a > Math.PI) a -= 2 * Math.PI;
+    while (a < -Math.PI) a += 2 * Math.PI;
+    a0 = Math.min(a0, a); a1 = Math.max(a1, a);
+  });
+  const span = (a1 - a0) * 180 / Math.PI;
+  /* A trunk at arm's length shows well over half of itself - 2.acos(r/d) is
+     158 degrees for a 50 cm stem at 1.35 m - so anything under a right angle
+     is a glancing look and a radius read off it is a guess. The centre from
+     such an arc is still worth having; the diameter is not. */
+  return { x: f.cx, z: f.cy, r: f.r, rms: f.rms, n: f.n, span: span,
+           firm: span > 90 && f.rms < 0.03 };
+}
+
+/* Whether this phone gives depth at all, said on the header rather than found
+   out when a tree lands in the grass. */
+let depthOk = null;
+function probeDepth(frame) {
+  let d = null;
+  if (frame && xrRef && frame.getDepthInformation) {
+    const pose = frame.getViewerPose(xrRef);
+    if (pose && pose.views.length) {
+      try { d = frame.getDepthInformation(pose.views[0]); } catch (e) { d = null; }
+    }
+  }
+  const was = depthOk;
+  depthOk = !!(d && d.getDepthInMeters);
+  if (was !== depthOk && $('hDepth')) {
+    $('hDepth').textContent = depthOk ? 'stem from depth' : 'no depth – records where you stand';
+    $('hDepth').className = depthOk ? '' : 'warn';
+  }
+}
+
+/* The WebXR half: pull a slice of the depth image into world points. */
+function depthSlice(frame) {
+  if (!frame || !xrRef || !frame.getDepthInformation) return null;
+  const pose = frame.getViewerPose(xrRef);
+  if (!pose || !pose.views.length) return null;
+  const view = pose.views[0];
+  let dep = null;
+  try { dep = frame.getDepthInformation(view); } catch (e) { return null; }
+  if (!dep || !dep.getDepthInMeters) return null;
+  const inv = new THREE.Matrix4().fromArray(view.projectionMatrix).invert();
+  const m = new THREE.Matrix4().fromArray(view.transform.matrix);
+  const pts = [];
+  const v = new THREE.Vector3();
+  const NX = 56, NY = 40;
+  for (let iy = 0; iy < NY; iy++) {
+    const ny = 0.12 + 0.76 * (iy / (NY - 1));
+    for (let ix = 0; ix < NX; ix++) {
+      const nx = 0.15 + 0.70 * (ix / (NX - 1));
+      let d;
+      try { d = dep.getDepthInMeters(nx, ny); } catch (e) { continue; }
+      if (!(d > 0.2 && d < STEM_MAXD + 1)) continue;
+      // normalised view coords -> a ray in view space, scaled to that depth
+      v.set(nx * 2 - 1, 1 - ny * 2, -1).applyMatrix4(inv);
+      if (v.z === 0) continue;
+      v.multiplyScalar(d / -v.z);
+      v.applyMatrix4(m);
+      pts.push({ x: v.x, y: v.y, z: v.z });
+    }
+  }
+  return pts;
+}
+
+/* Everything together: the stem in front of the phone, or why not. */
+function findStem() {
+  const pts = depthSlice(lastFrame);
+  if (!pts) return { error: 'this phone gives no depth' };
+  const c = camPos();
+  const band = pts.filter(p => Math.abs(p.y - STEM_H) < STEM_BAND);
+  if (band.length < 8) return { error: 'no trunk at breast height in view' };
+  const d = new THREE.Vector3(0, 0, -1).applyQuaternion(
+    (renderer.xr.isPresenting ? renderer.xr.getCamera(camera) : camera).quaternion);
+  return stemFromPoints(band, c, { x: d.x, z: d.z });
 }
 
 /* ---- selection ---- */
@@ -2305,6 +2519,25 @@ function measureBlock(i) {
     : 'Open the AR view to measure. The values are rough estimates in any case.';
   wrap.appendChild(note);
   const row = document.createElement('div'); row.className = 'btnrow';
+  const snap = document.createElement('button'); snap.className = 'sm p';
+  snap.textContent = 'Snap to the stem';
+  snap.title = 'Stand at the tree, point at the trunk, press this';
+  snap.disabled = !ready;
+  snap.onclick = () => {
+    const st = findStem();
+    if (!st || st.error) return toast('No trunk found: ' + ((st && st.error) || 'no depth') + '.');
+    const l = s2pInvert(st.x, st.z);
+    const g = l && plotToWgs(l.lx, l.ly);
+    if (!g) return toast('The session is not locked onto the stand yet.');
+    setCoords(i, g.lon, g.lat, 'stem from depth', 0.1);
+    setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+    sessScene.set(i, { x: st.x, z: st.z });
+    if (st.firm) setEdit(i, { dbh_cm: Math.round(st.r * 200) });
+    placeMarkers(); requestAnchors(); syncGeo(i);
+    toast(tid(i) + ' put on the trunk' + (st.firm ? ', Ø ' + Math.round(st.r * 200) + ' cm' : '') +
+          ' · ±' + st.rms.toFixed(2) + ' m over ' + st.span.toFixed(0) + '° of it.');
+  };
+  row.appendChild(snap);
   [['stem', 'Stem position', true], ['height', 'Height', false],
    ['crownbase', 'Crown base', false], ['crown', 'Crown Ø', false],
    ['target', 'Target dist.', false], ['tape', 'Tape', true]].forEach(k => {
