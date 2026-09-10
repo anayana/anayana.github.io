@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.17.0';
+const APP_VERSION = '2.18.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1723,6 +1723,13 @@ function buildMarkers() {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 40),
       new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthTest: false }));
     ring.rotation.x = -Math.PI / 2; ring.renderOrder = 9; g.add(ring);
+    /* A second ring, outside the first, for "the camera is pointing at this
+       one". It is kept separate on purpose: the inner ring carries the hazard
+       level and that colour has to keep meaning what it means. */
+    const halo = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 40),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide,
+                                    transparent: true, opacity: 0, depthTest: false }));
+    halo.rotation.x = -Math.PI / 2; halo.renderOrder = 8; halo.userData.halo = 1; g.add(halo);
     g.userData.idx = i; world.add(g);
   });
   placeMarkers();
@@ -2168,15 +2175,24 @@ function tick() {
           (v.gap < 3 ? ', and it could be its neighbour' : ''));
       el.className = v && v.sure ? 'ok' : 'warn';
     }
-    // the one being looked at is drawn brighter than the rest
+    /* Everything the camera is pointing at, ringed and graded: the best fit
+       white and solid, the ones behind it dimmer and warmer, in the order
+       they would be offered if you asked. */
+    const cands = treeCandidates(null, 6);
+    const byIdx = {};
+    cands.forEach((x, k) => { byIdx[x.i] = { p: x.p, k: k }; });
     world.children.forEach(g => {
-      if (g.userData.idx == null) return;
-      const on = v && g.userData.idx === v.i;
+      const idx = g.userData.idx;
+      if (idx == null) return;
+      const hit = byIdx[idx];
       g.children.forEach(ch => {
-        if (ch.material && ch.material.opacity !== undefined && ch.geometry &&
-            ch.geometry.type === 'RingGeometry') ch.material.opacity = on ? 1 : 0.5;
+        if (!ch.userData.halo || !ch.material) return;
+        ch.material.opacity = hit ? 0.35 + 0.6 * hit.p : 0;
+        if (hit) ch.material.color.setHex(hit.k === 0 ? 0xffffff : 0xffc46b);
       });
     });
+    if ($('hView') && cands.length > 1 && $('hView').textContent)
+      $('hView').textContent += ' · ' + cands.length + ' in view';
   }
   const nowMs = performance.now();
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
@@ -2662,14 +2678,106 @@ function treeInView(fromStem) {
   best.why = st ? 'the trunk in front' : (s2pAuto ? 'GPS and the compass' : 'the survey');
   return best;
 }
-/* The tree a button should act on: what you are looking at, then what you
-   picked, then what is nearest. */
+/* Every tree that could be the one in view, best first, with how well each
+   fits as a share of the whole. In a group of stems standing close together
+   there is no right answer to be had from geometry alone - so they are all
+   offered, in order, and the choice is one tap. */
+function treeCandidates(fromStem, max) {
+  if (!S2P || !world) return [];
+  const c = camPos(), d = camDir();
+  const fl = Math.hypot(d.x, d.z) || 1;
+  const fx = d.x / fl, fz = d.z / fl;
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const l = localOf(i);
+    if (!l) return;
+    const q = s2pApply(l.lx, l.ly);
+    if (!q) return;
+    let score, dist, off;
+    if (fromStem) {
+      dist = Math.hypot(q.x - c.x, q.z - c.z);
+      off = Math.hypot(q.x - fromStem.x, q.z - fromStem.z);
+      if (off > 6) return;
+      score = off;
+    } else {
+      const vx = q.x - c.x, vz = q.z - c.z;
+      dist = Math.hypot(vx, vz);
+      if (dist > VIEW_R || dist < 0.05) return;
+      const cos = (vx * fx + vz * fz) / dist;
+      if (cos < VIEW_COS) return;
+      off = dist * Math.sqrt(Math.max(0, 1 - cos * cos));
+      if (off > 4) return;
+      score = off * 3 + dist * 0.4;
+    }
+    out.push({ i: i, d: dist, off: off, score: score });
+  });
+  out.sort((a, b) => a.score - b.score);
+  const keep = out.slice(0, max || 6);
+  // a share, from how much better each fit is than the others. Not a
+  // probability of anything in the world - a reading of the geometry, which
+  // is all there is to go on.
+  const s0 = keep.length ? keep[0].score : 0;
+  let sum = 0;
+  keep.forEach(k => { k.w = Math.exp(-(k.score - s0) / 2); sum += k.w; });
+  keep.forEach(k => { k.p = sum ? k.w / sum : 0; });
+  return keep;
+}
+
+/* A tree picked by hand wins over anything worked out, for as long as it is
+   plausibly still the tree in hand. */
+let selPinned = -1e12;          // never pinned until something is picked by hand
 function targetTree() {
+  if (selIdx != null && performance.now() - selPinned < 120000) return selIdx;
   const v = treeInView();
   if (v && v.sure) return v.i;
   if (selIdx != null) return selIdx;
   if (v) return v.i;
   return nearestTree();
+}
+
+/* The list, when geometry cannot decide - and on demand when it decided
+   wrongly. */
+function buildPicker() {
+  const el = $('pickmenu');
+  el.innerHTML = '';
+  const list = treeCandidates(null, 6);
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Which tree is it?</b> <span class="small">· best fit first</span>';
+  el.appendChild(h);
+  if (!list.length) {
+    el.innerHTML += '<p class="small">Nothing in the register lies in front of the camera. ' +
+      'If the session is not aligned yet, stop at a tree you know.</p>';
+  }
+  list.forEach(x => {
+    const p = props(x.i);
+    const b = document.createElement('button'); b.className = 'numrow';
+    b.innerHTML = '<span><b>' + esc(p.tag_no || p.tree_id) + '</b> ' +
+      '<span class="small">' + esc(p.species || 'no species') + '</span>' +
+      '<div class="small dim">' + x.d.toFixed(1) + ' m · ' + x.off.toFixed(1) + ' m off the line</div></span>' +
+      '<span class="small"><b>' + Math.round(x.p * 100) + '%</b></span>';
+    b.onclick = () => {
+      selectTree(x.i); selPinned = performance.now();
+      el.style.display = 'none';
+      toast(tid(x.i) + ' it is – buttons act on it now.');
+    };
+    el.appendChild(b);
+    const open = document.createElement('button'); open.className = 'sm';
+    open.textContent = 'Open ' + (p.tag_no || p.tree_id);
+    open.style.cssText = 'margin:4px 0 8px';
+    open.onclick = () => { selectTree(x.i); selPinned = performance.now();
+                           el.style.display = 'none'; toTable(x.i); };
+    el.appendChild(open);
+  });
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl);
+  el.appendChild(act);
+}
+function openPicker() {
+  buildPicker();
+  closePopups('pickmenu');
+  $('pickmenu').style.display = 'block';
 }
 
 function nearestTree() {
@@ -2697,7 +2805,7 @@ const MEAS = {
 /* One panel at a time. Two of them open is two panels of reading before the
    button you wanted, and on a phone that is the whole screen. */
 function closePopups(keep) {
-  ['chooser', 'mmenu', 'refmenu', 'nummenu'].forEach(id => {
+  ['chooser', 'mmenu', 'refmenu', 'nummenu', 'pickmenu'].forEach(id => {
     if (id !== keep) $(id).style.display = 'none';
   });
 }
@@ -4982,6 +5090,12 @@ function openPanel(i, tab) {
   ph.querySelector('h2').textContent = (p.tree_id || '?') + ' · ' + (p.name_en || '');
   ph.querySelector('.sub').textContent = (p.species || '') +
     ' · position ±' + (p.position_accuracy_m == null ? '?' : p.position_accuracy_m) + ' m';
+  if (mode === 'WebXR') {
+    const bw = document.createElement('button'); bw.textContent = 'Not this one?';
+    bw.title = 'List the trees the camera could be pointing at';
+    bw.onclick = () => { closePanel(); openPicker(); };
+    ph.appendChild(bw);
+  }
   const bAR = document.createElement('button'); bAR.className = 'p'; bAR.textContent = 'AR';
   bAR.title = 'Show this tree through the camera';
   bAR.onclick = () => { savePanel(true); toAR(i); };
@@ -6364,10 +6478,18 @@ function wire() {
   /* The way from the camera to a tree's page, as a button. Tapping the marker
      works too, but a button cannot be missed. */
   $('btable').onclick = () => {
+    // a tree picked by hand a moment ago is the tree, no questions
+    const pinned = selIdx != null && performance.now() - selPinned < 120000;
+    if (!pinned) {
+      const v = treeInView();
+      // one clear answer opens it; a huddle of stems asks which one
+      if ((!v || !v.sure) && treeCandidates(null, 6).length > 1) return openPicker();
+    }
     const t = targetTree();
-    if (t == null) return toast('No tree near you yet.');
+    if (t == null) return openPicker();
     toTable(t);
   };
+  $('bpick').onclick = openPicker;
   $('bat').onclick = standAtTree;
   const alignMenu = () => {
     const el = $('refmenu');
