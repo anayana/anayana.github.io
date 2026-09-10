@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.14.3';
+const APP_VERSION = '2.15.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -646,18 +646,32 @@ function addTreeHere() {
                    : 'Survey started here – this spot is the plot origin.');
     }
   }
-  /* Where the tree is, rather than where you are: the depth image says where
-     the trunk in front of the phone stands, to a couple of centimetres, and
-     that is a metre better than the standing position. It can only be read
-     inside a frame, so the answer comes back on the next one - a thirtieth of
-     a second, and the press feels the same. */
+  /* Where the tree is, rather than where you are. Two ways, in order: the
+     depth image if this phone gives it, and otherwise the reticle - the ring
+     on the ground where the phone is pointing, which is the foot of the stem
+     when you are looking at the stem. That is the metre you have been seeing:
+     the button recorded the phone's own position, and you stand a step in
+     front of the trunk. */
   askStem(st => guard('record', () => recordTreeAt(st)));
 }
 
+/* The reticle, when it is where a stem's foot would be: in front of you,
+   within a step or two. Further off it is the ground you happen to be looking
+   at, which is not a tree, so it is ignored. */
+const RET_MIN = 0.35, RET_MAX = 2.6;
+function reticleStem() {
+  if (!hitPt) return null;
+  const c = camPos();
+  const d = Math.hypot(hitPt.x - c.x, hitPt.z - c.z);
+  if (d < RET_MIN || d > RET_MAX) return null;
+  return { x: hitPt.x, z: hitPt.z, d: d };
+}
 function recordTreeAt(st) {
   if (mode !== 'WebXR' || !S2P) return;
   const c = camPos();
-  const at = (st && !st.error) ? { x: st.x, z: st.z } : c;
+  const ret = (st && !st.error) ? null : reticleStem();
+  const at = (st && !st.error) ? { x: st.x, z: st.z } : (ret || c);
+  const how = (st && !st.error) ? 'depth' : (ret ? 'reticle' : 'stand');
   const l = s2pInvert(at.x, at.z);
   let g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
   if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
@@ -678,7 +692,9 @@ function recordTreeAt(st) {
     }
   }
   const near = nearbyTree(g.lon, g.lat, 2.0, l);
-  const i = addTree(g.lon, g.lat, st && !st.error ? 'AR survey · stem from depth' : 'AR survey',
+  const i = addTree(g.lon, g.lat,
+                    how === 'depth' ? 'AR survey · stem from depth'
+                  : how === 'reticle' ? 'AR survey · aimed at the stem' : 'AR survey',
                     PLOT.acc, l, true);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
   // a diameter measured off the trunk beats one nobody entered, but only when
@@ -691,12 +707,57 @@ function recordTreeAt(st) {
   selectTree(i);
   openPanel(i);
   const rough = s2pAuto && CAT.features.some((f, k) => k !== i && hasLocal(props(k)));
-  toast('Tree ' + tid(i) + (st && !st.error
+  toast('Tree ' + tid(i) + (how === 'depth'
           ? ' recorded on the stem in front of you' +
             (st.firm ? ', Ø ' + Math.round(st.r * 200) + ' cm' : '') + '.'
-          : ' recorded where you stand.') +
+          : how === 'reticle'
+          ? ' recorded at the ring, ' + ret.d.toFixed(1) + ' m ahead.'
+          : ' recorded where you stand – aim the ring at the stem foot to put it on the trunk.') +
         (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : '') +
         (rough ? ' Against the trees already here it is only as good as GPS – tap three stems and it moves onto the right place.' : ''));
+}
+
+/* ---- standing at trees you know ----
+   Without depth there is one measurement in the wood that beats GPS by two
+   orders of magnitude and costs a single tap: standing at a tree whose
+   position the register already holds. One of them fixes where the session
+   is, to the accuracy of that tree, with the heading still from the compass.
+   Two of them, far enough apart, fix the heading as well - exactly, by the
+   line between them - and then the whole stand is where it belongs for the
+   rest of the session. It is the same arithmetic as the stem match, with the
+   trees named by where you are standing instead of by their spacing. */
+let standPts = [];
+function standAtTree() {
+  if (mode !== 'WebXR') return toast('Only in the camera view.');
+  const i = S2P ? nearestTree() : nearestSurveyedByGps();
+  if (i == null) return toast('No surveyed tree near you to stand at.');
+  const l = localOf(i);
+  if (!l) return toast(tid(i) + ' has no surveyed position to hang the session on.');
+  const c = camPos();
+  standPts = standPts.filter(p => p.i !== i);
+  standPts.push({ i: i, x: c.x, z: c.z, l: l });
+  // two of them, far enough apart, settle the heading too
+  let a = null, b = null;
+  for (let m = 0; m < standPts.length && !b; m++)
+    for (let n = m + 1; n < standPts.length && !b; n++) {
+      const d = Math.hypot(standPts[m].x - standPts[n].x, standPts[m].z - standPts[n].z);
+      const dl = Math.hypot(standPts[m].l.lx - standPts[n].l.lx, standPts[m].l.ly - standPts[n].l.ly);
+      if (d > 5 && Math.abs(d - dl) < 3) { a = standPts[m]; b = standPts[n]; }
+    }
+  if (a && b) {
+    const f = fitS2P([a, b].map(p => ({ id: tid(p.i), l: p.l, s: { x: p.x, z: p.z } })),
+                     'the two trees you stood at');
+    if (f) {
+      lockStems = 2;
+      const n = rebaseSession();
+      toast('Aligned on ' + tid(a.i) + ' and ' + tid(b.i) + ' · ±' + f.rms.toFixed(2) + ' m' +
+            (n ? ' · ' + n + ' recorded trees moved with it' : ''));
+      return;
+    }
+  }
+  if (!lockOnTree(i)) return toast('That did not work – ' + tid(i) + ' has no local position.');
+  toast('Standing at ' + tid(i) + ' · position exact, heading from the compass. ' +
+        'Walk to another known tree and press again – that fixes the heading too.');
 }
 
 /* Standing at a tree you know is a whole fix: the position comes from that
@@ -1953,7 +2014,7 @@ function enterAR() {
   buildEdge();
   $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
-  sessScene.clear(); stemOffered = false;
+  sessScene.clear(); stemOffered = false; standPts = [];
   stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false;
   const healed = plotHeal();
   if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
@@ -2027,6 +2088,12 @@ function tick() {
     o.scale.set(b[0] * s, b[1] * s, 1);
   });
   $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+  if (edgeTick % 20 === 3 && $('bat')) {
+    const n = S2P ? nearestTree() : nearestSurveyedByGps();
+    $('btable').textContent = (selIdx != null ? tid(selIdx) : n != null ? tid(n) : 'Table');
+    $('bat').textContent = n == null ? 'At tree' : 'I am at ' + tid(n);
+    $('bat').disabled = (n == null);
+  }
   const nowMs = performance.now();
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
   compAt = nowMs;
@@ -2147,7 +2214,9 @@ function updateHitTest(frame) {
     if (p) {
       hitPt = new THREE.Vector3(p.transform.position.x, p.transform.position.y, p.transform.position.z);
       reticle.position.copy(hitPt);
-      reticle.visible = !!(measure && measure.wantsHit);
+      // always visible in the survey: it is where + Tree will put the tree
+      reticle.visible = !!(measure ? measure.wantsHit
+        : (mode === 'WebXR' && !$('panelXR').classList.contains('on')));
       return;
     }
   }
@@ -6139,6 +6208,14 @@ function wire() {
   };
 
   $('bnew').onclick = addTreeHere;
+  /* The way from the camera to a tree's page, as a button. Tapping the marker
+     works too, but a button cannot be missed. */
+  $('btable').onclick = () => {
+    const t = selIdx != null ? selIdx : nearestTree();
+    if (t == null) return toast('No tree near you yet.');
+    toTable(t);
+  };
+  $('bat').onclick = standAtTree;
   const alignMenu = () => {
     const el = $('refmenu');
     const open = el.style.display !== 'block';
