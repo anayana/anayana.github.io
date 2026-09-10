@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.14.0';
+const APP_VERSION = '2.14.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1369,25 +1369,34 @@ let autoState = null;
 /* ====================== SENSORS: GPS / COMPASS ====================== */
 
 let lastFix = null, gpsAcc = null, watchId = null;
+/* Everything a new fix sets off, in one place with a name. It used to be an
+   anonymous block inside the geolocation callback, and when the walking fit
+   was rewritten to work on the session transform the one line that called it
+   was left behind: autoFit existed, was correct, and was never once run. The
+   automatic correction has been dead since. A named function can be tested;
+   a closure inside a callback cannot. */
+function onFix(fix) {
+  lastFix = fix; gpsAcc = fix.acc;
+  if ($('hAcc')) $('hAcc').textContent = fix.acc.toFixed(0);
+  if ($('gpsBadge')) $('gpsBadge').textContent = 'GPS ±' + fix.acc.toFixed(0) + ' m';
+  // The first fix of a session is the cold-start fix and usually the worst
+  // of the day, yet everything on screen is drawn relative to the origin.
+  // Keep taking the better fix until a session pins the scene down.
+  trackFix(fix);
+  if (autoAlign()) setTimeout(offerStemLock, 800);   // a first fix is also a first chance
+  autoFit();                                         // and every fix is a chance to do better
+  if (mapFollow && $('sc-map').classList.contains('on')) mapToMe(!mapView);
+  if ($('sc-map').classList.contains('on')) { renderNav(); if (!mapFollow) drawMap(); }
+  if (!origin || (!mode && !originPinned && originAcc != null && fix.acc < originAcc - 1)) {
+    origin = { lat: fix.lat, lon: fix.lon };
+    if (!originPinned) originAcc = fix.acc;
+    placeMarkers();
+  }
+}
 function startGPS() {
   if (!navigator.geolocation || watchId !== null) return;
   watchId = navigator.geolocation.watchPosition(p => {
-    gpsAcc = p.coords.accuracy;
-    lastFix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: gpsAcc };
-    $('hAcc').textContent = gpsAcc.toFixed(0);
-    $('gpsBadge').textContent = 'GPS ±' + gpsAcc.toFixed(0) + ' m';
-    // The first fix of a session is the cold-start fix and usually the worst
-    // of the day, yet everything on screen is drawn relative to the origin.
-    // Keep taking the better fix until a session pins the scene down.
-    trackFix(lastFix);
-    if (autoAlign()) setTimeout(offerStemLock, 800);   // a first fix is also a first chance
-    if (mapFollow && $('sc-map').classList.contains('on')) mapToMe(!mapView);
-    if ($('sc-map').classList.contains('on')) { renderNav(); if (!mapFollow) drawMap(); }
-    if (!origin || (!mode && !originPinned && originAcc != null && lastFix.acc < originAcc - 1)) {
-      origin = { lat: lastFix.lat, lon: lastFix.lon };
-      if (!originPinned) originAcc = lastFix.acc;
-      placeMarkers();
-    }
+    onFix({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy });
   }, e => {
     $('gpsBadge').textContent = 'GPS off';
     msg('GPS: ' + e.message);
@@ -2086,16 +2095,38 @@ function pickFromRay(o, d) {
   });
   return (best && ba < 12) ? best.userData.idx : null;
 }
+/* A select event carries its own frame, alive for the length of the handler.
+   This asked lastFrame instead - the frame from the loop, already expired by
+   the time a finger has landed - and getPose on an expired frame throws. The
+   tap died there, every time, before it could reach a tree: tapping a marker
+   in AR has never worked. It uses the event's frame now, and if there is no
+   pose to be had it falls back to where the camera is looking rather than
+   losing the tap. */
 function onXRSelect(e) {
-  if (!lastFrame || !xrRef) return;
-  if (measure) { measureTap(); return; }          // a tap belongs to the tool that is running
-  const pose = lastFrame.getPose(e.inputSource.targetRaySpace, xrRef);
-  if (!pose) return;
-  const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
-  const o = new THREE.Vector3().setFromMatrixPosition(m);
-  const d = new THREE.Vector3(0, 0, -1).transformDirection(m);
-  const i = pickFromRay(o, d);
-  if (i !== null) { selectTree(i); openPanel(i); }
+  const frame = (e && e.frame) || null;
+  const wasLive = frameLive;
+  if (frame) { lastFrame = frame; frameLive = true; }
+  try {
+    if (measure) { measureTap(); return; }        // a tap belongs to the tool that is running
+    let o = null, d = null;
+    if (frame && xrRef && e.inputSource && e.inputSource.targetRaySpace) {
+      try {
+        const pose = frame.getPose(e.inputSource.targetRaySpace, xrRef);
+        if (pose) {
+          const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
+          o = new THREE.Vector3().setFromMatrixPosition(m);
+          d = new THREE.Vector3(0, 0, -1).transformDirection(m);
+        }
+      } catch (err) { note('tap pose', err); }
+    }
+    if (!o) { o = camPos(); d = camDir(); }       // the phone itself is the pointer
+    const i = pickFromRay(o, d);
+    if (i !== null) { selectTree(i); openPanel(i); }
+  } catch (err) {
+    note('tap', err);
+  } finally {
+    frameLive = wasLive;
+  }
 }
 function onCamTap(ev) {
   const nx = (ev.clientX / innerWidth) * 2 - 1, ny = -(ev.clientY / innerHeight) * 2 + 1;
