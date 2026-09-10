@@ -157,6 +157,18 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #nmInfo{position:absolute;left:0;right:0;bottom:0;background:rgba(10,16,13,.82);
   padding:5px 9px;font-size:12.5px;display:flex;gap:10px;align-items:center}
 #nmInfo b{color:#8fd6a8}
+/* the same map, small, on a tree's own page */
+#tmWrap{position:relative;height:230px;border:1px solid #2b3a31;border-radius:12px;
+  overflow:hidden;background:#16211b;margin-bottom:8px}
+#tmTiles img{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none}
+#tmMarks{position:absolute;inset:0;pointer-events:none}
+#tmMarks .mk{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:50%;
+  border:2px solid #0b110e}
+#tmMarks .mk.t{background:#54c07a}
+#tmMarks .mk.me{background:#5aa9ff;box-shadow:0 0 0 5px rgba(90,169,255,.25)}
+#tmMarks .mk.go{background:#ffe083;width:16px;height:16px;margin:-9px 0 0 -9px}
+#tmMarks .mk span{position:absolute;left:13px;top:-4px;font-size:11px;white-space:nowrap;
+  color:#eaf3ee;text-shadow:0 0 3px #0b110e,0 0 3px #0b110e,0 0 3px #0b110e}
 #nmInfo .arw{font-size:20px;line-height:1;color:#8fd6a8;display:inline-block}
 #nmInfo span:nth-of-type(2){font-weight:600}
 #hwarn{display:none;font-size:12px;
@@ -350,7 +362,8 @@ table.hist th{color:#8fa697;font-weight:500}
       <div class="btnrow"><button id="mCache">Save this area offline</button></div>
       <div class="small" id="mSel"></div>
       <div class="btnrow"><button class="p" id="mMove" style="display:none"></button>
-        <button id="mUndo" style="display:none"></button></div>
+        <button id="mUndo" style="display:none"></button>
+        <button id="mStand" style="display:none"></button></div>
       <h3>Reference points</h3>
       <div class="row"><label>Name for the next point</label>
         <input type="text" id="mRefId" placeholder="P1" inputmode="text"></div>
@@ -431,6 +444,10 @@ table.hist th{color:#8fa697;font-weight:500}
       <p class="small">Nature Identification API by Observation.org and Naturalis. Without a
         token the public endpoint allows ten identifications a day. Suggestions are never
         recorded on their own.</p>
+
+      <h3>The plot</h3>
+      <div id="plotBox" class="small"></div>
+      <div class="btnrow"><button id="plotHere">Put the stand on my position</button></div>
 
       <h3>Moved positions</h3>
       <div id="movedList"></div>
@@ -516,8 +533,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.8.0"></script>
-<script src="data.js?v=2.8.0"></script>
-<script src="app.js?v=2.8.0"></script>
+<script src="vendor/three.min.js?v=2.9.0"></script>
+<script src="data.js?v=2.9.0"></script>
+<script src="app.js?v=2.9.0"></script>
 </body>
 </html>
