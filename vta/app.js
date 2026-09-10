@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.18.0';
+const APP_VERSION = '2.19.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -728,6 +728,39 @@ function recordTreeAt(st) {
    trees named by where you are standing instead of by their spacing. */
 let standPts = [];
 
+/* Markers hundreds of metres away at the start of a session mean one of two
+   things, and the phone cannot tell them apart: either you are standing a
+   long way from the stand, or the stand's georeference has been dragged off
+   its ground. So it is said plainly and the repair is one tap - rigid, every
+   distance between two trees kept, the whole stand put on your position. */
+let farSaid = false;
+function checkFarFromStand() {
+  if (farSaid || !lastFix || lastFix.acc > 15 || mode !== 'WebXR') return;
+  const withL = CAT.features.filter((f, i) => hasLocal(props(i)));
+  if (withL.length < 2) return;
+  let bd = 1e12;
+  withL.forEach(f => {
+    const c = f.geometry.coordinates;
+    bd = Math.min(bd, distBear(c[1], c[0], lastFix.lat, lastFix.lon).d);
+  });
+  if (bd < 60) return;
+  farSaid = true;
+  mbar('<b>Nothing of the stand is here</b><br>The nearest tree in the register is ' +
+       (bd > 999 ? (bd / 1000).toFixed(1) + ' km' : bd.toFixed(0) + ' m') +
+       ' away. If you are standing in it, its position on the earth is wrong and one press ' +
+       'puts it right – the trees keep every distance between them.',
+       [['The stand is here', () => {
+          $('mbar').classList.remove('on');
+          const l = S2P ? s2pInvert(camPos().x, camPos().z) : null;
+          const i = nearestByGps();
+          const use = l || (i == null ? null : localOf(i));
+          if (!use) return toast('Nothing to hang it on yet.');
+          plotAnchorAt(use, lastFix.lat, lastFix.lon);
+          placeMarkers(); requestAnchors(); clearMeasure(); renderPlotBox();
+          toast('The stand is on your position now. Stop at a tree you know to sharpen it.');
+        }, 'p'], ['Not now', () => { $('mbar').classList.remove('on'); }]]);
+}
+
 /* ---- the alignment nobody presses ----
    You walk up to a tree and stop. That is a measurement: the phone is at a
    tree the register holds, and the session knows where the phone is to a
@@ -806,8 +839,18 @@ function applyStandPair() {
 
 function standAtTree() {
   if (mode !== 'WebXR') return toast('Only in the camera view.');
-  const i = S2P ? nearestTree() : nearestSurveyedByGps();
+  /* Which tree you are standing at is a question for GPS, which is wrong by
+     metres, and never for the scene, which - if the alignment is off - is
+     wrong by hundreds and would then confirm its own error. */
+  const i = nearestSurveyedByGps();
   if (i == null) return toast('No surveyed tree near you to stand at.');
+  if (lastFix) {
+    const c0 = CAT.features[i].geometry.coordinates;
+    const d0 = distBear(c0[1], c0[0], lastFix.lat, lastFix.lon).d;
+    if (d0 > Math.max(15, lastFix.acc * 2))
+      return toast('The nearest tree in the register is ' + d0.toFixed(0) + ' m away by GPS – ' +
+                   'walk to a tree you know, or record this one as new.');
+  }
   const l = localOf(i);
   if (!l) return toast(tid(i) + ' has no surveyed position to hang the session on.');
   const c = camPos(), r = reticleStem();
@@ -1058,7 +1101,21 @@ function wgsToPlot(lat, lon) {
    points or a survey can straighten it later without touching the geometry. */
 function ensurePlotOrigin() {
   if (plotGeoreferenced() || !CAT.features.length) return plotGeoreferenced();
-  const f = CAT.features.find(x => x.geometry && x.geometry.type === 'Point');
+  /* The first tree in the file is the wrong one to borrow from when the file
+     also holds a city register from another country: the plot would sit in
+     Berlin and every tree here would be fifteen hundred kilometres from its
+     own origin. Take the nearest tree to where the phone is instead. */
+  let f = null;
+  if (lastFix) {
+    let bd = 1e12;
+    CAT.features.forEach(x => {
+      if (!x.geometry || x.geometry.type !== 'Point') return;
+      const d = distBear(x.geometry.coordinates[1], x.geometry.coordinates[0],
+                         lastFix.lat, lastFix.lon).d;
+      if (d < bd) { bd = d; f = x; }
+    });
+  }
+  if (!f) f = CAT.features.find(x => x.geometry && x.geometry.type === 'Point');
   if (!f) return false;
   PLOT.lat = f.geometry.coordinates[1];
   PLOT.lon = f.geometry.coordinates[0];
@@ -1110,6 +1167,18 @@ function plotAbsorbFix(fix, lx, ly) {
   const was = plotGeoreferenced() ? { lat: PLOT.lat, lon: PLOT.lon } : null;
   const v = plotVecEN(lx, ly);
   const back = { lat: fix.lat - v.n / mLat(fix.lat), lon: fix.lon - v.e / mLon(fix.lat) };
+  /* A single fix cannot honestly say the plot's origin is hundreds of metres
+     from where every fix so far has said. When it does, the session's own
+     idea of where the phone stands is wrong - a lock on the wrong tree, say -
+     and absorbing it would drag the whole register there. It is dropped, and
+     the reason is on the report. */
+  if (was) {
+    const jump = distBear(was.lat, was.lon, back.lat, back.lon).d;
+    if (jump > Math.max(40, fix.acc * 6)) {
+      diag.absorb = 'a fix that would have moved the stand ' + jump.toFixed(0) + ' m was ignored';
+      return;
+    }
+  }
   if (!plotGeoreferenced() || PLOT.provisional) {
     PLOT.lat = back.lat; PLOT.lon = back.lon; PLOT.n = 1; PLOT.acc = fix.acc;
     delete PLOT.provisional;
@@ -1698,10 +1767,13 @@ const MARK_R = 600;
 function markerWanted(i) {
   const f = CAT.features[i];
   if (!f || !f.geometry || f.geometry.type !== 'Point') return false;
-  if (hasLocal(props(i))) return true;              // surveyed: always worth drawing
-  if (!lastFix) return true;
+  if (!lastFix) return hasLocal(props(i));
   const c = f.geometry.coordinates;
-  return distBear(c[1], c[0], lastFix.lat, lastFix.lon).d <= MARK_R;
+  // by where it says it is, and - for a surveyed tree - by where its survey
+  // puts it, because either being far away means it cannot be on screen
+  if (distBear(c[1], c[0], lastFix.lat, lastFix.lon).d <= MARK_R) return true;
+  const p = props(i), me = hasLocal(p) ? wgsToPlot(lastFix.lat, lastFix.lon) : null;
+  return !!(me && Math.hypot(+p.lx - me.lx, +p.ly - me.ly) <= MARK_R);
 }
 function buildMarkers() {
   // only the marker groups: mGroup hangs here too and must survive
@@ -1882,19 +1954,23 @@ function sceneNorthDeg() {
   if (!S2P) return null;
   return ((-(S2P.phi * 180 / Math.PI) - (PLOT ? PLOT.yaw : 0)) % 360 + 360) % 360;
 }
+/* You cannot see a tree three hundred metres away through a phone, and one
+   thirty kilometres away is a coordinate that has gone wrong somewhere. Draw
+   neither. This is not cosmetic: a marker that far out is what the edge
+   arrows point at, what "in view" counts, and what the nearest-tree logic
+   picks up - one bad coordinate reached into everything. */
+const DRAW_R = 250;
 function placeMarkers() {
   if (!world) return;
+  const c = mode ? camPos() : null;
   world.children.forEach(g => {
     const i = g.userData.idx;
     if (i == null || !CAT.features[i]) return;
-    const p0 = props(i);
     const l = localOf(i);
-    // in survey mode only trees the survey actually holds; a GPS-only tree has
-    // no business being drawn as if it were measured
-    const ok = S2P && l && (arMode !== 'survey' || hasLocal(p0) || S2P);
-    const q = ok ? s2pApply(l.lx, l.ly) : null;
-    if (q) { g.position.set(q.x, 0, q.z); g.visible = true; }
-    else g.visible = false;                    // nothing known, nothing shown
+    const q = (S2P && l) ? s2pApply(l.lx, l.ly) : null;
+    const near = q && (!c || Math.hypot(q.x - c.x, q.z - c.z) <= DRAW_R);
+    if (q && near) { g.position.set(q.x, 0, q.z); g.visible = true; }
+    else g.visible = false;                    // nothing known or nothing near
   });
   requestAnchors();       // old anchors would drag the markers back
 }
@@ -2040,6 +2116,7 @@ async function startXR() {
       // something actually wants a stem: no pipeline running on a timer
       if (depthOk === null && depthWanted()) guard('depth', () => probeDepth(frame));
       guard('standing', autoStand);
+      if (edgeTick % 60 === 11) guard('far from stand', checkFarFromStand);
       if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
     }
     guard('draw', tick);
@@ -2089,7 +2166,7 @@ function enterAR() {
   $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
   sessScene.clear(); standPts = [];
-  stillAt = null; stillSince = 0; autoStood = 0;
+  stillAt = null; stillSince = 0; autoStood = 0; farSaid = false;
   stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false;
   const healed = plotHeal();
   if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
@@ -2164,7 +2241,7 @@ function tick() {
   $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
   if (edgeTick % 20 === 3 && $('bat')) {
     const v = treeInView();
-    const n = S2P ? nearestTree() : nearestSurveyedByGps();
+    const n = nearestSurveyedByGps();
     $('btable').textContent = v ? tid(v.i) : (selIdx != null ? tid(selIdx) : n != null ? tid(n) : 'Table');
     $('bat').textContent = n == null ? 'At tree' : 'I am at ' + tid(n);
     $('bat').disabled = (n == null);
@@ -2645,6 +2722,8 @@ function treeInView(fromStem) {
   const st = fromStem || null;
   let best = null, bd = 1e9, second = 1e9, bestOff = 0;
   CAT.features.forEach((f, i) => {
+    const g = world.children.find(o => o.userData.idx === i);
+    if (!g || !g.visible) return;              // not drawn, not a candidate
     const l = localOf(i);
     if (!l) return;
     const q = s2pApply(l.lx, l.ly);
@@ -2689,6 +2768,8 @@ function treeCandidates(fromStem, max) {
   const fx = d.x / fl, fz = d.z / fl;
   const out = [];
   CAT.features.forEach((f, i) => {
+    const g = world.children.find(o => o.userData.idx === i);
+    if (!g || !g.visible) return;              // not drawn, not a candidate
     const l = localOf(i);
     if (!l) return;
     const q = s2pApply(l.lx, l.ly);
@@ -2782,8 +2863,9 @@ function openPicker() {
 
 function nearestTree() {
   const c = camPos();
-  let best = null, bd = 1e9;
+  let best = null, bd = DRAW_R;
   sprites.forEach(sp => {
+    if (!sp.parent || !sp.parent.visible) return;
     const d = c.distanceTo(sp.getWorldPosition(new THREE.Vector3()));
     if (d < bd) { bd = d; best = sp.userData.idx; }
   });
@@ -3521,9 +3603,10 @@ function updateEdge() {
   sprites.forEach(sp => {
     const el = edgeEls[sp.userData.idx];
     if (!el) return;
+    if (!sp.parent || !sp.parent.visible) { el.classList.remove('on'); return; }
     const wp = sp.getWorldPosition(new THREE.Vector3());
     const dist = c.distanceTo(wp);
-    if (dist < 2) { el.classList.remove('on'); return; }   // you are standing at it
+    if (dist < 2 || dist > DRAW_R) { el.classList.remove('on'); return; }
     const eye = wp.clone().applyMatrix4(inv);
     let x, y, on = false;
     if (eye.z < -0.05) {                                   // in front: project normally
@@ -3680,6 +3763,7 @@ function alignReport() {
   L.push(['Compass', heading == null ? 'none' : heading.toFixed(0) + '°']);
   L.push(['Plot', plotGeoreferenced() ? (PLOT.provisional ? 'provisional' : 'set') +
           ', drift ' + plotDrift().worst.toFixed(1) + ' m' : 'none']);
+  if (diag.absorb) L.push(['Georeference', diag.absorb]);
   L.push(['Last error', lastErr || 'none']);
   L.push(['Version', APP_VERSION]);
   return L;
