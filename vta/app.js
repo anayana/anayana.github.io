@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.15.0';
+const APP_VERSION = '2.16.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -727,34 +727,94 @@ function recordTreeAt(st) {
    rest of the session. It is the same arithmetic as the stem match, with the
    trees named by where you are standing instead of by their spacing. */
 let standPts = [];
+
+/* ---- the alignment nobody presses ----
+   You walk up to a tree and stop. That is a measurement: the phone is at a
+   tree the register holds, and the session knows where the phone is to a
+   centimetre. Two of them, far enough apart and the right distance apart,
+   fix the session on the stand exactly.
+
+   Everything here is about not guessing the wrong tree. It only looks when
+   the phone has been still for two seconds; the tree has to be within two
+   and a half metres of where the current alignment says it is, with the next
+   candidate four metres further off, so a row of trees cannot be mistaken
+   for its neighbour; and the two points have to be the distance apart that
+   the register says they are, or the pair is thrown away. When the alignment
+   is worse than that, nothing is within range and nothing happens - which is
+   the right answer, not a wrong lock. */
+let stillSince = 0, stillAt = null, autoStood = 0;
+const STAND_R = 2.5, STAND_GAP = 4.0, STAND_STILL = 2000, STAND_MOVE = 0.35;
+function autoStand() {
+  if (mode !== 'WebXR' || !S2P || sceneLocked || measure) return;
+  if (lockStems >= 2) return;                       // already exact, leave it alone
+  const c = camPos();
+  if (!stillAt || Math.hypot(c.x - stillAt.x, c.z - stillAt.z) > STAND_MOVE) {
+    stillAt = { x: c.x, z: c.z }; stillSince = performance.now();
+    return;                                          // still walking
+  }
+  if (performance.now() - stillSince < STAND_STILL) return;
+  /* Which tree, if it is beyond doubt. Asked of GPS, not of the current
+     alignment: the alignment can be ten metres out, which is the state this
+     exists to repair, and then nothing would ever be in range. GPS is a few
+     metres out in absolute terms but the register was built from GPS too, so
+     standing at a tree the nearest entry is the right one - provided the next
+     one is far enough behind it that no coin is being tossed. */
+  if (!lastFix || lastFix.acc > 8) return;
+  let best = null, bd = 1e9, second = 1e9;
+  CAT.features.forEach((f, i) => {
+    if (!hasLocal(props(i)) || !f.geometry) return;
+    const q = f.geometry.coordinates;
+    const d = distBear(q[1], q[0], lastFix.lat, lastFix.lon).d;
+    if (d < bd) { second = bd; bd = d; best = { i: i, e: localOf(i).lx, n: localOf(i).ly }; }
+    else if (d < second) second = d;
+  });
+  if (!best || bd > Math.max(STAND_R, lastFix.acc) || second < bd + STAND_GAP) return;
+  if (standPts.some(p => p.i === best.i)) return;    // already have this one
+  // the ring is the stem's foot; the phone is a step beside it
+  const r = reticleStem();
+  const at = r ? { x: r.x, z: r.z } : { x: c.x, z: c.z };
+  standPts.push({ i: best.i, x: at.x, z: at.z, l: { lx: best.e, ly: best.n }, auto: true });
+  stillSince = performance.now() + 1e6;              // one per stop
+  autoStood++;
+  if (!applyStandPair()) {
+    lockOnTree(best.i);
+    diag.match = 'standing at ' + tid(best.i) + ' – walk to another known tree and stop';
+    toast('At ' + tid(best.i) + ' – position taken. Stop at one more known tree and the ' +
+          'heading is exact too.');
+  }
+}
+/* Two stand points that agree with the register: the exact fit. */
+function applyStandPair() {
+  for (let m = 0; m < standPts.length; m++)
+    for (let n = m + 1; n < standPts.length; n++) {
+      const a = standPts[m], b = standPts[n];
+      const d = Math.hypot(a.x - b.x, a.z - b.z);
+      const dl = Math.hypot(a.l.lx - b.l.lx, a.l.ly - b.l.ly);
+      if (d < 5 || Math.abs(d - dl) > 1.5) continue;
+      const f = fitS2P([a, b].map(p => ({ id: tid(p.i), l: p.l, s: { x: p.x, z: p.z } })),
+                       'the two trees you stood at');
+      if (!f) continue;
+      lockStems = 2;
+      const k = rebaseSession();
+      diag.match = 'aligned on ' + tid(a.i) + ' and ' + tid(b.i) + ', ±' + f.rms.toFixed(2) + ' m';
+      toast('Aligned by itself on ' + tid(a.i) + ' and ' + tid(b.i) + ' · ±' + f.rms.toFixed(2) + ' m' +
+            (k ? ' · ' + k + ' recorded trees moved with it' : ''));
+      return true;
+    }
+  return false;
+}
+
 function standAtTree() {
   if (mode !== 'WebXR') return toast('Only in the camera view.');
   const i = S2P ? nearestTree() : nearestSurveyedByGps();
   if (i == null) return toast('No surveyed tree near you to stand at.');
   const l = localOf(i);
   if (!l) return toast(tid(i) + ' has no surveyed position to hang the session on.');
-  const c = camPos();
+  const c = camPos(), r = reticleStem();
+  const at = r ? { x: r.x, z: r.z } : { x: c.x, z: c.z };
   standPts = standPts.filter(p => p.i !== i);
-  standPts.push({ i: i, x: c.x, z: c.z, l: l });
-  // two of them, far enough apart, settle the heading too
-  let a = null, b = null;
-  for (let m = 0; m < standPts.length && !b; m++)
-    for (let n = m + 1; n < standPts.length && !b; n++) {
-      const d = Math.hypot(standPts[m].x - standPts[n].x, standPts[m].z - standPts[n].z);
-      const dl = Math.hypot(standPts[m].l.lx - standPts[n].l.lx, standPts[m].l.ly - standPts[n].l.ly);
-      if (d > 5 && Math.abs(d - dl) < 3) { a = standPts[m]; b = standPts[n]; }
-    }
-  if (a && b) {
-    const f = fitS2P([a, b].map(p => ({ id: tid(p.i), l: p.l, s: { x: p.x, z: p.z } })),
-                     'the two trees you stood at');
-    if (f) {
-      lockStems = 2;
-      const n = rebaseSession();
-      toast('Aligned on ' + tid(a.i) + ' and ' + tid(b.i) + ' · ±' + f.rms.toFixed(2) + ' m' +
-            (n ? ' · ' + n + ' recorded trees moved with it' : ''));
-      return;
-    }
-  }
+  standPts.push({ i: i, x: at.x, z: at.z, l: l });
+  if (applyStandPair()) return;
   if (!lockOnTree(i)) return toast('That did not work – ' + tid(i) + ' has no local position.');
   toast('Standing at ' + tid(i) + ' · position exact, heading from the compass. ' +
         'Walk to another known tree and press again – that fixes the heading too.');
@@ -809,7 +869,8 @@ function showFit() {
   // say what it means for the markers, not what the maths is called
   el.textContent = S2P
       ? (s2pAuto ? 'rough – markers from ' + s2pFrom +
-                   (s2pRms != null ? ' ±' + s2pRms.toFixed(0) + ' m' : '') + ' · tap 3 stems'
+                   (s2pRms != null ? ' ±' + s2pRms.toFixed(0) + ' m' : '') +
+                   ' · stop at a tree you know'
                  : 'locked on ' + s2pFrom + (s2pRms != null ? ' ±' + s2pRms.toFixed(2) + ' m' : ''))
     : arMode === 'survey' ? 'not locked – record a tree to start a survey'
     : done >= 2 ? 'ready – press Apply'
@@ -1046,6 +1107,7 @@ function plotVecEN(lx, ly) {
 }
 function plotAbsorbFix(fix, lx, ly) {
   if (!(fix.acc <= 20)) return;
+  const was = plotGeoreferenced() ? { lat: PLOT.lat, lon: PLOT.lon } : null;
   const v = plotVecEN(lx, ly);
   const back = { lat: fix.lat - v.n / mLat(fix.lat), lon: fix.lon - v.e / mLon(fix.lat) };
   if (!plotGeoreferenced() || PLOT.provisional) {
@@ -1059,6 +1121,12 @@ function plotAbsorbFix(fix, lx, ly) {
     PLOT.acc = Math.max(1, (PLOT.acc || fix.acc) * (1 - w) + fix.acc * w);
   }
   savePlot();
+  /* Moving the origin moves where every tree is on the earth, and the trees
+     carry a written-out position as well as their local one. Leaving that
+     behind is how the register came to disagree with its own survey by nine
+     metres after an hour of walking - and how a tree could no longer be
+     recognised by standing next to it. */
+  if (was && distBear(was.lat, was.lon, PLOT.lat, PLOT.lon).d > 0.05) refreshPlotGeo();
 }
 
 /* Putting the whole stand back on the earth without touching its shape.
@@ -1432,7 +1500,7 @@ function onFix(fix) {
   // of the day, yet everything on screen is drawn relative to the origin.
   // Keep taking the better fix until a session pins the scene down.
   trackFix(fix);
-  if (autoAlign()) setTimeout(offerStemLock, 800);   // a first fix is also a first chance
+  autoAlign();                       // a first fix is also a first chance
   autoFit();                                         // and every fix is a chance to do better
   if (mapOn()) {
     if (mapMode === 'me') mapToMe(!mapView);
@@ -1961,11 +2029,10 @@ async function startXR() {
       if (stemAsk) { const q = stemAsk; stemAsk = null; guard('stem request', () => q(findStem())); }
       guard('hit test', () => updateHitTest(frame));
       guard('anchors', () => updateAnchors(frame));
-      if (edgeTick % 40 === 7) guard('depth', () => probeDepth(frame));
-      if (depthOk && !stemScanOff && performance.now() - stemScanAt > STEM_EVERY) {
-        stemScanAt = performance.now();
-        guard('stem scan', stemScan);
-      }
+      // depth is asked about once, on the first frame, and then only when
+      // something actually wants a stem: no pipeline running on a timer
+      if (depthOk === null && depthWanted()) guard('depth', () => probeDepth(frame));
+      guard('standing', autoStand);
       if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
     }
     guard('draw', tick);
@@ -2014,13 +2081,13 @@ function enterAR() {
   buildEdge();
   $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
-  sessScene.clear(); stemOffered = false; standPts = [];
+  sessScene.clear(); standPts = [];
+  stillAt = null; stillSince = 0; autoStood = 0;
   stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false;
   const healed = plotHeal();
   if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
                     'put back together. Record a tree to fix it on the earth.');
   autoAlign();                  // aligning is not a thing the user should have to ask for
-  setTimeout(offerStemLock, 1200);   // after the first frames have found the floor
 }
 function endAR() {
   renderer.setAnimationLoop(null);
@@ -3406,6 +3473,7 @@ function alignReport() {
           (s2pRms == null ? '' : ' ±' + s2pRms.toFixed(2) + ' m') : 'none – nothing is drawn']);
   L.push(['Surveyed trees around you', String(candidateTrees(60).length)]);
   L.push(['Stems seen this session', stemObs.length + ' · ' + good + ' of them twice']);
+  L.push(['Known trees stood at', standPts.length + (autoStood ? ' (' + autoStood + ' noticed by itself)' : '')]);
   L.push(['Last look', diag.look]);
   L.push(['Last match attempt', diag.match]);
   L.push(['Looks taken', String(diag.scans)]);
@@ -3418,20 +3486,6 @@ function alignReport() {
   return L;
 }
 
-let stemOffered = false;
-function offerStemLock() {
-  if (stemOffered || !hitOk || measure || sceneLocked) return false;
-  if (depthOk) return false;          // it aligns itself; nobody needs to be asked
-  if (!S2P || !s2pAuto) return false;                 // already measured: nothing to offer
-  if (!plotGeoreferenced()) return false;
-  if (candidateTrees(60).length < 3) return false;
-  stemOffered = true;
-  startMeasure('stems');
-  mbar('<b>Markers are from GPS, ±' + (s2pRms == null ? '?' : s2pRms.toFixed(0)) + ' m</b><br>' +
-       'Aim at the base of three stems you can see, well spread, and tap each. ' +
-       'That puts every marker on its tree.', [['Not now', clearMeasure]]);
-  return true;
-}
 
 /* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
 function runStemMatch(pts) {
@@ -4837,6 +4891,10 @@ function openPanel(i, tab) {
   ph.querySelector('h2').textContent = (p.tree_id || '?') + ' · ' + (p.name_en || '');
   ph.querySelector('.sub').textContent = (p.species || '') +
     ' · position ±' + (p.position_accuracy_m == null ? '?' : p.position_accuracy_m) + ' m';
+  const bAR = document.createElement('button'); bAR.className = 'p'; bAR.textContent = 'AR';
+  bAR.title = 'Show this tree through the camera';
+  bAR.onclick = () => { savePanel(true); toAR(i); };
+  ph.appendChild(bAR);
   const bc = document.createElement('button'); bc.textContent = 'Close';
   bc.onclick = closePanel; ph.appendChild(bc);
   el.appendChild(ph);
@@ -6174,7 +6232,11 @@ async function toAR(i) {
   }
   if (!batteryOkForAR()) return false;
   try {
-    await startOrient(); startGPS(); await startXR();
+    /* requestSession needs the user's tap to still count, and awaiting
+       anything first can spend it. The session is asked for first; the
+       compass and GPS follow, and neither is gated. */
+    await startXR();
+    startGPS(); startOrient();
     if (i != null) { selectTree(i); navTarget = i; }
     return true;
   } catch (e) {
@@ -6198,7 +6260,7 @@ function wire() {
   $('bxr').onclick = async () => {
     if (!batteryOkForAR()) return;
     msg('starting …');
-    try { await startOrient(); startGPS(); await startXR(); msg(''); }
+    try { await startXR(); startGPS(); startOrient(); msg(''); }
     catch (e) { msg('WebXR: ' + e.message + ' → try camera mode'); }
   };
   $('bcam').onclick = async () => {
