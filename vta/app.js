@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.12.0';
+const APP_VERSION = '2.12.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1800,16 +1800,26 @@ async function startXR() {
   enterAR();
   // the compass used to be re-applied to the scene here; it no longer places
   // anything, and a heading is read passively for the plot bootstrap alone
+  /* One throw inside the animation loop ends the XR session - the frame never
+     returns, the browser tears the session down, and from the outside the app
+     has crashed. Nothing in here is allowed to do that: every part runs on its
+     own, a failure is recorded and shown in the report, and a part that fails
+     three times is switched off for the rest of the session rather than
+     taking the session with it. */
   renderer.setAnimationLoop((t, frame) => {
     lastFrame = frame;
     if (frame) {
-      updateHitTest(frame);
-      updateAnchors(frame);
-      if (edgeTick % 40 === 7) probeDepth(frame);
-      if (depthOk && performance.now() - stemScanAt > 1500) { stemScanAt = performance.now(); stemScan(); }
-      if (shotFor !== null) takeARPhoto(frame);
+      guard('hit test', () => updateHitTest(frame));
+      guard('anchors', () => updateAnchors(frame));
+      if (edgeTick % 40 === 7) guard('depth', () => probeDepth(frame));
+      if (depthOk && !stemScanOff && performance.now() - stemScanAt > STEM_EVERY) {
+        stemScanAt = performance.now();
+        guard('stem scan', stemScan);
+      }
+      if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
     }
-    tick(); renderer.render(scene, camera);
+    guard('draw', tick);
+    try { renderer.render(scene, camera); } catch (e) { note('render', e); }
   });
 }
 
@@ -1933,6 +1943,28 @@ function tick() {
   if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
   if (arMode === 'navigate' && (edgeTick % 15 === 5)) updateNav();
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
+}
+
+/* ---- keeping the session alive ----
+   A part that throws is a part that stops, not a session that dies. */
+const guardFails = {};
+let stemScanOff = false;
+function note(where, e) {
+  lastErr = where + ': ' + ((e && e.message) || String(e));
+  guardFails[where] = (guardFails[where] || 0) + 1;
+  if (guardFails[where] === 3) {
+    if (where === 'stem scan' || where === 'depth') {
+      stemScanOff = true; depthOk = false;
+      toast('Reading depth keeps failing on this phone – switched off. ' +
+            'Recording still works, it just records where you stand.');
+    } else {
+      toast(where + ' keeps failing – see Data · Alignment for the message.');
+    }
+  }
+}
+function guard(where, fn) {
+  if (guardFails[where] >= 3 && where !== 'draw' && where !== 'render') return;
+  try { fn(); } catch (e) { note(where, e); }
 }
 
 /* ---- tapping ---- */
@@ -2207,6 +2239,7 @@ function stemFromPoints(pts, cam, dir) {
 let depthOk = null;
 function probeDepth(frame) {
   let d = null;
+  if (prefs().safeMode) { depthOk = false; return; }
   if (frame && xrRef && frame.getDepthInformation) {
     const pose = frame.getViewerPose(xrRef);
     if (pose && pose.views.length) {
@@ -2222,7 +2255,13 @@ function probeDepth(frame) {
 }
 
 /* The WebXR half: pull a slice of the depth image into world points. */
+let sliceFor = null, sliceOut = null, sliceAt = null;
 function depthSlice(frame) {
+  // once per frame, not once per caller - and never a slice taken from
+  // somewhere else: if the phone has moved since, it is read again
+  const c = camPos();
+  if (frame && frame === sliceFor && sliceAt && c.distanceTo(sliceAt) < 0.05) return sliceOut;
+  sliceFor = frame; sliceOut = null; sliceAt = c.clone();
   if (!frame || !xrRef || !frame.getDepthInformation) return null;
   const pose = frame.getViewerPose(xrRef);
   if (!pose || !pose.views.length) return null;
@@ -2234,7 +2273,7 @@ function depthSlice(frame) {
   const m = new THREE.Matrix4().fromArray(view.transform.matrix);
   const pts = [];
   const v = new THREE.Vector3();
-  const NX = 56, NY = 40;
+  const NX = 32, NY = 24;         // 768 samples: enough for a trunk, cheap enough for a phone
   for (let iy = 0; iy < NY; iy++) {
     const ny = 0.12 + 0.76 * (iy / (NY - 1));
     for (let ix = 0; ix < NX; ix++) {
@@ -2250,6 +2289,7 @@ function depthSlice(frame) {
       pts.push({ x: v.x, y: v.y, z: v.z });
     }
   }
+  sliceOut = pts;
   return pts;
 }
 
@@ -3063,6 +3103,7 @@ function updateEdge() {
    trees of the register they are, and the session locks itself onto the stand
    to the centimetre. It keeps watching: a match on more stems replaces one on
    fewer, and nothing else is ever asked of anyone. */
+const STEM_EVERY = 2500;        // ms between looks for a trunk
 let stemObs = [], stemMatchN = 0, stemScanAt = 0, lockStems = 0, ambigSaid = false;
 /* Why it is or is not aligned, in the app's own words. Every refusal above
    writes here, so the answer to "why has nothing happened" is on the screen
@@ -3070,6 +3111,8 @@ let stemObs = [], stemMatchN = 0, stemScanAt = 0, lockStems = 0, ambigSaid = fal
 let diag = { look: 'not looked yet', match: 'not tried yet', scans: 0 };
 function stemScan() {
   diag.scans++;
+  if (prefs().safeMode) { diag.look = 'safe mode – depth switched off by hand'; return; }
+  if (lockStems >= 4) { diag.look = 'locked on ' + lockStems + ' stems – not looking any more'; return; }
   if (mode !== 'WebXR') { diag.look = 'not in AR'; return; }
   if (measure) { diag.look = 'a measurement is running'; return; }
   if (sceneLocked) { diag.look = 'the scene is locked by hand'; return; }
@@ -5537,12 +5580,13 @@ function renderList() {
       '<span class="nav"><span class="arr" data-b="' + (o.b == null ? '' : o.b) + '">' + (o.b == null ? '·' : '↑') + '</span>' +
       '<span class="dist">' + (o.d == null ? '– m' : o.d.toFixed(o.d < 100 ? 1 : 0) + ' m') + '</span></span>';
     b.onclick = () => openPanel(o.i);
+    const row = document.createElement('div'); row.className = 'treerow';
     const ar = document.createElement('button');
-    ar.className = 'sm arbtn'; ar.textContent = 'AR';
+    ar.className = 'arbtn'; ar.textContent = 'AR';
     ar.title = 'Show this tree in the camera';
     ar.onclick = ev => { ev.stopPropagation(); toAR(o.i); };
-    b.appendChild(ar);
-    box.appendChild(b);
+    row.appendChild(b); row.appendChild(ar);
+    box.appendChild(row);
   });
   $('listCount').textContent = '(' + CAT.features.length + ')';
   updateArrows();
@@ -6124,6 +6168,19 @@ function wire() {
     };
     rd.readAsText(f);
   };
+  const paintSafe = () => {
+    const on = !prefs().safeMode;
+    $('bSafe').textContent = 'Depth: ' + (on ? 'on' : 'off');
+    $('bSafe').classList.toggle('p', on);
+  };
+  paintSafe();
+  $('bSafe').onclick = () => {
+    setPref('safeMode', !prefs().safeMode);
+    if (prefs().safeMode) { stemScanOff = true; depthOk = false; }
+    else { stemScanOff = false; }
+    paintSafe();
+    toast(prefs().safeMode ? 'Depth off – records where you stand.' : 'Depth on.');
+  };
   $('plotHere').onclick = () => {
     if (!lastFix) return toast('No GPS fix.');
     if (!plotGeoreferenced()) return toast('There is no plot yet – record a tree in AR.');
@@ -6227,22 +6284,34 @@ function watchKeyboard() {
   apply();
 }
 
-loadAll();
-loadRefs();
-loadPlot();
-plotHeal();
-const _demo = dropDemoTrees();
-buildScene();
-buildMarkers();
-wire();
-wireMap();
-watchKeyboard();
-applyDay();
-watchBattery();
-storageCheck(true);
-checks();
-renderList();
-renderStats();
+/* Startup is a straight line, and anything that throws in it leaves a blank
+   page with no way back - the worst possible failure for something used in a
+   wood. Each step stands on its own, and one that fails says so on the screen
+   instead of taking the rest with it. */
+function step(name, fn) {
+  try { fn(); } catch (e) {
+    lastErr = 'start · ' + name + ': ' + ((e && e.message) || e);
+    const m = document.getElementById('msg');
+    if (m) m.textContent = lastErr;
+  }
+}
+step('register', loadAll);
+step('reference points', loadRefs);
+step('plot', loadPlot);
+step('plot repair', plotHeal);
+let _demo = 0;
+step('demo trees', () => { _demo = dropDemoTrees(); });
+step('scene', buildScene);
+step('markers', buildMarkers);
+step('buttons', wire);
+step('map', wireMap);
+step('keyboard', watchKeyboard);
+step('daylight', applyDay);
+step('battery', watchBattery);
+step('storage', () => storageCheck(true));
+step('checks', checks);
+step('list', renderList);
+step('summary', renderStats);
 $('about').textContent = 'VTA Field ' + APP_VERSION;
 if (_demo) toast(_demo + ' demo trees removed – the register is yours now.');
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

@@ -64,7 +64,9 @@ p.lead{color:#9fb3a6;margin:0 0 14px}
 .tree .t2{color:#93a89b;font-size:12.5px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tree .t3{color:#7f9488;font-size:12px}
 .tree .nav{text-align:right;flex:0 0 66px}
-.tree .arbtn{flex:0 0 auto;margin-left:6px;padding:7px 10px;font-size:12.5px}
+.treerow{display:flex;gap:6px;align-items:stretch;margin-bottom:8px}
+.treerow .tree{flex:1;min-width:0;margin-bottom:0}
+.treerow .arbtn{flex:0 0 auto;padding:8px 12px;font-size:13px}
 .tree .arr{font-size:22px;line-height:1;display:block}
 .tree .dist{font-size:12px;color:#9fb3a6;font-variant-numeric:tabular-nums}
 
@@ -465,7 +467,10 @@ table.hist th{color:#8fa697;font-weight:500}
       <h3>App</h3>
       <div class="btnrow">
         <button id="bDay">Daylight: off</button>
+        <button id="bSafe">Depth: on</button>
       </div>
+      <p class="small">Switch depth off if the app is unstable on this phone. Trees are then
+        recorded where you stand, and alignment falls back to GPS and stems marked by hand.</p>
       <div class="btnrow"><button id="bUpdate">Fetch the current version</button></div>
       <p class="small">Throws the offline copy away and reloads from the server.
         Trees and photos stay.</p>
@@ -541,8 +546,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.12.0"></script>
-<script src="data.js?v=2.12.0"></script>
-<script src="app.js?v=2.12.0"></script>
+<script src="vendor/three.min.js?v=2.12.1"></script>
+<script src="data.js?v=2.12.1"></script>
+<script src="app.js?v=2.12.1"></script>
 </body>
 </html>
