@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.14.2';
+const APP_VERSION = '2.14.3';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -870,8 +870,8 @@ function buildNavList() {
           if (dx < box2.clientWidth * 0.8 && dy < box2.clientHeight * 0.7) break;
         }
       } else { v.lat = c[1]; v.lon = c[0]; v.z = 19; }
-      mapFollow = false;
-      drawMap(); syncMapSel(); renderNav(); buildNavList();
+      mapMode = 'both';
+      drawMap(); syncMapSel(); renderNav(); buildNavList(); mapModeLine();
       toast('Walking to ' + tid(x.i) + '.');
     };
     box.appendChild(b);
@@ -1373,8 +1373,12 @@ function onFix(fix) {
   trackFix(fix);
   if (autoAlign()) setTimeout(offerStemLock, 800);   // a first fix is also a first chance
   autoFit();                                         // and every fix is a chance to do better
-  if (mapFollow && $('sc-map').classList.contains('on')) mapToMe(!mapView);
-  if ($('sc-map').classList.contains('on')) { renderNav(); if (!mapFollow) drawMap(); }
+  if (mapOn()) {
+    if (mapMode === 'me') mapToMe(!mapView);
+    else if (mapMode === 'both' && navTarget != null) mapFit(navTarget);
+    else drawMap();
+    renderNav(); mapModeLine();
+  }
   if (!origin || (!mode && !originPinned && originAcc != null && fix.acc < originAcc - 1)) {
     origin = { lat: fix.lat, lon: fix.lon };
     if (!originPinned) originAcc = fix.acc;
@@ -3891,10 +3895,13 @@ function addBerlin(feats) {
 const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAPZ = { min: 12, max: 19 };
 let mapView = null, mapTiles = {}, mapDrag = null, mapPinch = null;
-/* The map opens where you are standing and stays there while the fix moves.
-   Dragging it is a decision to look somewhere else, so that switches the
-   following off until the "Me" button switches it back on. */
-let mapFollow = true;
+/* What the map is doing, which is three things and not two. It follows you;
+   or it holds you and the tree you are walking to on the screen together; or
+   you have dragged it somewhere and it stays put. Picking a tree used to fall
+   into the third - the map stopped following and never started again, which
+   from the outside is "the map is not at my position any more". */
+let mapMode = 'me';                 // 'me' | 'both' | 'free'
+function mapOn() { return $('sc-map') && $('sc-map').classList.contains('on'); }
 
 function lon2px(lon, z) { return (lon + 180) / 360 * 256 * Math.pow(2, z); }
 function lat2px(lat, z) {
@@ -3922,9 +3929,32 @@ function mapToMe(zoom) {
   const v = mapCentre();
   v.lat = lastFix.lat; v.lon = lastFix.lon;
   if (zoom) v.z = Math.max(v.z, 18);
-  mapFollow = true;
+  mapMode = 'me';
   drawMap();
   return true;
+}
+/* You and the tree, both on the screen, at whatever zoom fits the two. */
+function mapFit(i) {
+  if (i == null || !CAT.features[i] || !lastFix) return false;
+  const c = CAT.features[i].geometry.coordinates, v = mapCentre(), box = $('mapBox');
+  v.lat = (c[1] + lastFix.lat) / 2; v.lon = (c[0] + lastFix.lon) / 2;
+  for (v.z = MAPZ.max; v.z > MAPZ.min; v.z--) {
+    const dx = Math.abs(lon2px(c[0], v.z) - lon2px(lastFix.lon, v.z));
+    const dy = Math.abs(lat2px(c[1], v.z) - lat2px(lastFix.lat, v.z));
+    if (dx < box.clientWidth * 0.8 && dy < box.clientHeight * 0.7) break;
+  }
+  drawMap();
+  return true;
+}
+/* Said out loud under the map, because a map that has stopped following you
+   looks exactly like a map that is broken. */
+function mapModeLine() {
+  const el = $('mapMode'); if (!el) return;
+  const t = navTarget != null && CAT.features[navTarget] ? tid(navTarget) : null;
+  el.textContent = mapMode === 'me' ? 'following you'
+    : mapMode === 'both' ? 'holding you and ' + (t || 'the tree') + ' on screen'
+    : 'moved by hand – press “Centre on me” to follow again';
+  el.className = 'small' + (mapMode === 'free' ? ' wa' : '');
 }
 /* The tile grid for a view, into any container, out of any cache. The big map
    and the strip in the AR overlay are the same thing at two sizes. */
@@ -4017,7 +4047,7 @@ function drawMapMarks(left, top, z) {
   if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
 }
 function mapMoveBy(dx, dy) {
-  mapFollow = false;
+  mapMode = 'free';
   const v = mapCentre();
   const cx = lon2px(v.lon, v.z) - dx, cy = lat2px(v.lat, v.z) - dy;
   v.lon = px2lon(cx, v.z); v.lat = px2lat(cy, v.z);
@@ -4076,7 +4106,7 @@ function wireMap() {
   function mapGo(lat, lon, z) {
     const v = mapCentre();
     v.lat = lat; v.lon = lon; v.z = z || 18;
-    mapFollow = false; drawMap();
+    mapMode = 'free'; drawMap();
   }
   BERLIN_SPOTS.forEach(sp => {
     const b = document.createElement('button'); b.className = 'sm';
@@ -4104,6 +4134,11 @@ function wireMap() {
     return g;
   };
   $('mNavNo').oninput = buildNavList;
+  $('mNavStop').onclick = () => {
+    navTarget = null; $('mNavNo').value = '';
+    mapToMe(true); buildNavList(); renderNav(); mapModeLine();
+    toast('Back on your own position.');
+  };
   $('mNavNo').onfocus = buildNavList;
   $('mShowXY').onclick = () => {
     const g = readXY(); if (!g) return;
@@ -4152,7 +4187,7 @@ function wireMap() {
               'stem and record it properly.');
         showScreen('map');
         mapCentre(); mapView.lat = spot.lat; mapView.lon = spot.lon; mapView.z = 17;
-        mapFollow = false; drawMap();
+        mapMode = 'free'; drawMap();
       }
     } catch (e) {
       bMsg('Failed: ' + e.message);
@@ -4169,7 +4204,8 @@ function wireMap() {
   };
 
   $('mMe').onclick = () => {
-    if (!mapToMe(true)) toast('No GPS fix yet – the map centres itself as soon as there is one.');
+    if (!mapToMe(true)) return toast('No GPS fix yet – the map centres itself as soon as there is one.');
+    mapModeLine();
   };
   $('mCache').onclick = async () => {
     const v = mapCentre(), box = $('mapBox');
@@ -4372,7 +4408,7 @@ function renderMoved() {
     go.onclick = () => {
       const c = CAT.features[x.i].geometry.coordinates;
       showScreen('map'); mapSel = x.i;
-      const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapFollow = false;
+      const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free';
       drawMap(); syncMapSel();
     };
     const un = document.createElement('button'); un.className = 'sm p'; un.textContent = 'Undo';
@@ -4861,7 +4897,7 @@ function openPanel(i, tab) {
   bBig.onclick = () => {
     const c = CAT.features[i].geometry.coordinates;
     closePanel(); showScreen('map'); mapSel = i;
-    const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapFollow = false;
+    const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free';
     drawMap(); syncMapSel();
   };
   mrow.appendChild(bBig);
@@ -5706,8 +5742,8 @@ function showScreen(k) {
   if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); }
   if (k === 'map') {
     startGPS(); startOrient();
-    mapFollow = true; if (!mapToMe(true)) drawMap();
-    renderRefs(); syncMapSel(); buildNavList(); renderNav();
+    mapMode = 'me'; if (!mapToMe(true)) drawMap();
+    renderRefs(); syncMapSel(); buildNavList(); renderNav(); mapModeLine();
   }
 }
 function renderStats() {
