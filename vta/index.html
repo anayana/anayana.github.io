@@ -467,10 +467,13 @@ table.hist th{color:#8fa697;font-weight:500}
       <h3>App</h3>
       <div class="btnrow">
         <button id="bDay">Daylight: off</button>
-        <button id="bSafe">Depth: on</button>
+        <button id="bSafe">Depth: off</button>
       </div>
-      <p class="small">Switch depth off if the app is unstable on this phone. Trees are then
-        recorded where you stand, and alignment falls back to GPS and stems marked by hand.</p>
+      <p class="small">Depth measures the trunk in front of the phone: the marker goes on the
+        stem instead of where you stand, the diameter comes with it, and the session aligns
+        itself on the stems it sees. It runs a second pipeline inside ARCore, which not every
+        phone survives &ndash; so it is off until you switch it on. If a session dies a few
+        seconds after starting, switch it off again and everything else keeps working.</p>
       <div class="btnrow"><button id="bUpdate">Fetch the current version</button></div>
       <p class="small">Throws the offline copy away and reloads from the server.
         Trees and photos stay.</p>
@@ -546,8 +549,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.12.2"></script>
-<script src="data.js?v=2.12.2"></script>
-<script src="app.js?v=2.12.2"></script>
+<script src="vendor/three.min.js?v=2.13.0"></script>
+<script src="data.js?v=2.13.0"></script>
+<script src="app.js?v=2.13.0"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.12.2';
+const APP_VERSION = '2.13.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -660,8 +660,15 @@ function addTreeHere() {
   }
   /* Where the tree is, rather than where you are: the depth image says where
      the trunk in front of the phone stands, to a couple of centimetres, and
-     that is a metre better than the standing position. */
-  const st = findStem();
+     that is a metre better than the standing position. It can only be read
+     inside a frame, so the answer comes back on the next one - a thirtieth of
+     a second, and the press feels the same. */
+  askStem(st => guard('record', () => recordTreeAt(st)));
+}
+
+function recordTreeAt(st) {
+  if (mode !== 'WebXR' || !S2P) return;
+  const c = camPos();
   const at = (st && !st.error) ? { x: st.x, z: st.z } : c;
   const l = s2pInvert(at.x, at.z);
   let g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
@@ -1803,11 +1810,16 @@ async function startXR() {
   try {
     s = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['local-floor'],
-      optionalFeatures: ['dom-overlay', 'hit-test', 'anchors', 'camera-access', 'depth-sensing'],
+      optionalFeatures: depthWanted()
+        ? ['dom-overlay', 'hit-test', 'anchors', 'camera-access', 'depth-sensing']
+        : ['dom-overlay', 'hit-test', 'anchors', 'camera-access'],
       domOverlay: { root: $('xrui') },
-      // ARCore's own depth, read on the CPU: the stem in front of the phone
-      // measured rather than assumed. Optional - a phone without it records
-      // where you stand, as before.
+      /* ARCore's own depth measures the stem instead of assuming it, and it
+         is off unless it is asked for. Enabling depth-sensing starts a second
+         pipeline inside ARCore, and on a phone that does not carry it well
+         that is a dead tab a few seconds into a session - with no error,
+         because the process is gone. The app must work on every phone first
+         and measure trunks second. */
       depthSensing: {
         usagePreference: ['cpu-optimized'],
         dataFormatPreference: ['luminance-alpha', 'float32']
@@ -1849,7 +1861,10 @@ async function startXR() {
      taking the session with it. */
   renderer.setAnimationLoop((t, frame) => {
     lastFrame = frame;
+    frameLive = !!frame;
     if (frame) {
+      // whatever asked for a stem while no frame was in flight, answered here
+      if (stemAsk) { const q = stemAsk; stemAsk = null; guard('stem request', () => q(findStem())); }
       guard('hit test', () => updateHitTest(frame));
       guard('anchors', () => updateAnchors(frame));
       if (edgeTick % 40 === 7) guard('depth', () => probeDepth(frame));
@@ -1861,6 +1876,7 @@ async function startXR() {
     }
     guard('draw', tick);
     try { renderer.render(scene, camera); } catch (e) { note('render', e); }
+    frameLive = false;
   });
 }
 
@@ -1984,6 +2000,17 @@ function tick() {
   if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
   if (arMode === 'navigate' && (edgeTick % 15 === 5)) updateNav();
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
+}
+
+/* Ask for a stem and be told next frame. Outside a running session the answer
+   comes at once and says there is none, so no caller ever waits for ever. */
+let stemAsk = null;
+function askStem(cb) {
+  if (mode !== 'WebXR' || !depthOk || !depthWanted() || stemScanOff) return cb({ error: 'no depth' });
+  if (stemAsk) return cb({ error: 'already looking' });
+  stemAsk = cb;
+  // if no frame arrives - session gone, loop stopped - answer anyway
+  setTimeout(() => { if (stemAsk === cb) { stemAsk = null; cb({ error: 'no frame came' }); } }, 700);
 }
 
 /* ---- keeping the session alive ----
@@ -2275,12 +2302,15 @@ function stemFromPoints(pts, cam, dir) {
            firm: span > 90 && f.rms < 0.03 };
 }
 
+/* Off unless switched on: see the session request above. */
+function depthWanted() { return !!prefs().depth; }
+
 /* Whether this phone gives depth at all, said on the header rather than found
    out when a tree lands in the grass. */
 let depthOk = null;
 function probeDepth(frame) {
   let d = null;
-  if (prefs().safeMode) { depthOk = false; return; }
+  if (!depthWanted()) { depthOk = false; return; }
   if (frame && xrRef && frame.getDepthInformation) {
     const pose = frame.getViewerPose(xrRef);
     if (pose && pose.views.length) {
@@ -2296,8 +2326,17 @@ function probeDepth(frame) {
 }
 
 /* The WebXR half: pull a slice of the depth image into world points. */
+/* An XRFrame is alive only for the length of the callback it arrives in. Read
+   its depth image from a button handler - a frame or two later - and the
+   buffer behind it has been handed back: not an exception, a dead renderer.
+   That is the crash on + Tree, and no message could ever have appeared for
+   it. So the door is barred: depth is read inside the frame callback or not
+   at all, and anything that wants a stem asks for one and is answered on the
+   next frame. */
+let frameLive = false;
 let sliceFor = null, sliceOut = null, sliceAt = null;
 function depthSlice(frame) {
+  if (!frameLive) return null;
   // once per frame, not once per caller - and never a slice taken from
   // somewhere else: if the phone has moved since, it is read again
   const c = camPos();
@@ -2336,6 +2375,7 @@ function depthSlice(frame) {
 
 /* Everything together: the stem in front of the phone, or why not. */
 function findStem() {
+  if (!frameLive) return { error: 'depth can only be read while a frame is being drawn' };
   const pts = depthSlice(lastFrame);
   if (!pts) return { error: 'this phone gives no depth' };
   const c = camPos();
@@ -3152,7 +3192,7 @@ let stemObs = [], stemMatchN = 0, stemScanAt = 0, lockStems = 0, ambigSaid = fal
 let diag = { look: 'not looked yet', match: 'not tried yet', scans: 0 };
 function stemScan() {
   diag.scans++;
-  if (prefs().safeMode) { diag.look = 'safe mode – depth switched off by hand'; return; }
+  if (!depthWanted()) { diag.look = 'depth is switched off (Data · App)'; return; }
   if (lockStems >= 4) { diag.look = 'locked on ' + lockStems + ' stems – not looking any more'; return; }
   if (mode !== 'WebXR') { diag.look = 'not in AR'; return; }
   if (measure) { diag.look = 'a measurement is running'; return; }
@@ -6210,17 +6250,19 @@ function wire() {
     rd.readAsText(f);
   };
   const paintSafe = () => {
-    const on = !prefs().safeMode;
+    const on = depthWanted();
     $('bSafe').textContent = 'Depth: ' + (on ? 'on' : 'off');
     $('bSafe').classList.toggle('p', on);
   };
   paintSafe();
   $('bSafe').onclick = () => {
-    setPref('safeMode', !prefs().safeMode);
-    if (prefs().safeMode) { stemScanOff = true; depthOk = false; }
+    setPref('depth', !depthWanted());
+    if (!depthWanted()) { stemScanOff = true; depthOk = false; }
     else { stemScanOff = false; }
     paintSafe();
-    toast(prefs().safeMode ? 'Depth off – records where you stand.' : 'Depth on.');
+    toast(depthWanted()
+      ? 'Depth on – leave AR and come back for it to take effect. If the app dies a few seconds in, switch it off again.'
+      : 'Depth off – trees are recorded where you stand.');
   };
   $('plotHere').onclick = () => {
     if (!lastFix) return toast('No GPS fix.');
