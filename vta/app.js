@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.14.1';
+const APP_VERSION = '2.14.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -496,18 +496,6 @@ function sceneToWgs(v) {
    where you are now, so the origin is shifted by your offset from it -
    otherwise walking twenty metres before saying "I am at ..." puts the whole
    scene twenty metres out. */
-function setOriginHere(lat, lon, acc) {
-  settleComp();
-  if (world && mode) {
-    world.updateMatrixWorld(true);
-    const l = world.worldToLocal(camPos());
-    origin = { lat: lat + l.z / mLat(lat), lon: lon - l.x / mLon(lat) };
-  } else {
-    origin = { lat: lat, lon: lon };
-  }
-  originAcc = acc; originPinned = true;
-  placeMarkers();
-}
 function distBear(lat, lon, lat0, lon0) {
   const d = enu(lat, lon, lat0, lon0);
   return { d: Math.hypot(d.e, d.n), b: (Math.atan2(d.e, d.n) * 180 / Math.PI + 360) % 360 };
@@ -2121,7 +2109,7 @@ function onXRSelect(e) {
     }
     if (!o) { o = camPos(); d = camDir(); }       // the phone itself is the pointer
     const i = pickFromRay(o, d);
-    if (i !== null) { selectTree(i); openPanel(i); }
+    if (i !== null) toTable(i);
   } catch (err) {
     note('tap', err);
   } finally {
@@ -2132,7 +2120,7 @@ function onCamTap(ev) {
   const nx = (ev.clientX / innerWidth) * 2 - 1, ny = -(ev.clientY / innerHeight) * 2 + 1;
   ray.setFromCamera({ x: nx, y: ny }, camera);
   const i = pickFromRay(ray.ray.origin.clone(), ray.ray.direction.clone());
-  if (i !== null) { selectTree(i); openPanel(i); }
+  if (i !== null) toTable(i);
 }
 
 /* ======================= AR TOOLS (WebXR only) =======================
