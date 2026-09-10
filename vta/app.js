@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.16.0';
+const APP_VERSION = '2.17.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2156,10 +2156,27 @@ function tick() {
   });
   $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
   if (edgeTick % 20 === 3 && $('bat')) {
+    const v = treeInView();
     const n = S2P ? nearestTree() : nearestSurveyedByGps();
-    $('btable').textContent = (selIdx != null ? tid(selIdx) : n != null ? tid(n) : 'Table');
+    $('btable').textContent = v ? tid(v.i) : (selIdx != null ? tid(selIdx) : n != null ? tid(n) : 'Table');
     $('bat').textContent = n == null ? 'At tree' : 'I am at ' + tid(n);
     $('bat').disabled = (n == null);
+    const el = $('hView');
+    if (el) {
+      el.textContent = !v ? '' : (v.sure ? 'this is ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m'
+        : 'probably ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m · from ' + v.why +
+          (v.gap < 3 ? ', and it could be its neighbour' : ''));
+      el.className = v && v.sure ? 'ok' : 'warn';
+    }
+    // the one being looked at is drawn brighter than the rest
+    world.children.forEach(g => {
+      if (g.userData.idx == null) return;
+      const on = v && g.userData.idx === v.i;
+      g.children.forEach(ch => {
+        if (ch.material && ch.material.opacity !== undefined && ch.geometry &&
+            ch.geometry.type === 'RingGeometry') ch.material.opacity = on ? 1 : 0.5;
+      });
+    });
   }
   const nowMs = performance.now();
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
@@ -2581,6 +2598,80 @@ function selectTree(i) {
   selIdx = i;
   $('hSel').textContent = i == null ? '' : ('sel ' + props(i).tree_id);
 }
+/* ================= WHICH TREE IS THAT =================
+   Three things answer it, and none of them is recognising a tree by how it
+   looks - two pines of an age are the same picture, which is measured and
+   settled: bark tells the species, never the individual.
+
+   What does answer it is geometry. The register is a map of the stand,
+   accurate to centimetres inside a survey. The session knows where the phone
+   is in that map, once it is aligned - which now happens by itself, by
+   stopping at trees. Put the two together and the tree in front of the
+   camera is simply the register entry that lies along the view: no picture
+   is needed, and the answer is as good as the alignment.
+
+   So the identification is only ever claimed as firmly as the alignment
+   deserves. A rough alignment from GPS and the compass names a candidate and
+   says it is a guess; an alignment measured on two known trees names the
+   tree. If a second candidate is nearly as good - a row seen end-on - it
+   says so instead of choosing. Depth, when the phone gives it, sharpens the
+   answer to the trunk actually in front rather than the direction of it, and
+   the number on the plate settles it outright when it can be read. */
+const VIEW_R = 30,          // metres of interest ahead
+      VIEW_COS = 0.80;      // and how far off the centre a tree may be
+function treeInView(fromStem) {
+  if (!S2P || !world) return null;
+  const c = camPos(), d = camDir();
+  const fl = Math.hypot(d.x, d.z) || 1;
+  const fx = d.x / fl, fz = d.z / fl;
+  // if depth has found the trunk in front, ask about that point instead of
+  // the direction: it is a position, not a bearing
+  const st = fromStem || null;
+  let best = null, bd = 1e9, second = 1e9, bestOff = 0;
+  CAT.features.forEach((f, i) => {
+    const l = localOf(i);
+    if (!l) return;
+    const q = s2pApply(l.lx, l.ly);
+    if (!q) return;
+    let score, dist, off;
+    if (st) {
+      dist = Math.hypot(q.x - c.x, q.z - c.z);
+      off = Math.hypot(q.x - st.x, q.z - st.z);
+      score = off;                              // straight distance to the trunk seen
+      if (off > 3) return;
+    } else {
+      const vx = q.x - c.x, vz = q.z - c.z;
+      dist = Math.hypot(vx, vz);
+      if (dist > VIEW_R || dist < 0.05) return;
+      const cos = (vx * fx + vz * fz) / dist;
+      if (cos < VIEW_COS) return;
+      off = dist * Math.sqrt(Math.max(0, 1 - cos * cos));   // how far off the centre line
+      if (off > 4) return;                       // that is not what the camera is pointing at
+      // centred counts for much more than near: a tree five metres to the
+      // side is not the one you are looking at, however close it is
+      score = off * 3 + dist * 0.4;
+    }
+    if (score < bd) { second = bd; bd = score; bestOff = off; best = { i: i, d: dist, off: off }; }
+    else if (score < second) second = score;
+  });
+  if (!best) return null;
+  best.gap = second - bd;
+  /* Firm when the alignment is measured, the runner-up is clearly behind, and
+     the tree is where the camera is actually pointing. */
+  best.sure = !s2pAuto && best.gap > 3 && bestOff < 2.5;
+  best.why = st ? 'the trunk in front' : (s2pAuto ? 'GPS and the compass' : 'the survey');
+  return best;
+}
+/* The tree a button should act on: what you are looking at, then what you
+   picked, then what is nearest. */
+function targetTree() {
+  const v = treeInView();
+  if (v && v.sure) return v.i;
+  if (selIdx != null) return selIdx;
+  if (v) return v.i;
+  return nearestTree();
+}
+
 function nearestTree() {
   const c = camPos();
   let best = null, bd = 1e9;
@@ -3559,7 +3650,7 @@ function buildNumMenu(prefill) {
   const ph = document.createElement('button'); ph.className = 'sm p'; ph.textContent = 'Photograph the plate';
   ph.disabled = !(mode === 'WebXR' && camAccessOk);
   ph.onclick = () => {
-    const t = selIdx == null ? nearestTree() : selIdx;
+    const t = targetTree();
     if (t == null) return toast('Select a tree first, or record one.');
     shotFor = t; shotKind = 'tag'; el.style.display = 'none';
     toast('Photographing the number plate …');
@@ -6273,7 +6364,7 @@ function wire() {
   /* The way from the camera to a tree's page, as a button. Tapping the marker
      works too, but a button cannot be missed. */
   $('btable').onclick = () => {
-    const t = selIdx != null ? selIdx : nearestTree();
+    const t = targetTree();
     if (t == null) return toast('No tree near you yet.');
     toTable(t);
   };
@@ -6287,13 +6378,13 @@ function wire() {
   };
   $('balign').onclick = alignMenu;
   $('bshot').onclick = () => {
-    const t = selIdx == null ? nearestTree() : selIdx;
+    const t = targetTree();
     if (t == null) return toast('No tree selected.');
     selectTree(t); shotFor = t; shotKind = null;
     toast('Capturing photo of ' + props(t).tree_id + ' …');
   };
   $('bbark').onclick = () => {
-    const t = selIdx == null ? nearestTree() : selIdx;
+    const t = targetTree();
     if (t == null) return toast('No tree selected.');
     selectTree(t); startBark(t);
   };
