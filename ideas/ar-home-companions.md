@@ -145,7 +145,11 @@ Built as a WebXR PWA so it installs from a URL and needs no store, no account
 and no backend. Android Chrome with the Google Play Services for AR; a camera +
 gyro preview for phones without ARCore.
 
-- All four animals, each with the three time-of-day behaviours described above.
+- All four animals above, each with the three time-of-day behaviours, plus three
+  more the user asked for later: a Mumin whose face alternates between friendly
+  and cross, a unicorn that eats a rainbow arc bite by bite and sleeps at night,
+  and a dragon that plucks stars out of the air above it with a chameleon
+  tongue and sleeps at night.
 - Manual placement: pick an animal, tap the spot. Hit-test where ARCore offers
   it, otherwise 1.4 m in front of the phone.
 - Layout persistence without a cloud: positions are stored in a compass-aligned

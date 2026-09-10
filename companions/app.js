@@ -448,6 +448,383 @@ function pokeMonkey(o) {
   return null;
 }
 
+/* ---------------------------- mumin ---------------------------- */
+
+function buildMumin() {
+  const g = new THREE.Group();
+  const skin = mat(0xf7f2e9), blk = mat(0x2a2320), rose = mat(0xe9a7a7);
+
+  const body = sphere(0.150, skin); body.scale.set(1.0, 1.08, 0.92); at(body, 0, 0.20, 0);
+  const tail = sphere(0.036, skin); tail.scale.set(0.8, 0.8, 0.6); at(tail, 0, 0.17, -0.145);
+
+  const headP = new THREE.Group(); at(headP, 0, 0.42, 0);
+  const head = sphere(0.135, skin);
+  const snout = sphere(0.078, skin); snout.scale.set(1.15, 0.85, 1.55); at(snout, 0, -0.020, 0.105);
+  const nosL = sphere(0.011, blk); at(nosL, 0.026, -0.006, 0.212);
+  const nosR = sphere(0.011, blk); at(nosR, -0.026, -0.006, 0.212);
+  const earL = sphere(0.042, skin); earL.scale.set(0.55, 1.15, 0.50); at(earL, 0.098, 0.105, -0.012);
+  const earR = sphere(0.042, skin); earR.scale.set(0.55, 1.15, 0.50); at(earR, -0.098, 0.105, -0.012);
+  const eyeL = sphere(0.023, blk); eyeL.scale.set(0.85, 1, 0.7); at(eyeL, 0.050, 0.055, 0.100);
+  const eyeR = sphere(0.023, blk); eyeR.scale.set(0.85, 1, 0.7); at(eyeR, -0.050, 0.055, 0.100);
+  const browL = box(0.058, 0.014, 0.012, blk); at(browL, 0.052, 0.100, 0.080);
+  const browR = box(0.058, 0.014, 0.012, blk); at(browR, -0.052, 0.100, 0.080);
+  // half torus: as built it arcs upwards (a frown), rotated by PI it smiles
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 6, 18, Math.PI), blk);
+  at(mouth, 0, -0.085, 0.175);
+  const cheekL = sphere(0.024, rose); cheekL.scale.set(1, 0.7, 0.35); at(cheekL, 0.090, -0.005, 0.085);
+  const cheekR = sphere(0.024, rose); cheekR.scale.set(1, 0.7, 0.35); at(cheekR, -0.090, -0.005, 0.085);
+  headP.add(head, snout, nosL, nosR, earL, earR, eyeL, eyeR, browL, browR, mouth, cheekL, cheekR);
+
+  const armL = sphere(0.046, skin); armL.scale.set(0.55, 1.25, 0.55); at(armL, 0.152, 0.215, 0.015);
+  const armR = sphere(0.046, skin); armR.scale.set(0.55, 1.25, 0.55); at(armR, -0.152, 0.215, 0.015);
+  const legL = cyl(0.042, 0.050, 0.10, skin); at(legL, 0.062, 0.05, 0.015);
+  const legR = cyl(0.042, 0.050, 0.10, skin); at(legR, -0.062, 0.05, 0.015);
+
+  g.add(body, tail, headP, armL, armR, legL, legR);
+  const lab = label('Mumin'); at(lab, 0, 0.72, 0);
+  g.add(lab);
+  return {
+    root: g,
+    p: {
+      body: body, head: headP, eyes: [eyeL, eyeR], brows: [browL, browR],
+      mouth: mouth, arms: [armL, armR],
+      mood: 0, target: 0, switchAt: 0
+    }
+  };
+}
+
+/* How long each face is held, in seconds: [friendly, cross]. The mood always
+   alternates - the time of day only decides which one you catch more often. */
+const MUMIN_HOLD = { morning: [4, 6], day: [7, 3], evening: [4, 7] };
+
+function updateMumin(o, dt, c) {
+  const p = o.p, t = c.t;
+  const hold = MUMIN_HOLD[c.phase];
+  if (t > p.switchAt) {
+    p.target = p.target ? 0 : 1;
+    p.switchAt = t + hold[p.target];
+  }
+  p.mood += (p.target - p.mood) * Math.min(1, dt * 5);
+  const m = p.mood;
+
+  p.brows[0].rotation.z = -0.16 + m * 0.80;      // inner ends drop when cross
+  p.brows[1].rotation.z = 0.16 - m * 0.80;
+  p.brows.forEach(b => b.position.y = 0.100 - m * 0.024);
+  p.eyes.forEach(e => e.scale.y = 1 - m * 0.34);
+  p.mouth.rotation.z = m > 0.5 ? 0 : Math.PI;    // flip outright, no sideways in between
+  p.head.rotation.x = m * 0.13 + Math.sin(t * 1.1) * 0.05;
+  p.head.rotation.y = Math.sin(t * 0.6) * (0.26 - m * 0.20);
+  p.body.scale.y = 1.08 + Math.sin(t * 1.4) * 0.03;
+  p.arms.forEach((a, i) => a.rotation.z = (i ? -1 : 1) * (0.10 + m * 0.38));
+  o.root.rotation.y = o.baseRy + Math.sin(t * 0.5) * 0.10 * (1 - m);
+}
+
+function pokeMumin(o) {
+  o.poke = 1;
+  o.p.target = o.p.target ? 0 : 1;
+  o.p.switchAt = lastT + 8;                      // hold the face you asked for
+  return () => o.p.target
+    ? 'Jetzt guckt der Mumin böse. Das geht wieder vorbei.'
+    : 'Der Mumin guckt wieder freundlich.';
+}
+
+/* ---------------------------- shared helpers ---------------------------- */
+
+const _yUp = new THREE.Vector3(0, 1, 0);
+/* Stretch a unit-height cylinder so it spans `from` to `to`. Used for the
+   unicorn's neck reaching down the rainbow and the dragon's tongue. */
+function stretchTo(mesh, from, to, baseLen) {
+  const d = new THREE.Vector3().subVectors(to, from);
+  const len = d.length() || 1e-4;
+  mesh.position.copy(from).addScaledVector(d, 0.5);
+  mesh.quaternion.setFromUnitVectors(_yUp, d.clone().divideScalar(len));
+  mesh.scale.y = len / baseLen;
+}
+
+/* ---------------------------- unicorn ---------------------------- */
+
+const RAINBOW = [0xe8544a, 0xef8f3a, 0xf2cf4a, 0x5fb85f, 0x4a9fe0, 0x5a5ad0, 0x9a54c8];
+const RB_R = 0.36, RB_C = new THREE.Vector3(0.06, 0.26, 0.50);   // clear of the body, face-on to the viewer
+
+function buildUnicorn() {
+  const g = new THREE.Group();
+  const coat = mat(0xfdf4f7), hoof = mat(0xd8c0cc), gold = mat(0xf0c453), blk = mat(0x2a2320);
+
+  const body = sphere(0.16, coat); body.scale.set(1.0, 0.95, 1.5); at(body, 0, 0.44, -0.03);
+  const legs = [];
+  [[0.095, 0.16], [-0.095, 0.16], [0.095, -0.17], [-0.095, -0.17]].forEach(q => {
+    const l = cyl(0.030, 0.034, 0.44, coat); at(l, q[0], 0.22, q[1]); legs.push(l); g.add(l);
+    const h = cyl(0.036, 0.036, 0.035, hoof); at(h, q[0], 0.018, q[1]); g.add(h);
+  });
+
+  // the neck is redrawn every frame between shoulder and head, so the head can
+  // travel down the rainbow while it eats
+  const neck = cyl(0.048, 0.062, 1.0, coat);
+  const headP = new THREE.Group();
+  const head = sphere(0.085, coat); head.scale.set(1, 1, 1.25);
+  const muzzle = sphere(0.050, coat); muzzle.scale.set(0.85, 0.8, 1.1); at(muzzle, 0, -0.030, 0.090);
+  const nose = sphere(0.010, blk); at(nose, 0.020, -0.032, 0.145);
+  const eyeL = sphere(0.017, blk); at(eyeL, 0.058, 0.030, 0.045);
+  const eyeR = sphere(0.017, blk); at(eyeR, -0.058, 0.030, 0.045);
+  const earL = cone(0.024, 0.060, coat); at(earL, 0.052, 0.100, -0.030);
+  const earR = cone(0.024, 0.060, coat); at(earR, -0.052, 0.100, -0.030);
+  const horn = cone(0.024, 0.150, gold); at(horn, 0, 0.140, 0.045);
+  const forelock = sphere(0.040, mat(RAINBOW[4])); forelock.scale.set(1, 0.7, 0.7); at(forelock, 0, 0.085, 0.030);
+  headP.rotation.order = 'YXZ';
+  headP.add(head, muzzle, nose, eyeL, eyeR, earL, earR, horn, forelock);
+
+  // mane and tail in rainbow stripes
+  const mane = new THREE.Group();
+  RAINBOW.forEach((col, i) => {
+    const s = sphere(0.038, mat(col)); s.scale.set(0.55, 0.9, 0.8);
+    at(s, 0, 0.60 + i * 0.012, 0.12 - i * 0.038); mane.add(s);
+  });
+  const tail = new THREE.Group(); at(tail, 0, 0.46, -0.26);
+  RAINBOW.forEach((col, i) => {
+    const s = cyl(0.010, 0.016, 0.24, mat(col));
+    at(s, (i - 3) * 0.016, -0.10, -0.02); s.rotation.x = 0.55; tail.add(s);
+  });
+
+  // the rainbow it eats: seven arcs that get shorter bite by bite
+  const rb = new THREE.Group(); rb.position.copy(RB_C);
+  const bands = RAINBOW.map((col, i) => {
+    const m = new THREE.Mesh(new THREE.TorusGeometry(RB_R - i * 0.028, 0.013, 6, 44, Math.PI), mat(col));
+    rb.add(m); return m;
+  });
+
+  const torso = new THREE.Group();          // body, mane and tail lie down together
+  torso.add(body, mane, tail);
+  g.add(torso, neck, headP, rb);
+  const lab = label('Einhorn'); at(lab, 0, 1.02, 0);
+  g.add(lab);
+  return {
+    root: g,
+    p: {
+      body: body, torso: torso, legs: legs, neck: neck, head: headP, eyes: [eyeL, eyeR], tail: tail,
+      rb: rb, bands: bands, start: 0, nextBite: 2, chew: 0, pop: 1, sleep: 0
+    }
+  };
+}
+
+/* Rebuilding seven small arcs only happens on a bite, so a few times a minute. */
+function rainbowGeom(p) {
+  p.rb.rotation.z = p.start;
+  const arc = Math.max(0.001, Math.PI - p.start);
+  p.bands.forEach((b, i) => {
+    b.geometry.dispose();
+    b.geometry = new THREE.TorusGeometry(RB_R - i * 0.028, 0.013, 6, 44, arc);
+  });
+}
+
+const UNI_SHOULDER = new THREE.Vector3(0, 0.60, 0.14);
+
+function updateUnicorn(o, dt, c) {
+  const p = o.p, t = c.t;
+  const night = c.phase === 'evening';
+
+  p.sleep += ((night ? 1 : 0) - p.sleep) * Math.min(1, dt * 1.2);
+  const sl = p.sleep;
+
+  // lying down for the night, and the rainbow fades with it
+  p.rb.visible = sl < 0.9;
+  p.rb.scale.setScalar(p.pop * (1 - sl));
+  p.pop += (1 - p.pop) * Math.min(1, dt * 4);
+  p.legs.forEach(l => { l.scale.y = 1 - sl * 0.72; l.position.y = 0.22 * (1 - sl * 0.72); });
+  p.torso.position.y = -sl * 0.28;
+  p.body.scale.y = 0.95 * (1 + Math.sin(t * 1.0) * 0.03 * sl);
+  p.eyes.forEach(e => e.scale.y = 1 - sl * 0.88);
+
+  let target;
+  if (sl > 0.5) {
+    target = new THREE.Vector3(0.13, 0.16, 0.26);            // head resting on the floor beside it
+  } else {
+    if (t > p.nextBite) {
+      p.nextBite = t + (c.phase === 'morning' ? 2.6 : 1.6);
+      p.chew = 1;
+      p.start += Math.PI / 12;
+      if (p.start >= Math.PI * 0.96) { p.start = 0; p.pop = 0.2; }   // it grows back
+      rainbowGeom(p);
+    }
+    p.chew = Math.max(0, p.chew - dt * 2.2);
+    // the mouth follows the end of the arc as it gets eaten away
+    const th = p.start + 0.10;
+    target = new THREE.Vector3(Math.cos(th) * RB_R, Math.sin(th) * RB_R, 0)
+      .add(RB_C).add(new THREE.Vector3(0, 0.02 + Math.sin(t * 9) * 0.012 * p.chew, 0.02));
+  }
+  p.head.position.lerp(target, Math.min(1, dt * 3.5));
+  // point the muzzle along the neck: Object3D.lookAt wants a world-space target,
+  // and everything here is in the animal's own frame
+  const shoulder = UNI_SHOULDER.clone(); shoulder.y -= sl * 0.28;
+  const nd = new THREE.Vector3().subVectors(p.head.position, shoulder);
+  p.head.rotation.y = Math.atan2(nd.x, nd.z);
+  p.head.rotation.x = -Math.atan2(nd.y, Math.hypot(nd.x, nd.z)) + Math.sin(t * 9) * 0.10 * p.chew;
+  stretchTo(p.neck, shoulder, p.head.position, 1.0);
+  p.tail.rotation.y = Math.sin(t * 1.6) * 0.3 * (1 - sl);
+}
+
+function pokeUnicorn(o) {
+  o.poke = 1;
+  if (o.p.sleep > 0.5) return () => 'Psst. Das Einhorn schläft.';
+  o.p.nextBite = 0;
+  return () => 'Das Einhorn nimmt noch einen Bissen Regenbogen.';
+}
+
+/* ---------------------------- dragon ---------------------------- */
+
+const DRG_HEAD = new THREE.Vector3(0, 0.50, 0.06);
+
+function buildDragon() {
+  const g = new THREE.Group();
+  const scale1 = mat(0x4f9e6b), scale2 = mat(0xa8dcae), horn = mat(0xe8d9a8),
+    blk = mat(0x1f1a16), eyeM = mat(0xf2c94c), tongueM = mat(0xe07a8a);
+
+  const body = sphere(0.165, scale1); body.scale.set(1.0, 1.10, 1.05); at(body, 0, 0.24, 0);
+  const belly = sphere(0.115, scale2); belly.scale.set(1.0, 1.05, 0.6); at(belly, 0, 0.21, 0.115);
+
+  const headP = new THREE.Group(); at(headP, 0, 0.50, 0.06);
+  const head = sphere(0.105, scale1); head.scale.set(1, 0.95, 1.15);
+  const snout = sphere(0.058, scale1); snout.scale.set(0.9, 0.72, 1.35); at(snout, 0, -0.028, 0.115);
+  const jaw = sphere(0.048, scale2); jaw.scale.set(0.8, 0.45, 1.15); at(jaw, 0, -0.058, 0.110);
+  const nosL = sphere(0.009, blk); at(nosL, 0.022, -0.010, 0.192);
+  const nosR = sphere(0.009, blk); at(nosR, -0.022, -0.010, 0.192);
+  const eyeL = sphere(0.026, eyeM); at(eyeL, 0.055, 0.040, 0.062);
+  const eyeR = sphere(0.026, eyeM); at(eyeR, -0.055, 0.040, 0.062);
+  const pupL = box(0.007, 0.030, 0.010, blk); at(pupL, 0.060, 0.040, 0.082);
+  const pupR = box(0.007, 0.030, 0.010, blk); at(pupR, -0.060, 0.040, 0.082);
+  const hornL = cone(0.022, 0.090, horn); at(hornL, 0.058, 0.115, -0.030); hornL.rotation.x = -0.5;
+  const hornR = cone(0.022, 0.090, horn); at(hornR, -0.058, 0.115, -0.030); hornR.rotation.x = -0.5;
+  headP.rotation.order = 'YXZ';
+  headP.add(head, snout, jaw, nosL, nosR, eyeL, eyeR, pupL, pupR, hornL, hornR);
+
+  const wings = [1, -1].map(s => {
+    const w = new THREE.Group(); at(w, s * 0.128, 0.255, -0.105);
+    const m = sphere(0.150, scale2); m.scale.set(0.11, 0.95, 0.85); at(m, s * 0.055, 0.03, -0.05);
+    w.add(m); return w;
+  });
+
+  const tail = new THREE.Group(); at(tail, 0, 0.16, -0.16);
+  const tailM = cone(0.055, 0.34, scale1); at(tailM, 0, 0, -0.14); tailM.rotation.x = -1.35;
+  const tip = cone(0.055, 0.09, horn); at(tip, 0, 0.01, -0.31); tip.rotation.x = -1.35;
+  tail.add(tailM, tip);
+
+  const legL = sphere(0.052, scale1); legL.scale.set(1, 0.7, 1.4); at(legL, 0.085, 0.048, 0.055);
+  const legR = sphere(0.052, scale1); legR.scale.set(1, 0.7, 1.4); at(legR, -0.085, 0.048, 0.055);
+
+  // chameleon tongue: a unit cylinder restretched every frame, with a sticky tip
+  const tongue = cyl(0.011, 0.014, 1.0, tongueM);
+  const tongueTip = sphere(0.026, tongueM);
+  tongue.visible = tongueTip.visible = false;
+
+  // the sky it picks from
+  const sky = new THREE.Group();
+  const stars = [];
+  for (let i = 0; i < 9; i++) {
+    const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.042), mat(0xfff3b0));
+    sky.add(m); stars.push({ mesh: m, back: 0 });
+  }
+
+  g.add(body, belly, headP, wings[0], wings[1], tail, legL, legR, tongue, tongueTip, sky);
+  const lab = label('Drache'); at(lab, 0, 0.86, 0);
+  g.add(lab);
+
+  const p = {
+    body: body, head: headP, eyes: [eyeL, eyeR], pupils: [pupL, pupR], wings: wings, tail: tail,
+    tongue: tongue, tip: tongueTip, sky: sky, stars: stars,
+    shot: null, nextShot: 1.5, sleep: 0
+  };
+  stars.forEach(s => placeStar(s));
+  return { root: g, p: p };
+}
+
+function placeStar(s) {
+  const a = Math.random() * Math.PI * 2, r = 0.30 + Math.random() * 0.55;
+  s.mesh.position.set(Math.cos(a) * r, 1.00 + Math.random() * 0.60, Math.sin(a) * r * 0.55 + 0.55);
+  s.mesh.visible = true;
+  s.back = 0;
+}
+
+function updateDragon(o, dt, c) {
+  const p = o.p, t = c.t;
+  const night = c.phase === 'evening';
+  p.sleep += ((night ? 1 : 0) - p.sleep) * Math.min(1, dt * 1.2);
+  const sl = p.sleep;
+
+  p.stars.forEach(s => {
+    s.mesh.rotation.y += dt * 1.1;
+    s.mesh.rotation.x += dt * 0.7;
+    s.mesh.scale.setScalar(1 - sl);
+    if (s.back && t > s.back && sl < 0.5) placeStar(s);
+  });
+
+  p.body.scale.y = 1.10 * (1 + Math.sin(t * (sl > 0.5 ? 1.0 : 1.8)) * (sl > 0.5 ? 0.045 : 0.025));
+  p.eyes.forEach(e => e.scale.y = 1 - sl * 0.9);
+  p.pupils.forEach(e => e.scale.y = 1 - sl * 0.9);
+  p.tail.rotation.y = Math.sin(t * 1.3) * 0.35 * (1 - sl);
+  p.wings.forEach((w, i) => {
+    w.rotation.z = (i ? 1 : -1) * (0.34 + (1 - sl) * Math.abs(Math.sin(t * 2.2)) * 0.48);
+    w.rotation.y = (i ? 1 : -1) * (0.55 + sl * 0.85);          // swept back, folded away at night
+  });
+
+  if (sl > 0.5) {
+    p.shot = null;
+    p.tongue.visible = p.tip.visible = false;
+    p.head.position.set(0, 0.34, 0.14);
+    p.head.rotation.set(0.55 + Math.sin(t * 1.0) * 0.04, 0, 0);   // chin down, dozing
+    p.body.position.y = 0.18;
+    return;
+  }
+  p.body.position.y = 0.24;
+  p.head.position.set(0, 0.50, 0.06);
+
+  // pick a star, shoot the tongue, reel it in
+  if (!p.shot && t > p.nextShot) {
+    const free = p.stars.filter(s => s.mesh.visible);
+    if (free.length) {
+      p.shot = { s: free[Math.floor(Math.random() * free.length)], u: 0, phase: 'out' };
+    }
+    p.nextShot = t + (c.phase === 'morning' ? 3.4 : 2.2);
+  }
+
+  // aim first, then turn the head, then take the mouth from where the snout
+  // actually ended up - otherwise the tongue leaves from the wrong place
+  const aim = p.shot ? p.shot.s.mesh.position.clone()
+    : new THREE.Vector3(Math.sin(t * 0.4) * 0.30, 1.25, 0.90);
+  const d = aim.clone().sub(DRG_HEAD);
+  p.head.rotation.x = clamp(-Math.atan2(d.y, Math.hypot(d.x, d.z)), -1.00, 0.40);
+  p.head.rotation.y = clamp(Math.atan2(d.x, d.z), -1.0, 1.0);
+  const mouth = new THREE.Vector3(0, -0.048, 0.235).applyEuler(p.head.rotation).add(DRG_HEAD);
+
+  if (p.shot) {
+    const sp = p.shot.s.mesh.position;
+    p.shot.u += dt * (p.shot.phase === 'out' ? 2.6 : 2.0);
+    const u = clamp(p.shot.u, 0, 1);
+    const reach = p.shot.phase === 'out' ? u : 1 - u;
+    const tipPos = new THREE.Vector3().lerpVectors(mouth, sp, reach);
+    p.tongue.visible = p.tip.visible = reach > 0.02;
+    stretchTo(p.tongue, mouth, tipPos, 1.0);
+    p.tip.position.copy(tipPos);
+    if (p.shot.phase === 'out') {
+      if (u >= 1) { p.shot.phase = 'in'; p.shot.u = 0; p.shot.s.mesh.visible = false; }
+    } else {
+      p.shot.s.mesh.position.copy(tipPos);                     // the star rides back in
+      if (u >= 1) {
+        p.shot.s.back = t + 9 + Math.random() * 7;
+        p.shot = null;
+        p.tongue.visible = p.tip.visible = false;
+      }
+    }
+  } else {
+    p.tongue.visible = p.tip.visible = false;
+  }
+}
+
+function pokeDragon(o) {
+  o.poke = 1;
+  if (o.p.sleep > 0.5) return () => 'Der Drache schläft. Die Sterne bleiben heute oben.';
+  o.p.nextShot = 0;
+  return () => 'Zunge raus - noch ein Stern weniger am Himmel.';
+}
+
 /* ---------------------------- registry ---------------------------- */
 
 const SPECIES = [
@@ -474,6 +851,24 @@ const SPECIES = [
     where: 'Ins Bad, neben das Waschbecken oder auf den Boden.',
     why: 'Zähneputzen, Duschen, Aufräumen.',
     build: buildMonkey, update: updateMonkey, poke: pokeMonkey
+  },
+  {
+    id: 'mumin', name: 'Mumin', emoji: '\u{1F99B}', surface: 'floor',
+    where: 'In den Flur oder auf eine Kommode.',
+    why: 'Launen wechseln - und das ist in Ordnung.',
+    build: buildMumin, update: updateMumin, poke: pokeMumin
+  },
+  {
+    id: 'unicorn', name: 'Einhorn', emoji: '\u{1F984}', surface: 'floor',
+    where: 'Wo Platz ist - es braucht einen halben Meter für den Regenbogen.',
+    why: 'Essen, satt werden, schlafen gehen.',
+    build: buildUnicorn, update: updateUnicorn, poke: pokeUnicorn
+  },
+  {
+    id: 'dragon', name: 'Drache', emoji: '\u{1F409}', surface: 'floor',
+    where: 'Unter eine hohe Decke - er pflückt Sterne über sich.',
+    why: 'Geduld, zielen, und irgendwann ist Schlafenszeit.',
+    build: buildDragon, update: updateDragon, poke: pokeDragon
   }
 ];
 const byId = id => SPECIES.filter(s => s.id === id)[0];
@@ -547,18 +942,28 @@ function despawn(id) {
 function persist(id) {
   const a = animals[id];
   if (!a) return;
-  layout[id] = { x: a.base.x, y: a.base.y, z: a.base.z, ry: a.baseRy };
+  layout[id] = { x: a.base.x, y: a.base.y, z: a.base.z, ry: a.baseRy, v: 2 };
   save(K_LAYOUT, layout);
   renderAnimalList();
 }
 function restoreLayout() {
-  let n = 0;
+  let n = 0, mended = 0;
   Object.keys(layout).forEach(id => {
     if (!byId(id)) return;
     const l = layout[id];
-    spawn(id, new THREE.Vector3(l.x, l.y, l.z), l.ry);
+    let ry = l.ry || 0;
+    if (l.v !== 2) {
+      // v1 stored a yaw computed in the wrong frame, so those animals face
+      // anywhere. Turn them towards the starting spot, which is the home
+      // frame's origin and where the user is standing right now.
+      ry = Math.atan2(-l.x, -l.z);
+      layout[id] = { x: l.x, y: l.y, z: l.z, ry: ry, v: 2 };
+      mended++;
+    }
+    spawn(id, new THREE.Vector3(l.x, l.y, l.z), ry);
     n++;
   });
+  if (mended) save(K_LAYOUT, layout);
   rebuildDirt();
   updateHud();
   return n;
@@ -885,14 +1290,19 @@ function onCamTap(ev) {
   _ray.setFromCamera(nd, camera);
   handleTap(_ray.ray.origin.clone(), _ray.ray.direction.clone());
 }
+/* Which way an animal has to be turned so its face - built along +Z - points at
+   the phone. Both points must be in the home frame; Object3D.lookAt takes a
+   world-space target, which is exactly what the first build got wrong. */
+function faceYaw(p, eyeWorld) {
+  const e = world.worldToLocal(eyeWorld.clone());
+  return Math.atan2(e.x - p.x, e.z - p.z);
+}
+
 function handleTap(origin, dir) {
   if (placing) {
     const spec = placing; placing = null;
     const p = targetPoint(spec);
-    const a = spawn(spec.id, p, 0);
-    a.root.lookAt(world.worldToLocal(origin.clone().setY(p.y)));
-    a.root.rotation.y += Math.PI;      // the models are built facing +Z, lookAt aims -Z
-    a.baseRy = a.root.rotation.y;
+    const a = spawn(spec.id, p, faceYaw(p, origin));
     persist(spec.id);
     reticle.visible = false;
     toast(spec.name + ' platziert.');
@@ -905,6 +1315,8 @@ function handleTap(origin, dir) {
     if (a) {
       const p = targetPoint(a.spec);
       a.base.copy(p); a.root.position.copy(p);
+      a.baseRy = faceYaw(p, origin);          // turn to face you from the new spot too
+      a.root.rotation.y = a.baseRy;
       if (a.p.hop) a.p.hop = null;
       persist(a.id);
       toast(a.spec.name + ' verschoben.');
