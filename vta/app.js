@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.12.1';
+const APP_VERSION = '2.12.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1465,8 +1465,13 @@ function roundRect(g, x, y, w, h, r) {
 }
 function labelTexture(i) {
   const p = props(i), a = assess(p), col = LVLCOL[a.lvl];
-  const c = document.createElement('canvas'); c.width = 640; c.height = 320;
+  /* 512x256 instead of 640x320: a quarter less memory per label, and with
+     forty-five of them on the GPU that is the difference between a session
+     that runs and a tab the browser kills. The drawing below is laid out in
+     the old size and scaled into the new one. */
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
   const g = c.getContext('2d');
+  g.scale(512 / 640, 256 / 320);
   g.fillStyle = 'rgba(10,16,13,.88)'; roundRect(g, 4, 4, 632, 312, 26); g.fill();
   g.lineWidth = 8; g.strokeStyle = col; roundRect(g, 4, 4, 632, 312, 26); g.stroke();
   g.fillStyle = col; g.beginPath(); g.arc(62, 74, 26, 0, 7); g.fill();
@@ -1492,15 +1497,51 @@ function labelTexture(i) {
   g.fillText('Vitality ' + (p.vitality_roloff == null ? '–' : p.vitality_roloff) + ' · ' + (p.damage_class || '–'), 32, 250);
   g.fillStyle = col; g.font = '28px system-ui,sans-serif';
   g.fillText('▸ ' + LVLTXT[a.lvl], 32, 296);
-  const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
+  const t = new THREE.CanvasTexture(c);
+  // no mipmap chain: a third again of the memory, for a label always read
+  // face-on at a couple of metres
+  t.generateMipmaps = false; t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
 }
 
+/* Everything a marker owns, given back. A removed group is not freed by the
+   garbage collector: the canvas behind its label lives on the GPU until it is
+   disposed by hand. Forty-five labels at 640x320 are some thirty-seven
+   megabytes, and buildMarkers runs on every recorded tree, every save, every
+   import - so the renderer filled up and the browser killed the tab. That is a
+   crash with no error message anywhere, which is exactly what it looked like. */
+function disposeObj(o) {
+  o.traverse(c => {
+    if (c.geometry) c.geometry.dispose();
+    const m = c.material;
+    if (m) {
+      (Array.isArray(m) ? m : [m]).forEach(x => {
+        if (x.map) x.map.dispose();
+        x.dispose();
+      });
+    }
+  });
+}
+/* And a marker for a tree four hundred kilometres away is a label nobody can
+   see, holding a megabyte. Only what could be on screen is built. */
+const MARK_R = 600;
+function markerWanted(i) {
+  const f = CAT.features[i];
+  if (!f || !f.geometry || f.geometry.type !== 'Point') return false;
+  if (hasLocal(props(i))) return true;              // surveyed: always worth drawing
+  if (!lastFix) return true;
+  const c = f.geometry.coordinates;
+  return distBear(c[1], c[0], lastFix.lat, lastFix.lon).d <= MARK_R;
+}
 function buildMarkers() {
   // only the marker groups: mGroup hangs here too and must survive
-  world.children.filter(o => o.userData.idx != null).forEach(o => world.remove(o));
+  world.children.filter(o => o.userData.idx != null).forEach(o => {
+    world.remove(o); disposeObj(o);
+  });
   sprites = [];
   CAT.features.forEach((f, i) => {
-    if (!f.geometry || f.geometry.type !== 'Point') return;
+    if (!markerWanted(i)) return;
     const p = props(i), col = LVLCOL[assess(p).lvl];
     const g = new THREE.Group();
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(i), depthTest: false, transparent: true }));
