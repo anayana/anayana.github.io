@@ -137,30 +137,6 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #hFit.ok{color:#8fd6a8;font-weight:600}
 #hFit.warn{color:#ffcf8f;font-weight:600}
 #hDepth.warn{color:#ffcf8f}
-#modebar{align-self:flex-start;display:flex;gap:4px;padding:4px}
-#modebar button{font-size:12.5px;padding:5px 11px}
-#modebar button.on{background:#2f7a4d;border-color:#2f7a4d;color:#fff}
-/* Navigating is one question - which tree, and which way to it - so the bar
-   asks it and the map answers it. Nothing else belongs down there. */
-#navbar{display:none;gap:6px;align-items:center;padding:6px}
-#navbar input{flex:1;min-width:0;background:#131b17;border:1px solid #2f4137;color:#e8ece9;
-  border-radius:9px;padding:8px 10px;font-size:15px}
-#navbar button{flex:0 0 auto;font-size:13px;padding:8px 10px}
-#navmap{display:none;position:relative;height:34vh;min-height:170px;max-height:280px;
-  border:1px solid #34483c;border-radius:14px;overflow:hidden;background:#16211b}
-#nmTiles img{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none}
-#nmMarks{position:absolute;inset:0;pointer-events:none}
-#nmMarks .mk{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:50%;
-  border:2px solid #0b110e}
-#nmMarks .mk.t{background:#54c07a}
-#nmMarks .mk.me{background:#5aa9ff;box-shadow:0 0 0 5px rgba(90,169,255,.25)}
-#nmMarks .mk.go{background:#ffe083;width:16px;height:16px;margin:-9px 0 0 -9px}
-#nmMarks .mk span{position:absolute;left:13px;top:-4px;font-size:11px;white-space:nowrap;
-  color:#eaf3ee;text-shadow:0 0 3px #0b110e,0 0 3px #0b110e,0 0 3px #0b110e}
-#nmMarks svg{position:absolute;inset:0;width:100%;height:100%}
-#nmInfo{position:absolute;left:0;right:0;bottom:0;background:rgba(10,16,13,.82);
-  padding:5px 9px;font-size:12.5px;display:flex;gap:10px;align-items:center}
-#nmInfo b{color:#8fd6a8}
 /* the same map, small, on a tree's own page */
 #tmWrap{position:relative;height:230px;border:1px solid #2b3a31;border-radius:12px;
   overflow:hidden;background:#16211b;margin-bottom:8px}
@@ -173,8 +149,15 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #tmMarks .mk.go{background:#ffe083;width:16px;height:16px;margin:-9px 0 0 -9px}
 #tmMarks .mk span{position:absolute;left:13px;top:-4px;font-size:11px;white-space:nowrap;
   color:#eaf3ee;text-shadow:0 0 3px #0b110e,0 0 3px #0b110e,0 0 3px #0b110e}
-#nmInfo .arw{font-size:20px;line-height:1;color:#8fd6a8;display:inline-block}
-#nmInfo span:nth-of-type(2){font-weight:600}
+
+/* the tree being walked to, on the map */
+#mNavList{margin:4px 0}
+#mNavInfo{min-height:18px;padding:2px 0}
+#mNavInfo .navarw{display:inline-block;font-size:19px;line-height:1;color:#8fd6a8;
+  transform-origin:50% 50%}
+#mNavList button.numrow{margin-top:5px}
+#mapMarks .mk.mkGo{background:#ffe083;width:16px;height:16px;margin:-9px 0 0 -9px}
+#mapMarks svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #hwarn{display:none;font-size:12px;
   color:#ffcf8f;align-items:center;gap:8px;padding:6px 8px 6px 10px}
 #hwarn.on{display:flex}
@@ -358,6 +341,10 @@ table.hist th{color:#8fa697;font-weight:500}
           target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>
       <div id="mapInfo" class="small"></div>
+      <div class="row"><label>Go to tree number</label>
+        <input type="text" id="mNavNo" inputmode="numeric" autocomplete="off" placeholder="e.g. 417"></div>
+      <div id="mNavList"></div>
+      <div id="mNavInfo" class="small"></div>
       <div class="btnrow">
         <button id="mMe">Centre on me</button>
         <button id="mAddTree">+ Tree at crosshair</button>
@@ -505,10 +492,6 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="xrui">
   <div id="edge"></div>
   <div id="xrtop">
-  <div class="bar" id="modebar">
-    <button id="mode-survey" class="on">Survey</button>
-    <button id="mode-navigate">Navigate</button>
-  </div>
   <div class="bar" id="hud">
     <span>±<b id="hAcc">–</b> m · <b id="hHead">–</b>° · <span id="hFit"></span><span id="hBatt"></span></span>
     <span id="hMore">
@@ -523,18 +506,11 @@ table.hist th{color:#8fa697;font-weight:500}
   </div>
   <div id="xrmid"></div>
   <div id="xrbot">
-  <div id="navmap"><div id="nmTiles"></div><div id="nmMarks"></div><div id="nmInfo"></div></div>
   <div id="chooser"></div>
   <div id="mmenu"></div>
   <div id="refmenu"></div>
   <div id="nummenu"></div>
   <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
-  <div class="bar" id="navbar">
-    <input id="navNo" type="text" inputmode="numeric" autocomplete="off" placeholder="Tree number">
-    <button id="bnum">▾</button>
-    <button id="bref">Align</button>
-    <button class="x" id="bqn">Exit</button>
-  </div>
   <div class="bar" id="ctl">
     <button class="p" id="bnew">+ Tree</button>
     <button id="bshot">Photo</button>
@@ -549,8 +525,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.13.0"></script>
-<script src="data.js?v=2.13.0"></script>
-<script src="app.js?v=2.13.0"></script>
+<script src="vendor/three.min.js?v=2.14.0"></script>
+<script src="data.js?v=2.14.0"></script>
+<script src="app.js?v=2.14.0"></script>
 </body>
 </html>

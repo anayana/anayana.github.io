@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.13.0';
+const APP_VERSION = '2.14.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -620,7 +620,7 @@ function fitFromRefs(quiet) {
    reticle. Stand at the stem, press the button. */
 function addTreeHere() {
   if (mode !== 'WebXR') return toast('Needs the WebXR mode – its tracking is what places the tree.');
-  if (arMode !== 'survey') setArMode('survey');      // pressing it means surveying
+  setArMode();
   const c = camPos();
   // The first tree of a survey defines the plot frame: this spot is its
   // origin and the way the phone is facing is not allowed to matter, so the
@@ -823,40 +823,71 @@ function decayComp(dt) {
    Navigate: until the session is locked onto the stand there is an arrow and a
    distance - honest about being GPS - and no markers at all. Lock on, and it
    becomes the survey view. */
+/* AR does one job: recording what is in front of you. Finding a tree by its
+   number is a map question - which way, how far, which side of the path -
+   and a map answers it better than an arrow floating over a camera image.
+   It lives on the map screen now. */
 let arMode = 'survey';
-function setArMode(m) {
-  arMode = m;
-  ['survey', 'navigate'].forEach(k =>
-    $('mode-' + k) && $('mode-' + k).classList.toggle('on', k === m));
-  // Two jobs, two bars. Recording carries the recording tools and nothing
-  // else; navigating asks for a number and shows a map. Everything that
-  // aligns the scene sits behind one button, in both.
-  const nav = (m === 'navigate');
-  $('ctl').style.display = nav ? 'none' : 'flex';
-  $('navbar').style.display = nav ? 'flex' : 'none';
-  $('navmap').style.display = nav ? 'block' : 'none';
-  closePopups();
-  showFit(); placeMarkers(); updateNav();
-}
+function setArMode() { arMode = 'survey'; showFit(); placeMarkers(); }
 
-/* Before a lock: the direction and the distance, from GPS and compass, and
-   labelled as such. No marker is drawn in the world, because there is nothing
-   honest to draw. */
+/* The tree being walked to. Set from the map, drawn on the map. */
 let navTarget = null;
-function updateNav() {
-  if (arMode !== 'navigate' || !$('xrui').classList.contains('on')) return;
-  const info = $('nmInfo');
-  if (navTarget == null || !CAT.features[navTarget]) navTarget = nearestByGps();
-  const p = navTarget == null ? null : props(navTarget);
-  const c = navTarget == null ? null : CAT.features[navTarget].geometry.coordinates;
-  const db = (c && lastFix) ? distBear(c[1], c[0], lastFix.lat, lastFix.lon) : null;
-  const rel = (db && heading != null) ? ((db.b - heading) % 360 + 360) % 360 : null;
-  info.innerHTML = !p ? '<span class="small">No trees in the register.</span>'
-    : '<span class="arw" style="transform:rotate(' + (rel == null ? 0 : rel) + 'deg)">↑</span>' +
-      '<b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b>' +
-      '<span>' + (db ? db.d.toFixed(db.d < 100 ? 1 : 0) + ' m' : 'no GPS fix') + '</span>' +
-      '<span class="small">' + esc(p.species || '') + '</span>';
-  drawNavMap();
+
+/* Which way and how far, in words, under the map. Updated with every fix, so
+   it counts down as you walk. */
+function renderNav() {
+  const box = $('mNavInfo'); if (!box) return;
+  if (navTarget == null || !CAT.features[navTarget]) { box.textContent = ''; return; }
+  const p = props(navTarget), c = CAT.features[navTarget].geometry.coordinates;
+  if (!lastFix) {
+    box.innerHTML = '<b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b> · waiting for a fix';
+    return;
+  }
+  const db = distBear(c[1], c[0], lastFix.lat, lastFix.lon);
+  const rel = heading == null ? null : ((db.b - heading) % 360 + 360) % 360;
+  box.innerHTML = '<span class="navarw" style="transform:rotate(' + (rel == null ? 0 : rel) + 'deg)">↑</span> ' +
+    '<b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b> · ' +
+    '<b>' + db.d.toFixed(db.d < 100 ? 1 : 0) + ' m</b> · ' +
+    (rel == null ? 'no compass' : 'bearing ' + db.b.toFixed(0) + '°') +
+    ' · ' + esc(p.species || 'no species') + ' · ±' + lastFix.acc.toFixed(0) + ' m';
+}
+/* Type a number, pick the tree, walk to it. The same search the plate reader
+   uses, on the screen that can show you the way. */
+function buildNavList() {
+  const box = $('mNavList'); if (!box) return;
+  const q = ($('mNavNo').value || '').trim();
+  box.innerHTML = '';
+  const hits = findByNumber(q, true).slice(0, 6);
+  if (!hits.length) {
+    box.innerHTML = '<p class="small">' + (q ? 'No tree with that number.' : 'No trees yet.') + '</p>';
+    return;
+  }
+  hits.forEach(x => {
+    const b = document.createElement('button');
+    b.className = 'numrow' + (x.exact ? ' ex' : '') + (x.i === navTarget ? ' ex' : '');
+    b.innerHTML = '<span><b>' + esc(x.p.tag_no || x.p.tree_id) + '</b> ' +
+      '<span class="small">' + esc(x.p.species || '') + '</span></span>' +
+      '<span class="small">' + (x.d == null ? '' : x.d.toFixed(x.d < 100 ? 1 : 0) + ' m') + '</span>';
+    b.onclick = () => {
+      navTarget = x.i; mapSel = x.i;
+      const c = CAT.features[x.i].geometry.coordinates;
+      const v = mapCentre();
+      // both dots on the screen if they fit, otherwise the tree
+      if (lastFix) {
+        v.lat = (c[1] + lastFix.lat) / 2; v.lon = (c[0] + lastFix.lon) / 2;
+        const box2 = $('mapBox');
+        for (v.z = MAPZ.max; v.z > MAPZ.min; v.z--) {
+          const dx = Math.abs(lon2px(c[0], v.z) - lon2px(lastFix.lon, v.z));
+          const dy = Math.abs(lat2px(c[1], v.z) - lat2px(lastFix.lat, v.z));
+          if (dx < box2.clientWidth * 0.8 && dy < box2.clientHeight * 0.7) break;
+        }
+      } else { v.lat = c[1]; v.lon = c[0]; v.z = 19; }
+      mapFollow = false;
+      drawMap(); syncMapSel(); renderNav(); buildNavList();
+      toast('Walking to ' + tid(x.i) + '.');
+    };
+    box.appendChild(b);
+  });
 }
 function nearestByGps() {
   if (!lastFix) return null;
@@ -1351,6 +1382,7 @@ function startGPS() {
     trackFix(lastFix);
     if (autoAlign()) setTimeout(offerStemLock, 800);   // a first fix is also a first chance
     if (mapFollow && $('sc-map').classList.contains('on')) mapToMe(!mapView);
+    if ($('sc-map').classList.contains('on')) { renderNav(); if (!mapFollow) drawMap(); }
     if (!origin || (!mode && !originPinned && originAcc != null && lastFix.acc < originAcc - 1)) {
       origin = { lat: lastFix.lat, lon: lastFix.lon };
       if (!originPinned) originAcc = lastFix.acc;
@@ -1915,7 +1947,7 @@ function enterAR() {
   refFix.clear(); lastFit = null; track = []; autoState = null;   // new session, new frame
   sceneLocked = false; settleComp();
   S2P = null; s2pFrom = ''; s2pRms = null; s2pAuto = false; autoSaid = false; navTarget = null;
-  setArMode('survey');          // recording is the default; navigating is a choice
+  setArMode();
   showFit();
   buildEdge();
   $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
@@ -1998,7 +2030,6 @@ function tick() {
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
   compAt = nowMs;
   if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
-  if (arMode === 'navigate' && (edgeTick % 15 === 5)) updateNav();
   if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
 }
 
@@ -3372,12 +3403,7 @@ function buildNumMenu(prefill) {
       b.onclick = () => {
         selectTree(x.i);
         el.style.display = 'none';
-        if (arMode === 'navigate' && $('xrui').classList.contains('on')) {
-          navTarget = x.i;
-          $('navNo').value = x.p.tag_no || x.p.tree_id;
-          $('navNo').blur();
-          updateNav();
-        } else openPanel(x.i);
+        openPanel(x.i);
       };
       list.appendChild(b);
     });
@@ -3950,58 +3976,27 @@ function drawMapMarks(left, top, z) {
     put(c[1], c[0], 'mkT' + (i === mapSel ? ' sel' : ''), (z >= 18 || i === mapSel) ? props(i).tree_id : '');
   });
   REFS.forEach(r => put(r.lat, r.lon, 'mkR', r.id));
+  /* The tree being walked to, and the line to it from where you are: which
+     way and how far, on a map that also shows the path and the building in
+     between. */
+  const t = (navTarget != null && CAT.features[navTarget] && CAT.features[navTarget].geometry)
+    ? CAT.features[navTarget].geometry.coordinates : null;
+  if (t) {
+    if (lastFix) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      ln.setAttribute('x1', lon2px(lastFix.lon, z) - left);
+      ln.setAttribute('y1', lat2px(lastFix.lat, z) - top);
+      ln.setAttribute('x2', lon2px(t[0], z) - left);
+      ln.setAttribute('y2', lat2px(t[1], z) - top);
+      ln.setAttribute('stroke', '#ffe083'); ln.setAttribute('stroke-width', '2');
+      ln.setAttribute('stroke-dasharray', '5 4');
+      layer.appendChild(svg); svg.appendChild(ln);
+    }
+    put(t[1], t[0], 'mkGo', props(navTarget).tag_no || tid(navTarget));
+  }
   if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
 }
-/* Navigating is a map question: where am I, where is that tree. An arrow and
-   a number answer it badly in a wood that has paths - the map excerpt shows
-   both dots and everything between them, at whatever zoom fits the two. */
-let nmCache = {};
-function drawNavMap() {
-  const box = $('navmap');
-  if (!box || box.style.display === 'none' || !box.offsetWidth) return;
-  const w = box.clientWidth, h = box.clientHeight;
-  const tgt = (navTarget != null && CAT.features[navTarget] && CAT.features[navTarget].geometry)
-    ? { lat: CAT.features[navTarget].geometry.coordinates[1],
-        lon: CAT.features[navTarget].geometry.coordinates[0] } : null;
-  const me = lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null;
-  const marks = $('nmMarks');
-  if (!me && !tgt) { marks.innerHTML = '<div class="small" style="padding:8px">No position and no tree to walk to.</div>'; return; }
-  const a = me || tgt, b = tgt || me;
-  const v = { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2, z: MAPZ.max };
-  if (me && tgt) {
-    for (; v.z > MAPZ.min; v.z--) {
-      const dx = Math.abs(lon2px(a.lon, v.z) - lon2px(b.lon, v.z));
-      const dy = Math.abs(lat2px(a.lat, v.z) - lat2px(b.lat, v.z));
-      if (dx < w * 0.72 && dy < h * 0.62) break;
-    }
-  } else v.z = 18;
-  const o = paintTiles($('nmTiles'), nmCache, v, w, h);
-  const X = lon => lon2px(lon, v.z) - o.left, Y = lat => lat2px(lat, v.z) - o.top;
-  marks.innerHTML = '';
-  if (me && tgt) {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    ln.setAttribute('x1', X(me.lon)); ln.setAttribute('y1', Y(me.lat));
-    ln.setAttribute('x2', X(tgt.lon)); ln.setAttribute('y2', Y(tgt.lat));
-    ln.setAttribute('stroke', '#ffe083'); ln.setAttribute('stroke-width', '2');
-    ln.setAttribute('stroke-dasharray', '5 4');
-    svg.appendChild(ln); marks.appendChild(svg);
-  }
-  const put = (lat, lon, cls, label) => {
-    const d = document.createElement('div'); d.className = 'mk ' + cls;
-    d.style.left = X(lon) + 'px'; d.style.top = Y(lat) + 'px';
-    if (label) { const t = document.createElement('span'); t.textContent = label; d.appendChild(t); }
-    marks.appendChild(d);
-  };
-  CAT.features.forEach((f, i) => {
-    if (i === navTarget || !f.geometry || f.geometry.type !== 'Point') return;
-    put(f.geometry.coordinates[1], f.geometry.coordinates[0], 't',
-        v.z >= 18 ? (props(i).tag_no || props(i).tree_id) : '');
-  });
-  if (tgt) put(tgt.lat, tgt.lon, 'go', props(navTarget).tag_no || tid(navTarget));
-  if (me) put(me.lat, me.lon, 'me', '');
-}
-
 function mapMoveBy(dx, dy) {
   mapFollow = false;
   const v = mapCentre();
@@ -4089,6 +4084,8 @@ function wireMap() {
     g.e = e; g.n = n;
     return g;
   };
+  $('mNavNo').oninput = buildNavList;
+  $('mNavNo').onfocus = buildNavList;
   $('mShowXY').onclick = () => {
     const g = readXY(); if (!g) return;
     mapGo(g.lat, g.lon, 19);
@@ -5688,7 +5685,11 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
   if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); }
-  if (k === 'map') { startGPS(); mapFollow = true; if (!mapToMe(true)) drawMap(); renderRefs(); syncMapSel(); }
+  if (k === 'map') {
+    startGPS(); startOrient();
+    mapFollow = true; if (!mapToMe(true)) drawMap();
+    renderRefs(); syncMapSel(); buildNavList(); renderNav();
+  }
 }
 function renderStats() {
   const n = CAT.features.length;
@@ -6044,13 +6045,13 @@ async function toAR(i) {
     closePanel();
     $('app').classList.add('hidden');
     $('xrui').classList.add('on');
-    if (i != null) { placeMarkers(); toast('AR · ' + tid(i) + (arMode === 'navigate' ? '' : '')); }
+    if (i != null) placeMarkers();
     return true;
   }
   if (!batteryOkForAR()) return false;
   try {
     await startOrient(); startGPS(); await startXR();
-    if (i != null) { selectTree(i); navTarget = i; updateNav(); }
+    if (i != null) { selectTree(i); navTarget = i; }
     return true;
   } catch (e) {
     msg('WebXR: ' + e.message + ' → try camera mode');
@@ -6083,15 +6084,6 @@ function wire() {
   };
 
   $('bnew').onclick = addTreeHere;
-  $('mode-survey').onclick = () => setArMode('survey');
-  $('mode-navigate').onclick = () => setArMode('navigate');
-  $('bnum').onclick = () => {
-    const el = $('nummenu');
-    const open = el.style.display !== 'block';
-    if (open) buildNumMenu('');
-    closePopups('nummenu');
-    el.style.display = open ? 'block' : 'none';
-  };
   const alignMenu = () => {
     const el = $('refmenu');
     const open = el.style.display !== 'block';
@@ -6099,7 +6091,6 @@ function wire() {
     closePopups('refmenu');
     el.style.display = open ? 'block' : 'none';
   };
-  $('bref').onclick = alignMenu;
   $('balign').onclick = alignMenu;
   $('bshot').onclick = () => {
     const t = selIdx == null ? nearestTree() : selIdx;
@@ -6112,15 +6103,6 @@ function wire() {
     if (t == null) return toast('No tree selected.');
     selectTree(t); startBark(t);
   };
-  const navQuery = () => {
-    const el = $('nummenu');
-    buildNumMenu($('navNo').value);
-    closePopups('nummenu');
-    el.style.display = 'block';
-  };
-  $('navNo').oninput = navQuery;
-  $('navNo').onfocus = navQuery;
-  $('bqn').onclick = () => $('bq').click();
   $('bq').onclick = () => {
     // the control measurements only exist inside this session's frame - leaving
     // throws them away, and there is no getting them back
