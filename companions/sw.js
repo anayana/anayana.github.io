@@ -1,11 +1,11 @@
 /* Service worker: the app has to run without a network - the whole point is
    that nothing leaves the flat. Navigation is network-first so fixes arrive,
    assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'hc-v6';
+const CACHE = 'hc-v9';
 const ASSETS = [
   './',
   'index.html',
-  'app.js?v=1.1.1',
+  'app.js?v=1.2.2',
   'vendor/three.min.js?v=1.0.0',
   'manifest.webmanifest',
   'icon-192.png',

@@ -97,19 +97,42 @@ table.stats td.n{text-align:right;font-variant-numeric:tabular-nums}
   align-items:center;font-weight:600}
 #hud b{color:var(--orange-d)}
 #hud .sep{color:#d9c3a6}
-#ctl{bottom:calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;padding:10px}
-#ctl button{font-size:14px;padding:10px 12px;flex:1 1 auto}
-#chooser{position:absolute;left:12px;right:12px;bottom:96px;background:rgba(255,250,242,.98);
+#ctl{bottom:calc(10px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;padding:10px}
+.ctlrow{display:flex;gap:8px}
+#ctl button{font-size:14px;padding:10px 12px;flex:1 1 0;min-width:0}
+#ctl button.sm{font-size:13px;padding:8px 8px}
+#reloc{position:absolute;left:12px;right:12px;bottom:140px;background:rgba(255,250,242,.98);
+  border:2px solid rgba(240,138,46,.35);border-radius:22px;padding:14px;display:none;
+  box-shadow:0 10px 30px rgba(120,80,40,.22)}
+#reloc.on{display:block}
+#reloc .tt{font-weight:800;font-size:18px;margin-bottom:4px}
+#reloc .ts{font-size:14px;color:var(--soft);margin-bottom:10px}
+#relocShot{display:none;width:128px;height:96px;image-rendering:pixelated;margin:10px auto 0;
+  border-radius:10px;border:2px solid var(--line)}
+#chooser{position:absolute;left:12px;right:12px;bottom:140px;background:rgba(255,250,242,.98);
   border:2px solid rgba(240,138,46,.35);border-radius:22px;padding:12px;display:none;max-height:54vh;overflow:auto;
   box-shadow:0 10px 30px rgba(120,80,40,.22)}
 #chooser.on{display:block}
 #chooser h4{margin:2px 4px 10px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--soft)}
+/* A grid of chips, not a list of rows: seven tall rows do not fit in a WebXR
+   overlay, and scrolling inside one is unreliable on Android. */
+#chList{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px 8px;
+  background:#fff;border:2px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+  color:inherit;font-weight:600;font-size:13px;line-height:1.2;text-align:center}
+.chip .em{font-size:30px;line-height:1.05}
+.chip .st{font-size:10.5px;color:var(--soft);font-weight:600}
+.chip .st.set{color:#2f8c55}
+.chip.dog{border-color:#f6d9b4}.chip.parrots{border-color:#c9ecd4}
+.chip.frog{border-color:#d5efc6}.chip.monkey{border-color:#f3dcc6}
+.chip.mumin{border-color:#e2ddd2}.chip.unicorn{border-color:#f2d3e4}
+.chip.dragon{border-color:#cfe9d6}
 #toast{position:absolute;left:12px;right:12px;top:calc(116px + env(safe-area-inset-top));
   background:#fff;border:2px solid var(--yellow);border-radius:18px;
   padding:12px 14px;font-size:15px;display:none;font-weight:600;color:var(--ink);
   box-shadow:0 8px 24px rgba(120,80,40,.2)}
 #toast.on{display:block}
-#task{position:absolute;left:12px;right:12px;bottom:96px;background:rgba(255,250,242,.98);
+#task{position:absolute;left:12px;right:12px;bottom:140px;background:rgba(255,250,242,.98);
   border:2px solid rgba(240,138,46,.35);border-radius:22px;padding:14px;display:none;
   box-shadow:0 10px 30px rgba(120,80,40,.22)}
 #task.on{display:block}
@@ -232,15 +255,31 @@ table.stats td.n{text-align:right;font-variant-numeric:tabular-nums}
     </div>
   </div>
 
+  <div id="reloc">
+    <div class="tt" id="relocTitle">–</div>
+    <div class="ts" id="relocSub">–</div>
+    <div class="bar"><i id="relocBar" style="width:0%"></i></div>
+    <img id="relocShot" alt="gemerkter Blick">
+    <div class="btnrow" style="margin-bottom:0">
+      <button class="sm x" id="relocStop">Abbrechen</button>
+    </div>
+  </div>
+
   <div class="hbar" id="ctl">
-    <button id="bPlace">Platzieren</button>
-    <button id="bRestore">Layout laden</button>
-    <button id="bNudge">Verschieben</button>
-    <button class="x" id="bExit">Ende</button>
+    <div class="ctlrow">
+      <button id="bPlace">Platzieren</button>
+      <button id="bNudge">Verschieben</button>
+      <button class="x" id="bExit">Ende</button>
+    </div>
+    <div class="ctlrow">
+      <button class="sm" id="bRemember">Ort merken</button>
+      <button class="sm p" id="bFind">Ort finden</button>
+      <button class="sm" id="bRestore">Nur Kompass</button>
+    </div>
   </div>
 </div>
 
 <script src="vendor/three.min.js?v=1.0.0"></script>
-<script src="app.js?v=1.1.1"></script>
+<script src="app.js?v=1.2.2"></script>
 </body>
 </html>

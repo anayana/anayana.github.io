@@ -57,14 +57,48 @@ const PHASE_LABEL = { morning: 'Morgen', day: 'Nachmittag', evening: 'Abend / Na
 const M = {};   // shared materials, built once the renderer exists
 function mat(hex, opts) {
   const k = hex + JSON.stringify(opts || {});
-  if (!M[k]) M[k] = new THREE.MeshLambertMaterial(Object.assign({ color: hex }, opts || {}));
+  if (!M[k]) {
+    M[k] = new THREE.MeshStandardMaterial(Object.assign({
+      color: hex, roughness: 0.78, metalness: 0.0
+    }, opts || {}));
+    // the hex values are sRGB; with an sRGB output encoding they have to be
+    // converted or every colour renders a couple of stops too light
+    M[k].color.convertSRGBToLinear();
+  }
   return M[k];
 }
-function sphere(r, m, seg) { return new THREE.Mesh(new THREE.SphereGeometry(r, seg || 16, (seg || 16) * 0.75), m); }
+function sphere(r, m, seg) {
+  const s = seg || 24;
+  return new THREE.Mesh(new THREE.SphereGeometry(r, s, Math.round(s * 0.75)), m);
+}
 function box(w, h, d, m) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); }
-function cyl(rt, rb, h, m) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 12), m); }
-function cone(r, h, m) { return new THREE.Mesh(new THREE.ConeGeometry(r, h, 12), m); }
+function cyl(rt, rb, h, m) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 20), m); }
+function cone(r, h, m) { return new THREE.Mesh(new THREE.ConeGeometry(r, h, 20), m); }
 function at(o, x, y, z) { o.position.set(x, y, z); return o; }
+
+/* A soft blob under each animal. Real shadow maps are too costly on a phone,
+   and nothing sells "this thing is standing on my floor" like a contact
+   shadow - without one the models read as stickers floating in the room. */
+let shadowTex = null;
+function contactShadow(r) {
+  if (!shadowTex) {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 2, 64, 64, 62);
+    gr.addColorStop(0, 'rgba(0,0,0,0.40)');
+    gr.addColorStop(0.5, 'rgba(0,0,0,0.17)');
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    shadowTex = new THREE.CanvasTexture(c);
+  }
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(r * 2.2, r * 2.2).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })
+  );
+  m.position.y = 0.005;
+  m.renderOrder = -1;
+  return m;
+}
 
 function label(text) {
   const c = document.createElement('canvas');
@@ -87,7 +121,8 @@ function label(text) {
 
 function buildDog() {
   const g = new THREE.Group();
-  const fur = mat(0xd09a52), dark = mat(0xa9743a), blk = mat(0x241a12), pink = mat(0xe89b9b);
+  const fur = mat(0xbe8843, { roughness: 0.92 }), dark = mat(0x8e5f2e, { roughness: 0.9 }),
+        blk = mat(0x1f1812, { roughness: 0.4 }), pink = mat(0xdb8f8f, { roughness: 0.7 });
 
   // body runs along +Z, which is also the direction the dog faces
   const body = sphere(0.155, fur); body.scale.set(1.0, 0.95, 1.45); at(body, 0, 0.30, -0.02);
@@ -280,7 +315,8 @@ function pokeParrots(o) {
 
 function buildFrog() {
   const g = new THREE.Group();
-  const skin = mat(0x5ba84e), belly = mat(0x9fd08a), blk = mat(0x141410), wht = mat(0xf0f0e8);
+  const skin = mat(0x4f9145, { roughness: 0.55 }), belly = mat(0x93c47d, { roughness: 0.6 }),
+        blk = mat(0x121210, { roughness: 0.3 }), wht = mat(0xf0f0e8, { roughness: 0.35 });
   const body = sphere(0.085, skin); body.scale.set(1.0, 0.78, 1.2); at(body, 0, 0.065, 0);
   const bel = sphere(0.062, belly); bel.scale.set(1.0, 0.6, 1.1); at(bel, 0, 0.042, 0.02);
   const eyes = [];
@@ -350,7 +386,8 @@ function pokeFrog(o) {
 
 function buildMonkey() {
   const g = new THREE.Group();
-  const fur = mat(0x7d5a3c), skin = mat(0xd8ab7e), blk = mat(0x141410), wht = mat(0xf2f2ea);
+  const fur = mat(0x6b4c31, { roughness: 0.93 }), skin = mat(0xcb9c72, { roughness: 0.8 }),
+        blk = mat(0x141410, { roughness: 0.35 }), wht = mat(0xf2f2ea, { roughness: 0.4 });
   const body = sphere(0.145, fur); body.scale.set(1, 1.15, 0.95); at(body, 0, 0.24, 0);
   const headP = new THREE.Group(); at(headP, 0, 0.50, 0.02);
   const head = sphere(0.125, fur);
@@ -450,44 +487,60 @@ function pokeMonkey(o) {
 
 /* ---------------------------- mumin ---------------------------- */
 
+/* A moomin-shaped troll: one continuous white silhouette, no neck, a very
+   large round snout, small ears that barely clear the head, short stubby
+   limbs and a thin tail. The body is a stack of overlapping spheres so that
+   head and belly read as one pear, not as a snowman. */
 function buildMumin() {
   const g = new THREE.Group();
-  const skin = mat(0xf7f2e9), blk = mat(0x2a2320), rose = mat(0xe9a7a7);
+  const white = mat(0xfbfbf8, { roughness: 0.72 });
+  const shade = mat(0xeceae4, { roughness: 0.76 });
+  const blk = mat(0x24211d, { roughness: 0.45 });
 
-  const body = sphere(0.150, skin); body.scale.set(1.0, 1.08, 0.92); at(body, 0, 0.20, 0);
-  const tail = sphere(0.036, skin); tail.scale.set(0.8, 0.8, 0.6); at(tail, 0, 0.17, -0.145);
+  const torso = new THREE.Group();
+  const hip = sphere(0.150, white); hip.scale.set(1.0, 0.92, 0.95); at(hip, 0, 0.165, 0);
+  const belly = sphere(0.142, white); belly.scale.set(1.02, 1.02, 0.96); at(belly, 0, 0.255, 0.006);
+  const chest = sphere(0.118, white); chest.scale.set(1.0, 1.0, 0.95); at(chest, 0, 0.355, 0.004);
+  torso.add(hip, belly, chest);
 
-  const headP = new THREE.Group(); at(headP, 0, 0.42, 0);
-  const head = sphere(0.135, skin);
-  const snout = sphere(0.078, skin); snout.scale.set(1.15, 0.85, 1.55); at(snout, 0, -0.020, 0.105);
-  const nosL = sphere(0.011, blk); at(nosL, 0.026, -0.006, 0.212);
-  const nosR = sphere(0.011, blk); at(nosR, -0.026, -0.006, 0.212);
-  const earL = sphere(0.042, skin); earL.scale.set(0.55, 1.15, 0.50); at(earL, 0.098, 0.105, -0.012);
-  const earR = sphere(0.042, skin); earR.scale.set(0.55, 1.15, 0.50); at(earR, -0.098, 0.105, -0.012);
-  const eyeL = sphere(0.023, blk); eyeL.scale.set(0.85, 1, 0.7); at(eyeL, 0.050, 0.055, 0.100);
-  const eyeR = sphere(0.023, blk); eyeR.scale.set(0.85, 1, 0.7); at(eyeR, -0.050, 0.055, 0.100);
-  const browL = box(0.058, 0.014, 0.012, blk); at(browL, 0.052, 0.100, 0.080);
-  const browR = box(0.058, 0.014, 0.012, blk); at(browR, -0.052, 0.100, 0.080);
+  const headP = new THREE.Group(); at(headP, 0, 0.475, 0.002);
+  const head = sphere(0.132, white); head.scale.set(1.02, 0.98, 1.0);
+  // the snout is the whole point of the face: wide, round, and it hangs low
+  const snout = sphere(0.092, white); snout.scale.set(1.22, 0.98, 1.30); at(snout, 0, -0.030, 0.082);
+  const nosL = sphere(0.0115, blk); at(nosL, 0.030, 0.006, 0.196);
+  const nosR = sphere(0.0115, blk); at(nosR, -0.030, 0.006, 0.196);
+  // ears sit low and rounded, more like bumps on the skull than horns
+  const earL = sphere(0.040, white); earL.scale.set(0.62, 0.92, 0.48); at(earL, 0.104, 0.098, -0.022);
+  const earR = sphere(0.040, white); earR.scale.set(0.62, 0.92, 0.48); at(earR, -0.104, 0.098, -0.022);
+  const eyeL = sphere(0.0195, blk); eyeL.scale.set(0.92, 1.12, 0.7); at(eyeL, 0.046, 0.072, 0.101);
+  const eyeR = sphere(0.0195, blk); eyeR.scale.set(0.92, 1.12, 0.7); at(eyeR, -0.046, 0.072, 0.101);
+  const browL = box(0.050, 0.011, 0.011, blk); at(browL, 0.048, 0.112, 0.079);
+  const browR = box(0.050, 0.011, 0.011, blk); at(browR, -0.048, 0.112, 0.079);
   // half torus: as built it arcs upwards (a frown), rotated by PI it smiles
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 6, 18, Math.PI), blk);
-  at(mouth, 0, -0.085, 0.175);
-  const cheekL = sphere(0.024, rose); cheekL.scale.set(1, 0.7, 0.35); at(cheekL, 0.090, -0.005, 0.085);
-  const cheekR = sphere(0.024, rose); cheekR.scale.set(1, 0.7, 0.35); at(cheekR, -0.090, -0.005, 0.085);
-  headP.add(head, snout, nosL, nosR, earL, earR, eyeL, eyeR, browL, browR, mouth, cheekL, cheekR);
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.0055, 6, 20, Math.PI), blk);
+  at(mouth, 0, -0.082, 0.152);
+  headP.add(head, snout, nosL, nosR, earL, earR, eyeL, eyeR, browL, browR, mouth);
 
-  const armL = sphere(0.046, skin); armL.scale.set(0.55, 1.25, 0.55); at(armL, 0.152, 0.215, 0.015);
-  const armR = sphere(0.046, skin); armR.scale.set(0.55, 1.25, 0.55); at(armR, -0.152, 0.215, 0.015);
-  const legL = cyl(0.042, 0.050, 0.10, skin); at(legL, 0.062, 0.05, 0.015);
-  const legR = cyl(0.042, 0.050, 0.10, skin); at(legR, -0.062, 0.05, 0.015);
+  const armL = sphere(0.044, white); armL.scale.set(0.60, 1.15, 0.60); at(armL, 0.146, 0.268, 0.012);
+  const armR = sphere(0.044, white); armR.scale.set(0.60, 1.15, 0.60); at(armR, -0.146, 0.268, 0.012);
+  const legL = cyl(0.044, 0.050, 0.085, white); at(legL, 0.058, 0.043, 0.012);
+  const legR = cyl(0.044, 0.050, 0.085, white); at(legR, -0.058, 0.043, 0.012);
+  const footL = sphere(0.048, shade); footL.scale.set(1, 0.38, 1.25); at(footL, 0.058, 0.016, 0.026);
+  const footR = sphere(0.048, shade); footR.scale.set(1, 0.38, 1.25); at(footR, -0.058, 0.016, 0.026);
 
-  g.add(body, tail, headP, armL, armR, legL, legR);
-  const lab = label('Mumin'); at(lab, 0, 0.72, 0);
+  const tail = new THREE.Group(); at(tail, 0, 0.175, -0.135);
+  const tailM = cyl(0.010, 0.014, 0.085, white); at(tailM, 0, 0.015, -0.025); tailM.rotation.x = -0.9;
+  const tuft = sphere(0.026, white); at(tuft, 0, 0.045, -0.056);
+  tail.add(tailM, tuft);
+
+  g.add(torso, headP, armL, armR, legL, legR, footL, footR, tail);
+  const lab = label('Mumin'); at(lab, 0, 0.75, 0);
   g.add(lab);
   return {
     root: g,
     p: {
-      body: body, head: headP, eyes: [eyeL, eyeR], brows: [browL, browR],
-      mouth: mouth, arms: [armL, armR],
+      body: belly, torso: torso, head: headP, eyes: [eyeL, eyeR], brows: [browL, browR],
+      mouth: mouth, arms: [armL, armR], tail: tail,
       mood: 0, target: 0, switchAt: 0
     }
   };
@@ -509,12 +562,13 @@ function updateMumin(o, dt, c) {
 
   p.brows[0].rotation.z = -0.16 + m * 0.80;      // inner ends drop when cross
   p.brows[1].rotation.z = 0.16 - m * 0.80;
-  p.brows.forEach(b => b.position.y = 0.100 - m * 0.024);
-  p.eyes.forEach(e => e.scale.y = 1 - m * 0.34);
+  p.brows.forEach(b => b.position.y = 0.112 - m * 0.026);
+  p.eyes.forEach(e => e.scale.y = 1.12 * (1 - m * 0.36));
   p.mouth.rotation.z = m > 0.5 ? 0 : Math.PI;    // flip outright, no sideways in between
   p.head.rotation.x = m * 0.13 + Math.sin(t * 1.1) * 0.05;
   p.head.rotation.y = Math.sin(t * 0.6) * (0.26 - m * 0.20);
-  p.body.scale.y = 1.08 + Math.sin(t * 1.4) * 0.03;
+  p.body.scale.y = 1.02 + Math.sin(t * 1.4) * 0.028;      // breathing
+  p.tail.rotation.y = Math.sin(t * 0.9) * 0.22 * (1 - m);
   p.arms.forEach((a, i) => a.rotation.z = (i ? -1 : 1) * (0.10 + m * 0.38));
   o.root.rotation.y = o.baseRy + Math.sin(t * 0.5) * 0.10 * (1 - m);
 }
@@ -675,7 +729,7 @@ const DRG_HEAD = new THREE.Vector3(0, 0.50, 0.06);
 
 function buildDragon() {
   const g = new THREE.Group();
-  const scale1 = mat(0x4f9e6b), scale2 = mat(0xa8dcae), horn = mat(0xe8d9a8),
+  const scale1 = mat(0x458a5e, { roughness: 0.62 }), scale2 = mat(0x9ccfa4, { roughness: 0.66 }), horn = mat(0xe0d09c, { roughness: 0.5 }),
     blk = mat(0x1f1a16), eyeM = mat(0xf2c94c), tongueM = mat(0xe07a8a);
 
   const body = sphere(0.165, scale1); body.scale.set(1.0, 1.10, 1.05); at(body, 0, 0.24, 0);
@@ -829,43 +883,43 @@ function pokeDragon(o) {
 
 const SPECIES = [
   {
-    id: 'dog', name: 'Hund', emoji: '\u{1F415}', surface: 'floor',
+    id: 'dog', name: 'Hund', emoji: '\u{1F415}', surface: 'floor', shadowR: 0.30,
     where: 'Hinter der Wohnungstür, auf den Boden.',
     why: 'Begrüßung und Ankommen.',
     build: buildDog, update: updateDog, poke: pokeDog
   },
   {
-    id: 'parrots', name: 'Papageien', emoji: '\u{1F99C}', surface: 'shelf',
+    id: 'parrots', name: 'Papageien', emoji: '\u{1F99C}', surface: 'shelf', shadowR: 0.22,
     where: 'Auf einen Schrank oder ein Regal.',
     why: 'Zusammensein, Tagesrhythmus.',
     build: buildParrots, update: updateParrots, poke: pokeParrots
   },
   {
-    id: 'frog', name: 'Frosch', emoji: '\u{1F438}', surface: 'floor',
+    id: 'frog', name: 'Frosch', emoji: '\u{1F438}', surface: 'floor', shadowR: 0.13,
     where: 'Irgendwo auf den Boden - er hüpft von dort weiter.',
     why: 'Putzen, und zwar wirklich.',
     build: buildFrog, update: updateFrog, poke: pokeFrog
   },
   {
-    id: 'monkey', name: 'Affe', emoji: '\u{1F412}', surface: 'floor',
+    id: 'monkey', name: 'Affe', emoji: '\u{1F412}', surface: 'floor', shadowR: 0.23,
     where: 'Ins Bad, neben das Waschbecken oder auf den Boden.',
     why: 'Zähneputzen, Duschen, Aufräumen.',
     build: buildMonkey, update: updateMonkey, poke: pokeMonkey
   },
   {
-    id: 'mumin', name: 'Mumin', emoji: '\u{1F99B}', surface: 'floor',
+    id: 'mumin', name: 'Mumin', emoji: '\u{1F99B}', surface: 'floor', shadowR: 0.21,
     where: 'In den Flur oder auf eine Kommode.',
     why: 'Launen wechseln - und das ist in Ordnung.',
     build: buildMumin, update: updateMumin, poke: pokeMumin
   },
   {
-    id: 'unicorn', name: 'Einhorn', emoji: '\u{1F984}', surface: 'floor',
+    id: 'unicorn', name: 'Einhorn', emoji: '\u{1F984}', surface: 'floor', shadowR: 0.34,
     where: 'Wo Platz ist - es braucht einen halben Meter für den Regenbogen.',
     why: 'Essen, satt werden, schlafen gehen.',
     build: buildUnicorn, update: updateUnicorn, poke: pokeUnicorn
   },
   {
-    id: 'dragon', name: 'Drache', emoji: '\u{1F409}', surface: 'floor',
+    id: 'dragon', name: 'Drache', emoji: '\u{1F409}', surface: 'floor', shadowR: 0.26,
     where: 'Unter eine hohe Decke - er pflückt Sterne über sich.',
     why: 'Geduld, zielen, und irgendwann ist Schlafenszeit.',
     build: buildDragon, update: updateDragon, poke: pokeDragon
@@ -890,9 +944,17 @@ function initScene() {
   camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.02, 60);
   camera.position.set(0, 1.55, 0);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x604030, 1.05));
-  const d = new THREE.DirectionalLight(0xfff0dd, 0.75);
-  d.position.set(1.2, 3, 1.4); scene.add(d);
+  /* Three-point rig. A single lamp plus ambient makes everything read as flat
+     plastic; a warm key, a cool fill and a rim are what give the shapes a
+     direction to sit in. Indoor daylight is roughly sky-blue from above and
+     bounced-warm from the floor, hence the hemisphere colours. */
+  scene.add(new THREE.HemisphereLight(0xdce8ff, 0x9a7e5e, 0.28));
+  const key = new THREE.DirectionalLight(0xfff2e0, 0.72);
+  key.position.set(1.6, 3.2, 1.4); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xcddcff, 0.18);
+  fill.position.set(-1.8, 1.1, -1.2); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.14);
+  rim.position.set(-0.3, 1.4, -2.4); scene.add(rim);
 
   world = new THREE.Group(); scene.add(world);
   dirtGroup = new THREE.Group(); world.add(dirtGroup);
@@ -906,6 +968,8 @@ function initScene() {
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;        // without this the standard materials read washed out
+  renderer.physicallyCorrectLights = false;
   renderer.setSize(innerWidth, innerHeight);
   renderer.domElement.className = 'ar';
   renderer.domElement.style.display = 'none';
@@ -923,18 +987,20 @@ function spawn(id, pos, ry) {
   despawn(id);
   const spec = byId(id);
   const built = spec.build();
+  if (spec.shadowR) built.root.add(contactShadow(spec.shadowR));
   built.root.position.copy(pos);
   built.root.rotation.y = ry || 0;
   world.add(built.root);
   animals[id] = {
     id: id, spec: spec, root: built.root, p: built.p,
-    base: pos.clone(), baseRy: ry || 0, poke: 0
+    base: pos.clone(), baseRy: ry || 0, poke: 0, anchor: null
   };
   return animals[id];
 }
 function despawn(id) {
   const a = animals[id];
   if (!a) return;
+  if (a.anchor) { try { a.anchor.delete(); } catch (e) {} a.anchor = null; }
   world.remove(a.root);
   a.root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
   delete animals[id];
@@ -1093,14 +1159,8 @@ function openTaskMenu() {
   $('chTitle').textContent = 'Was macht der Affe?';
   list.innerHTML = '';
   Object.keys(TASKS).forEach(k => {
-    const T = TASKS[k];
-    const b = document.createElement('button');
-    b.className = 'row';
-    b.innerHTML = '<span class="em">' + (k === 'brush' ? '\u{1FAA5}' : k === 'shower' ? '\u{1F6BF}' : '\u{1F455}') +
-      '</span><span class="m"><span class="t1">' + T.title + '</span>' +
-      '<span class="t2">' + Math.round(T.sec / 60) + ' Minuten</span></span>';
-    b.onclick = () => startTask(k, 'monkey');
-    list.appendChild(b);
+    list.appendChild(chip('', k === 'brush' ? '\u{1FAA5}' : k === 'shower' ? '\u{1F6BF}' : '\u{1F455}',
+      TASKS[k].title, { text: Math.round(TASKS[k].sec / 60) + ' Min' }, () => startTask(k, 'monkey')));
   });
   $('chooser').classList.add('on');
 }
@@ -1141,10 +1201,324 @@ function camYawDeg() {
 function syncNorth(quiet) {
   if (heading == null) { if (!quiet) toast('Noch kein Kompass - beweg das Telefon in einer Acht.'); return false; }
   worldYaw = ((heading - camYawDeg()) % 360 + 360) % 360;
-  world.rotation.y = THREE.MathUtils.degToRad(worldYaw);
+  applyFrame();
   return true;
 }
 
+/* ============================ ANCHORS ============================ */
+
+/* Storing a plain coordinate is not enough: ARCore keeps refining its map
+   while you walk, and a fixed coordinate slides against the room as it does.
+   An anchor is attached to the tracked features themselves, so ARCore moves
+   it with its corrections. This is what keeps an animal on its spot for the
+   length of a session. */
+let anchorsOk = false;
+
+function makeAnchor(a, frame) {
+  if (!anchorsOk || !frame || !xrRef || a.anchor) return;
+  const wp = new THREE.Vector3().copy(a.base);
+  world.localToWorld(wp);
+  const q = new THREE.Quaternion();
+  try {
+    frame.createAnchor(new XRRigidTransform(
+      { x: wp.x, y: wp.y, z: wp.z, w: 1 },
+      { x: q.x, y: q.y, z: q.z, w: q.w }
+    ), xrRef).then(an => { a.anchor = an; }, () => { anchorsOk = false; });
+  } catch (e) { anchorsOk = false; }
+}
+
+const _av = new THREE.Vector3();
+function updateAnchors(frame) {
+  if (!anchorsOk || !frame || !xrRef) return;
+  Object.keys(animals).forEach(k => {
+    const a = animals[k];
+    if (!a.anchor) { makeAnchor(a, frame); return; }
+    let pose = null;
+    try { pose = frame.getPose(a.anchor.anchorSpace, xrRef); } catch (e) { return; }
+    if (!pose) return;
+    _av.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+    world.worldToLocal(_av);
+    // move base and the rendered root by the same delta, so animation offsets
+    // (the frog mid-hop, the dog mid-bounce) survive the correction
+    const dx = _av.x - a.base.x, dy = _av.y - a.base.y, dz = _av.z - a.base.z;
+    if (dx * dx + dy * dy + dz * dz < 1e-8) return;
+    a.base.set(_av.x, _av.y, _av.z);
+    a.root.position.x += dx; a.root.position.y += dy; a.root.position.z += dz;
+  });
+}
+function dropAnchors() {
+  Object.keys(animals).forEach(k => {
+    const a = animals[k];
+    if (a.anchor) { try { a.anchor.delete(); } catch (e) {} a.anchor = null; }
+  });
+}
+
+/* ======================= VISUAL RELOCALISATION ======================= */
+
+/* The honest version of "make them stay put across sessions".
+ *
+ * ARCore hands out a fresh origin every session and Android has no local
+ * anchor persistence, so something has to recognise the room again. Full SfM
+ * - rebuilding a point cloud and solving a 6-DoF pose against it - is not
+ * something that runs in a page like this. What does work, and is what this
+ * implements, is visual place recognition:
+ *
+ *   - when you save a spot, a handful of small greyscale keyframes are stored
+ *     together with the camera pose they were taken from,
+ *   - to come back, the live camera image is compared against them with a
+ *     zero-mean normalised cross correlation, which ignores brightness,
+ *   - when the live view matches a keyframe closely enough, the whole home
+ *     frame is snapped so that the camera sits exactly where it sat then.
+ *
+ * That recovers yaw and position from what the camera actually sees instead
+ * of from a compass that indoor metal throws off. It needs you to stand
+ * roughly where you stood and look at the same corner - the app shows the
+ * stored view and a live match meter so you can find it.
+ */
+
+const K_PLACE = 'hc.place.v1';
+const SIG_W = 64, SIG_H = 48, SIG_N = SIG_W * SIG_H;
+const MATCH_LOCK = 0.70;        // ZNCC above this counts as "this is the spot"
+const MATCH_HOLD = 0.5;         // and it has to hold for this long
+
+let place = load(K_PLACE, null);    // {frames:[{sig,thumb,yawHome,pos}], made}
+let camOk = false;
+let reloc = null;                   // running capture or search
+let worldOff = new THREE.Vector3(); // home frame translation, alongside worldYaw
+
+/* Grab the camera image and reduce it to a 64x48 zero-mean unit-variance
+   signature. Everything downstream only ever sees this vector. */
+function grabSignature(frame) {
+  if (!camOk || !frame) return null;
+  let pose = null;
+  try { pose = frame.getViewerPose(xrRef); } catch (e) { return null; }
+  if (!pose || !pose.views.length) return null;
+  const view = pose.views[0];
+  if (!view.camera) return null;
+  const gl = renderer.getContext();
+  let px, w, h, fb = null;
+  try {
+    const tex = new XRWebGLBinding(xrSession, gl).getCameraImage(view.camera);
+    w = view.camera.width; h = view.camera.height;
+    fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    px = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  } catch (e) {
+    camOk = false; return null;
+  } finally {
+    if (fb) { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb); }
+    if (renderer.resetState) renderer.resetState();
+    else if (renderer.state && renderer.state.reset) renderer.state.reset();
+  }
+
+  // box-average down to SIG_W x SIG_H luminance (GL reads bottom-up)
+  const sig = new Float32Array(SIG_N);
+  const sx = w / SIG_W, sy = h / SIG_H;
+  for (let j = 0; j < SIG_H; j++) {
+    const y0 = Math.floor(j * sy), y1 = Math.max(y0 + 1, Math.floor((j + 1) * sy));
+    for (let i = 0; i < SIG_W; i++) {
+      const x0 = Math.floor(i * sx), x1 = Math.max(x0 + 1, Math.floor((i + 1) * sx));
+      let acc = 0, n = 0;
+      for (let y = y0; y < y1; y += 2) {
+        const row = (h - 1 - y) * w * 4;
+        for (let x = x0; x < x1; x += 2) {
+          const o = row + x * 4;
+          acc += 0.299 * px[o] + 0.587 * px[o + 1] + 0.114 * px[o + 2];
+          n++;
+        }
+      }
+      sig[j * SIG_W + i] = n ? acc / n : 0;
+    }
+  }
+  // zero mean, unit norm - makes the comparison blind to exposure and gain
+  let mean = 0;
+  for (let i = 0; i < SIG_N; i++) mean += sig[i];
+  mean /= SIG_N;
+  let ss = 0;
+  for (let i = 0; i < SIG_N; i++) { sig[i] -= mean; ss += sig[i] * sig[i]; }
+  const norm = Math.sqrt(ss);
+  if (norm < 1e-3) return null;               // a blank wall carries no information
+  for (let i = 0; i < SIG_N; i++) sig[i] /= norm;
+  return { sig: sig, contrast: norm / Math.sqrt(SIG_N) };
+}
+
+function zncc(a, b) {
+  let s = 0;
+  for (let i = 0; i < SIG_N; i++) s += a[i] * b[i];
+  return s;                                    // both are already unit vectors
+}
+
+/* signatures are stored as bytes: 3 KB each, and localStorage takes strings */
+function sigToStr(sig) {
+  const u = new Uint8Array(SIG_N);
+  for (let i = 0; i < SIG_N; i++) u[i] = clamp(Math.round(sig[i] * 700 + 128), 0, 255);
+  let s = '';
+  for (let i = 0; i < SIG_N; i += 4096) s += String.fromCharCode.apply(null, u.subarray(i, i + 4096));
+  return btoa(s);
+}
+function strToSig(str) {
+  const bin = atob(str);
+  const sig = new Float32Array(SIG_N);
+  let mean = 0;
+  for (let i = 0; i < SIG_N; i++) { sig[i] = (bin.charCodeAt(i) - 128) / 700; mean += sig[i]; }
+  mean /= SIG_N;
+  let ss = 0;
+  for (let i = 0; i < SIG_N; i++) { sig[i] -= mean; ss += sig[i] * sig[i]; }
+  const n = Math.sqrt(ss) || 1;
+  for (let i = 0; i < SIG_N; i++) sig[i] /= n;
+  return sig;
+}
+function sigThumb(sig) {
+  const c = document.createElement('canvas');
+  c.width = SIG_W; c.height = SIG_H;
+  const g = c.getContext('2d');
+  const img = g.createImageData(SIG_W, SIG_H);
+  for (let i = 0; i < SIG_N; i++) {
+    const v = clamp(Math.round(sig[i] * 700 + 128), 0, 255);
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return c.toDataURL('image/webp', 0.7);
+}
+
+/* ---- where the camera is, in home-frame terms ---- */
+
+function camHomePos() {
+  const cam = (renderer.xr && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  cam.updateMatrixWorld(true);
+  return world.worldToLocal(cam.getWorldPosition(new THREE.Vector3()));
+}
+function camHomeYaw() {
+  return (camYawDeg() + worldYaw + 360) % 360;   // session bearing plus the frame's own rotation
+}
+function applyFrame() {
+  world.rotation.y = THREE.MathUtils.degToRad(worldYaw);
+  world.position.copy(worldOff);
+}
+
+/* ---- learning a spot ---- */
+
+function startRemember() {
+  if (!camOk) { toast('Dieses Telefon gibt der Seite kein Kamerabild - der Kompass muss reichen.'); return; }
+  reloc = { mode: 'learn', frames: [], lastYaw: null, msg: 0 };
+  $('reloc').classList.add('on');
+  relocUI();
+}
+
+/* ---- finding it again ---- */
+
+function startFind() {
+  if (!place || !place.frames.length) { toast('Erst einmal "Ort merken", dann kann ich ihn wiederfinden.'); return; }
+  if (!camOk) { toast('Ohne Kamerabild kann ich den Ort nicht wiedererkennen.'); return; }
+  reloc = {
+    mode: 'find', best: -1, bestIdx: 0, held: 0, next: 0,
+    sigs: place.frames.map(f => strToSig(f.sig))
+  };
+  $('reloc').classList.add('on');
+  relocUI();
+}
+
+function stopReloc() {
+  reloc = null;
+  $('reloc').classList.remove('on');
+}
+
+function updateReloc(frame, t, dt) {
+  if (!reloc) return;
+
+  if (reloc.mode === 'learn') {
+    const yaw = camYawDeg();
+    // one keyframe every ~30 degrees of turning, so the set covers the room
+    const far = reloc.lastYaw == null ||
+      Math.abs(((yaw - reloc.lastYaw + 540) % 360) - 180) > 150;
+    if (far && reloc.frames.length < 8) {
+      const g = grabSignature(frame);
+      if (g && g.contrast > 6) {               // skip blank walls and motion blur
+        reloc.frames.push({
+          sig: sigToStr(g.sig), thumb: sigThumb(g.sig),
+          yawHome: camHomeYaw(), pos: camHomePos().toArray()
+        });
+        reloc.lastYaw = yaw;
+      }
+    }
+    if (reloc.frames.length >= 8) {
+      place = { frames: reloc.frames, made: now() };
+      save(K_PLACE, place);
+      stopReloc();
+      toast('Ort gemerkt. Beim nächsten Mal "Ort finden" antippen.');
+      renderDataSummary();
+      return;
+    }
+    relocUI();
+    return;
+  }
+
+  // find mode: check a few times a second, that is plenty
+  if (t < reloc.next) { relocUI(); return; }
+  reloc.next = t + 0.22;
+  const g = grabSignature(frame);
+  if (!g) { relocUI(); return; }
+  let best = -1, bestIdx = 0;
+  for (let i = 0; i < reloc.sigs.length; i++) {
+    const s = zncc(g.sig, reloc.sigs[i]);
+    if (s > best) { best = s; bestIdx = i; }
+  }
+  reloc.best = best; reloc.bestIdx = bestIdx;
+  reloc.held = best >= MATCH_LOCK ? reloc.held + 0.22 : 0;
+  if (reloc.held >= MATCH_HOLD) lockTo(bestIdx, best);
+  relocUI();
+}
+
+/* Snap the home frame so the camera sits where it sat when the keyframe was
+   taken. Yaw first, then translation - the translation depends on the yaw. */
+function lockTo(idx, score) {
+  const f = place.frames[idx];
+  worldYaw = ((f.yawHome - camYawDeg()) % 360 + 360) % 360;
+  world.rotation.y = THREE.MathUtils.degToRad(worldYaw);
+  world.position.set(0, 0, 0);
+
+  const cam = (renderer.xr && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  cam.updateMatrixWorld(true);
+  const camNow = cam.getWorldPosition(new THREE.Vector3());
+  const want = new THREE.Vector3().fromArray(f.pos).applyAxisAngle(_yAxis, world.rotation.y);
+  worldOff.subVectors(camNow, want);
+  worldOff.y = 0;                               // the floor is the floor
+  applyFrame();
+
+  stopReloc();
+  dropAnchors();
+  const n = restoreLayout();
+  toast('Wiedergefunden (' + Math.round(score * 100) + '%). ' + n + ' Tiere zurück an ihrem Platz.');
+}
+
+const _yAxis = new THREE.Vector3(0, 1, 0);
+
+function relocUI() {
+  if (!reloc) return;
+  if (reloc.mode === 'learn') {
+    $('relocTitle').textContent = 'Ort merken';
+    $('relocSub').textContent = 'Dreh dich einmal langsam im Kreis. ' +
+      reloc.frames.length + ' von 8 Blicken gespeichert.';
+    $('relocBar').style.width = (reloc.frames.length / 8 * 100) + '%';
+    $('relocShot').style.display = 'none';
+    return;
+  }
+  const pct = Math.max(0, Math.round(reloc.best * 100));
+  $('relocTitle').textContent = 'Ort wiederfinden';
+  $('relocSub').textContent = reloc.best < 0
+    ? 'Halt die Kamera ruhig ins Zimmer.'
+    : 'Dreh dich, bis das Bild unten passt. Übereinstimmung ' + pct + '%.';
+  $('relocBar').style.width = pct + '%';
+  const img = $('relocShot');
+  const f = place.frames[reloc.bestIdx];
+  if (f && img.dataset.idx !== String(reloc.bestIdx)) {
+    img.src = f.thumb; img.dataset.idx = String(reloc.bestIdx);
+  }
+  img.style.display = 'block';
+}
 /* ============================ AR SESSION ============================ */
 
 async function startXR() {
@@ -1156,7 +1530,7 @@ async function startXR() {
   try {
     s = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['local-floor'],
-      optionalFeatures: ['dom-overlay', 'hit-test'],
+      optionalFeatures: ['dom-overlay', 'hit-test', 'anchors', 'camera-access'],
       domOverlay: { root: $('xrui') }
     });
   } catch (err) { $('xrui').classList.remove('on'); throw err; }
@@ -1170,6 +1544,9 @@ async function startXR() {
 
   const has = f => (s.enabledFeatures ? s.enabledFeatures.indexOf(f) >= 0 : true);
   hitOk = has('hit-test') && typeof s.requestHitTestSource === 'function';
+  anchorsOk = has('anchors') && typeof XRFrame !== 'undefined' && 'createAnchor' in XRFrame.prototype;
+  camOk = has('camera-access') && typeof XRWebGLBinding !== 'undefined' &&
+          'getCameraImage' in XRWebGLBinding.prototype;
   if (hitOk) {
     try {
       const viewer = await s.requestReferenceSpace('viewer');
@@ -1188,6 +1565,7 @@ async function startXR() {
   renderer.setAnimationLoop((tms, frame) => {
     if (frame) updateHitTest(frame);
     tick();
+    if (frame) { updateAnchors(frame); updateReloc(frame, lastT, 0.016); }
     renderer.render(scene, camera);
   });
 }
@@ -1224,6 +1602,10 @@ function enterAR() {
 function endAR() {
   renderer.setAnimationLoop(null);
   stopTask(false);
+  stopReloc();
+  dropAnchors();
+  anchorsOk = camOk = false;
+  worldOff.set(0, 0, 0);
   if (hitSource) { try { hitSource.cancel(); } catch (e) {} hitSource = null; }
   hitOk = false;
   if (xrController) { xrController.removeEventListener('select', onSelect); scene.remove(xrController); xrController = null; }
@@ -1338,27 +1720,32 @@ function handleTap(origin, dir) {
 
 /* ---- chooser ---- */
 
+function chip(cls, emoji, name, sub, onclick) {
+  const b = document.createElement('button');
+  b.className = 'chip ' + cls;
+  b.innerHTML = '<span class="em">' + emoji + '</span><span>' + name + '</span>' +
+    (sub ? '<span class="st' + (sub.set ? ' set' : '') + '">' + sub.text + '</span>' : '');
+  b.onclick = onclick;
+  return b;
+}
+
 function openChooser(forNudge) {
   const list = $('chList');
   $('chTitle').textContent = forNudge ? 'Welches Tier verschieben?' : 'Tier platzieren';
   list.innerHTML = '';
   const items = forNudge ? SPECIES.filter(s => animals[s.id]) : SPECIES;
   if (!items.length) {
-    list.innerHTML = '<p class="muted" style="margin:4px 6px">Noch kein Tier in der Szene.</p>';
+    list.innerHTML = '<p class="muted" style="grid-column:1/-1;margin:4px 6px">Noch kein Tier in der Szene.</p>';
   }
   items.forEach(s => {
     const placed = !!layout[s.id];
-    const b = document.createElement('button');
-    b.className = 'row ' + s.id;
-    b.innerHTML = '<span class="em">' + s.emoji + '</span><span class="m">' +
-      '<span class="t1">' + s.name + '</span><span class="t2">' + s.where + '</span></span>' +
-      '<span class="st' + (placed ? ' set' : '') + '">' + (placed ? 'gesetzt' : 'neu') + '</span>';
-    b.onclick = () => {
-      $('chooser').classList.remove('on');
-      if (forNudge) { nudging = s.id; hint('Tipp auf die neue Stelle.'); }
-      else { placing = s; hint('Tipp auf die Stelle für ' + s.name + '.'); }
-    };
-    list.appendChild(b);
+    list.appendChild(chip(s.id, s.emoji, s.name,
+      { set: placed, text: placed ? 'gesetzt' : 'neu' },
+      () => {
+        $('chooser').classList.remove('on');
+        if (forNudge) { nudging = s.id; hint('Tipp auf die neue Stelle für ' + s.name + '.'); }
+        else { placing = s; hint(s.name + ': tipp auf die Stelle im Raum.'); }
+      }));
   });
   $('chooser').classList.add('on');
 }
@@ -1495,9 +1882,14 @@ function fmtSec(s) {
 
 function renderDataSummary() {
   $('dataSummary').innerHTML =
-    '<div class="chk"><span class="i">\u{1F4CD}</span><span>' + Object.keys(layout).length + ' Tierplaetze</span></div>' +
+    '<div class="chk"><span class="i">\u{1F4CD}</span><span>' + Object.keys(layout).length + ' Tierplätze</span></div>' +
     '<div class="chk"><span class="i">\u{1F4DD}</span><span>' + logbook.length + ' Routine-Einträge</span></div>' +
-    '<div class="chk" style="border:0"><span class="i">\u{1FAB2}</span><span>' + dirt.length + ' offene Dreckstellen</span></div>';
+    '<div class="chk"><span class="i">\u{1FAB2}</span><span>' + dirt.length + ' offene Dreckstellen</span></div>' +
+    '<div class="chk" style="border:0"><span class="i">\u{1F4F7}</span><span>' +
+      (place ? place.frames.length + ' gemerkte Blicke zum Wiederfinden – Graustufen-Miniaturen, 64×48 Pixel, ' +
+               'zu grob um ein Gesicht oder Schrift zu erkennen'
+             : 'Kein Ort gemerkt') +
+    '</span></div>';
 }
 
 /* ---- device check ---- */
@@ -1555,10 +1947,15 @@ function boot() {
     else openChooser(false);
   };
   $('bNudge').onclick = () => openChooser(true);
+  $('bRemember').onclick = () => startRemember();
+  $('bFind').onclick = () => startFind();
+  $('relocStop').onclick = () => stopReloc();
   $('bRestore').onclick = () => {
     syncNorth(false);
+    worldOff.set(0, 0, 0); applyFrame();
+    dropAnchors();
     const n = restoreLayout();
-    toast(n ? (n + ' Tiere zurückgeholt.') : 'Es ist noch nichts gespeichert.');
+    toast(n ? (n + ' Tiere über den Kompass zurückgeholt.') : 'Es ist noch nichts gespeichert.');
   };
   $('bExit').onclick = () => { if (xrSession) xrSession.end(); else endAR(); };
   $('taskStop').onclick = () => stopTask(false);
@@ -1579,8 +1976,9 @@ function boot() {
   };
   $('bWipe').onclick = () => {
     if (!confirm('Wirklich alles löschen - Plätze, Routinen, Dreck?')) return;
-    layout = {}; logbook = []; dirt = [];
+    layout = {}; logbook = []; dirt = []; place = null;
     save(K_LAYOUT, layout); save(K_LOG, logbook); save(K_DIRT, dirt);
+    try { localStorage.removeItem(K_PLACE); } catch (e) {}
     Object.keys(animals).forEach(despawn);
     rebuildDirt();
     renderAnimalList(); renderStats(); renderDataSummary(); updateHud();

@@ -163,6 +163,23 @@ gyro preview for phones without ARCore.
 - Routine log with a 7-day view, plus export and a wipe button. localStorage
   only; no network call after load.
 
+### Keeping them in place
+
+Three layers, weakest last:
+
+1. **WebXR anchors** hold a position against ARCore's own map corrections for
+   the length of a session. This is what stops the slow slide while you walk
+   around.
+2. **Visual relocalisation** brings a layout back across sessions. Saving a
+   spot stores eight 64x48 greyscale keyframes with the pose they were taken
+   from; coming back, the live camera frame is matched against them with a
+   zero-mean normalised cross correlation and the home frame is snapped when
+   the match holds. This is place recognition, not SfM - it recovers yaw and a
+   coarse position from what the camera sees, which is the part the compass
+   gets wrong indoors.
+3. **Compass only**, the original fallback, for phones that give the page no
+   camera image.
+
 ### Still open in the prototype
 
 - Cleaning verification is a movement proxy, not proof. A child who waves the
