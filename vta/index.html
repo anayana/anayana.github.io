@@ -275,6 +275,15 @@ table.hist th{color:#8fa697;font-weight:500}
 #lightbox{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.95);display:none;align-items:center;justify-content:center}
 #lightbox img{max-width:100%;max-height:88%}
 #lightbox button{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px}
+#shotok{display:none;position:fixed;left:8px;right:8px;bottom:calc(88px + env(safe-area-inset-bottom));
+  z-index:11;gap:10px;align-items:center;background:rgba(10,22,15,.97);border:1px solid #3f8a60;
+  border-radius:12px;padding:8px;pointer-events:auto}
+#shotok.bad{border-color:#8a4040;background:rgba(28,12,12,.97)}
+#xrbot #shotok{position:static;left:auto;right:auto;bottom:auto;margin-bottom:6px}
+#shotok img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #2f4137;flex:0 0 auto}
+#shotok .tx{flex:1 1 auto;min-width:0}
+#shotok .tx b{display:block;font-size:14px}
+#shotok .bs{display:flex;gap:6px;flex:0 0 auto}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:10;background:#1e3128;
   pointer-events:none;
   border:1px solid #3f8a60;border-radius:10px;padding:9px 14px;font-size:13.5px;display:none;max-width:88%}
@@ -465,6 +474,11 @@ table.hist th{color:#8fa697;font-weight:500}
         <button id="bDay">Daylight: off</button>
         <button id="bSafe">Depth: off</button>
       </div>
+      <div class="btnrow">
+        <button id="bScroll">Follow the form: on</button>
+      </div>
+      <p class="small">After an entry is made the form scrolls that line to the top edge, so the
+        answered questions leave the screen and the next open ones are in front of you.</p>
       <div class="row"><label>Step in front of the stem (m)</label>
         <input type="text" id="prefStep" inputmode="decimal" placeholder="1.0"></div>
       <p class="small">When neither depth nor the ring has the trunk, a recorded tree is put
@@ -544,8 +558,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.23.0"></script>
-<script src="data.js?v=2.23.0"></script>
-<script src="app.js?v=2.23.0"></script>
+<script src="vendor/three.min.js?v=2.24.0"></script>
+<script src="data.js?v=2.24.0"></script>
+<script src="app.js?v=2.24.0"></script>
 </body>
 </html>

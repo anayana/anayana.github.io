@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.23.0';
+const APP_VERSION = '2.24.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -333,8 +333,19 @@ async function photoAdd(tree, url, meta) {
   const rec = Object.assign({ tree: tree, url: url, ts: new Date().toISOString() }, meta || {});
   return new Promise((res, rej) => {
     const tx = db.transaction('photos', 'readwrite');
-    tx.objectStore('photos').add(rec);
-    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    // the generated key comes back, so the caller can read the record out again
+    // and say "stored" only once the database really has it
+    let key = null;
+    const rq = tx.objectStore('photos').add(rec);
+    rq.onsuccess = () => { key = rq.result; };
+    tx.oncomplete = () => res(key); tx.onerror = () => rej(tx.error);
+  });
+}
+async function photoGet(id) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const q = db.transaction('photos').objectStore('photos').get(id);
+    q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error);
   });
 }
 async function photoList(tree) {
@@ -3804,15 +3815,85 @@ function storePhoto(tree, out, modeName, job) {
     const g = world.children.find(o => o.userData.idx === tree);
     if (g && c) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
 
-    photoAdd(props(tree).tree_id, out.toDataURL('image/jpeg', 0.72), meta)
-      .then(() => { toast('Photo of ' + props(tree).tree_id + ' stored.');
-                    if (openIdx === tree && panelEl)
-                      renderPhotos(props(tree).tree_id, panelEl.querySelector('.photos')); })
-      .catch(e => toast('Photo storage: ' + e.message));
+    const url = out.toDataURL('image/jpeg', 0.72);
+    photoAdd(props(tree).tree_id, url, meta)
+      .then(key => photoGet(key))
+      .then(rec => {
+        if (!rec) throw new Error('the record was not there afterwards');
+        shotOk(tree, rec);
+        if (openIdx === tree && panelEl)
+          renderPhotos(props(tree).tree_id, panelEl.querySelector('.photos'));
+      })
+      .catch(e => shotFail(tree, (e && e.message) || e));
   } catch (e) {
     toast('Storing the photo failed: ' + ((e && e.message) || e));
   }
 }
+
+/* ---- the receipt ----------------------------------------------------------
+   A toast that fades after two seconds is no proof: with a glove on, in the
+   sun, half a second of looking away and the inspector cannot tell whether the
+   picture exists. So the confirmation is the picture itself, read back out of
+   the database, and it stays until it is dismissed. */
+function shotBox() {
+  let el = $('shotok');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'shotok';
+    document.body.appendChild(el);
+  }
+  // in an immersive session only the overlay root is on screen
+  const want = (mode === 'WebXR' && $('xrui').classList.contains('on')) ? $('xrbot') : document.body;
+  if (el.parentNode !== want) want.appendChild(el);
+  return el;
+}
+function shotOk(tree, rec) {
+  const el = shotBox(); el.innerHTML = '';
+  el.className = 'ok';
+  const im = document.createElement('img'); im.src = rec.url; im.alt = '';
+  im.onclick = () => { $('lbImg').src = rec.url; $('lightbox').style.display = 'flex'; };
+  el.appendChild(im);
+  const tx = document.createElement('div'); tx.className = 'tx';
+  const h = document.createElement('b');
+  h.textContent = '✓ Stored · ' + rec.tree + (rec.kind ? ' · ' + rec.kind : '');
+  tx.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'small';
+  const bits = [];
+  bits.push(rec.mode || 'AR');
+  if (rec.dist != null) bits.push(rec.dist.toFixed ? rec.dist.toFixed(1) + ' m' : rec.dist + ' m');
+  if (rec.lat != null) bits.push(rec.lat.toFixed(5) + ', ' + rec.lon.toFixed(5));
+  if (rec.bearing != null) bits.push(rec.bearing + '°');
+  sub.textContent = bits.join(' · ');
+  tx.appendChild(sub);
+  el.appendChild(tx);
+  const bs = document.createElement('div'); bs.className = 'bs';
+  const bShow = document.createElement('button');
+  bShow.textContent = 'Photos';
+  bShow.onclick = () => { shotHide(); if (mode) endAR(); openPanel(tree, 'photo'); };
+  bs.appendChild(bShow);
+  const bx = document.createElement('button'); bx.className = 'x'; bx.textContent = 'OK';
+  bx.onclick = shotHide; bs.appendChild(bx);
+  el.appendChild(bs);
+  el.style.display = 'flex';
+  try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
+}
+function shotFail(tree, why) {
+  const el = shotBox(); el.innerHTML = '';
+  el.className = 'bad';
+  const tx = document.createElement('div'); tx.className = 'tx';
+  const h = document.createElement('b'); h.textContent = '✗ NOT stored';
+  tx.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'small';
+  sub.textContent = 'The photo of ' + (props(tree) || {}).tree_id + ' did not reach the database: ' +
+    why + '. Take it again.';
+  tx.appendChild(sub);
+  el.appendChild(tx);
+  const bs = document.createElement('div'); bs.className = 'bs';
+  const bx = document.createElement('button'); bx.className = 'x'; bx.textContent = 'OK';
+  bx.onclick = shotHide; bs.appendChild(bx);
+  el.appendChild(bs);
+  el.style.display = 'flex';
+}
+function shotHide() { const el = $('shotok'); if (el) el.style.display = 'none'; }
 
 /* ---- direction arrows for markers outside the view ---- */
 function buildEdge() {
@@ -5441,6 +5522,14 @@ function geoEditor(i) {
   return wrap;
 }
 
+function followForm() { return prefs().follow !== false; }
+function rowToTop(box, row) {
+  const d = row.getBoundingClientRect().top - box.getBoundingClientRect().top;
+  const to = Math.max(0, Math.min(box.scrollHeight - box.clientHeight, box.scrollTop + d));
+  if (Math.abs(to - box.scrollTop) < 4) return;
+  try { box.scrollTo({ top: to, behavior: 'smooth' }); } catch (e) { box.scrollTop = to; }
+}
+
 function openPanel(i, tab) {
   openIdx = i; panelTab = tab || prefs().tab || 'quick';
   const p = props(i);
@@ -5486,6 +5575,22 @@ function openPanel(i, tab) {
     secs[k] = s; body.appendChild(s);
   });
   el.appendChild(tabs); el.appendChild(body);
+
+  /* --- follow the form -----------------------------------------------------
+     An answered line is of no further use on screen. When one is filled in it
+     is scrolled to the top edge, so what is done sits above the fold and the
+     next open questions are where the eyes already are. change fires when a
+     field is left, which is usually the moment the next one is tapped: the
+     answered line goes up, the tapped one is right below it. */
+  body.addEventListener('change', ev => {
+    if (!followForm()) return;
+    const t = ev.target;
+    if (!t || !t.dataset || t.dataset.k == null) return;
+    if (t.type === 'checkbox' || t.type === 'radio') return;
+    if (!String(t.value == null ? '' : t.value).trim()) return;   // clearing is not answering
+    const row = t.closest('.row'); if (!row) return;
+    rowToTop(body, row);
+  });
 
   /* --- quick: the handful of fields most trees actually need --- */
   const qk = secs.quick;
@@ -5636,8 +5741,11 @@ function openPanel(i, tab) {
       const url = await shrink(f, 1440, 0.72);
       if (!url) return toast('Could not read the image.');
       const meta = lastFix ? { lat: +lastFix.lat.toFixed(7), lon: +lastFix.lon.toFixed(7) } : {};
-      try { await photoAdd(p.tree_id, url, meta); toast('Photo stored.'); renderPhotos(p.tree_id, gal); }
-      catch (e) { toast('Photo storage: ' + e.message); }
+      try {
+        const rec = await photoGet(await photoAdd(p.tree_id, url, meta));
+        if (!rec) throw new Error('the record was not there afterwards');
+        shotOk(i, rec); renderPhotos(p.tree_id, gal);
+      } catch (e) { shotFail(i, (e && e.message) || e); }
       fi.value = '';
     };
     inb.onclick = () => fi.click();
@@ -7006,6 +7114,12 @@ function wire() {
     };
     rd.readAsText(f);
   };
+  const paintFollow = () => {
+    $('bScroll').textContent = 'Follow the form: ' + (followForm() ? 'on' : 'off');
+    $('bScroll').classList.toggle('p', followForm());
+  };
+  paintFollow();
+  $('bScroll').onclick = () => { setPref('follow', !followForm()); paintFollow(); };
   $('prefStep').value = prefs().stepOff == null ? '1.0' : prefs().stepOff;
   $('prefStep').onchange = () => {
     const v = parseFloat(String($('prefStep').value).replace(',', '.'));
