@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.24.0';
+const APP_VERSION = '2.24.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1375,6 +1375,14 @@ function correctPlotFrom(pairs) {          // [{ lat, lon, l:{lx,ly} }]
    Android ships BarcodeDetector but not TextDetector - so barcodes are read
    where the platform can, text where it can, and otherwise the number is
    typed, which is four digits and no worse than what a clipboard needs. */
+/* Nobody says "zero zero zero five one". They say fifty-one, and they write
+   51. A plate reading 00051 is the number fifty-one with the register's
+   padding in front of it, so a query that is nothing but digits is compared as
+   a number as well as as text, and a numeric hit counts as exact. */
+function numEq(a, b) {
+  if (!/^\d+$/.test(a) || !/^\d+$/.test(b)) return false;
+  return a.replace(/^0+/, '') === b.replace(/^0+/, '');
+}
 function findByNumber(numStr, emptyLists) {
   const q = String(numStr || '').trim().toLowerCase();
   if (!q && !emptyLists) return [];
@@ -1384,7 +1392,7 @@ function findByNumber(numStr, emptyLists) {
     const p = props(i);
     const tag = String(p.tag_no == null ? '' : p.tag_no).trim().toLowerCase();
     const id = String(p.tree_id || '').toLowerCase();
-    const exact = !!q && tag === q;
+    const exact = !!q && (tag === q || id === q || numEq(q, tag) || numEq(q, id));
     if (q && !exact && tag.indexOf(q) < 0 && id.indexOf(q) < 0) return;
     const c = f.geometry.coordinates;
     const d = here ? distBear(c[1], c[0], here.lat, here.lon).d : null;
