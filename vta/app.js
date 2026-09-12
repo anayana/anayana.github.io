@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.19.0';
+const APP_VERSION = '2.20.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -659,6 +659,16 @@ function addTreeHere() {
    within a step or two. Further off it is the ground you happen to be looking
    at, which is not a tree, so it is ignored. */
 const RET_MIN = 0.35, RET_MAX = 2.6;
+/* You stand a step in front of the trunk and face it. That step is the whole
+   error, and the session already knows which way you are facing to a fraction
+   of a degree - the compass is not needed and would only make it worse. So
+   when nothing better is available the tree is put one step ahead along the
+   view, and the marker lands round the stem instead of on your own boots.
+   The step is settable because people and trees differ. */
+function stepOff() {
+  const v = parseFloat(prefs().stepOff);
+  return isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.0;
+}
 function reticleStem() {
   if (!hitPt) return null;
   const c = camPos();
@@ -670,8 +680,17 @@ function recordTreeAt(st) {
   if (mode !== 'WebXR' || !S2P) return;
   const c = camPos();
   const ret = (st && !st.error) ? null : reticleStem();
-  const at = (st && !st.error) ? { x: st.x, z: st.z } : (ret || c);
-  const how = (st && !st.error) ? 'depth' : (ret ? 'reticle' : 'stand');
+  let at, how;
+  if (st && !st.error) { at = { x: st.x, z: st.z }; how = 'depth'; }
+  else if (ret) { at = { x: ret.x, z: ret.z }; how = 'reticle'; }
+  else {
+    const d = camDir(), fl = Math.hypot(d.x, d.z);
+    const off = stepOff();
+    if (fl > 0.1 && off > 0) {
+      at = { x: c.x + d.x / fl * off, z: c.z + d.z / fl * off };
+      how = 'step';
+    } else { at = { x: c.x, z: c.z }; how = 'stand'; }
+  }
   const l = s2pInvert(at.x, at.z);
   let g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
   if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
@@ -694,7 +713,8 @@ function recordTreeAt(st) {
   const near = nearbyTree(g.lon, g.lat, 2.0, l);
   const i = addTree(g.lon, g.lat,
                     how === 'depth' ? 'AR survey · stem from depth'
-                  : how === 'reticle' ? 'AR survey · aimed at the stem' : 'AR survey',
+                  : how === 'reticle' ? 'AR survey · aimed at the stem'
+                  : how === 'step' ? 'AR survey · a step ahead' : 'AR survey',
                     PLOT.acc, l, true);
   setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
   // a diameter measured off the trunk beats one nobody entered, but only when
@@ -712,7 +732,9 @@ function recordTreeAt(st) {
             (st.firm ? ', Ø ' + Math.round(st.r * 200) + ' cm' : '') + '.'
           : how === 'reticle'
           ? ' recorded at the ring, ' + ret.d.toFixed(1) + ' m ahead.'
-          : ' recorded where you stand – aim the ring at the stem foot to put it on the trunk.') +
+          : how === 'step'
+          ? ' recorded ' + stepOff().toFixed(1) + ' m ahead, where you are facing.'
+          : ' recorded where you stand.') +
         (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : '') +
         (rough ? ' Against the trees already here it is only as good as GPS – tap three stems and it moves onto the right place.' : ''));
 }
@@ -1795,13 +1817,7 @@ function buildMarkers() {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 40),
       new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthTest: false }));
     ring.rotation.x = -Math.PI / 2; ring.renderOrder = 9; g.add(ring);
-    /* A second ring, outside the first, for "the camera is pointing at this
-       one". It is kept separate on purpose: the inner ring carries the hazard
-       level and that colour has to keep meaning what it means. */
-    const halo = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 40),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide,
-                                    transparent: true, opacity: 0, depthTest: false }));
-    halo.rotation.x = -Math.PI / 2; halo.renderOrder = 8; halo.userData.halo = 1; g.add(halo);
+    ring.userData.ring = 1;
     g.userData.idx = i; world.add(g);
   });
   placeMarkers();
@@ -2163,7 +2179,7 @@ function enterAR() {
   setArMode();
   showFit();
   buildEdge();
-  $('bshot').disabled = $('bbark').disabled = !(mode === 'WebXR' && camAccessOk);
+  $('bshot').disabled = !(mode === 'WebXR' && camAccessOk);
   requestAnchors();
   sessScene.clear(); standPts = [];
   stillAt = null; stillSince = 0; autoStood = 0; farSaid = false;
@@ -2239,12 +2255,8 @@ function tick() {
     o.scale.set(b[0] * s, b[1] * s, 1);
   });
   $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
-  if (edgeTick % 20 === 3 && $('bat')) {
+  if (edgeTick % 20 === 3) {
     const v = treeInView();
-    const n = nearestSurveyedByGps();
-    $('btable').textContent = v ? tid(v.i) : (selIdx != null ? tid(selIdx) : n != null ? tid(n) : 'Table');
-    $('bat').textContent = n == null ? 'At tree' : 'I am at ' + tid(n);
-    $('bat').disabled = (n == null);
     const el = $('hView');
     if (el) {
       el.textContent = !v ? '' : (v.sure ? 'this is ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m'
@@ -2252,9 +2264,10 @@ function tick() {
           (v.gap < 3 ? ', and it could be its neighbour' : ''));
       el.className = v && v.sure ? 'ok' : 'warn';
     }
-    /* Everything the camera is pointing at, ringed and graded: the best fit
-       white and solid, the ones behind it dimmer and warmer, in the order
-       they would be offered if you asked. */
+    /* One ring per tree, and it says two things at once: its colour is the
+       hazard level, which never changes, and how solid and how wide it is
+       says whether the camera is pointing at it - solid and a little larger
+       for the best fit, fainter for the ones behind it. */
     const cands = treeCandidates(null, 6);
     const byIdx = {};
     cands.forEach((x, k) => { byIdx[x.i] = { p: x.p, k: k }; });
@@ -2263,9 +2276,10 @@ function tick() {
       if (idx == null) return;
       const hit = byIdx[idx];
       g.children.forEach(ch => {
-        if (!ch.userData.halo || !ch.material) return;
-        ch.material.opacity = hit ? 0.35 + 0.6 * hit.p : 0;
-        if (hit) ch.material.color.setHex(hit.k === 0 ? 0xffffff : 0xffc46b);
+        if (!ch.userData.ring || !ch.material) return;
+        ch.material.opacity = hit ? 0.55 + 0.45 * hit.p : 0.42;
+        const sc = hit ? 1 + 0.35 * hit.p : 1;
+        ch.scale.set(sc, sc, 1);
       });
     });
     if ($('hView') && cands.length > 1 && $('hView').textContent)
@@ -2356,8 +2370,14 @@ function onXRSelect(e) {
       } catch (err) { note('tap pose', err); }
     }
     if (!o) { o = camPos(); d = camDir(); }       // the phone itself is the pointer
+    /* Tapping is how a tree is chosen: it is the one gesture that says which
+       one you mean, and it needs no button on the bar. A clear answer opens
+       the tree's page; a huddle of stems is listed instead of guessed. */
     const i = pickFromRay(o, d);
-    if (i !== null) toTable(i);
+    const v = treeInView();
+    if (i !== null) { selectTree(i); selPinned = performance.now(); toTable(i); return; }
+    if (v && v.sure) return toTable(v.i);
+    if (treeCandidates(null, 6).length) return openPicker();
   } catch (err) {
     note('tap', err);
   } finally {
@@ -2887,7 +2907,7 @@ const MEAS = {
 /* One panel at a time. Two of them open is two panels of reading before the
    button you wanted, and on a phone that is the whole screen. */
 function closePopups(keep) {
-  ['chooser', 'mmenu', 'refmenu', 'nummenu', 'pickmenu'].forEach(id => {
+  ['chooser', 'mmenu', 'refmenu', 'nummenu', 'pickmenu', 'toolmenu'].forEach(id => {
     if (id !== keep) $(id).style.display = 'none';
   });
 }
@@ -3856,6 +3876,48 @@ function buildNumMenu(prefill) {
   // tapping the field is one touch and leaves the choice with the user.
 }
 
+/* Bark, the tape, the rough dendrometry: used on some trees, not on every
+   tree, and never in a hurry. One button, a list, gone again. */
+function buildToolMenu() {
+  const el = $('toolmenu');
+  el.innerHTML = '<div><b>Tools</b> <span class="small">· on the tree in view</span></div>';
+  const t = targetTree();
+  const who = t == null ? '' : ' · ' + tid(t);
+  const sub = document.createElement('div'); sub.className = 'small';
+  sub.style.margin = '2px 0 8px';
+  sub.textContent = t == null ? 'No tree in view – point at one first.'
+    : 'On ' + tid(t) + (props(t).species ? ' · ' + props(t).species : '');
+  el.appendChild(sub);
+  const row = document.createElement('div'); row.className = 'btnrow';
+  const add = (label, fn, cls) => {
+    const b = document.createElement('button');
+    b.className = 'sm' + (cls ? ' ' + cls : '');
+    b.textContent = label;
+    b.onclick = () => { el.style.display = 'none'; fn(); };
+    row.appendChild(b);
+  };
+  add('Bark at 1.30 m', () => {
+    if (t == null) return toast('No tree in view.');
+    selectTree(t); startBark(t);
+  }, 'p');
+  add('Stem position', () => { if (t != null) selectTree(t); startMeasure('stem'); });
+  add('Tape', () => startMeasure('tape'));
+  add('Height ~', () => { if (t != null) selectTree(t); startMeasure('height'); });
+  add('Crown base ~', () => { if (t != null) selectTree(t); startMeasure('crownbase'); });
+  add('Crown Ø ~', () => { if (t != null) selectTree(t); startMeasure('crown'); });
+  add('Target dist. ~', () => { if (t != null) selectTree(t); startMeasure('target'); });
+  add('Tree out of reach', () => startMeasure('newtree'));
+  el.appendChild(row);
+  const note = document.createElement('p'); note.className = 'small';
+  note.textContent = 'The four marked ~ are rough: a height from a phone is out by metres on ' +
+    'uneven ground. Bark and the stem position are not estimates.';
+  el.appendChild(note);
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl); el.appendChild(act);
+}
+
 function buildRefMenu() {
   const el = $('refmenu');
   el.innerHTML = '';
@@ -3978,10 +4040,15 @@ function buildRefMenu() {
   el.appendChild(dgr);
 
   const more = document.createElement('div'); more.className = 'btnrow'; more.style.marginTop = '4px';
-  const sb = document.createElement('button'); sb.className = 'sm';
-  sb.textContent = 'I stand at a known tree';
-  sb.onclick = () => { buildChooser(); closePopups('chooser'); $('chooser').style.display = 'block'; };
+  const sb = document.createElement('button'); sb.className = 'sm p';
+  sb.textContent = 'I am standing at a tree I know';
+  sb.title = 'Takes the nearest tree in the register as a fixed point';
+  sb.onclick = () => { el.style.display = 'none'; standAtTree(); };
   more.appendChild(sb);
+  const sc = document.createElement('button'); sc.className = 'sm';
+  sc.textContent = 'Pick which one';
+  sc.onclick = () => { buildChooser(); closePopups('chooser'); $('chooser').style.display = 'block'; };
+  more.appendChild(sc);
   const lk = document.createElement('button'); lk.className = 'sm' + (sceneLocked ? ' p' : '');
   lk.textContent = sceneLocked ? 'Scene locked' : 'Lock the scene';
   lk.onclick = () => {
@@ -6561,20 +6628,15 @@ function wire() {
   $('bnew').onclick = addTreeHere;
   /* The way from the camera to a tree's page, as a button. Tapping the marker
      works too, but a button cannot be missed. */
-  $('btable').onclick = () => {
-    // a tree picked by hand a moment ago is the tree, no questions
-    const pinned = selIdx != null && performance.now() - selPinned < 120000;
-    if (!pinned) {
-      const v = treeInView();
-      // one clear answer opens it; a huddle of stems asks which one
-      if ((!v || !v.sure) && treeCandidates(null, 6).length > 1) return openPicker();
-    }
-    const t = targetTree();
-    if (t == null) return openPicker();
-    toTable(t);
+  $('btools').onclick = () => {
+    buildToolMenu();
+    closePopups('toolmenu');
+    const el = $('toolmenu');
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
   };
-  $('bpick').onclick = openPicker;
-  $('bat').onclick = standAtTree;
+  // standing at a known tree happens by itself; the hand version lives in
+  // the align menu, where the rest of the alignment is
+
   const alignMenu = () => {
     const el = $('refmenu');
     const open = el.style.display !== 'block';
@@ -6588,11 +6650,6 @@ function wire() {
     if (t == null) return toast('No tree selected.');
     selectTree(t); shotFor = t; shotKind = null;
     toast('Capturing photo of ' + props(t).tree_id + ' …');
-  };
-  $('bbark').onclick = () => {
-    const t = targetTree();
-    if (t == null) return toast('No tree selected.');
-    selectTree(t); startBark(t);
   };
   $('bq').onclick = () => {
     // the control measurements only exist inside this session's frame - leaving
@@ -6721,6 +6778,13 @@ function wire() {
       $('fileImp').value = '';
     };
     rd.readAsText(f);
+  };
+  $('prefStep').value = prefs().stepOff == null ? '1.0' : prefs().stepOff;
+  $('prefStep').onchange = () => {
+    const v = parseFloat(String($('prefStep').value).replace(',', '.'));
+    setPref('stepOff', isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.0);
+    $('prefStep').value = stepOff().toFixed(1);
+    toast('A recorded tree goes ' + stepOff().toFixed(1) + ' m ahead of you.');
   };
   const paintSafe = () => {
     const on = depthWanted();

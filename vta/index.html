@@ -169,7 +169,7 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
    better price than a button nobody can find. */
 #ctl{display:flex;flex-wrap:wrap;gap:5px;padding:7px;flex:0 0 auto}
 #ctl button{font-size:12.5px;padding:6px 9px;white-space:nowrap;flex:0 0 auto}
-#chooser,#mmenu,#refmenu,#nummenu,#pickmenu{background:rgba(10,16,13,.96);
+#chooser,#mmenu,#refmenu,#nummenu,#pickmenu,#toolmenu{background:rgba(10,16,13,.96);
   border:1px solid #34483c;border-radius:14px;padding:12px;display:none;
   min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
 #chooser .btnrow button,#mmenu .btnrow button,#refmenu .btnrow button{min-width:30%}
@@ -460,6 +460,12 @@ table.hist th{color:#8fa697;font-weight:500}
         <button id="bDay">Daylight: off</button>
         <button id="bSafe">Depth: off</button>
       </div>
+      <div class="row"><label>Step in front of the stem (m)</label>
+        <input type="text" id="prefStep" inputmode="decimal" placeholder="1.0"></div>
+      <p class="small">When neither depth nor the ring has the trunk, a recorded tree is put
+        this far ahead along the direction you are facing &ndash; the step you stand back from
+        a stem. The session knows that direction to a fraction of a degree; the compass is not
+        used for it. Set 0 to record exactly where you stand.</p>
       <p class="small">Depth measures the trunk in front of the phone: the marker goes on the
         stem instead of where you stand, the diameter comes with it, and the session aligns
         itself on the stems it sees. It runs a second pipeline inside ARCore, which not every
@@ -516,14 +522,12 @@ table.hist th{color:#8fa697;font-weight:500}
   <div id="refmenu"></div>
   <div id="nummenu"></div>
   <div id="pickmenu"></div>
+  <div id="toolmenu"></div>
   <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
   <div class="bar" id="ctl">
     <button class="p" id="bnew">+ Tree</button>
-    <button id="btable">Table</button>
-    <button id="bpick">Which?</button>
-    <button id="bat">At tree</button>
     <button id="bshot">Photo</button>
-    <button id="bbark">Bark</button>
+    <button id="btools">Tools</button>
     <button id="balign">Align</button>
     <button class="x" id="bq">Exit</button>
   </div>
@@ -534,8 +538,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.19.0"></script>
-<script src="data.js?v=2.19.0"></script>
-<script src="app.js?v=2.19.0"></script>
+<script src="vendor/three.min.js?v=2.20.0"></script>
+<script src="data.js?v=2.20.0"></script>
+<script src="app.js?v=2.20.0"></script>
 </body>
 </html>
