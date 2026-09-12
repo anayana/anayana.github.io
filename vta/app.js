@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.20.0';
+const APP_VERSION = '2.21.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -652,7 +652,14 @@ function addTreeHere() {
      when you are looking at the stem. That is the metre you have been seeing:
      the button recorded the phone's own position, and you stand a step in
      front of the trunk. */
-  askStem(st => guard('record', () => recordTreeAt(st)));
+  /* Not guard(): that watchdog switches a part off after three failures,
+     which is right for something running sixty times a second and wrong for
+     the button the app exists for. A failure here is said out loud and the
+     next press tries again. */
+  askStem(st => {
+    try { recordTreeAt(st); }
+    catch (e) { note('record', e); toast('Recording failed: ' + ((e && e.message) || e)); }
+  });
 }
 
 /* The reticle, when it is where a stem's foot would be: in front of you,
@@ -677,7 +684,8 @@ function reticleStem() {
   return { x: hitPt.x, z: hitPt.z, d: d };
 }
 function recordTreeAt(st) {
-  if (mode !== 'WebXR' || !S2P) return;
+  if (mode !== 'WebXR') return toast('The camera view is not running.');
+  if (!S2P) return toast('The session has no frame to measure in – leave AR and come back.');
   const c = camPos();
   const ret = (st && !st.error) ? null : reticleStem();
   let at, how;
@@ -693,7 +701,7 @@ function recordTreeAt(st) {
   }
   const l = s2pInvert(at.x, at.z);
   let g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
-  if (!g) return toast('No GPS fix yet – the plot needs one position to sit on.');
+  if (!g) return toast('Could not work out a position for it – tell me what the header says.');
   /* You are standing at this stem and the phone knows where you are to a few
      metres. If the plot's own georeference puts the tree somewhere else
      entirely, the georeference is wrong - not the fix, and not the survey. Put
@@ -933,14 +941,14 @@ function showFit() {
   if (!mode) { el.textContent = ''; return; }
   // say what it means for the markers, not what the maths is called
   el.textContent = S2P
-      ? (s2pAuto ? 'rough – markers from ' + s2pFrom +
+      ? ((PLOT && PLOT.unlocated) ? 'surveying without GPS – exact between trees, not on the map yet'
+       : s2pAuto ? 'rough – markers from ' + s2pFrom +
                    (s2pRms != null ? ' ±' + s2pRms.toFixed(0) + ' m' : '') +
                    ' · stop at a tree you know'
                  : 'locked on ' + s2pFrom + (s2pRms != null ? ' ±' + s2pRms.toFixed(2) + ' m' : ''))
-    : arMode === 'survey' ? 'not locked – record a tree to start a survey'
     : done >= 2 ? 'ready – press Apply'
-    : 'not locked – arrow only, no markers';
-  el.className = (S2P && !s2pAuto) ? 'ok' : 'warn';
+    : 'not locked – record a tree to start a survey';
+  el.className = (S2P && !s2pAuto && !(PLOT && PLOT.unlocated)) ? 'ok' : 'warn';
 }
 let lastFit = null;
 
@@ -1122,7 +1130,26 @@ function wgsToPlot(lat, lon) {
    as good as that tree's coordinate, which is all anyone has, and control
    points or a survey can straighten it later without touching the geometry. */
 function ensurePlotOrigin() {
-  if (plotGeoreferenced() || !CAT.features.length) return plotGeoreferenced();
+  if (plotGeoreferenced()) return true;
+  /* No trees yet and no fix - in a wood, at the start of a day, the normal
+     case. A survey does not need GPS: it needs an origin, and this spot is
+     one. The plot gets a placeholder position and is marked as not located,
+     the trees are recorded with their local coordinates, which are the
+     measurement that matters, and the first decent fix puts the whole stand
+     on the earth without disturbing a single distance between two trees.
+     Refusing to record a tree because a satellite is behind a hill was the
+     worst thing this app did. */
+  if (!CAT.features.length) {
+    if (lastFix) {
+      PLOT.lat = lastFix.lat; PLOT.lon = lastFix.lon; PLOT.yaw = 0; PLOT.n = 1;
+      PLOT.acc = lastFix.acc; PLOT.provisional = true;
+    } else {
+      PLOT.lat = 0; PLOT.lon = 0; PLOT.yaw = 0; PLOT.n = 0; PLOT.acc = null;
+      PLOT.provisional = true; PLOT.unlocated = true;
+    }
+    savePlot();
+    return true;
+  }
   /* The first tree in the file is the wrong one to borrow from when the file
      also holds a city register from another country: the plot would sit in
      Berlin and every tree here would be fifteen hundred kilometres from its
@@ -1144,7 +1171,20 @@ function ensurePlotOrigin() {
   PLOT.yaw = 0; PLOT.n = 0;
   PLOT.acc = num((f.properties || {}).position_accuracy_m);
   PLOT.provisional = true;        // borrowed from a tree, not measured for the plot
+  delete PLOT.unlocated;
   savePlot();
+  return true;
+}
+/* The first usable fix of a stand that was surveyed without one puts it on
+   the earth. Rigid: the survey is untouched, only where it is said to be. */
+function plotLocate(fix, l) {
+  if (!PLOT || !PLOT.unlocated || !fix || fix.acc > 25 || !l) return false;
+  delete PLOT.unlocated;
+  PLOT.provisional = true;
+  PLOT.acc = fix.acc; PLOT.n = 1;
+  plotAnchorAt(l, fix.lat, fix.lon);
+  toast('The survey is on the map now – ' + CAT.features.length + ' trees, every distance ' +
+        'between them unchanged.');
   return true;
 }
 function hasLocal(p) { return p && p.lx != null && p.ly != null; }
@@ -1538,7 +1578,7 @@ function trackFix(fix) {
   // walking fit that is being computed from it.
   if (S2P && !s2pAuto) {
     const l = s2pInvert(p.x, p.z);
-    plotAbsorbFix(fix, l.lx, l.ly);
+    if (!plotLocate(fix, l)) plotAbsorbFix(fix, l.lx, l.ly);
   }
 }
 function trackSpan() {
@@ -2179,7 +2219,7 @@ function enterAR() {
   setArMode();
   showFit();
   buildEdge();
-  $('bshot').disabled = !(mode === 'WebXR' && camAccessOk);
+  $('bshot').disabled = false;
   requestAnchors();
   sessScene.clear(); standPts = [];
   stillAt = null; stillSince = 0; autoStood = 0; farSaid = false;
@@ -3508,8 +3548,15 @@ function barkHint() {
         ['Cancel', () => { barkFor = null; clearMeasure(); }]]);
 }
 function startBark(tree) {
-  if (mode !== 'WebXR') return toast('Bark photos need the WebXR mode – it is what measures the height.');
-  if (!camAccessOk) return toast('This session did not grant camera access.');
+  // in camera mode there is no height to measure, but the picture is worth
+  // more than the protocol: take it and say what is missing
+  if (mode === 'Camera') {
+    shotKind = 'bark';
+    toast('Bark photo – hold the phone at 1.30 m, on the side the plate hangs.');
+    return takeVideoPhoto(tree);
+  }
+  if (mode !== 'WebXR') return toast('Start the camera first.');
+  if (!camAccessOk) return takePhotoOf(tree, 'bark');
   clearMeasure();
   barkFor = tree; barkRef = null;
   photoList(props(tree).tree_id).then(ps => {
@@ -3556,7 +3603,59 @@ function takeARPhoto(frame) {
     out.width = Math.round(w * k); out.height = Math.round(h * k);
     out.getContext('2d').drawImage(src, 0, 0, out.width, out.height);
 
-    const meta = { mode: 'AR' };
+    storePhoto(tree, out, 'AR');
+  } catch (e) {
+    toast('Camera capture failed: ' + e.message);
+  }
+}
+
+/* The camera in plain camera mode is a video element, and a video element can
+   be drawn into a canvas on any phone there is. No WebXR feature to be
+   granted, no binding, no GL readback - which is why this is the path that
+   always works, and why the AR one falls back to it. */
+/* One way in for a photograph, whatever the session can do. In AR with the
+   camera granted it comes off the XR camera image; in camera mode off the
+   video; and in AR without the grant it says so and offers the one step that
+   does work, rather than being a button that does nothing. */
+function takePhotoOf(tree, kind) {
+  if (tree == null) return toast('No tree in view – point at one, or tap it.');
+  selectTree(tree);
+  if (mode === 'Camera') { shotKind = kind; return takeVideoPhoto(tree); }
+  if (mode === 'WebXR' && camAccessOk) {
+    shotFor = tree; shotKind = kind;
+    toast('Photographing ' + tid(tree) + ' …');
+    return;
+  }
+  if (mode === 'WebXR') {
+    mbar('<b>This AR session was not given the camera</b><br>' +
+         'Chrome grants the camera image per session and did not this time, so a picture ' +
+         'cannot be taken from inside AR. Camera mode can take it - same tree, same record.',
+         [['Photograph in camera mode', () => {
+            $('mbar').classList.remove('on');
+            const t = tree, k = kind;
+            endAR();
+            startCam().then(() => { setTimeout(() => { shotKind = k; takeVideoPhoto(t); }, 700); })
+                      .catch(e => toast('Camera mode failed: ' + e.message));
+          }, 'p'], ['Not now', () => $('mbar').classList.remove('on')]]);
+    return;
+  }
+  toast('Start the camera first.');
+}
+
+function takeVideoPhoto(tree) {
+  const v = $('video');
+  if (!v || !v.videoWidth) return toast('The camera is not running.');
+  const w = v.videoWidth, h = v.videoHeight;
+  const k = Math.min(1, 1440 / Math.max(w, h));
+  const out = document.createElement('canvas');
+  out.width = Math.round(w * k); out.height = Math.round(h * k);
+  out.getContext('2d').drawImage(v, 0, 0, out.width, out.height);
+  storePhoto(tree, out, 'Camera');
+}
+
+function storePhoto(tree, out, modeName) {
+  try {
+    const meta = { mode: modeName || 'AR' };
     const c = camPos();
     const gp = sceneToWgs(c);
     if (gp) { meta.lat = +gp.lat.toFixed(7); meta.lon = +gp.lon.toFixed(7); }
@@ -3597,10 +3696,12 @@ function takeARPhoto(frame) {
     if (g) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
 
     photoAdd(props(tree).tree_id, out.toDataURL('image/jpeg', 0.72), meta)
-      .then(() => toast('Photo of ' + props(tree).tree_id + ' stored.'))
+      .then(() => { toast('Photo of ' + props(tree).tree_id + ' stored.');
+                    if (openIdx === tree && panelEl)
+                      renderPhotos(props(tree).tree_id, panelEl.querySelector('.photos')); })
       .catch(e => toast('Photo storage: ' + e.message));
   } catch (e) {
-    toast('Camera capture failed: ' + e.message);
+    toast('Storing the photo failed: ' + ((e && e.message) || e));
   }
 }
 
@@ -3860,12 +3961,12 @@ function buildNumMenu(prefill) {
   inp.oninput = draw; draw();
   const act = document.createElement('div'); act.className = 'btnrow'; act.style.marginTop = '8px';
   const ph = document.createElement('button'); ph.className = 'sm p'; ph.textContent = 'Photograph the plate';
-  ph.disabled = !(mode === 'WebXR' && camAccessOk);
+  ph.disabled = !mode;
   ph.onclick = () => {
     const t = targetTree();
     if (t == null) return toast('Select a tree first, or record one.');
-    shotFor = t; shotKind = 'tag'; el.style.display = 'none';
-    toast('Photographing the number plate …');
+    el.style.display = 'none';
+    takePhotoOf(t, 'tag');
   };
   act.appendChild(ph);
   const cl = document.createElement('button'); cl.textContent = 'Close';
@@ -3898,6 +3999,7 @@ function buildToolMenu() {
   };
   add('Bark at 1.30 m', () => {
     if (t == null) return toast('No tree in view.');
+    if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(t, 'bark');
     selectTree(t); startBark(t);
   }, 'p');
   add('Stem position', () => { if (t != null) selectTree(t); startMeasure('stem'); });
@@ -6645,12 +6747,7 @@ function wire() {
     el.style.display = open ? 'block' : 'none';
   };
   $('balign').onclick = alignMenu;
-  $('bshot').onclick = () => {
-    const t = targetTree();
-    if (t == null) return toast('No tree selected.');
-    selectTree(t); shotFor = t; shotKind = null;
-    toast('Capturing photo of ' + props(t).tree_id + ' …');
-  };
+  $('bshot').onclick = () => takePhotoOf(targetTree(), null);
   $('bq').onclick = () => {
     // the control measurements only exist inside this session's frame - leaving
     // throws them away, and there is no getting them back
