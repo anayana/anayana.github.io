@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.22.1';
+const APP_VERSION = '2.23.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2330,7 +2330,7 @@ function tick() {
   if (edgeTick % 20 === 3) {
     const v = treeInView();
     if ($('hDepth') && mode === 'WebXR' && !camAccessOk && !$('hDepth').textContent)
-      { $('hDepth').textContent = 'no camera in this session – photos need camera mode';
+      { $('hDepth').textContent = 'photos leave AR briefly on this phone';
         $('hDepth').className = 'warn'; }
     const el = $('hView');
     if (el) {
@@ -3653,7 +3653,22 @@ function takeARPhoto(frame) {
    video; and in AR without the grant it says so and offers the one step that
    does work, rather than being a button that does nothing. */
 function takePhotoOf(tree, kind) {
-  if (tree == null) return toast('No tree in view – point at one, or tap it.');
+  /* A photograph belongs to a tree, but "no tree in view" must not mean "no
+     photograph": the register may be empty, the session may not be aligned,
+     you may be standing at something not recorded yet. Take what there is,
+     and only give up when there is no tree at all. */
+  if (tree == null) tree = selIdx;
+  if (tree == null) tree = nearestTree();
+  if (tree == null && lastFix) {
+    let bd = 1e12;
+    CAT.features.forEach((f, i) => {
+      if (!f.geometry) return;
+      const c = f.geometry.coordinates;
+      const d = distBear(c[1], c[0], lastFix.lat, lastFix.lon).d;
+      if (d < bd) { bd = d; tree = i; }
+    });
+  }
+  if (tree == null) return toast('Record a tree first – a photograph is filed under one.');
   selectTree(tree);
   if (mode === 'Camera') { shotKind = kind; return takeVideoPhoto(tree); }
   if (mode === 'WebXR' && camAccessOk) {
@@ -3668,7 +3683,13 @@ function takePhotoOf(tree, kind) {
      clever ones are unavailable. Opening it may suspend the AR session; the
      photograph is stored either way and the way back is one press. */
   if (mode === 'WebXR') {
-    filePhoto(tree, kind, true);
+    /* A file picker opened from inside an immersive session is at the mercy
+       of the browser: Chrome may swallow the click, or open the camera app
+       behind the session. Leaving AR first makes it deterministic - the
+       picker opens on the ordinary page, every time - and the way back is
+       one press once the picture is stored. */
+    endAR();
+    setTimeout(() => filePhoto(tree, kind, true), 120);
     return;
   }
   filePhoto(tree, kind, false);
