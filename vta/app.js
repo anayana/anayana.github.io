@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.22.0';
+const APP_VERSION = '2.22.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -6825,6 +6825,10 @@ function wire() {
     msg('starting …');
     try { await startXR(); startGPS(); startOrient(); msg(''); }
     catch (e) { msg('WebXR: ' + e.message + ' → try camera mode'); }
+  };
+  $('blidar').onclick = () => {
+    msg('LiDAR mode is not built yet.');
+    toast('LiDAR mode is not built yet.');
   };
   $('bcam').onclick = async () => {
     msg('starting …');

@@ -295,9 +295,14 @@ table.hist th{color:#8fa697;font-weight:500}
 
     <section class="screen on" id="sc-start">
       <div class="btnrow">
-        <button class="p" id="bxr">Start AR</button>
-        <button id="bcam">Camera mode</button>
+        <button class="p" id="bxr">Start</button>
       </div>
+      <div class="btnrow">
+        <button class="sm" id="bcam">Camera</button>
+        <button class="sm" id="blidar">LiDAR</button>
+      </div>
+      <p class="small">Camera is for phones without AR. LiDAR is for phones that have a
+        LiDAR scanner.</p>
       <div class="btnrow"><button id="bInstall" style="display:none">Install on the home screen</button></div>
       <div id="msg"></div>
       <h3>Device check</h3>
@@ -539,8 +544,8 @@ table.hist th{color:#8fa697;font-weight:500}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.22.0"></script>
-<script src="data.js?v=2.22.0"></script>
-<script src="app.js?v=2.22.0"></script>
+<script src="vendor/three.min.js?v=2.22.1"></script>
+<script src="data.js?v=2.22.1"></script>
+<script src="app.js?v=2.22.1"></script>
 </body>
 </html>
