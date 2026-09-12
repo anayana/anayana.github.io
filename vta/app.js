@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.21.0';
+const APP_VERSION = '2.21.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2102,6 +2102,38 @@ function syncNorth(quiet) {
 
 /* ============================= MODES ============================= */
 
+/* Chrome hands an AR session the camera image only if the page already holds
+   the camera permission. Asking for it inside the session is too late, and a
+   session started before the permission exists is a session that can never
+   photograph anything - which is exactly what "the photo does not work"
+   looked like. So it is asked for first, plainly, by opening the camera for a
+   moment and closing it again. It cannot be done in the same tap that starts
+   AR: awaiting it spends the tap, and requestSession then refuses. */
+let camPrimed = false;
+async function primeCamera() {
+  if (camPrimed) return true;
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+    st.getTracks().forEach(t => t.stop());
+    camPrimed = true;
+    return true;
+  } catch (e) {
+    toast('The camera was refused: ' + e.name + '. Allow it for this site in the address bar.');
+    return false;
+  }
+}
+async function cameraAllowed() {
+  if (camPrimed) return true;
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const st = await navigator.permissions.query({ name: 'camera' });
+      if (st.state === 'granted') { camPrimed = true; return true; }
+      return false;
+    }
+  } catch (e) {}
+  return false;
+}
+
 async function startXR() {
   if (!navigator.xr) throw new Error('navigator.xr missing');
   const ok = await navigator.xr.isSessionSupported('immersive-ar');
@@ -2297,6 +2329,9 @@ function tick() {
   $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
   if (edgeTick % 20 === 3) {
     const v = treeInView();
+    if ($('hDepth') && mode === 'WebXR' && !camAccessOk && !$('hDepth').textContent)
+      { $('hDepth').textContent = 'no camera in this session – photos need camera mode';
+        $('hDepth').className = 'warn'; }
     const el = $('hView');
     if (el) {
       el.textContent = !v ? '' : (v.sure ? 'this is ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m'
@@ -3628,9 +3663,20 @@ function takePhotoOf(tree, kind) {
   }
   if (mode === 'WebXR') {
     mbar('<b>This AR session was not given the camera</b><br>' +
-         'Chrome grants the camera image per session and did not this time, so a picture ' +
-         'cannot be taken from inside AR. Camera mode can take it - same tree, same record.',
-         [['Photograph in camera mode', () => {
+         'Chrome only hands a session the camera image if the page already holds the camera ' +
+         'permission, and this one did not when the session started. Allow it and start the ' +
+         'session again and photographs work inside AR.',
+         [['Allow the camera, restart AR', async () => {
+            $('mbar').classList.remove('on');
+            if (!(await primeCamera())) return;
+            const t = tree, k = kind;
+            endAR();
+            toast('Camera allowed. Press "AR" to start again – photos will work.');
+            // and try straight away: on most phones the tap is still good
+            try { await startXR(); if (camAccessOk) { shotFor = t; shotKind = k; } }
+            catch (e) { /* the user presses AR themselves */ }
+          }, 'p'],
+          ['Photograph in camera mode', () => {
             $('mbar').classList.remove('on');
             const t = tree, k = kind;
             endAR();
@@ -6689,6 +6735,13 @@ async function toAR(i) {
     return true;
   }
   if (!batteryOkForAR()) return false;
+  if (!(await cameraAllowed())) {
+    // one press to allow it, the next starts AR with photographs working
+    const got = await primeCamera();
+    toast(got ? 'Camera allowed – press AR again and photographs will work in it.'
+              : 'AR will run without photographs; camera mode can still take them.');
+    if (got) return false;
+  }
   try {
     /* requestSession needs the user's tap to still count, and awaiting
        anything first can spend it. The session is asked for first; the
@@ -6717,6 +6770,16 @@ function wire() {
 
   $('bxr').onclick = async () => {
     if (!batteryOkForAR()) return;
+    /* If the page does not hold the camera permission the session will start
+       without a camera image and no photograph can be taken in it. Get the
+       permission first - it costs one extra press, once, ever. */
+    if (!(await cameraAllowed())) {
+      msg('asking for the camera …');
+      const got = await primeCamera();
+      msg(got ? 'Camera allowed – press AR again to start with photographs.'
+              : 'Without the camera, AR still runs; photographs will need camera mode.');
+      if (got) return;
+    }
     msg('starting …');
     try { await startXR(); startGPS(); startOrient(); msg(''); }
     catch (e) { msg('WebXR: ' + e.message + ' → try camera mode'); }
