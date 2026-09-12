@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.21.1';
+const APP_VERSION = '2.22.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3661,31 +3661,67 @@ function takePhotoOf(tree, kind) {
     toast('Photographing ' + tid(tree) + ' …');
     return;
   }
+  /* The phone's own camera, through a file field. No WebXR feature to be
+     granted, no getUserMedia, no permission dance: the button opens the
+     camera app every Android has, and the picture comes back as a file. It
+     is the path that cannot fail, so it is the one that runs whenever the
+     clever ones are unavailable. Opening it may suspend the AR session; the
+     photograph is stored either way and the way back is one press. */
   if (mode === 'WebXR') {
-    mbar('<b>This AR session was not given the camera</b><br>' +
-         'Chrome only hands a session the camera image if the page already holds the camera ' +
-         'permission, and this one did not when the session started. Allow it and start the ' +
-         'session again and photographs work inside AR.',
-         [['Allow the camera, restart AR', async () => {
-            $('mbar').classList.remove('on');
-            if (!(await primeCamera())) return;
-            const t = tree, k = kind;
-            endAR();
-            toast('Camera allowed. Press "AR" to start again – photos will work.');
-            // and try straight away: on most phones the tap is still good
-            try { await startXR(); if (camAccessOk) { shotFor = t; shotKind = k; } }
-            catch (e) { /* the user presses AR themselves */ }
-          }, 'p'],
-          ['Photograph in camera mode', () => {
-            $('mbar').classList.remove('on');
-            const t = tree, k = kind;
-            endAR();
-            startCam().then(() => { setTimeout(() => { shotKind = k; takeVideoPhoto(t); }, 700); })
-                      .catch(e => toast('Camera mode failed: ' + e.message));
-          }, 'p'], ['Not now', () => $('mbar').classList.remove('on')]]);
+    filePhoto(tree, kind, true);
     return;
   }
-  toast('Start the camera first.');
+  filePhoto(tree, kind, false);
+}
+
+/* The phone's own camera through a file field: no WebXR feature to be
+   granted, no getUserMedia, no permission dance. The button opens the camera
+   app every Android has and the picture comes back as a file. It is the path
+   that cannot fail, so it is the one that runs whenever the clever ones are
+   not available. Opening it may suspend the AR session - that is what phones
+   do - and the photograph is stored either way, the way back one press. */
+let filePend = null;
+function filePhoto(tree, kind, wasAR) {
+  const inp = $('camFile');
+  if (!inp) return toast('No way to take a picture on this device.');
+  filePend = { tree: tree, kind: kind, wasAR: !!wasAR,
+               pos: mode ? camPos().clone() : null,
+               bearing: (mode === 'WebXR') ? camYawDeg() : heading };
+  inp.value = '';
+  inp.click();
+  toast('Take the picture of ' + tid(tree) + ' …');
+}
+function wireFilePhoto() {
+  const inp = $('camFile');
+  if (!inp) return;
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    const job = filePend; filePend = null;
+    inp.value = '';
+    if (!f || !job) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const k = Math.min(1, 1440 / Math.max(im.width, im.height));
+        const out = document.createElement('canvas');
+        out.width = Math.max(1, Math.round(im.width * k));
+        out.height = Math.max(1, Math.round(im.height * k));
+        out.getContext('2d').drawImage(im, 0, 0, out.width, out.height);
+        shotKind = job.kind;
+        storePhoto(job.tree, out, 'Phone camera', job);
+        if (job.wasAR && !mode)
+          mbar('<b>Photograph stored</b><br>The AR session stopped while the camera app was ' +
+               'open, which is what phones do.',
+               [['Back to AR', () => { $('mbar').classList.remove('on'); toAR(job.tree); }, 'p'],
+                ['Stay here', () => $('mbar').classList.remove('on')]]);
+      };
+      im.onerror = () => toast('That picture could not be read.');
+      im.src = fr.result;
+    };
+    fr.onerror = () => toast('That picture could not be read.');
+    fr.readAsDataURL(f);
+  };
 }
 
 function takeVideoPhoto(tree) {
@@ -3699,16 +3735,22 @@ function takeVideoPhoto(tree) {
   storePhoto(tree, out, 'Camera');
 }
 
-function storePhoto(tree, out, modeName) {
+function storePhoto(tree, out, modeName, job) {
   try {
     const meta = { mode: modeName || 'AR' };
-    const c = camPos();
-    const gp = sceneToWgs(c);
+    // the session may have ended while the camera app was open: what it knew
+    // at the moment the button was pressed is carried along
+    const c = (job && job.pos) ? job.pos : (mode ? camPos() : null);
+    const gp = (c && mode) ? sceneToWgs(c) : null;
     if (gp) { meta.lat = +gp.lat.toFixed(7); meta.lon = +gp.lon.toFixed(7); }
-    const nd = sceneNorthDeg();
-    meta.bearing = nd == null ? null : Math.round((camYawDeg() - nd + 360) % 360);
-    meta.h = +c.y.toFixed(2);
-    meta.pitch = Math.round(camPitchDeg());
+    else if (lastFix) { meta.lat = +lastFix.lat.toFixed(7); meta.lon = +lastFix.lon.toFixed(7); }
+    const nd = mode ? sceneNorthDeg() : null;
+    meta.bearing = (nd == null)
+      ? ((job && job.bearing != null) ? Math.round(job.bearing)
+         : (heading == null ? null : Math.round(heading)))
+      : Math.round((camYawDeg() - nd + 360) % 360);
+    if (c) meta.h = +c.y.toFixed(2);
+    if (mode) meta.pitch = Math.round(camPitchDeg());
     const kindNow = shotKind; shotKind = null;
     if (kindNow) meta.kind = kindNow;
     if (kindNow === 'bark') {
@@ -3739,7 +3781,7 @@ function storePhoto(tree, out, modeName) {
       }, 'image/jpeg', 0.8);
     }
     const g = world.children.find(o => o.userData.idx === tree);
-    if (g) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
+    if (g && c) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
 
     photoAdd(props(tree).tree_id, out.toDataURL('image/jpeg', 0.72), meta)
       .then(() => { toast('Photo of ' + props(tree).tree_id + ' stored.');
@@ -7084,6 +7126,7 @@ step('demo trees', () => { _demo = dropDemoTrees(); });
 step('scene', buildScene);
 step('markers', buildMarkers);
 step('buttons', wire);
+step('camera file', wireFilePhoto);
 step('map', wireMap);
 step('keyboard', watchKeyboard);
 step('daylight', applyDay);
