@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.35.0';
+const APP_VERSION = '2.36.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -940,29 +940,39 @@ function applyStandPair() {
   return false;
 }
 
-function standAtTree() {
+function standAtTree(idx) {
   if (mode !== 'WebXR') return toast('Only in the camera view.');
   /* Which tree you are standing at is a question for GPS, which is wrong by
      metres, and never for the scene, which - if the alignment is off - is
-     wrong by hundreds and would then confirm its own error. */
-  const i = nearestSurveyedByGps();
-  if (i == null) return toast('No surveyed tree near you to stand at.');
+     wrong by hundreds and would then confirm its own error. Unless, of
+     course, the inspector says which tree it is: a man standing at a trunk
+     reading the number off the plate knows better than any of it. */
+  const i = idx == null ? nearestSurveyedByGps() : idx;
+  if (i == null) return toast('No tree near you with a position to stand at.');
   if (lastFix) {
     const c0 = CAT.features[i].geometry.coordinates;
     const d0 = distBear(c0[1], c0[0], lastFix.lat, lastFix.lon).d;
-    if (d0 > Math.max(15, lastFix.acc * 2))
-      return toast('The nearest tree in the register is ' + d0.toFixed(0) + ' m away by GPS – ' +
-                   'walk to a tree you know, or record this one as new.');
+    if (d0 > Math.max(15, lastFix.acc * 2)) {
+      const far = tid(i) + ' is ' + d0.toFixed(0) + ' m away by GPS.';
+      if (idx == null)
+        return toast(far + ' Walk to a tree you know, or record this one as new.');
+      /* Named by hand: GPS is the thing more likely to be wrong, but a
+         mistaken tree moves the whole stand, so it is asked, not assumed. */
+      if (!confirm(far + '\n\nGPS can be that wrong under a canopy, and so can a ' +
+                   'register. Are you standing at this tree?')) return;
+    }
   }
   const l = localOf(i);
-  if (!l) return toast(tid(i) + ' has no surveyed position to hang the session on.');
+  if (!l) return toast(tid(i) + ' has no position to hang the session on.');
   const c = camPos(), r = reticleStem();
   const at = r ? { x: r.x, z: r.z } : { x: c.x, z: c.z };
   standPts = standPts.filter(p => p.i !== i);
   standPts.push({ i: i, x: at.x, z: at.z, l: l });
   if (applyStandPair()) return;
   if (!lockOnTree(i)) return toast('That did not work – ' + tid(i) + ' has no local position.');
-  toast('Standing at ' + tid(i) + ' · position exact, heading from the compass. ' +
+  toast('Standing at ' + tid(i) + ' · position exact' +
+        (hasLocal(props(i)) ? '' : ' as the register has it') +
+        ', heading from the compass. ' +
         'Walk to another known tree and press again – that fixes the heading too.');
 }
 
@@ -986,6 +996,10 @@ function lockOnTree(i) {
   placeMarkers(); requestAnchors(); showFit();
   return true;
 }
+/* A tree the app surveyed carries its own local coordinates; a tree out of a
+   city register carries a coordinate somebody else measured, often better than
+   anything a phone will manage. Both are worth standing at, the surveyed one
+   first when they are equally close. */
 function nearestSurveyedByGps() {
   if (!lastFix) return null;
   let best = null, bd = 1e9;
@@ -2527,7 +2541,24 @@ function tick() {
     const s = fitScale(1, _cp.distanceTo(_sp), t, b[0], b[1]);
     o.scale.set(b[0] * s, b[1] * s, 1);
   });
-  $('hNear').textContent = best ? (props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m') : '';
+  /* Which tree is nearest, said even when the scene is drawing nothing. A
+     marker is only as good as the alignment; GPS is metres out but it is out
+     by metres, and "89, six metres north-east" is the difference between an
+     inspector believing the register is empty and finding the tree. */
+  if (best) {
+    $('hNear').textContent = props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m';
+    $('hNear').className = '';
+  } else if (edgeTick % 20 === 7) {
+    const g = lastFix == null ? null : nearestByGps();
+    if (g == null) { $('hNear').textContent = ''; $('hNear').className = ''; }
+    else {
+      const c = CAT.features[g].geometry.coordinates;
+      const db = distBear(c[1], c[0], lastFix.lat, lastFix.lon);   // from me to the tree
+      $('hNear').textContent = 'nearest by GPS: ' + (props(g).tag_no || tid(g)) + ' · ' +
+                               db.d.toFixed(0) + ' m ' + bearWord(db.b);
+      $('hNear').className = 'warn';
+    }
+  }
   if (edgeTick % 20 === 3) {
     const v = treeInView();
     if ($('hDepth') && mode === 'WebXR' && !camAccessOk && !$('hDepth').textContent)
@@ -4597,12 +4628,35 @@ function runStemMatch(pts) {
         (n ? ' · ' + n + ' tree' + (n === 1 ? '' : 's') + ' recorded today moved onto it' : ''));
 }
 
+/* The list, inside AR.
+
+   Everything else in here finds the tree for you: the markers, the stem
+   matching, the ring round the trunk in view. All of it depends on the scene
+   being aligned, and while it is not, the man standing at the trunk with the
+   number on it in front of his nose cannot do the one thing that would settle
+   it - say which tree this is. So: the register, nearest first by GPS, with
+   the number searchable, and on every row the sentence that fixes the whole
+   session in one tap. */
+function bearWord(deg) {
+  const w = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return w[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+}
 function buildNumMenu(prefill) {
   const el = $('nummenu');
   el.innerHTML = '';
   const h = document.createElement('div');
-  h.innerHTML = '<b>Tree by number</b> <span class="small">· nearest first</span>';
+  h.innerHTML = '<b>Which tree is this?</b> <span class="small">· nearest first</span>';
   el.appendChild(h);
+  const st = document.createElement('div'); st.className = 'small';
+  st.style.margin = '2px 0 6px';
+  st.innerHTML = !CAT.features.length
+    ? 'Nothing in the register yet.'
+    : (lastFit ? 'Markers are aligned – the one in front of you is the one on the screen.'
+               : '<b class="wa">Markers are rough</b>, so what is drawn can be metres out. ' +
+                 'Find the tree you are standing at and press <b>I am here</b>: the whole stand ' +
+                 'snaps onto it.') +
+      (lastFix ? ' · GPS ±' + lastFix.acc.toFixed(0) + ' m' : ' · no GPS fix');
+  el.appendChild(st);
   const row = document.createElement('div'); row.className = 'row';
   const inp = document.createElement('input');
   inp.type = 'text'; inp.inputMode = 'numeric'; inp.id = 'numIn';
@@ -4619,17 +4673,33 @@ function buildNumMenu(prefill) {
       return;
     }
     hits.forEach(x => {
+      const line = document.createElement('div'); line.className = 'numline';
       const b = document.createElement('button'); b.className = 'numrow' + (x.exact ? ' ex' : '');
+      const c = CAT.features[x.i].geometry.coordinates;
+      const brg = (lastFix && x.d != null)
+        ? bearWord(distBear(c[1], c[0], lastFix.lat, lastFix.lon).b) : '';
       b.innerHTML = '<span><b>' + esc(x.p.tag_no || x.p.tree_id) + '</b> ' +
         '<span class="small">' + esc(x.p.species || '') + '</span>' +
+        (x.p.tag_no ? '<div class="small dim">' + esc(x.p.tree_id) + '</div>' : '') +
         (x.p.area ? '<div class="small dim">' + esc(x.p.area) + '</div>' : '') + '</span>' +
-        '<span class="small">' + (x.d == null ? '' : x.d.toFixed(x.d < 100 ? 1 : 0) + ' m') + '</span>';
+        '<span class="small">' + (x.d == null ? '' : x.d.toFixed(x.d < 100 ? 1 : 0) + ' m' +
+          (brg ? ' ' + brg : '')) + '</span>';
       b.onclick = () => {
-        selectTree(x.i);
+        selectTree(x.i); navTarget = x.i;
         el.style.display = 'none';
         openPanel(x.i);
       };
-      list.appendChild(b);
+      const here = document.createElement('button');
+      here.className = 'sm p here'; here.textContent = 'I am here';
+      here.title = 'Hang the whole scene on this tree';
+      here.disabled = mode !== 'WebXR';
+      here.onclick = () => {
+        el.style.display = 'none';
+        selectTree(x.i); navTarget = x.i;
+        standAtTree(x.i);
+      };
+      line.appendChild(b); line.appendChild(here);
+      list.appendChild(line);
     });
   };
   inp.oninput = draw; draw();
@@ -8040,6 +8110,13 @@ function wire() {
     const open = el.style.display !== 'block';
     if (open) buildRefMenu();
     closePopups('refmenu');
+    el.style.display = open ? 'block' : 'none';
+  };
+  $('bwhich').onclick = () => {
+    const el = $('nummenu');
+    const open = el.style.display !== 'block';
+    if (open) buildNumMenu('');
+    closePopups('nummenu');
     el.style.display = open ? 'block' : 'none';
   };
   $('balign').onclick = alignMenu;
