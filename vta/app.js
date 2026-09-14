@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.27.0';
+const APP_VERSION = '2.28.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -649,8 +649,7 @@ function addTreeHere() {
       toast('Continuing the survey from ' + (props(near).tag_no ? '№ ' + props(near).tag_no : tid(near)) +
             ' – match stems under Refs for a tighter lock.');
     } else {
-      const north = (heading != null) ? heading : 0;
-      S2P = { phi: THREE.MathUtils.degToRad(north), tx: c.x, tz: c.z };
+      S2P = { phi: heading != null ? phiFromHeading(heading) : 0, tx: c.x, tz: c.z };
       if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
       s2pFrom = 'this spot'; s2pRms = null; s2pAuto = false;
       placeMarkers(); requestAnchors(); showFit();
@@ -820,7 +819,9 @@ function checkFarFromStand() {
    is worse than that, nothing is within range and nothing happens - which is
    the right answer, not a wrong lock. */
 let stillSince = 0, stillAt = null, autoStood = 0;
-const STAND_R = 2.5, STAND_GAP = 4.0, STAND_STILL = 2000, STAND_MOVE = 0.35;
+const STAND_R = 2.5, STAND_GAP = 4.0, STAND_STILL = 2000, STAND_MOVE = 0.35,
+      STAND_ACC_AUTO = 8,    // a fix this good names the tree by itself
+      STAND_ACC_ASK = 15;    // up to this it asks; beyond it stays quiet
 function autoStand() {
   if (mode !== 'WebXR' || !S2P || sceneLocked || measure) return;
   if (lockStems >= 2) return;                       // already exact, leave it alone
@@ -836,7 +837,11 @@ function autoStand() {
      metres out in absolute terms but the register was built from GPS too, so
      standing at a tree the nearest entry is the right one - provided the next
      one is far enough behind it that no coin is being tossed. */
-  if (!lastFix || lastFix.acc > 8) return;
+  /* Under a canopy the fix is seldom inside eight metres, and then this
+     stage never fired at all. Up to fifteen it is still worth asking - the
+     question costs one tap, a wrong lock costs the session - and a tree you
+     stood at last time needs no asking at all. */
+  if (!lastFix || lastFix.acc > STAND_ACC_ASK) return;
   let best = null, bd = 1e9, second = 1e9;
   CAT.features.forEach((f, i) => {
     if (!hasLocal(props(i)) || !f.geometry) return;
@@ -850,16 +855,55 @@ function autoStand() {
   // the ring is the stem's foot; the phone is a step beside it
   const r = reticleStem();
   const at = r ? { x: r.x, z: r.z } : { x: c.x, z: c.z };
-  standPts.push({ i: best.i, x: at.x, z: at.z, l: { lx: best.e, ly: best.n }, auto: true });
   stillSince = performance.now() + 1e6;              // one per stop
+  const remembered = standMemo.some(m => m.i === best.i);
+  if (lastFix.acc > STAND_ACC_AUTO && !remembered) {
+    if (standAsked === best.i) return;               // asked already at this stop
+    standAsked = best.i;
+    mbar('<b>Standing at ' + esc(tid(best.i)) + '?</b><br>GPS is ±' + lastFix.acc.toFixed(0) +
+         ' m here, too rough to be sure by itself.',
+         [['Yes', () => { $('mbar').classList.remove('on');
+                          standPts.push({ i: best.i, x: at.x, z: at.z, l: { lx: best.e, ly: best.n }, auto: true });
+                          autoStood++; standTaken(best.i); }, 'p'],
+          ['No', () => { $('mbar').classList.remove('on'); }]]);
+    return;
+  }
+  standPts.push({ i: best.i, x: at.x, z: at.z, l: { lx: best.e, ly: best.n }, auto: true });
   autoStood++;
+  standTaken(best.i);
+}
+let standAsked = null;
+function standTaken(i) {
   if (!applyStandPair()) {
-    lockOnTree(best.i);
-    diag.match = 'standing at ' + tid(best.i) + ' – walk to another known tree and stop';
-    toast('At ' + tid(best.i) + ' – position taken. Stop at one more known tree and the ' +
+    lockOnTree(i);
+    diag.match = 'standing at ' + tid(i) + ' – walk to another known tree and stop';
+    toast('At ' + tid(i) + ' – position taken. Stop at one more known tree and the ' +
           'heading is exact too.');
   }
 }
+/* ---- what the last session learned ----
+   The session frame is new every time, so nothing in session coordinates
+   survives. The trees you stood at do: they are register trees, named by
+   index, and their plot coordinates do not change between sessions. Kept, so
+   the next session knows which two stops made it exact last time - and treats
+   a stop at one of them as evidence rather than a question. */
+const K_STAND = 'vta_stand_v1';
+let standMemo = [];
+function loadStandMemo() {
+  try {
+    const m = JSON.parse(lsGet(K_STAND)) || null;
+    standMemo = (m && m.plot === (PLOT && PLOT.id) && Array.isArray(m.pts)) ? m.pts : [];
+  } catch (e) { standMemo = []; }
+  // only trees that still exist with a local position
+  standMemo = standMemo.filter(m => CAT.features[m.i] && hasLocal(props(m.i)) &&
+                                    tid(m.i) === m.id);
+}
+function saveStandMemo(pts) {
+  standMemo = pts.map(p => ({ i: p.i, id: tid(p.i), l: p.l }));
+  lsSet(K_STAND, JSON.stringify({ plot: PLOT && PLOT.id, at: new Date().toISOString(),
+                                  pts: standMemo }));
+}
+
 /* Two stand points that agree with the register: the exact fit. */
 function applyStandPair() {
   for (let m = 0; m < standPts.length; m++)
@@ -873,6 +917,8 @@ function applyStandPair() {
       if (!f) continue;
       lockStems = 2;
       const k = rebaseSession();
+      saveStandMemo([a, b]);
+      persistStemAnchors([a, b]);
       diag.match = 'aligned on ' + tid(a.i) + ' and ' + tid(b.i) + ', ±' + f.rms.toFixed(2) + ' m';
       toast('Aligned by itself on ' + tid(a.i) + ' and ' + tid(b.i) + ' · ±' + f.rms.toFixed(2) + ' m' +
             (k ? ' · ' + k + ' recorded trees moved with it' : ''));
@@ -915,8 +961,11 @@ function lockOnTree(i) {
   const l = localOf(i);
   if (!l || !world) return false;
   const cam = camPos();
-  const north = (heading != null) ? heading : 0;
-  S2P = { phi: THREE.MathUtils.degToRad(north), tx: 0, tz: 0 };
+  /* Heading from the compass if there is one; otherwise keep the rotation
+     the session already has - a stand point fixes position, not heading, and
+     a rotation of zero is a guess dressed up as a measurement. */
+  const phi = heading != null ? phiFromHeading(heading) : (S2P ? S2P.phi : 0);
+  S2P = { phi: phi, tx: 0, tz: 0 };
   const at = s2pApply(l.lx, l.ly);
   S2P.tx = cam.x - at.x; S2P.tz = cam.z - at.z;
   s2pFrom = 'the tree you stand at'; s2pRms = null; s2pAuto = false;
@@ -1763,7 +1812,9 @@ function buildScene() {
   worldComp = new THREE.Group(); scene.add(worldComp);
   world = new THREE.Group(); worldComp.add(world);
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // a few sprites over a camera image do not need a 3x display's full
+  // resolution, and the passthrough compositor pays for every pixel
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   renderer.domElement.className = 'ar';
   renderer.domElement.style.display = 'none';   // three writes inline display:block, which beats the class
@@ -2000,25 +2051,33 @@ let autoSaid = false;
 function autoAlign(force) {
   if (!world || !mode || sceneLocked) return false;
   if (S2P && !force) return false;
-  if (!lastFix || heading == null || !plotGeoreferenced()) return false;
+  if (!lastFix || !plotGeoreferenced()) return false;
   // A ±30 m fix would put the whole stand thirty metres from where it is, and
   // a marker that far out is worse than no marker: wait for a better one.
   if (!(lastFix.acc <= AUTO_ACC)) return false;
   if (!CAT.features.some((f, i) => hasLocal(props(i)))) return false;
+  // the rotation: compass if there is one, the walk if there is not
+  let phi, from;
+  if (heading != null) { phi = phiFromHeading(heading); from = 'GPS and the compass'; }
+  else {
+    const w = phiFromTrack();
+    if (!w) return false;
+    phi = w.phi; from = 'GPS and ' + w.span.toFixed(0) + ' m walked';
+  }
   const l = wgsToPlot(lastFix.lat, lastFix.lon);
   if (!l) return false;
   const c = camPos();
   const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
-  S2P = { phi: THREE.MathUtils.degToRad(heading), tx: 0, tz: 0 };
+  S2P = { phi: phi, tx: 0, tz: 0 };
   const at = s2pApply(l.lx, l.ly);
   S2P.tx = c.x - at.x; S2P.tz = c.z - at.z;
-  s2pFrom = 'GPS and the compass'; s2pRms = lastFix.acc; s2pAuto = true;
+  s2pFrom = from; s2pRms = lastFix.acc; s2pAuto = true;
   glideFrom(prev);
   rebaseSession();
   placeMarkers(); requestAnchors(); showFit();
   if (!autoSaid) {
     autoSaid = true;
-    toast('Markers placed from GPS and the compass, ±' + lastFix.acc.toFixed(0) +
+    toast('Markers placed from ' + from + ', ±' + lastFix.acc.toFixed(0) +
           ' m. Walk a few steps and it corrects itself.');
   }
   return true;
@@ -2116,6 +2175,40 @@ function camYawDeg() {
   const f = new THREE.Vector3(0, 0, -1).transformDirection(cam.matrixWorld);
   return (Math.atan2(f.x, -f.z) * 180 / Math.PI + 360) % 360;
 }
+/* The rotation of the plot inside the session, from a compass reading.
+   S2P.phi is the bearing of the session's own -z axis - where the phone
+   pointed when the session began. The compass says where it points NOW, and
+   the two differ by however far the phone has turned since, which the session
+   knows exactly. Three places set phi straight from the heading and forgot
+   that; every test held the camera on identity, so nobody saw a lock taken
+   after a quarter turn land a quarter turn out. */
+function phiFromHeading(h) {
+  // and the plot is itself turned by PLOT.yaw against north: sceneNorthDeg()
+  // has always assumed phi carries that, and now it does
+  const yaw = (PLOT && PLOT.yaw) || 0;
+  return THREE.MathUtils.degToRad(((h - camYawDeg() - yaw) % 360 + 360) % 360);
+}
+/* And without a compass at all: two fixes far enough apart give the bearing
+   walked, and the session gives the same walk in its own frame. The angle
+   between them is phi outright, no heading needed. Cruder than the rigid fit
+   over many fixes that follows, but available after eight metres instead of
+   twelve, and on the phones that report no absolute heading at all. */
+function phiFromTrack() {
+  if (track.length < 2) return null;
+  let a = null, b = null, best = 0;
+  for (let i = 0; i < track.length; i++)
+    for (let j = i + 1; j < track.length; j++) {
+      const d = Math.hypot(track[i].x - track[j].x, track[i].z - track[j].z);
+      if (d > best) { best = d; a = track[i]; b = track[j]; }
+    }
+  if (!a || best < 8) return null;
+  const gpsB = distBear(b.lat, b.lon, a.lat, a.lon).b;               // bearing walked a -> b, true
+  const scB = (Math.atan2(b.x - a.x, -(b.z - a.z)) * 180 / Math.PI + 360) % 360;   // same walk, session
+  // scene bearing = true bearing - phi  ->  phi = true - scene ; and the plot
+  // is itself turned by PLOT.yaw against north
+  return { phi: THREE.MathUtils.degToRad(((gpsB - scB - (PLOT ? PLOT.yaw : 0)) % 360 + 360) % 360),
+           span: best, acc: Math.max(a.acc, b.acc) };
+}
 /* placeMarkers() writes session coordinates straight into each marker, so the
    group they hang in must not turn as well - a rotation here would be applied
    twice. worldYaw survives only for the camera-mode fallback and the compass
@@ -2196,6 +2289,7 @@ async function startXR() {
     throw err;
   }
   xrSession = s; mode = 'WebXR';
+  if (depthWanted()) depthTrialStart();
   renderer.xr.enabled = true;
   renderer.xr.setReferenceSpaceType('local-floor');
   await renderer.xr.setSession(s);
@@ -2246,6 +2340,8 @@ function xrFrame(t, frame) {
     if (stemAsk) { const q = stemAsk; stemAsk = null; guard('stem request', () => q(findStem())); }
     guard('hit test', () => updateHitTest(frame));
     guard('anchors', () => updateAnchors(frame));
+    if (panchWanted) guard('keep anchors', () => makeStemAnchors(frame));
+    if (!panchDone && panchRestored.size >= 2) guard('remembered anchors', () => fitFromRestored(frame));
     // depth is asked about once, on the first frame, and then only when
     // something actually wants a stem: no pipeline running on a timer
     if (depthOk === null && depthWanted()) guard('depth', () => probeDepth(frame));
@@ -2324,13 +2420,21 @@ function enterAR() {
   sessScene.clear(); standPts = [];
   stillAt = null; stillSince = 0; autoStood = 0; farSaid = false;
   stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false; stemScanAt = 0;
+  panchDone = false; panchWanted = null;
   const healed = plotHeal();
   if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
                     'put back together. Record a tree to fix it on the earth.');
+  loadStandMemo();
+  standAsked = null;
+  if (standMemo.length >= 2)
+    toast('Last time this went exact at ' + standMemo.map(m => m.id).join(' and ') +
+          ' – stop at either and it will again.');
   autoAlign();                  // aligning is not a thing the user should have to ask for
+  restoreStemAnchors();         // and if the phone itself remembers the stems, better still
 }
 function endAR() {
   renderer.setAnimationLoop(null);
+  lsDel(K_DTRIAL);                 // ended on purpose: not a death
   letSleep();
   clearMeasure();
   dropAnchors();
@@ -2361,6 +2465,7 @@ function endAR() {
 const _cp = new THREE.Vector3(), _sp = new THREE.Vector3();
 const LBL_W = 1.7, LBL_H = 0.85;          // label size in metres at scale 1
 const LBL_MAXW = 0.55, LBL_MAXH = 0.34;   // and never more than this share of the screen
+const LBL_MAX = 6;                        // labels on screen at once; the rest show a ring
 
 /* Sprites are sized in metres, so a label that reads well at 10 m swallows the
    whole display once you walk up to the stem. Cap the scale by what the label
@@ -2380,13 +2485,26 @@ function tick() {
   _cp.setFromMatrixPosition(cam.matrixWorld);
   const t = frustumTan(cam);
   let best = null, bd = 1e9;
+  /* Forty trees in view is forty labels over each other, and the label always
+     wins over the tree behind it. The nearest few get a label; the rest keep
+     their ring on the ground, which is what says "there is a tree here". */
+  const dists = [];
   sprites.forEach(sp => {
+    if (!sp.parent || !sp.parent.visible) return;
     sp.getWorldPosition(_sp);
     const d = _cp.distanceTo(_sp);
+    dists.push(d);
     const k = THREE.MathUtils.clamp(d / 7, 0.7, 3.4);      // keep the label readable at distance
     const s = fitScale(k, d, t, LBL_W, LBL_H);
     sp.scale.set(LBL_W * s, LBL_H * s, 1);
+    sp.userData.d = d;
     if (d < bd) { bd = d; best = sp; }
+  });
+  let cut = Infinity;
+  if (dists.length > LBL_MAX) { dists.sort((a, b) => a - b); cut = dists[LBL_MAX - 1]; }
+  sprites.forEach(sp => {
+    const keep = sp.userData.d <= cut || sp.userData.idx === selIdx;
+    if (sp.visible !== keep) sp.visible = keep;
   });
   // measurement read-outs sit wherever you tapped, sometimes at arm's length
   mObjs.forEach(o => {
@@ -2562,6 +2680,88 @@ function updateHitTest(frame) {
     }
   }
   hitPt = null; reticle.visible = false;
+}
+
+/* ---- anchors that outlive the session ----
+   ARCore can remember a place: an anchor given a persistent handle comes back
+   in a later session at the same spot on the earth, found again from what the
+   camera sees. Two of them, at two stems whose plot coordinates are known,
+   are a rigid fit the moment the phone recognises the place - before anyone
+   has walked anywhere or stood anywhere. Chrome for Android only, eight at
+   most per site, gone with the site data; everything here checks first and
+   does nothing on a phone that cannot. */
+const K_PANCH = 'vta_panchor_v1';
+let panchWanted = null, panchRestored = new Map();
+function persistentAnchorsOk() {
+  return !!(xrSession && typeof XRAnchor !== 'undefined' &&
+            'requestPersistentHandle' in XRAnchor.prototype &&
+            typeof xrSession.restorePersistentAnchor === 'function');
+}
+function persistStemAnchors(pts) {
+  if (!persistentAnchorsOk() || !anchorsOk) return;
+  // created on the next frame, where an XRFrame exists to create them in
+  panchWanted = pts.map(p => ({ i: p.i, id: tid(p.i), l: p.l, x: p.x, z: p.z }));
+}
+function makeStemAnchors(frame) {
+  const want = panchWanted; panchWanted = null;
+  if (!want || !frame || !xrRef) return;
+  const out = [];
+  // forget the old ones first: eight is the ceiling and each session leaves two
+  let old = [];
+  try { old = JSON.parse(lsGet(K_PANCH)) || []; } catch (e) { old = []; }
+  old.forEach(o => { try { xrSession.deletePersistentAnchor && xrSession.deletePersistentAnchor(o.h); } catch (e) {} });
+  want.forEach(p => {
+    let pr;
+    try { pr = frame.createAnchor(new XRRigidTransform({ x: p.x, y: 0, z: p.z }), xrRef); }
+    catch (e) { return; }
+    if (!pr || !pr.then) return;
+    pr.then(a => a.requestPersistentHandle()).then(h => {
+      out.push({ h: h, i: p.i, id: p.id, l: p.l, plot: PLOT && PLOT.id });
+      lsSet(K_PANCH, JSON.stringify(out));
+      diag.panch = out.length + ' stem' + (out.length === 1 ? '' : 's') + ' remembered by the phone';
+    }).catch(e => { diag.panch = 'could not keep an anchor: ' + ((e && e.message) || e); });
+  });
+}
+function restoreStemAnchors() {
+  panchRestored = new Map();
+  if (!persistentAnchorsOk()) { diag.panch = 'this browser keeps no anchors between sessions'; return; }
+  let kept = [];
+  try { kept = JSON.parse(lsGet(K_PANCH)) || []; } catch (e) { kept = []; }
+  kept = kept.filter(k => k.plot === (PLOT && PLOT.id) && CAT.features[k.i] && tid(k.i) === k.id);
+  if (kept.length < 2) { diag.panch = 'nothing remembered for this stand'; return; }
+  const have = xrSession.persistentAnchors || [];
+  kept.forEach(k => {
+    if (have.length && have.indexOf(k.h) < 0) return;
+    xrSession.restorePersistentAnchor(k.h)
+      .then(a => { panchRestored.set(k.i, { a: a, l: k.l }); diag.panch = panchRestored.size + ' remembered stems found again'; })
+      .catch(() => {});
+  });
+}
+/* Once two remembered anchors have a pose, the session is on the stand
+   exactly - the phone recognised the place. Checked from the frame loop until
+   it happens, then never again. */
+let panchDone = false;
+function fitFromRestored(frame) {
+  if (panchDone || panchRestored.size < 2 || !frame || !xrRef) return;
+  if (lockStems >= 2 && !s2pAuto) { panchDone = true; return; }    // already exact by other means
+  const pairs = [];
+  panchRestored.forEach((r, i) => {
+    let pose = null;
+    try { pose = frame.getPose(r.a.anchorSpace, xrRef); } catch (e) { pose = null; }
+    if (!pose) return;
+    pairs.push({ id: tid(i), i: i, l: r.l, s: { x: pose.transform.position.x, z: pose.transform.position.z } });
+  });
+  if (pairs.length < 2) return;
+  const d = Math.hypot(pairs[0].s.x - pairs[1].s.x, pairs[0].s.z - pairs[1].s.z);
+  const dl = Math.hypot(pairs[0].l.lx - pairs[1].l.lx, pairs[0].l.ly - pairs[1].l.ly);
+  if (d < 3 || Math.abs(d - dl) > 1.5) { panchDone = true; diag.panch = 'remembered stems do not fit the register any more'; return; }
+  const f = fitS2P(pairs, 'the stems the phone remembered');
+  if (!f) return;
+  panchDone = true; lockStems = 2;
+  standPts = pairs.map(pp => ({ i: pp.i, x: pp.s.x, z: pp.s.z, l: pp.l, auto: true }));
+  diag.match = 'the phone recognised the place – exact on ' + pairs.map(pp => pp.id).join(' and ');
+  toast('The phone recognised the place · exact on ' + pairs.map(pp => pp.id).join(' and ') +
+        ' · ±' + f.rms.toFixed(2) + ' m');
 }
 
 /* ---- anchors: let ARCore hold the markers in place ----
@@ -2946,7 +3146,30 @@ function finishCaliper() {
 }
 
 /* Off unless switched on: see the session request above. */
-function depthWanted() { return !!prefs().depth; }
+/* On unless this phone has shown it cannot take it. The first session with
+   depth writes a flag before it starts and clears it after twenty seconds of
+   running; if the tab dies in between there is nobody left to clear it, and
+   the next start finds the flag, switches depth off for this phone and says
+   so. Nobody has to know there is a switch. */
+const K_DTRIAL = 'vta_depth_trial_v1';
+function depthWanted() {
+  const d = prefs().depth;
+  if (d === true || d === false) return d;          // set by hand: obeyed
+  return prefs().depthBanned !== true;              // otherwise: try, unless it died once
+}
+function depthTrialStart() {
+  if (prefs().depth === true || prefs().depth === false || prefs().depthBanned) return;
+  lsSet(K_DTRIAL, String(Date.now()));
+  setTimeout(() => { if (mode === 'WebXR') { lsDel(K_DTRIAL); setPref('depthProven', true); } }, 20000);
+}
+function depthTrialCheck() {
+  const t = lsGet(K_DTRIAL);
+  if (!t) return false;
+  lsDel(K_DTRIAL);
+  if (prefs().depth === true || prefs().depth === false) return false;
+  setPref('depthBanned', true);
+  return true;
+}
 
 /* Whether this phone gives depth at all, said on the header rather than found
    out when a tree lands in the grass. */
@@ -4317,6 +4540,10 @@ function alignReport() {
   L.push(['Plot', plotGeoreferenced() ? (PLOT.provisional ? 'provisional' : 'set') +
           ', drift ' + plotDrift().worst.toFixed(1) + ' m' : 'none']);
   if (diag.absorb) L.push(['Georeference', diag.absorb]);
+  L.push(['Remembered stops', standMemo.length ? standMemo.map(m => m.id).join(', ') : 'none']);
+  L.push(['Anchors kept', diag.panch || 'not tried']);
+  L.push(['Depth', prefs().depth === true ? 'on by hand' : prefs().depth === false ? 'off by hand'
+                 : prefs().depthBanned ? 'off – died once' : prefs().depthProven ? 'on – proven' : 'on trial']);
   L.push(['Last error', lastErr || 'none']);
   L.push(['Version', APP_VERSION]);
   return L;
@@ -7572,19 +7799,27 @@ function wire() {
     toast('A recorded tree goes ' + stepOff().toFixed(1) + ' m ahead of you.');
   };
   const paintSafe = () => {
-    const on = depthWanted();
-    $('bSafe').textContent = 'Depth: ' + (on ? 'on' : 'off');
+    const d = prefs().depth, on = depthWanted();
+    const word = d === true ? 'on' : d === false ? 'off'
+               : prefs().depthBanned ? 'off – this phone died with it'
+               : prefs().depthProven ? 'on – this phone takes it' : 'auto – will try';
+    $('bSafe').textContent = 'Depth: ' + word;
     $('bSafe').classList.toggle('p', on);
   };
   paintSafe();
+  /* auto → on → off → auto. Setting it by hand clears what the watchdog
+     learned, because a hand on the switch is a person who knows better. */
   $('bSafe').onclick = () => {
-    setPref('depth', !depthWanted());
+    const d = prefs().depth;
+    const next = d == null ? true : d === true ? false : null;
+    const pr = prefs(); pr.depth = next; delete pr.depthBanned; delete pr.depthProven;
+    lsSet(K_PREF, JSON.stringify(pr));
     if (!depthWanted()) { stemScanOff = true; depthOk = false; }
     else { stemScanOff = false; }
     paintSafe();
-    toast(depthWanted()
-      ? 'Depth on – leave AR and come back for it to take effect. If the app dies a few seconds in, switch it off again.'
-      : 'Depth off – trees are recorded where you stand.');
+    toast(next === true ? 'Depth on – leave AR and come back for it to take effect.'
+        : next === false ? 'Depth off – trees are recorded where you stand.'
+        : 'Depth on trial – the next AR session tries it and remembers whether this phone survives.');
   };
   $('plotHere').onclick = () => {
     if (!lastFix) return toast('No GPS fix.');
@@ -7714,6 +7949,11 @@ step('map', wireMap);
 step('keyboard', watchKeyboard);
 step('daylight', applyDay);
 step('battery', watchBattery);
+step('depth watchdog', () => {
+  if (depthTrialCheck())
+    setTimeout(() => toast('The last AR session died with depth on. Depth is off for this phone now; ' +
+                           'Data → App switches it back if you want to try again.'), 800);
+});
 step('storage', () => storageCheck(true));
 step('checks', checks);
 step('list', renderList);
