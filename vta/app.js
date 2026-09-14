@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.32.0';
+const APP_VERSION = '2.33.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5827,6 +5827,44 @@ function movedTrees() {
    unique, which a running number is only within one phone. An optional prefix
    keeps two surveyors from both producing 00001; the bin is counted too, so
    restoring a deleted tree cannot land on a number given out since. */
+/* The prefix is a stamp of place, not of the phone: DE-B-00042 was given out
+   in Berlin, EE-TLN-00007 in Tallinn. It is set from the position of the tree
+   being recorded, so a survey that crosses a town line carries the line with
+   it; a surveyor who types a prefix of their own keeps it for good. */
+const PREFIX_AUTO = /^[A-Z]{2}-([A-Z]{1,3}-)?$/;
+function autoPrefix(lat, lon) {
+  const pf = prefs();
+  const have = (pf.idPrefix || '').trim();
+  if (pf.idPrefixManual) return null;
+  if (have && !PREFIX_AUTO.test(have)) return null;
+  const want = placePrefix(lat, lon);
+  if (!want || want === have) return null;
+  setPref('idPrefix', want);
+  if (typeof paintPrefix === 'function') paintPrefix();
+  return want;
+}
+
+/* What the letters mean, said once, where the field is. */
+function paintPrefix() {
+  const el = $('prefixHint'); if (!el) return;
+  const pf = prefs(), pre = (pf.idPrefix || '').trim();
+  const here = lastFix ? placeOf(lastFix.lat, lastFix.lon) : null;
+  const parts = [];
+  parts.push('Next tree: <b>' + esc(nextTreeId()) + '</b>.');
+  if (pre) {
+    const m = pre.match(/^([A-Z]{2})-([A-Z]{1,3})-$/);
+    const t = m && PLACE_BOX.find(b => b[0] === m[2]);
+    if (m && t) parts.push(esc(m[1]) + ' is the country, ' + esc(m[2]) + ' the town (' + esc(t[1]) + ').');
+    else if (/^([A-Z]{2})-$/.test(pre)) parts.push(esc(pre.slice(0, 2)) + ' is the country; the town is not in the list.');
+    else parts.push('Your own prefix.');
+  } else parts.push('No prefix – plain numbers.');
+  if (pf.idPrefixManual) parts.push('Set by hand, so the app leaves it alone.');
+  else if (here) parts.push('Follows where you stand (now ' + esc(here.label) + ').');
+  else parts.push('Set from the position of the first tree you record.');
+  parts.push('It rides along in exports, so a number still says where it came from when two surveys meet in one file.');
+  el.innerHTML = parts.join(' ');
+}
+
 function nextTreeId() {
   const pre = (prefs().idPrefix || '').trim();
   let max = 0;
@@ -5850,6 +5888,7 @@ function addTree(lon, lat, source, acc, local, quiet) {
     if (near && !confirm(tid(near.i) + ' is already recorded ' + near.d.toFixed(1) +
         ' m from here. Add another tree anyway?')) return near.i;
   }
+  autoPrefix(lat, lon);
   const id = nextTreeId();
   const today = new Date().toISOString().slice(0, 10);
   CAT.features.push({
@@ -8139,9 +8178,25 @@ function wire() {
   $('prefInspector').onchange = () => setPref('inspector', $('prefInspector').value.trim());
   $('prefPrefix').value = pf.idPrefix || '';
   $('prefPrefix').onchange = () => {
-    setPref('idPrefix', $('prefPrefix').value.trim());
+    const v = $('prefPrefix').value.trim();
+    setPref('idPrefix', v);
+    setPref('idPrefixManual', !!v && v !== placePrefix(lastFix && lastFix.lat, lastFix && lastFix.lon));
+    paintPrefix(); toast('Next tree will be ' + nextTreeId() + '.');
+  };
+  $('bPrefixHere').onclick = () => {
+    if (!lastFix) return toast('No position yet – the prefix comes from where you stand.');
+    const want = placePrefix(lastFix.lat, lastFix.lon);
+    if (!want) return toast('This place is not in the list – type a prefix of your own.');
+    setPref('idPrefix', want); setPref('idPrefixManual', false);
+    $('prefPrefix').value = want; paintPrefix();
     toast('Next tree will be ' + nextTreeId() + '.');
   };
+  $('bPrefixOff').onclick = () => {
+    setPref('idPrefix', ''); setPref('idPrefixManual', true);
+    $('prefPrefix').value = ''; paintPrefix();
+    toast('Next tree will be ' + nextTreeId() + '.');
+  };
+  paintPrefix();
   $('roundStart').onclick = () => {
     if (!userCan('edit')) return toast('A viewer cannot run a round.');
     const who = (curUser() ? curUser().name : ($('prefInspector').value || '')).trim();

@@ -219,3 +219,55 @@ function countryOf(lat, lon) {
 }
 const COUNTRY_NORM = { EE: 'ee', FI: 'fi', DE: 'fll', AT: 'onorm', CH: 'vssg', NL: 'bvc', GB: 'quant', US: 'quant' };
 function normForCountry(cc) { return COUNTRY_NORM[cc] || null; }
+
+/* ---------------------------------------------------------------------------
+   WHERE A NUMBER WAS GIVEN OUT
+
+   Tree numbers run 00001, 00002 - fine on one phone, useless the moment two
+   surveys meet in one file. A short code in front says at a glance where the
+   number comes from: DE-B-00042 was given out in Berlin, EE-TLN-00007 in
+   Tallinn. The country comes from the boxes above, the town from the list
+   here; a town nobody listed leaves the country code alone (DE-00042), and
+   outside every box the number stays bare. The codes are the short ones
+   people already use - German number plates, airport-style letters - because
+   they are meant to be read, not parsed.
+   ------------------------------------------------------------------------ */
+const PLACE_BOX = [
+  // code, town, lat0, lat1, lon0, lon1        (Tharandt before Dresden: it sits in its corner)
+  ['TH',  'Tharandt',  50.93, 51.02, 13.51, 13.65],
+  ['B',   'Berlin',    52.34, 52.68, 13.09, 13.77],
+  ['HH',  'Hamburg',   53.39, 53.74,  9.73, 10.32],
+  ['M',   'Munich',    48.06, 48.25, 11.36, 11.72],
+  ['K',   'Cologne',   50.83, 51.09,  6.77,  7.16],
+  ['F',   'Frankfurt', 50.02, 50.23,  8.47,  8.80],
+  ['S',   'Stuttgart', 48.69, 48.87,  9.04,  9.32],
+  ['DD',  'Dresden',   50.97, 51.18, 13.58, 13.97],
+  ['L',   'Leipzig',   51.24, 51.42, 12.24, 12.54],
+  ['H',   'Hanover',   52.30, 52.45,  9.60,  9.92],
+  ['W',   'Vienna',    48.10, 48.33, 16.18, 16.58],
+  ['GZ',  'Graz',      47.00, 47.13, 15.35, 15.53],
+  ['ZH',  'Zurich',    47.32, 47.44,  8.44,  8.63],
+  ['BS',  'Basel',     47.51, 47.60,  7.55,  7.66],
+  ['AMS', 'Amsterdam', 52.28, 52.43,  4.72,  5.07],
+  ['RTM', 'Rotterdam', 51.85, 51.99,  4.32,  4.60],
+  ['LDN', 'London',    51.28, 51.70, -0.52,  0.34],
+  ['TLN', 'Tallinn',   59.33, 59.53, 24.55, 24.95],
+  ['TRT', 'Tartu',     58.33, 58.42, 26.63, 26.79],
+  ['TRE', 'Tampere',   61.40, 61.56, 23.60, 23.95],
+  ['HKI', 'Helsinki',  60.11, 60.30, 24.78, 25.26],
+  ['NYC', 'New York',  40.48, 40.93, -74.27, -73.68]
+];
+/* { cc, code, town, label } - code is null when only the country is known. */
+function placeOf(lat, lon) {
+  const cc = countryOf(lat, lon);
+  if (!cc) return null;
+  for (const b of PLACE_BOX) if (lat >= b[2] && lat <= b[3] && lon >= b[4] && lon <= b[5])
+    return { cc: cc, code: b[0], town: b[1], label: cc + '-' + b[0] + ' · ' + b[1] };
+  return { cc: cc, code: null, town: null, label: cc };
+}
+/* The prefix itself, trailing dash and all: 'DE-B-', 'FI-', or '' if nowhere. */
+function placePrefix(lat, lon) {
+  const p = placeOf(lat, lon);
+  if (!p) return '';
+  return p.cc + '-' + (p.code ? p.code + '-' : '');
+}
