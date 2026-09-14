@@ -284,6 +284,25 @@ table.hist th{color:#8fa697;font-weight:500}
 #shotok .tx{flex:1 1 auto;min-width:0}
 #shotok .tx b{display:block;font-size:14px}
 #shotok .bs{display:flex;gap:6px;flex:0 0 auto}
+#mapdlg{position:fixed;inset:0;z-index:12;background:rgba(6,10,8,.97);display:none}
+#mapdlg .inner{display:flex;flex-direction:column;height:100%}
+#mapdlg .ph{flex:0 0 auto}
+#mapdlg .pb{flex:1 1 auto;overflow:auto;padding:0 8px 20px}
+#mapTab{width:100%;border-collapse:collapse;font-size:12.5px}
+#mapTab th{text-align:left;color:#7f9488;font-weight:600;padding:6px 4px;
+  position:sticky;top:0;background:#0a120d;border-bottom:1px solid #223029}
+#mapTab td{padding:5px 4px;border-bottom:1px solid #16201a;vertical-align:top}
+#mapTab td.src{color:#cfe0d5;word-break:break-word;max-width:34%}
+#mapTab select{width:100%;font-size:12.5px;padding:4px}
+#mapTab .ex{color:#6f8579;font-size:11px;word-break:break-word}
+#mapTab .cf{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:11px}
+#mapTab .cf.hi{color:#7fd0a0}#mapTab .cf.mid{color:#e8c15a}#mapTab .cf.lo{color:#8b9a91}
+#mapWarn{padding:0 12px}
+#mapWarn div{background:#2a1a14;border:1px solid #7d4a30;border-radius:9px;
+  padding:7px 10px;margin:6px 0;font-size:12.5px}
+#mapWarn div.ok{background:#12271b;border-color:#2f6a48}
+#sampleBox{display:flex;flex-direction:column;gap:5px}
+#sampleBox button{text-align:left}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:10;background:#1e3128;
   pointer-events:none;
   border:1px solid #3f8a60;border-radius:10px;padding:9px 14px;font-size:13.5px;display:none;max-width:88%}
@@ -463,6 +482,19 @@ table.hist th{color:#8fa697;font-weight:500}
       <p class="small">This is what the app can and cannot see. If a session will not
         align itself, the answer is one of these lines.</p>
 
+      <h3>Standard</h3>
+      <div class="row"><label>Work to</label><select id="normSel"></select></div>
+      <p class="small" id="normNote"></p>
+      <p class="small">The standard decides which questions the form asks, in which order, and
+        what the verdict is called. It does not change the trees: the same register can be
+        handed over as a German protocol or a Dutch boomveiligheidscontrole.</p>
+
+      <h3>Example registers</h3>
+      <div id="sampleBox"></div>
+      <p class="small">Small demonstration sets, each shaped like a real municipal register
+        from that country, to try the column reader on. The rows are made up; the column
+        names are not.</p>
+
       <h3>Moved positions</h3>
       <div id="movedList"></div>
 
@@ -554,12 +586,23 @@ table.hist th{color:#8fa697;font-weight:500}
   <div class="panel" id="panelXR"></div>
 </div>
 
+<div id="mapdlg"><div class="inner">
+  <div class="ph"><div><h2>Does this read your register correctly?</h2>
+    <div class="sub" id="mapSub"></div></div>
+    <button id="mapGo" class="p">Import</button><button id="mapX">Cancel</button></div>
+  <div id="mapWarn"></div>
+  <div class="pb"><table id="mapTab"></table></div>
+</div></div>
+
 <div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.24.1"></script>
-<script src="data.js?v=2.24.1"></script>
-<script src="app.js?v=2.24.1"></script>
+<script src="vendor/three.min.js?v=2.25.0"></script>
+<script src="data.js?v=2.25.0"></script>
+<script src="norms.js?v=2.25.0"></script>
+<script src="mapper.js?v=2.25.0"></script>
+<script src="samples.js?v=2.25.0"></script>
+<script src="app.js?v=2.25.0"></script>
 </body>
 </html>

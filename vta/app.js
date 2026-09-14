@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.24.1';
+const APP_VERSION = '2.25.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -131,6 +131,9 @@ FUNGI.forEach(f => { FUNGI_BY[f[0]] = f; });
 const FUNGI_WHERE = { root: 'Root plate and butt', stem: 'Stem', crown: 'Crown and branches' };
 
 const SAFE = ['adequate', 'restricted', 'not given'];
+/* The legacy field list. The panel is driven by the norm profiles in norms.js
+   now; this stays only as the column order the CSV has always had, so an
+   existing spreadsheet keeps working. */
 const F_VTA = [
   ['inspection_type', 'Inspection type', 'select', ['Routine inspection', 'Visual inspection', 'Detailed assessment', 'Post-storm inspection']],
   ['last_inspection', 'Inspection date', 'date'],
@@ -5603,22 +5606,21 @@ function openPanel(i, tab) {
   /* --- quick: the handful of fields most trees actually need --- */
   const qk = secs.quick;
   const qv = document.createElement('div'); qv.id = 'verdictQuick'; qk.appendChild(qv);
-  [['tag_no', 'Number on the trunk', 'text'],
-   ['species', 'Species (scientific)', 'species'],
-   ['dbh_cm', 'DBH at 1.3 m (cm)', 'number'],
-   ['vitality_roloff', 'Vitality (Roloff 0–3)', 'select', [0, 1, 2, 3]],
-   ['crown_dieback_pct', 'Crown dieback (%)', 'number'],
-   ['damage_class', 'Damage class', 'select', ['none', 'slight', 'moderate', 'severe']],
-   ['traffic_safety', 'Traffic safety', 'select', SAFE],
-   ['urgency', 'Urgency', 'select', ['none', 'next growing season', '3 months', '1 month', 'immediate']],
-   ['remarks', 'Remarks', 'area']].forEach(f => qk.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  curNorm().quick.map(fieldDef)
+    .forEach(f => qk.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
   qk.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', updateVerdict));
 
   /* --- VTA --- */
   const v = secs.vta;
   const vd = document.createElement('div'); vd.id = 'verdictBox'; v.appendChild(vd);
-  const h1 = document.createElement('h3'); h1.textContent = 'Inspection'; v.appendChild(h1);
-  F_VTA.forEach(f => v.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  const nrm = curNorm();
+  const nh = document.createElement('p'); nh.className = 'small';
+  nh.textContent = nrm.flag + ' ' + nrm.label + ' · ' + nrm.source;
+  v.appendChild(nh);
+  nrm.groups.forEach(g => {
+    const hg = document.createElement('h3'); hg.textContent = g[0]; v.appendChild(hg);
+    g[1].map(fieldDef).forEach(f => v.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  });
   const h2 = document.createElement('h3'); h2.textContent = 'Symptoms (VTA)'; v.appendChild(h2);
   const sel = p.symptoms || [];
   SYMPTOMS.forEach(pair => {
@@ -6092,6 +6094,18 @@ function voiceStop() { if (recorder && recorder.state !== 'inactive') recorder.s
    a free-text inspector field retyped fifty times and no record of coverage at
    all. A round names itself once, stamps every tree saved while it is open,
    and can say what it has not reached yet. */
+/* ---- which national standard this survey is worked to -------------------
+   The profile decides the questions, their order and what the verdict is
+   called. It is a preference, not part of the data: the same trees can be
+   handed over as an FLL protocol or a Dutch BVC. */
+function curNorm() { return normById(prefs().norm || 'fll'); }
+function setNorm(id) { setPref('norm', normById(id).id); }
+function fieldDef(k) {
+  if (FIELDS[k]) return FIELDS[k];
+  const b = F_BASE.find(f => f[0] === k);
+  return b || [k, k, 'text'];
+}
+
 function prefs() { try { return JSON.parse(lsGet(K_PREF)) || {}; } catch (e) { return {}; } }
 function setPref(k, v) { const p = prefs(); p[k] = v; lsSet(K_PREF, JSON.stringify(p)); }
 function roundGet() { try { return JSON.parse(lsGet(K_ROUND)) || null; } catch (e) { return null; } }
@@ -6852,16 +6866,25 @@ const CSVCOLS = ['tree_id', 'lon', 'lat', 'species', 'name_en', 'planted', 'girt
   'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'target_type', 'target_distance_m', 'stability', 'breakage_resistance',
   'traffic_safety', 'target_occupancy', 'urgency', 'symptoms', 'fungi_labels', 'actions', 'inspection_type', 'last_inspection',
   'next_inspection', 'interval_months', 'inspector', 'remarks'];
+/* The header is the historic order first, then anything a national profile
+   adds, so a file opened in a spreadsheet looks the same as it always did and
+   the extra columns follow at the end instead of shuffling the familiar ones. */
+function csvCols() {
+  const out = CSVCOLS.slice();
+  allNormKeys().forEach(k => { if (out.indexOf(k) < 0) out.push(k); });
+  return out;
+}
 function csv() {
   const q = v => {
     if (v == null) return '';
     const s = Array.isArray(v) ? v.join(' | ') : String(v);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
-  const rows = [CSVCOLS.join(',')];
+  const COLS = csvCols();
+  const rows = [COLS.join(',')];
   CAT.features.forEach((f, i) => {
     const p = props(i), a = assess(p), c = f.geometry.coordinates;
-    const r = CSVCOLS.map(k => {
+    const r = COLS.map(k => {
       if (k === 'lon') return c[0];
       if (k === 'lat') return c[1];
       if (k === 't_R') return a.tr == null ? '' : a.tr.toFixed(3);
@@ -6875,6 +6898,157 @@ function csv() {
   return rows.join('\r\n');
 }
 function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
+
+/* ================== READING A STRANGER'S REGISTER ==================
+   The column reader lives in mapper.js; this is the part the inspector sees.
+   Nothing is written to the register until the table has been looked at and
+   the Import button pressed. */
+let mapState = null;
+
+function looksOurs(txt) {
+  const t = String(txt).trim();
+  if (t[0] !== '{' && t[0] !== '[') return false;       // CSV is never ours
+  try {
+    const j = JSON.parse(t);
+    const f = (j.features || [])[0];
+    return !!(f && f.properties && (f.properties.tree_id != null || f.properties.is_reference));
+  } catch (e) { return false; }
+}
+
+function openMapper(text, name) {
+  const parsed = parseRegisterFile(text);
+  const plan = planMapping(parsed.cols, parsed.rows);
+  mapState = { parsed: parsed, plan: plan, name: name || 'file' };
+  $('mapSub').textContent = (name ? name + ' · ' : '') + parsed.rows.length + ' row' +
+    (parsed.rows.length === 1 ? '' : 's') + ' · ' + parsed.cols.length + ' columns' +
+    (parsed.sep ? ' · separator "' + (parsed.sep === '\t' ? 'tab' : parsed.sep) + '"' : '');
+  buildMapTable();
+  $('mapdlg').style.display = 'block';
+}
+
+function mapTargets() {
+  const keys = Object.keys(COLSYN);
+  return keys.map(k => [k, (fieldDef(k) || [k, k])[1] || k])
+             .sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+function buildMapTable() {
+  const t = $('mapTab'); t.innerHTML = '';
+  const hd = document.createElement('tr');
+  hd.innerHTML = '<th>Column in your file</th><th>Read as</th><th>Sure</th>';
+  t.appendChild(hd);
+  const targets = mapTargets();
+  mapState.plan.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.className = 'src';
+    td1.innerHTML = '<b>' + esc(r.col) + '</b>';
+    if (r.sample.length) {
+      const ex = document.createElement('div'); ex.className = 'ex';
+      ex.textContent = r.sample.map(x => x.length > 22 ? x.slice(0, 22) + '…' : x).join(' · ');
+      td1.appendChild(ex);
+    }
+    tr.appendChild(td1);
+
+    const td2 = document.createElement('td');
+    const sel = document.createElement('select');
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = '— keep as your own column —';
+    sel.appendChild(none);
+    targets.forEach(pair => {
+      const o = document.createElement('option');
+      o.value = pair[0]; o.textContent = pair[1]; sel.appendChild(o);
+    });
+    sel.value = r.key || '';
+    sel.onchange = () => {
+      const v = sel.value;
+      if (v) mapState.plan.forEach((o, j) => {      // a field can only be filled once
+        if (j !== i && o.key === v) { o.key = ''; o.conf = 0; }
+      });
+      r.key = v; r.conf = v ? (r.conf || 100) : 0; r.manual = true;
+      buildMapTable();
+    };
+    td2.appendChild(sel);
+    tr.appendChild(td2);
+
+    const td3 = document.createElement('td');
+    const cf = document.createElement('span');
+    cf.className = 'cf ' + (r.manual ? 'hi' : r.conf >= 80 ? 'hi' : r.conf >= 60 ? 'mid' : 'lo');
+    cf.textContent = r.manual ? 'you' : r.key ? r.conf + ' %' : (r.dup ? 'dup.' : '–');
+    if (r.guessed && !r.manual) cf.title = 'guessed from the values, not from the column name';
+    td3.appendChild(cf);
+    if (r.rival && !r.manual && r.key) {
+      const w = document.createElement('div'); w.className = 'ex';
+      w.textContent = r.guessed ? 'from values' : 'check';
+      td3.appendChild(w);
+    }
+    tr.appendChild(td3);
+    t.appendChild(tr);
+  });
+  paintMapWarn();
+}
+
+function paintMapWarn() {
+  const box = $('mapWarn'); box.innerHTML = '';
+  const have = {}; mapState.plan.forEach(r => { if (r.key) have[r.key] = r.col; });
+  const geo = mapState.parsed.geo;
+  const say = (cls, txt) => {
+    const d = document.createElement('div'); if (cls) d.className = cls;
+    d.textContent = txt; box.appendChild(d);
+  };
+  const pos = geo || (have.lat && have.lon);
+  if (!pos) say('', 'No position. Pick the columns holding latitude and longitude, or the ' +
+                    'trees cannot go on the map. Metric grid coordinates are not read here.');
+  if (!have.tree_id && !have.tag_no)
+    say('', 'No tree number. Numbers will be made up as IMP-00001 and onwards, and a later ' +
+            'delivery from the same source will not find its way back to these trees.');
+  const unsure = mapState.plan.filter(r => r.key && !r.manual && (r.conf < 70 || r.rival));
+  if (unsure.length)
+    say('', unsure.length + ' column' + (unsure.length === 1 ? '' : 's') +
+            ' read with little confidence: ' + unsure.map(r => r.col).join(', ') +
+            '. Look at these before importing.');
+  const kept = mapState.plan.filter(r => !r.key).length;
+  if (pos && !unsure.length)
+    say('ok', 'The reading looks clean.' + (kept ? ' ' + kept + ' column' + (kept === 1 ? '' : 's') +
+        ' will be carried along unchanged under src_.' : ''));
+  $('mapGo').disabled = !pos;
+}
+
+function closeMapper() { $('mapdlg').style.display = 'none'; mapState = null; }
+
+function runMapper() {
+  if (!mapState) return;
+  let r;
+  try { r = applyMapping(mapState.parsed, mapState.plan); }
+  catch (e) { return alert('Import failed: ' + ((e && e.message) || e)); }
+  if (!r.features.length) return alert('Nothing usable in the file: every row lacked a position.');
+  const rep = mergeCatalogue(r.features, false);
+  closeMapper();
+  buildMarkers(); renderList(); renderStats();
+  alert('Register read.\n\n' + rep.added + ' new tree' + (rep.added === 1 ? '' : 's') +
+        '\n' + rep.filled + ' existing filled in' +
+        '\n' + rep.kept + ' left as they were' +
+        (r.skipped.length ? '\n' + r.skipped.length + ' row' +
+          (r.skipped.length === 1 ? '' : 's') + ' without a usable position' : '') +
+        '\n\nThese are register positions. Stand at each stem and record it to get a survey.');
+}
+
+/* ---- the examples ----------------------------------------------------
+   One small set per country, shaped exactly like that country's municipal
+   export. The rows are invented; the column names are the real ones, which
+   is the whole point of having them. */
+function buildSamples() {
+  const box = $('sampleBox'); if (!box) return;
+  box.innerHTML = '';
+  SAMPLES.forEach(sm => {
+    const b = document.createElement('button');
+    b.innerHTML = sm.flag + ' <b>' + esc(sm.label) + '</b> · ' + sm.n + ' trees · ' +
+                  esc(sm.fmt);
+    b.onclick = () => { try { openMapper(sm.text(), sm.file); }
+                        catch (e) { alert('Sample failed: ' + ((e && e.message) || e)); } };
+    box.appendChild(b);
+  });
+}
+
 
 /* ============================ START ============================ */
 
@@ -7069,8 +7243,17 @@ function wire() {
     const f = $('fileImp').files && $('fileImp').files[0]; if (!f) return;
     const rd = new FileReader();
     rd.onload = () => {
+      /* A register of ours round-trips without questions. Anything else is a
+         stranger's file and goes through the column reader first. */
+      const txt = String(rd.result);
+      if (!looksOurs(txt)) {
+        $('fileImp').value = '';
+        try { openMapper(txt, f.name); }
+        catch (e) { alert('That file could not be read: ' + ((e && e.message) || e)); }
+        return;
+      }
       try {
-        const j = JSON.parse(rd.result);
+        const j = JSON.parse(txt);
         const all = (j.features || []).filter(x => x.geometry &&
           (x.geometry.type === 'Point' || x.geometry.type === 'MultiPoint'));
         if (!all.length) throw new Error('no point features found');
@@ -7122,6 +7305,24 @@ function wire() {
     };
     rd.readAsText(f);
   };
+  $('mapX').onclick = closeMapper;
+  $('mapGo').onclick = runMapper;
+  const normSel = $('normSel');
+  NORMS.forEach(n => { const o = document.createElement('option');
+    o.value = n.id; o.textContent = n.flag + ' ' + n.label; normSel.appendChild(o); });
+  const paintNorm = () => {
+    const n = curNorm();
+    normSel.value = n.id;
+    $('normNote').textContent = n.note + ' — ' + n.source;
+  };
+  paintNorm();
+  normSel.onchange = () => {
+    setNorm(normSel.value); paintNorm();
+    if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+    renderList();
+    toast('Form set to ' + curNorm().label + '.');
+  };
+  buildSamples();
   const paintFollow = () => {
     $('bScroll').textContent = 'Follow the form: ' + (followForm() ? 'on' : 'off');
     $('bScroll').classList.toggle('p', followForm());
