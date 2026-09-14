@@ -85,6 +85,8 @@ const FIELDS = {
      A dendrological inventory in Estonia ends in a value class from I (of
      particular value) to V (to be removed) and one word on what to do. */
   value_class: ['value_class', 'Value class', 'select', ['', 'I', 'II', 'III', 'IV', 'V']],
+  /* Finnish municipal registers grade a tree 1 to 4 by eye */
+  condition_class: ['condition_class', 'Condition class', 'select', ['', '1', '2', '3', '4']],
   recommendation: ['recommendation', 'Recommendation', 'select',
     ['', 'keep', 'maintain', 'remove', 'replace']],
 
@@ -197,6 +199,26 @@ const NORMS = [
                       'interval_months', 'next_inspection', 'remarks']]
     ],
     reportTitle: 'Puittaimestiku inventeerimise aruanne'
+  },
+  {
+    id: 'fi', cc: 'FI', flag: '🇫🇮',
+    label: 'Finland — municipal tree register',
+    source: 'Municipal practice (Tampere, Helsinki): visual condition class 1–4; Viherympäristöliitto guidance, KAM ’19 valuation',
+    note: 'Finland has no statutory single-tree inspection standard. Cities keep a register with ' +
+          'species, girth, height, crown, planting year and a condition class from 1 (good) to 4 ' +
+          '(poor) assessed by eye, with a measure and its urgency.',
+    defaultInterval: 12,
+    verdict: 'condition_class',
+    quick: ['tag_no', 'species', 'girth_cm', 'height_m', 'crown_d_m', 'condition_class',
+            'damage_class', 'recommendation', 'urgency', 'remarks'],
+    groups: [
+      ['Inspection', ['last_inspection', 'inspector']],
+      ['Measurements', ['girth_cm', 'height_m', 'crown_d_m']],
+      ['Condition', ['condition_class', 'crown_dieback_pct', 'damage_class', 'cavity']],
+      ['Target', ['target_type', 'target_distance_m']],
+      ['Assessment', ['recommendation', 'urgency', 'actions', 'interval_months', 'next_inspection', 'remarks']]
+    ],
+    reportTitle: 'Puiden kuntoarviointiraportti'
   },
   {
     id: 'eac', cc: 'EU', flag: '🇪🇺',

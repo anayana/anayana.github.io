@@ -140,6 +140,80 @@ const SAMPLES = [
   },
 
   {
+    id: 'tampere', flag: '🇫🇮', label: 'Tampere — Katu- ja puistopuut',
+    fmt: 'GeoJSON as the city WFS returns it, Finnish columns, condition class 1–4', n: 20, file: 'tampere_esimerkki.geojson',
+    /* Shaped after the city's open street-and-park-tree register (geodata.tampere.fi,
+       WFS, native EPSG:3878): id, Latin and Finnish species, plant group, planting
+       year, a visual condition class 1–4. Positions lie on the university campus at
+       Kalevantie; the rows are invented. */
+    text: () => JSON.stringify({
+      type: 'FeatureCollection',
+      features: [
+        ['Tilia cordata', 'metsälehmus', 'lehtipuu', 1974, 1, 23.7761, 61.4942],
+        ['Tilia cordata', 'metsälehmus', 'lehtipuu', 1974, 1, 23.7765, 61.4943],
+        ['Tilia cordata', 'metsälehmus', 'lehtipuu', 1974, 2, 23.7769, 61.4944],
+        ['Betula pendula', 'rauduskoivu', 'lehtipuu', 1988, 2, 23.7773, 61.4945],
+        ['Betula pendula', 'rauduskoivu', 'lehtipuu', 1988, 3, 23.7777, 61.4946],
+        ['Acer platanoides', 'metsävaahtera', 'lehtipuu', 1996, 1, 23.7781, 61.4947],
+        ['Acer platanoides', 'metsävaahtera', 'lehtipuu', 1996, 1, 23.7785, 61.4948],
+        ['Pinus sylvestris', 'mänty', 'havupuu', 1961, 2, 23.7789, 61.4949],
+        ['Pinus sylvestris', 'mänty', 'havupuu', 1961, 2, 23.7793, 61.4950],
+        ['Picea abies', 'kuusi', 'havupuu', 1961, 3, 23.7797, 61.4951],
+        ['Sorbus aucuparia', 'pihlaja', 'lehtipuu', 2004, 1, 23.7801, 61.4952],
+        ['Sorbus aucuparia', 'pihlaja', 'lehtipuu', 2004, 1, 23.7805, 61.4953],
+        ['Quercus robur', 'tammi', 'lehtipuu', 1952, 2, 23.7809, 61.4954],
+        ['Populus tremula', 'haapa', 'lehtipuu', 1983, 4, 23.7813, 61.4955],
+        ['Alnus glutinosa', 'tervaleppä', 'lehtipuu', 1990, 2, 23.7817, 61.4956],
+        ['Prunus padus', 'tuomi', 'lehtipuu', 2001, 1, 23.7821, 61.4957],
+        ['Ulmus glabra', 'vuorijalava', 'lehtipuu', 1958, 3, 23.7825, 61.4958],
+        ['Larix sibirica', 'siperianlehtikuusi', 'havupuu', 1966, 2, 23.7829, 61.4959],
+        ['Salix caprea', 'raita', 'lehtipuu', 1999, 2, 23.7833, 61.4960],
+        ['Fraxinus excelsior', 'saarni', 'lehtipuu', 1979, 3, 23.7837, 61.4961]
+      ].map((r, i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [r[5], r[6]] },
+        properties: {
+          puu_id: 'TRE-' + String(70001 + i), laji: r[0], laji_suomi: r[1], kasviryhma: r[2],
+          istutusvuosi: r[3], istutustapa: 'taimi', kuntoluokka: r[4],
+          tarkastuspaiva: '2025-08-12', kaupunginosa: 'Kaleva', osoite: 'Kalevantie 4'
+        }
+      }))
+    }, null, 1)
+  },
+
+  {
+    id: 'tharandt', flag: '🇩🇪', label: 'Tharandt — Forstbotanischer Garten (Beispiel)',
+    fmt: 'CSV, semicolon, an arboretum\'s accession list', n: 20, file: 'tharandt_beispiel.csv',
+    /* No open register exists for the arboretum; this is the shape an accession
+       list from a university collection takes - quarter, accession number, taxon,
+       provenance, planting year, DBH, height - placed on the garden's ground at
+       Tharandt. Invented rows. */
+    text: () => [
+      'Quartier;Akzessionsnummer;Art;Gattung;Familie;Herkunft;Pflanzjahr;BHD;Hoehe;Zustand;Bemerkung;Laenge;Breite',
+      'A1;1811-001;Quercus robur;Quercus;Fagaceae;Sachsen;1811;112;27;gut;Gründungsbaum;13.5779;50.9812',
+      'A1;1811-002;Fagus sylvatica;Fagus;Fagaceae;Sachsen;1811;98;29;gut;;13.5783;50.9813',
+      'A2;1902-014;Abies alba;Abies;Pinaceae;Schwarzwald;1902;71;32;gut;;13.5787;50.9814',
+      'A2;1902-015;Picea abies;Picea;Pinaceae;Erzgebirge;1902;66;31;befriedigend;Harzfluss;13.5791;50.9815',
+      'B1;1925-040;Pseudotsuga menziesii;Pseudotsuga;Pinaceae;Oregon;1925;84;36;gut;;13.5795;50.9816',
+      'B1;1925-041;Pseudotsuga menziesii;Pseudotsuga;Pinaceae;Oregon;1925;79;35;gut;;13.5799;50.9817',
+      'B2;1931-007;Sequoiadendron giganteum;Sequoiadendron;Cupressaceae;Sierra Nevada;1931;131;33;gut;;13.5803;50.9818',
+      'B2;1931-008;Liriodendron tulipifera;Liriodendron;Magnoliaceae;Appalachen;1931;62;24;befriedigend;;13.5807;50.9819',
+      'C1;1954-102;Acer saccharum;Acer;Sapindaceae;Ontario;1954;48;19;gut;;13.5811;50.9820',
+      'C1;1954-103;Betula alleghaniensis;Betula;Betulaceae;Québec;1954;39;18;befriedigend;;13.5815;50.9821',
+      'C2;1962-050;Larix kaempferi;Larix;Pinaceae;Honshu;1962;53;26;gut;;13.5819;50.9822',
+      'C2;1962-051;Cryptomeria japonica;Cryptomeria;Cupressaceae;Kyushu;1962;44;20;gut;;13.5823;50.9823',
+      'D1;1978-019;Ginkgo biloba;Ginkgo;Ginkgoaceae;Kultur;1978;36;16;gut;;13.5827;50.9824',
+      'D1;1978-020;Metasequoia glyptostroboides;Metasequoia;Cupressaceae;Hubei;1978;58;24;gut;;13.5831;50.9825',
+      'D2;1985-033;Tilia cordata;Tilia;Malvaceae;Tharandter Wald;1985;41;17;gut;;13.5835;50.9826',
+      'D2;1985-034;Ulmus glabra;Ulmus;Ulmaceae;Tharandter Wald;1985;37;16;ausreichend;Ulmensterben beobachten;13.5839;50.9827',
+      'E1;1996-011;Quercus rubra;Quercus;Fagaceae;Pennsylvania;1996;33;15;gut;;13.5843;50.9828',
+      'E1;1996-012;Carya ovata;Carya;Juglandaceae;Kentucky;1996;24;12;gut;;13.5847;50.9829',
+      'E2;2008-005;Abies nordmanniana;Abies;Pinaceae;Kaukasus;2008;19;9;gut;;13.5851;50.9830',
+      'E2;2008-006;Sorbus torminalis;Sorbus;Rosaceae;Sachsen;2008;14;7;gut;;13.5855;50.9831'
+    ].join('\r\n')
+  },
+
+  {
     id: 'nyc', flag: '🇺🇸', label: 'New York — Street Tree Census',
     fmt: 'CSV, comma, diameter in inches, health words', n: 10, file: 'nyc_sample.csv',
     text: () => [
