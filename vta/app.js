@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.30.1';
+const APP_VERSION = '2.30.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */

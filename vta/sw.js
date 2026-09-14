@@ -1,7 +1,7 @@
 /* Service worker: keep the whole app available offline.
    Navigation requests are network-first so fixes reach the field as soon as there
    is a connection; assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'vta-v88';
+const CACHE = 'vta-v89';
 /* Map tiles live in their own cache: they are none of the app's business to
    version, and an area looked at once should still be there in the field with
    no network. Kept across updates, cleared only with the app's storage. */
@@ -10,15 +10,15 @@ const TILE_HOST = 'tile.openstreetmap.org';
 const ASSETS = [
   './',
   'index.html',
-  'app.js?v=2.30.1',
-  'data.js?v=2.30.1',
-  'norms.js?v=2.30.1',
-  'mapper.js?v=2.30.1',
-  'samples.js?v=2.30.1',
-  'users.js?v=2.30.1',
-  'voice.js?v=2.30.1',
-  'plantnet.js?v=2.30.1',
-  'vendor/three.min.js?v=2.30.1',
+  'app.js?v=2.30.2',
+  'data.js?v=2.30.2',
+  'norms.js?v=2.30.2',
+  'mapper.js?v=2.30.2',
+  'samples.js?v=2.30.2',
+  'users.js?v=2.30.2',
+  'voice.js?v=2.30.2',
+  'plantnet.js?v=2.30.2',
+  'vendor/three.min.js?v=2.30.2',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',

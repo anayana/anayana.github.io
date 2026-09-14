@@ -482,6 +482,16 @@ table.hist th{color:#8fa697;font-weight:500}
         missing. It never deletes, and where a value differs, yours is kept and the
         difference reported.</p>
       <input type="file" id="fileImp" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
+      <h3>Load from a web address</h3>
+      <div class="row"><label>URL</label>
+        <input type="url" id="impUrl" placeholder="https://…/FeatureServer/1  or a WFS / GeoJSON / CSV address"></div>
+      <div class="btnrow"><button class="p" id="bImpUrl">Fetch and read</button></div>
+      <p class="small">Paste the address of an ArcGIS layer, a WFS GetFeature request, or a GeoJSON
+        or CSV file. An ArcGIS layer address is completed to a query by itself and read in pages.
+        The columns are shown for confirmation before anything is imported. A server that does not
+        allow browser requests is named as such &ndash; then open the address in the browser, save
+        the file, and use <i>Merge a register&hellip;</i>.</p>
+
       <h3>Berlin tree register</h3>
       <p class="small">The city's open register of street and park trees. Positions in
         it are metre-level – it says which tree is which, not where the stem is.</p>
@@ -538,16 +548,6 @@ table.hist th{color:#8fa697;font-weight:500}
       <p class="small">The standard decides which questions the form asks, in which order, and
         what the verdict is called. It does not change the trees: the same register can be
         handed over as a German protocol or a Dutch boomveiligheidscontrole.</p>
-
-      <h3>Load from a web address</h3>
-      <div class="row"><label>URL</label>
-        <input type="url" id="impUrl" placeholder="https://…/FeatureServer/1  or a WFS / GeoJSON / CSV address"></div>
-      <div class="btnrow"><button class="p" id="bImpUrl">Fetch and read</button></div>
-      <p class="small">Paste the address of an ArcGIS layer, a WFS GetFeature request, or a GeoJSON
-        or CSV file. An ArcGIS layer address is completed to a query by itself and read in pages.
-        The columns are shown for confirmation before anything is imported. A server that does not
-        allow browser requests is named as such &ndash; then open the address in the browser, save
-        the file, and use <i>Merge a register&hellip;</i>.</p>
 
       <h3>Example registers</h3>
       <div id="sampleBox"></div>
@@ -700,14 +700,14 @@ table.hist th{color:#8fa697;font-weight:500}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.30.1"></script>
-<script src="data.js?v=2.30.1"></script>
-<script src="norms.js?v=2.30.1"></script>
-<script src="mapper.js?v=2.30.1"></script>
-<script src="samples.js?v=2.30.1"></script>
-<script src="users.js?v=2.30.1"></script>
-<script src="voice.js?v=2.30.1"></script>
-<script src="plantnet.js?v=2.30.1"></script>
-<script src="app.js?v=2.30.1"></script>
+<script src="vendor/three.min.js?v=2.30.2"></script>
+<script src="data.js?v=2.30.2"></script>
+<script src="norms.js?v=2.30.2"></script>
+<script src="mapper.js?v=2.30.2"></script>
+<script src="samples.js?v=2.30.2"></script>
+<script src="users.js?v=2.30.2"></script>
+<script src="voice.js?v=2.30.2"></script>
+<script src="plantnet.js?v=2.30.2"></script>
+<script src="app.js?v=2.30.2"></script>
 </body>
 </html>
