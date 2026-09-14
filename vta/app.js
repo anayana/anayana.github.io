@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.26.0';
+const APP_VERSION = '2.27.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -540,7 +540,7 @@ function controlList() {
   const trees = CAT.features.map((f, i) => {
     if (!f.geometry || f.geometry.type !== 'Point') return null;
     const co = f.geometry.coordinates;
-    const g = world && world.children.find(o => o.userData.idx === i);
+    const g = world ? markerOf.get(i) : null;
     const d = (c && g) ? c.distanceTo(g.getWorldPosition(new THREE.Vector3())) : 1e9;
     return { key: 't:' + tid(i), name: props(i).tree_id, lat: co[1], lon: co[0], ref: false, d: d };
   }).filter(Boolean);
@@ -961,6 +961,11 @@ function showFit() {
                    ' · stop at a tree you know'
                  : 'locked on ' + s2pFrom + (s2pRms != null ? ' ±' + s2pRms.toFixed(2) + ' m' : ''))
     : done >= 2 ? 'ready – press Apply'
+    : (heading == null && lastFix && plotGeoreferenced() &&
+       CAT.features.some((f, i) => hasLocal(props(i))))
+      ? 'no compass yet – wave the phone in a figure of eight, or walk 12 m'
+    : (lastFix && lastFix.acc > AUTO_ACC && plotGeoreferenced())
+      ? 'GPS ±' + lastFix.acc.toFixed(0) + ' m – too rough to place markers, waiting for better'
     : 'not locked – record a tree to start a survey';
   el.className = (S2P && !s2pAuto && !(PLOT && PLOT.unlocated)) ? 'ok' : 'warn';
 }
@@ -1743,6 +1748,7 @@ let origin = null, originAcc = null, originPinned = false, headOff = 0, worldYaw
 let camGps = new THREE.Vector3(0, 1.55, 0);
 /* AR tools */
 let hitOk = false, hitSource = null, hitPt = null, reticle = null;
+let xrBlurred = false;
 let anchorsOk = false, anchorMap = new Map(), anchorsWanted = false;
 let camAccessOk = false, shotFor = null, shotKind = null;
 let selIdx = null, measure = null, mGroup = null;
@@ -1859,12 +1865,17 @@ function markerWanted(i) {
   const p = props(i), me = hasLocal(p) ? wgsToPlot(lastFix.lat, lastFix.lon) : null;
   return !!(me && Math.hypot(+p.lx - me.lx, +p.ly - me.ly) <= MARK_R);
 }
+/* Tree index to its marker group. treeInView and treeCandidates asked
+   world.children.find() once per tree, inside a loop over every tree, twenty
+   times a second: quadratic in the size of the stand, and a Berlin district
+   is thousands of trees. One map, rebuilt with the markers. */
+let markerOf = new Map();
 function buildMarkers() {
   // only the marker groups: mGroup hangs here too and must survive
   world.children.filter(o => o.userData.idx != null).forEach(o => {
     world.remove(o); disposeObj(o);
   });
-  sprites = [];
+  sprites = []; markerOf = new Map();
   CAT.features.forEach((f, i) => {
     if (!markerWanted(i)) return;
     const p = props(i), col = LVLCOL[assess(p).lvl];
@@ -1880,7 +1891,7 @@ function buildMarkers() {
       new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthTest: false }));
     ring.rotation.x = -Math.PI / 2; ring.renderOrder = 9; g.add(ring);
     ring.userData.ring = 1;
-    g.userData.idx = i; world.add(g);
+    g.userData.idx = i; world.add(g); markerOf.set(i, g);
   });
   placeMarkers();
   updateFallZones();
@@ -2059,7 +2070,7 @@ function refreshMarker(i) {
   sp.material.map.dispose();
   sp.material.map = labelTexture(i);
   sp.material.needsUpdate = true;
-  const g = world.children.find(o => o.userData.idx === i);
+  const g = markerOf.get(i);
   if (g) g.children.forEach(ch => { if (ch.material && ch.material.color) ch.material.color.set(col); });
 }
 
@@ -2191,6 +2202,13 @@ async function startXR() {
   xrRef = renderer.xr.getReferenceSpace();
   s.addEventListener('select', onXRSelect);
   s.addEventListener('end', endAR);
+  /* A call comes in, or the app switcher opens: the session is still alive
+     but the view is frozen and nothing measured off it is worth having. */
+  xrBlurred = false;
+  s.addEventListener('visibilitychange', () => {
+    xrBlurred = s.visibilityState !== 'visible';
+    if (xrBlurred) { stillAt = null; stillSince = 0; }   // do not count a pause as standing still
+  });
 
   // Optional features are granted per session, so ask the session, not the device.
   const has = f => (s.enabledFeatures ? s.enabledFeatures.indexOf(f) >= 0 : true);
@@ -2214,33 +2232,60 @@ async function startXR() {
      own, a failure is recorded and shown in the report, and a part that fails
      three times is switched off for the rest of the session rather than
      taking the session with it. */
-  renderer.setAnimationLoop((t, frame) => {
-    lastFrame = frame;
-    frameLive = !!frame;
-    if (frame) {
-      // whatever asked for a stem while no frame was in flight, answered here
-      if (stemAsk) { const q = stemAsk; stemAsk = null; guard('stem request', () => q(findStem())); }
-      guard('hit test', () => updateHitTest(frame));
-      guard('anchors', () => updateAnchors(frame));
-      // depth is asked about once, on the first frame, and then only when
-      // something actually wants a stem: no pipeline running on a timer
-      if (depthOk === null && depthWanted()) guard('depth', () => probeDepth(frame));
-      if (cal) { guard('caliper', calFeed); if (edgeTick % 6 === 0) guard('caliper bar', calPaint); }
-      guard('standing', autoStand);
-      if (edgeTick % 60 === 11) guard('far from stand', checkFarFromStand);
-      if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
-    }
-    guard('draw', tick);
-    try { renderer.render(scene, camera); } catch (e) { note('render', e); }
-    frameLive = false;
-  });
+  renderer.setAnimationLoop(xrFrame);
 }
+
+/* One frame of the session. A named function rather than a closure so the
+   loop can be driven by hand - one frame, one fake XRFrame - and every branch
+   in it tested without a phone. */
+function xrFrame(t, frame) {
+  lastFrame = frame;
+  frameLive = !!frame;
+  if (frame) {
+    // whatever asked for a stem while no frame was in flight, answered here
+    if (stemAsk) { const q = stemAsk; stemAsk = null; guard('stem request', () => q(findStem())); }
+    guard('hit test', () => updateHitTest(frame));
+    guard('anchors', () => updateAnchors(frame));
+    // depth is asked about once, on the first frame, and then only when
+    // something actually wants a stem: no pipeline running on a timer
+    if (depthOk === null && depthWanted()) guard('depth', () => probeDepth(frame));
+    if (cal) { guard('caliper', calFeed); if (edgeTick % 6 === 0) guard('caliper bar', calPaint); }
+    /* The stem match is the fourth stage of aligning itself, and it was
+       only ever run from a button in the diagnostics - so "aligns itself
+       on the stems it sees" was true of nothing. Looked for on a timer
+       now, only while depth is on and the session is in front. */
+    if (depthOk && depthWanted() && !cal && !xrBlurred &&
+        t - stemScanAt >= STEM_EVERY) { stemScanAt = t; guard('stem scan', stemScan); }
+    if (!xrBlurred) guard('standing', autoStand);
+    if (edgeTick % 60 === 11) guard('far from stand', checkFarFromStand);
+    if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
+  }
+  guard('draw', tick);
+  try { renderer.render(scene, camera); } catch (e) { note('render', e); }
+  frameLive = false;
+}
+
+/* An immersive session keeps the screen on by itself; the plain camera view
+   does not, and a phone that dims in the middle of a stand is a survey that
+   stops. Asked for here, given back when the view ends, and re-asked when the
+   tab comes back - the browser drops it on every switch away. */
+let wakeLock = null;
+async function keepAwake() {
+  if (!navigator.wakeLock || wakeLock) return;
+  try { wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+  catch (e) { wakeLock = null; }
+}
+function letSleep() { if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; } }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && mode === 'Camera') keepAwake();
+});
 
 async function startCam() {
   const v = $('video');
   const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
   v.srcObject = st; await v.play(); v.style.display = 'block';
-  mode = 'Camera'; enterAR();
+  mode = 'Camera'; enterAR(); keepAwake();
   renderer.domElement.addEventListener('pointerdown', onCamTap);
   renderer.setAnimationLoop(() => {
     if (haveOrient) camera.quaternion.copy(devQuat);
@@ -2278,7 +2323,7 @@ function enterAR() {
   requestAnchors();
   sessScene.clear(); standPts = [];
   stillAt = null; stillSince = 0; autoStood = 0; farSaid = false;
-  stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false;
+  stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false; stemScanAt = 0;
   const healed = plotHeal();
   if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
                     'put back together. Record a tree to fix it on the earth.');
@@ -2286,6 +2331,7 @@ function enterAR() {
 }
 function endAR() {
   renderer.setAnimationLoop(null);
+  letSleep();
   clearMeasure();
   dropAnchors();
   if (hitSource) { try { hitSource.cancel(); } catch (e) {} hitSource = null; }
@@ -2523,6 +2569,7 @@ function updateHitTest(frame) {
    bit of tracking drift; anchored, ARCore re-localises them as you walk. */
 const ANCH_DEAD = 0.30;    // ignore anchor offsets below this - jitter, not drift
 const ANCH_RATE = 0.10;    // and correct the rest at most this fast (m/s)
+const ANCH_MAX = 12;       // anchors kept at once: enough to average, few enough to track
 let anchTime = 0;
 function requestAnchors() { if (anchorsOk) { anchorsWanted = true; anchTime = 0; } }
 function dropAnchors() {
@@ -2551,13 +2598,24 @@ function updateAnchors(frame) {
     dropAnchors();
     if (compActive()) { anchorsWanted = true; return; }   // wait out the glide, then pin
     const cp = camPos();
+    /* ARCore keeps every anchor alive and re-solves it each frame. A dozen
+       is plenty to average a drift from; a hundred in a dense stand is a
+       tracking pipeline spending itself on bookkeeping. The nearest ones,
+       and no more than that. */
+    const cand = [];
     world.children.forEach(g => {
       const i = g.userData.idx;
       const l = i == null ? null : localOf(i);
       const q = l && s2pApply(l.lx, l.ly);
       if (!q) return;
+      const d = Math.hypot(q.x - cp.x, q.z - cp.z);
+      if (d > 60) return;                                    // distant anchors buy nothing
+      cand.push({ g: g, i: i, q: q, d: d });
+    });
+    cand.sort((a, b) => a.d - b.d);
+    cand.slice(0, ANCH_MAX).forEach(o => {
+      const g = o.g, i = o.i, q = o.q;
       // pinned where the survey says the tree is, never where a glide has it
-      if (Math.hypot(q.x - cp.x, q.z - cp.z) > 60) return;   // distant anchors buy nothing
       let pr;
       try {
         pr = frame.createAnchor(new XRRigidTransform({ x: q.x, y: g.position.y, z: q.z }), xrRef);
@@ -3007,7 +3065,7 @@ function treeInView(fromStem) {
   const st = fromStem || null;
   let best = null, bd = 1e9, second = 1e9, bestOff = 0;
   CAT.features.forEach((f, i) => {
-    const g = world.children.find(o => o.userData.idx === i);
+    const g = markerOf.get(i);
     if (!g || !g.visible) return;              // not drawn, not a candidate
     const l = localOf(i);
     if (!l) return;
@@ -3053,7 +3111,7 @@ function treeCandidates(fromStem, max) {
   const fx = d.x / fl, fz = d.z / fl;
   const out = [];
   CAT.features.forEach((f, i) => {
-    const g = world.children.find(o => o.userData.idx === i);
+    const g = markerOf.get(i);
     if (!g || !g.visible) return;              // not drawn, not a candidate
     const l = localOf(i);
     if (!l) return;
@@ -3151,7 +3209,7 @@ function nearestTree() {
   let best = null, bd = DRAW_R;
   sprites.forEach(sp => {
     if (!sp.parent || !sp.parent.visible) return;
-    const d = c.distanceTo(sp.getWorldPosition(new THREE.Vector3()));
+    const d = c.distanceTo(sp.getWorldPosition(_wp));
     if (d < bd) { bd = d; best = sp.userData.idx; }
   });
   return best;
@@ -3203,7 +3261,7 @@ function clearMeasure() {
    both together; a free tape hangs on the world, which is still georeferenced.
    Points come in as session coordinates and are converted to the parent's. */
 function mParent(tree) {
-  const g = (tree != null && world) ? world.children.find(o => o.userData.idx === tree) : null;
+  const g = (tree != null && world) ? markerOf.get(tree) : null;
   return g || mGroup;
 }
 function valueSprite(text) {
@@ -3377,7 +3435,7 @@ function measureTap() {
   }
 
   if (m.kind === 'target') {
-    const g = world.children.find(o => o.userData.idx === m.tree);
+    const g = markerOf.get(m.tree);
     if (!g) return clearMeasure();
     const stem = g.getWorldPosition(new THREE.Vector3());
     const d = Math.hypot(hitPt.x - stem.x, hitPt.z - stem.z);
@@ -3991,7 +4049,7 @@ function storePhoto(tree, out, modeName, job) {
         }).catch(() => {});
       }, 'image/jpeg', 0.8);
     }
-    const g = world.children.find(o => o.userData.idx === tree);
+    const g = markerOf.get(tree);
     if (g && c) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
 
     const url = out.toDataURL('image/jpeg', 0.72);
@@ -4075,14 +4133,19 @@ function shotFail(tree, why) {
 function shotHide() { const el = $('shotok'); if (el) el.style.display = 'none'; }
 
 /* ---- direction arrows for markers outside the view ---- */
+/* One arrow per marker that exists, not per tree in the register: after a
+   city import the register is thousands of rows, and thousands of DOM nodes
+   for arrows that can never show is a slow overlay for nothing. */
 function buildEdge() {
   const box = $('edge'); box.innerHTML = ''; edgeEls = {};
-  CAT.features.forEach((f, i) => {
+  sprites.forEach(sp => {
+    const i = sp.userData.idx;
     const d = document.createElement('div'); d.className = 'ea';
     d.innerHTML = '<span class="g">➤</span><span class="l"></span>';
     box.appendChild(d); edgeEls[i] = d;
   });
 }
+const _wp = new THREE.Vector3(), _eye = new THREE.Vector3(), _ndc = new THREE.Vector3();
 function updateEdge() {
   const cam = xrCam(), cw = innerWidth, ch = innerHeight;
   const c = camPos();
@@ -4094,13 +4157,13 @@ function updateEdge() {
     const el = edgeEls[sp.userData.idx];
     if (!el) return;
     if (!sp.parent || !sp.parent.visible) { el.classList.remove('on'); return; }
-    const wp = sp.getWorldPosition(new THREE.Vector3());
-    const dist = c.distanceTo(wp);
+    sp.getWorldPosition(_wp);
+    const dist = c.distanceTo(_wp);
     if (dist < 2 || dist > DRAW_R) { el.classList.remove('on'); return; }
-    const eye = wp.clone().applyMatrix4(inv);
+    const eye = _eye.copy(_wp).applyMatrix4(inv);
     let x, y, on = false;
     if (eye.z < -0.05) {                                   // in front: project normally
-      const ndc = eye.clone().applyMatrix4(cam.projectionMatrix);
+      const ndc = _ndc.copy(eye).applyMatrix4(cam.projectionMatrix);
       x = ndc.x; y = ndc.y;
       on = Math.abs(x) <= 1 && Math.abs(y) <= 1;
     } else {
