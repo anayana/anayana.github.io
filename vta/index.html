@@ -478,6 +478,31 @@ table.hist th{color:#8fa697;font-weight:500}
       <div class="btnrow">
         <button id="bExpPhotos">Save photos individually</button>
       </div>
+      <h3>OpenStreetMap</h3>
+      <div id="osmBox" class="small"></div>
+      <div class="row"><label>Client ID</label>
+        <input type="text" id="osmClient" placeholder="from your OSM account → OAuth 2 applications"></div>
+      <div class="row"><label>Server</label>
+        <select id="osmHost"><option value="live">openstreetmap.org</option>
+          <option value="dev">the sandbox (for trying it out)</option></select></div>
+      <div class="btnrow">
+        <button class="p" id="osmConnect">Sign in to OSM</button>
+        <button id="osmOut">Sign out</button>
+      </div>
+      <div class="btnrow">
+        <button class="p" id="osmUp">Upload my own trees</button>
+      </div>
+      <div id="osmOut2" class="small"></div>
+      <p class="small">Only trees this phone recorded on site go up, and only the tree itself &ndash;
+        species, girth, height, crown, year. Findings and verdicts stay here. A register you
+        imported is never uploaded: its licence is the city's to give, not yours. Each tree is
+        checked against what is already mapped within three metres, and a run is capped at fifty
+        trees, because more than that is an import in OSM's sense and wants the import guidelines
+        first. Setting it up once: on openstreetmap.org, under <i>My Settings &rarr; OAuth 2
+        applications</i>, register this page &ndash; redirect URI is this address without anything
+        after it, permissions <i>read user preferences</i> and <i>modify the map</i> &ndash; then
+        paste the client ID here.</p>
+
       <h3>Import</h3>
       <div class="btnrow">
         <button id="bImp">Merge a register…</button>
@@ -726,6 +751,7 @@ table.hist th{color:#8fa697;font-weight:500}
 <script src="users.js?v=2.33.0"></script>
 <script src="voice.js?v=2.33.0"></script>
 <script src="plantnet.js?v=2.33.0"></script>
+<script src="osm.js?v=2.33.0"></script>
 <script src="app.js?v=2.33.0"></script>
 </body>
 </html>

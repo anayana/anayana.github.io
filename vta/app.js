@@ -5844,6 +5844,27 @@ function autoPrefix(lat, lon) {
   return want;
 }
 
+/* The state of the OSM connection, and what an upload did, in the Data screen. */
+function paintOsm(res) {
+  const box = $('osmBox'); if (!box) return;
+  const c = osmCfg(), n = osmCandidates().length;
+  const bits = [];
+  bits.push(osmSignedIn() ? 'Signed in as <b>' + esc(c.user || 'an OSM account') + '</b>.'
+                          : (c.clientId ? 'Not signed in.' : 'Not set up: paste a client ID below.'));
+  bits.push(n ? '<b>' + n + '</b> tree' + (n === 1 ? ' is' : 's are') + ' yours to upload' +
+                (n > OSM_MAX ? ' – ' + OSM_MAX + ' go per run' : '') + '.'
+              : 'No tree here is yours to upload yet – tick <i>I recorded this tree myself</i> on a tree, or record one in AR.');
+  if (c.host === 'dev') bits.push('Pointing at the sandbox, not the real map.');
+  box.innerHTML = bits.join(' ');
+  const up = $('osmUp'); if (up) up.textContent = 'Upload my own trees' + (n ? ' (' + Math.min(n, OSM_MAX) + ')' : '');
+  const out = $('osmOut2'); if (!out) return;
+  if (!res) { out.textContent = ''; return; }
+  out.innerHTML = (res.uploaded.length ? '<b>' + res.uploaded.length + ' uploaded</b> in changeset ' +
+      '<a href="' + osmHost().web + '/changeset/' + esc(res.changeset) + '" target="_blank" rel="noopener">' +
+      esc(res.changeset) + '</a>.' : 'Nothing was uploaded.') +
+    (res.skipped.length ? '<br>' + res.skipped.map(s => esc(tid(s.i)) + ': ' + esc(s.why)).join('<br>') : '');
+}
+
 /* What the letters mean, said once, where the field is. */
 function paintPrefix() {
   const el = $('prefixHint'); if (!el) return;
@@ -5959,6 +5980,37 @@ function gpsAverage(i, btn) {
     toast('Position set from ' + samples.length + ' fixes (±' + (am / samples.length).toFixed(0) + ' m).');
   }, 10000);
 }
+/* OpenStreetMap, on the tree itself: whether it may go, and whether it went.
+   The claim of ownership is a deliberate tick, not a guess by the app - it is
+   the surveyor saying this position is their own work and theirs to give. */
+function osmBlock(i) {
+  const wrap = document.createElement('div');
+  const p = props(i);
+  const h = document.createElement('h3'); h.textContent = 'OpenStreetMap'; wrap.appendChild(h);
+  if (p.osm_id) {
+    const d = document.createElement('div'); d.className = 'small';
+    d.innerHTML = 'Uploaded as node <a href="https://www.openstreetmap.org/node/' + esc(p.osm_id) +
+                  '" target="_blank" rel="noopener">' + esc(p.osm_id) + '</a>' +
+                  (p.osm_at ? ' on ' + esc(p.osm_at.slice(0, 10)) : '') + '.';
+    wrap.appendChild(d); return wrap;
+  }
+  const u = osmUploadable(i);
+  const box = document.createElement('div'); box.className = 'sym';
+  const l = document.createElement('label');
+  const cb = document.createElement('input'); cb.type = 'checkbox';
+  cb.checked = p.osm_own === true; cb.dataset.own = '1';
+  cb.onchange = () => { setEdit(i, { osm_own: cb.checked }); openPanel(i, panelTab); };
+  l.appendChild(cb);
+  const sp = document.createElement('span');
+  sp.textContent = 'I recorded this tree myself – it may go to OpenStreetMap';
+  l.appendChild(sp); box.appendChild(l); wrap.appendChild(box);
+  const d = document.createElement('div'); d.className = 'small';
+  d.textContent = u.ok ? 'Will go up with the next upload (' + u.why + ').'
+                       : 'Stays here: ' + u.why + '.';
+  wrap.appendChild(d);
+  return wrap;
+}
+
 function geoEditor(i) {
   const wrap = document.createElement('div');
   const f = CAT.features[i], c = f.geometry.coordinates;
@@ -6219,6 +6271,7 @@ function openPanel(i, tab) {
   F_BASE.map(f => fieldDef(f[0])).forEach(f => secs.base.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
   secs.base.appendChild(measureBlock(i));
   secs.base.appendChild(geoEditor(i));
+  secs.base.appendChild(osmBlock(i));
 
   /* --- where it stands --- */
   const mp = secs.map;
@@ -7988,6 +8041,32 @@ function wire() {
   $('bMapPage').onclick = openMapPage;
   $('bRepPlain').onclick = () => openReport(false);
   $('bRepPhoto').onclick = () => openReport(true);
+  /* --- OpenStreetMap ------------------------------------------------------ */
+  $('osmClient').value = osmCfg().clientId || '';
+  $('osmClient').onchange = () => { const c = osmCfg(); c.clientId = $('osmClient').value.trim(); osmSave(c); paintOsm(); };
+  $('osmHost').value = osmCfg().host === 'dev' ? 'dev' : 'live';
+  $('osmHost').onchange = () => { const c = osmCfg(); c.host = $('osmHost').value; delete c.token; delete c.user; osmSave(c); paintOsm(); };
+  $('osmConnect').onclick = () => { osmConnect().catch(e => toast(e.message)); };
+  $('osmOut').onclick = () => { osmSignOut(); paintOsm(); toast('Signed out of OpenStreetMap.'); };
+  $('osmUp').onclick = async () => {
+    if (!userCan('edit')) return toast('A viewer does not upload.');
+    const c = osmCandidates();
+    if (!c.length) return toast('No tree here is yours to give away yet.');
+    if (!confirm('Upload ' + Math.min(c.length, OSM_MAX) + ' tree' + (c.length === 1 ? '' : 's') +
+                 ' to ' + (osmCfg().host === 'dev' ? 'the OSM sandbox' : 'OpenStreetMap') +
+                 '?\n\nThe tree goes up – species, girth, height, crown, year. The inspection does not.' +
+                 '\nYour OSM account is named publicly as the author, for good.')) return;
+    $('osmUp').disabled = true; $('osmOut2').textContent = 'Uploading…';
+    try {
+      const r = await osmUpload(c);
+      paintOsm(r);
+      toast(r.uploaded.length + ' tree' + (r.uploaded.length === 1 ? '' : 's') + ' on the map.');
+      renderList();
+    } catch (e) { $('osmOut2').textContent = ''; toast(e.message); }
+    $('osmUp').disabled = false;
+  };
+  paintOsm();
+
   $('bExpGeo').onclick = () => {
     dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
     markExported();
@@ -8290,6 +8369,7 @@ step('scene', buildScene);
 step('markers', buildMarkers);
 step('buttons', wire);
 step('users', wireUsers);
+step('OSM sign-in', () => { osmFinishLogin().then(done => { if (done) { paintOsm(); toast('Signed in to OpenStreetMap as ' + (osmCfg().user || 'you') + '.'); } }).catch(e => toast(e.message)); });
 step('camera file', wireFilePhoto);
 step('map', wireMap);
 step('keyboard', watchKeyboard);

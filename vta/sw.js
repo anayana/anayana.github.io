@@ -19,6 +19,7 @@ const ASSETS = [
   'users.js?v=2.33.0',
   'voice.js?v=2.33.0',
   'plantnet.js?v=2.33.0',
+  'osm.js?v=2.33.0',
   'vendor/three.min.js?v=2.33.0',
   'manifest.webmanifest',
   'icon-192.png',
