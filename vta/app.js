@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.34.0';
+const APP_VERSION = '2.35.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -7222,6 +7222,7 @@ function showScreen(k) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
+  if (k === 'guide') renderGuide();
   if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
@@ -8136,6 +8137,8 @@ function wire() {
     $('osmUp').disabled = false;
   };
   paintOsm();
+
+  $('bGuide').onclick = () => showScreen('guide');
 
   $('bExpGeo').onclick = () => {
     dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');

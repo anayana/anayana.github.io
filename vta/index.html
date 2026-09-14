@@ -337,6 +337,15 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
   pointer-events:none;
   border:1px solid #3f8a60;border-radius:10px;padding:9px 14px;font-size:13.5px;display:none;max-width:88%}
 .small{font-size:12px;color:#7f9488}
+details.guide{background:#131c17;border:1px solid #26332b;border-radius:12px;padding:10px 12px;margin:0 0 8px}
+details.guide.did{border-color:#2f6b4a}
+details.guide summary{cursor:pointer;font-size:14.5px}
+details.guide p{color:#c2d2c7;font-size:13.5px;margin:9px 0}
+details.guide h3{margin:12px 0 4px}
+ul.guideapp{margin:4px 0 0;padding-left:18px}
+ul.guideapp li{font-size:13px;color:#b9c9be;margin:5px 0}
+html.day details.guide{background:#fff;border-color:#c3ccc2}
+html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid #1a231d;font-size:13px}
 .kv span:last-child{color:#cfe0d5;font-variant-numeric:tabular-nums;text-align:right}
 </style>
@@ -362,6 +371,11 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
       </div>
       <p class="small">Camera is for phones without AR. LiDAR is for phones that have a
         LiDAR scanner.</p>
+      <div class="btnrow">
+        <button id="bGuide">How a tree inspection works</button>
+      </div>
+      <p class="small">The Regelkontrolle after the FLL guidelines, step by step, and which
+        button here does which part of it. In German and English.</p>
       <div class="btnrow"><button id="bInstall" style="display:none">Install on the home screen</button></div>
       <div id="msg"></div>
       <h3>Device check</h3>
@@ -395,6 +409,11 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
           tree this way, stand at it, choose &ldquo;I am at&nbsp;…&rdquo; in AR, and the whole
           scene hangs off a known point instead of a fix.</p>
       </div>
+    </section>
+
+    <section class="screen" id="sc-guide">
+      <h2>How a tree inspection works</h2>
+      <div id="guideBox"></div>
     </section>
 
     <section class="screen" id="sc-map">
@@ -709,6 +728,7 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
     <button data-sc="list"><span class="ic">☰</span>Trees</button>
     <button data-sc="map"><span class="ic">◍</span>Map</button>
     <button data-sc="data"><span class="ic">⇪</span>Data</button>
+    <button data-sc="guide"><span class="ic">?</span>Guide</button>
   </div>
   <div class="panel" id="panelHome"></div>
 </div>
@@ -768,17 +788,18 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.34.0"></script>
-<script src="data.js?v=2.34.0"></script>
-<script src="norms.js?v=2.34.0"></script>
-<script src="i18n.js?v=2.34.0"></script>
-<script src="mapper.js?v=2.34.0"></script>
-<script src="samples.js?v=2.34.0"></script>
-<script src="users.js?v=2.34.0"></script>
-<script src="voice.js?v=2.34.0"></script>
-<script src="plantnet.js?v=2.34.0"></script>
-<script src="osm.js?v=2.34.0"></script>
-<script src="research.js?v=2.34.0"></script>
-<script src="app.js?v=2.34.0"></script>
+<script src="vendor/three.min.js?v=2.35.0"></script>
+<script src="data.js?v=2.35.0"></script>
+<script src="norms.js?v=2.35.0"></script>
+<script src="i18n.js?v=2.35.0"></script>
+<script src="mapper.js?v=2.35.0"></script>
+<script src="samples.js?v=2.35.0"></script>
+<script src="users.js?v=2.35.0"></script>
+<script src="voice.js?v=2.35.0"></script>
+<script src="plantnet.js?v=2.35.0"></script>
+<script src="osm.js?v=2.35.0"></script>
+<script src="research.js?v=2.35.0"></script>
+<script src="guide.js?v=2.35.0"></script>
+<script src="app.js?v=2.35.0"></script>
 </body>
 </html>
