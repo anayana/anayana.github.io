@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.36.0';
+const APP_VERSION = '2.37.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -497,6 +497,15 @@ function mLon(lat) {
 function enu(lat, lon, lat0, lon0) {
   return { e: (lon - lon0) * mLon(lat0), n: (lat - lat0) * mLat(lat0) };
 }
+/* A coordinate a given distance away on a given compass bearing. The plane
+   approximation is the same one the whole app uses; over the tens of metres
+   between an inspector and a trunk it is exact to the millimetre. */
+function moveWgs(lat, lon, d, bearDeg) {
+  const a = THREE.MathUtils.degToRad(bearDeg);
+  return { lat: lat + (d * Math.cos(a)) / mLat(lat),
+           lon: lon + (d * Math.sin(a)) / mLon(lat) };
+}
+
 /* A point in the scene back to WGS84. Accurate relative to everything else in
    the session; in absolute terms it inherits the error of the origin fix. */
 function sceneToWgs(v) {
@@ -709,6 +718,128 @@ function reticleStem() {
   if (d < RET_MIN || d > RET_MAX) return null;
   return { x: hitPt.x, z: hitPt.z, d: d };
 }
+/* ---- how far away is it? ------------------------------------------------
+   A tree is recorded from where the inspector is standing, and that is
+   usually not the stem: a step in front of it at best, across a lawn at
+   worst. The app can measure the near case and guesses the rest, and a guess
+   of one metre for a tree twelve metres away is the whole error of the
+   record. So it asks, once, at the moment of recording, when the inspector is
+   looking straight at the tree and knows the answer to within a pace.
+
+   The direction is not asked: in AR it is where the camera points, which the
+   session knows exactly, and outside AR it is the compass, which is the best
+   that phone has. Only the distance is a question. */
+const DIST_STEPS = [1, 2, 3, 5, 8, 12, 20, 30];
+/* A direction in the scene, said as a compass bearing - for reading only:
+   the move itself never leaves the scene's own frame. */
+function headingOfDir(d) {
+  const inScene = (Math.atan2(d.x, -d.z) * 180 / Math.PI + 360) % 360;
+  const north = sceneNorthDeg();
+  // the session's own north when it has one, the compass when it does not
+  if (north != null) return ((inScene - north) % 360 + 360) % 360;
+  return (haveOrient && heading != null) ? heading : inScene;
+}
+function askDist() { return prefs().askDist !== false; }
+function paintAskDist() {
+  const b = $('bAskDist'); if (!b) return;
+  b.textContent = 'Ask the distance: ' + (askDist() ? 'on' : 'off');
+  b.classList.toggle('p', askDist());
+}
+/* from: {lat, lon} the position the tree was recorded at (the inspector, or
+   the camera); dir: compass degrees the tree lies in; scene: the same in
+   scene coordinates when there is a session, so the move keeps the survey's
+   own frame rather than going out through GPS and back. */
+let distAsk = null;
+/* In AR it belongs in the stack above the control bar, like every other menu
+   there - a question that covers + Tree and Exit is a question in the way.
+   Outside AR the sheet at the foot of the screen is the one people know. */
+function distBox() { return mode ? $('mmenu') : $('niaBox'); }
+function distanceSheet(i, o) {
+  if (!askDist()) return false;
+  const el = distBox();
+  const from = o.from, dir = o.dir, was = o.was, howNote = o.note;
+  distAsk = { i: i, from: from, dir: dir, scene: o.scene, was: was, after: o.after };
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>How far away is the stem of ' + esc(tid(i)) + '?</b>';
+  el.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'small';
+  sub.style.margin = '2px 0 8px';
+  sub.textContent = (howNote || ('Recorded ' + was.toFixed(1) + ' m ahead')) +
+    ' · ' + Math.round(dir) + '° ' + bearWord(dir) +
+    '. Tap the distance to the trunk you are looking at.';
+  el.appendChild(sub);
+
+  const row = document.createElement('div'); row.className = 'btnrow';
+  const put = (label, d) => {
+    const b = document.createElement('button');
+    b.className = 'sm' + (Math.abs(d - was) < 0.25 ? ' p' : '');
+    b.style.minWidth = '0'; b.textContent = label;
+    b.onclick = () => applyDist(d);
+    row.appendChild(b);
+  };
+  put('I am at it', 0);
+  DIST_STEPS.forEach(d => put(d + ' m', d));
+  el.appendChild(row);
+
+  const r2 = document.createElement('div'); r2.className = 'row';
+  const lab = document.createElement('label'); lab.textContent = 'Or exactly';
+  const inp = document.createElement('input');
+  inp.type = 'number'; inp.step = '0.1'; inp.min = '0'; inp.id = 'distIn';
+  inp.setAttribute('inputmode', 'decimal'); inp.placeholder = was.toFixed(1);
+  r2.appendChild(lab); r2.appendChild(inp); el.appendChild(r2);
+
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const ok = document.createElement('button'); ok.className = 'p'; ok.textContent = 'Move it there';
+  ok.onclick = () => {
+    const v = parseFloat($('distIn').value);
+    if (!isFinite(v) || v < 0) return toast('Type the distance in metres, or tap one above.');
+    applyDist(v);
+  };
+  const keep = document.createElement('button'); keep.textContent = 'Leave it where it is';
+  keep.onclick = () => { const f = distAsk && distAsk.after; el.style.display = 'none'; distAsk = null; if (f) f(); };
+  act.appendChild(ok); act.appendChild(keep); el.appendChild(act);
+
+  const off = document.createElement('button'); off.className = 'sm';
+  off.textContent = 'Stop asking me this';
+  off.onclick = () => {
+    const f = distAsk && distAsk.after;
+    setPref('askDist', false); el.style.display = 'none'; distAsk = null;
+    toast('The distance will not be asked again – switch it back on under Data → App.');
+    if (f) f();
+  };
+  el.appendChild(off);
+  if (mode) closePopups('mmenu');
+  el.style.display = 'block';
+  return true;
+}
+function applyDist(d) {
+  const a = distAsk; if (!a) return;
+  distBox().style.display = 'none'; distAsk = null;
+  const i = a.i;
+  const done = () => { if (a.after) a.after(); };
+  if (!CAT.features[i]) return done();
+  if (Math.abs(d - a.was) < 0.05) return done();     // that is where it already is
+  let g = null, l = null;
+  if (a.scene && S2P) {
+    const at = { x: a.scene.x + a.scene.dx * d, z: a.scene.z + a.scene.dz * d };
+    l = s2pInvert(at.x, at.z);
+    g = plotToWgs(l.lx, l.ly);
+    sessScene.set(i, { x: at.x, z: at.z });
+  }
+  if (!g) { g = moveWgs(a.from.lat, a.from.lon, d, a.dir); l = null; }
+  CAT.features[i].geometry.coordinates = [+g.lon.toFixed(7), +g.lat.toFixed(7)];
+  const patch = { geometry_source: (props(i).geometry_source || '').replace(/ · \d+(\.\d+)? m (ahead|away).*$/, '') +
+                    ' · ' + d.toFixed(1) + ' m away, ' + Math.round(a.dir) + '°' };
+  if (l) { patch.lx = +l.lx.toFixed(3); patch.ly = +l.ly.toFixed(3); }
+  else if (a.acc != null) patch.position_accuracy_m = a.acc;
+  setEdit(i, patch);
+  saveCat(); buildMarkers(); placeMarkers(); renderList(); drawMap();
+  if (openIdx === i && panelEl) openPanel(i, panelTab);
+  toast(tid(i) + ' moved to ' + d.toFixed(1) + ' m ' + bearWord(a.dir) + ' of where you stood.');
+  done();
+}
+
 function recordTreeAt(st) {
   if (mode !== 'WebXR') return toast('The camera view is not running.');
   if (!S2P) return toast('The session has no frame to measure in – leave AR and come back.');
@@ -759,7 +890,19 @@ function recordTreeAt(st) {
   sessScene.set(i, { x: at.x, z: at.z });
   placeMarkers();
   selectTree(i);
-  openPanel(i);
+  /* Depth found the trunk itself - that distance is measured, not guessed, so
+     it is the one case the question has nothing to add. Everything else is an
+     assumption about where the inspector was standing, and gets asked. */
+  const dv = camDir(), fl2 = Math.hypot(dv.x, dv.z) || 1;
+  const asked = how !== 'depth' && distanceSheet(i, {
+    from: g, dir: headingOfDir(dv),
+    scene: { x: c.x, z: c.z, dx: dv.x / fl2, dz: dv.z / fl2 },
+    was: Math.hypot(at.x - c.x, at.z - c.z),
+    note: how === 'reticle' ? 'Recorded at the ring' : how === 'step' ? 'Recorded a step ahead'
+                                                     : 'Recorded where you stand',
+    after: () => openPanel(i)
+  });
+  if (!asked) openPanel(i);
   const rough = s2pAuto && CAT.features.some((f, k) => k !== i && hasLocal(props(k)));
   toast('Tree ' + tid(i) + (how === 'depth'
           ? ' recorded on the stem in front of you' +
@@ -7293,7 +7436,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
+  if (k === 'data') { paintAskDist(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
@@ -8140,9 +8283,19 @@ function wire() {
   $('bNew').onclick = () => {
     if (!lastFix) return toast('No GPS fix – a new tree needs a position.');
     const i = addTree(lastFix.lon, lastFix.lat, 'GPS in the field', lastFix.acc);
-    openPanel(i, 'base');            // straight to the position, it needs fixing
     toast('Recorded at your own position (±' + lastFix.acc.toFixed(0) +
           ' m) – average it at the stem, or place it in AR.');
+    /* Your own position is where you stand, and a tree is rarely underfoot.
+       The compass says which way the phone is pointing; hold it at the tree
+       and say how far. */
+    if (!distanceSheet(i, {
+          from: { lat: lastFix.lat, lon: lastFix.lon },
+          dir: (haveOrient && heading != null) ? heading : 0, scene: null, was: 0,
+          note: haveOrient ? 'Recorded where you stand'
+                           : 'Recorded where you stand · no compass, so due north is assumed',
+          after: () => openPanel(i, 'base')   // straight to the position, it needs fixing
+        }))
+      openPanel(i, 'base');
   };
 
   $('bNewXY').onclick = () => {
@@ -8333,6 +8486,8 @@ function wire() {
   };
   paintFollow();
   $('bScroll').onclick = () => { setPref('follow', !followForm()); paintFollow(); };
+  paintAskDist();
+  $('bAskDist').onclick = () => { setPref('askDist', !askDist()); paintAskDist(); };
   $('prefLang').value = prefs().lang || 'auto';
   $('prefLang').onchange = () => {
     const v = $('prefLang').value;
