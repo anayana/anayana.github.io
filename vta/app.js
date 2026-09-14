@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.28.0';
+const APP_VERSION = '2.29.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -4661,6 +4661,9 @@ function buildToolMenu() {
     if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(t, 'bark');
     selectTree(t); startBark(t);
   }, 'p');
+  [['leaf', 'Leaf'], ['flower', 'Flower'], ['fruit', 'Fruit'], ['habit', 'Whole tree']].forEach(o =>
+    add(o[1] + ' photo', () => { if (t == null) return toast('No tree in view.'); selectTree(t); takePhotoOf(t, o[0]); }));
+  add('🎤 Voice', () => { if (t != null) selectTree(t); speechStart(t); });
   add('DBH — walk the stem', () => {
     if (t == null) return toast('No tree in view.');
     selectTree(t); startCaliper(t);
@@ -6024,9 +6027,28 @@ function openPanel(i, tab) {
   bAR.title = 'Show this tree through the camera';
   bAR.onclick = () => { savePanel(true); toAR(i); };
   ph.appendChild(bAR);
+  const bMic = document.createElement('button'); bMic.textContent = '🎤';
+  bMic.title = 'Voice: say a field and its value';
+  bMic.onclick = () => voiceToggle(i);
+  ph.appendChild(bMic);
   const bc = document.createElement('button'); bc.textContent = 'Close';
   bc.onclick = closePanel; ph.appendChild(bc);
   el.appendChild(ph);
+  const ro = !userCan('edit');
+  if (ro) {
+    const bn = document.createElement('div'); bn.className = 'rolebanner';
+    bn.textContent = curUser() ? 'Signed in as a viewer – this record is read-only.'
+                               : 'Not signed in – reading only. Tap the name at the top to sign in.';
+    el.appendChild(bn);
+    el.classList.add('readonly');
+  } else el.classList.remove('readonly');
+  if (p.edited_at) {
+    const st = document.createElement('div'); st.className = 'small';
+    st.style.margin = '2px 0 6px';
+    st.textContent = 'Last change ' + p.edited_at.slice(0, 16).replace('T', ' ') +
+                     (p.edited_by ? ' by ' + p.edited_by : '');
+    el.appendChild(st);
+  }
 
   const tabs = document.createElement('div'); tabs.className = 'ptabs';
   const body = document.createElement('div'); body.className = 'pb';
@@ -6243,8 +6265,12 @@ function openPanel(i, tab) {
     toast('Field record reset.');
   };
   const bd = document.createElement('button'); bd.className = 'x'; bd.textContent = 'Delete';
+  bd.disabled = !userCan('manage');
+  bd.title = bd.disabled ? 'Only an admin deletes trees' : '';
   bd.onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin deletes trees.');
     if (!confirm('Delete ' + tid(i) + ' from the register? Photos of it are kept.')) return;
+    auditAdd({ what: 'deleted', tree: tid(i) });
     toast(deleteTree(i) + ' deleted.');
   };
   const bar = document.createElement('button'); bar.textContent = 'AR';
@@ -6291,8 +6317,13 @@ function collect() {
   return o;
 }
 function setEdit(i, patch) {
-  edits[tid(i)] = Object.assign({}, edits[tid(i)] || {}, patch);
+  if (!userCan('edit')) { toast('Signed in as a viewer – nothing can be changed.'); return; }
+  const before = props(i);
+  const stamp = { edited_at: new Date().toISOString(), edited_by: userName() || undefined };
+  edits[tid(i)] = Object.assign({}, edits[tid(i)] || {}, patch, stamp);
   saveEdits(); refreshMarker(i); renderList(); renderStats();
+  const diff = auditDiff(before, props(i));
+  if (Object.keys(diff).length) auditAdd({ what: 'edited', tree: tid(i), diff: diff });
 }
 function savePanel(silent) {
   if (openIdx === null) return;
@@ -6422,6 +6453,14 @@ async function renderPhotos(tree, gal) {
   gal.innerHTML = '';
   if (!list.length) { gal.innerHTML = '<p class="small">No photos yet.</p>'; return; }
   list.sort((a, b) => ((b.kind === 'bark') - (a.kind === 'bark')) || (a.ts < b.ts ? 1 : -1));
+  const idxOf = CAT.features.findIndex((x, n) => tid(n) === tree);
+  if (list.some(f => f.kind !== 'audio') && idxOf >= 0) {
+    const pn = document.createElement('button'); pn.className = 'sm p'; pn.textContent = 'Pl@ntNet';
+    pn.style.cssText = 'grid-column:1/-1;justify-self:start';
+    pn.title = 'Send several pictures of this tree together for a species';
+    pn.onclick = () => pnetForTree(idxOf);
+    gal.appendChild(pn);
+  }
   list.forEach(f => {
     const fig = document.createElement('figure');
     if (f.kind === 'audio') {
@@ -6493,7 +6532,9 @@ async function renderPhotos(tree, gal) {
       nia.disabled = false; nia.textContent = 'NIA';
     };
     fig.appendChild(nia);
-    cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : f.kind === 'tag' ? 'PLATE · ' : '') +
+    cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : f.kind === 'tag' ? 'PLATE · '
+                     : f.kind === 'leaf' ? 'LEAF · ' : f.kind === 'flower' ? 'FLOWER · '
+                     : f.kind === 'fruit' ? 'FRUIT · ' : f.kind === 'habit' ? 'WHOLE TREE · ' : '') +
       (f.read ? 'read ' + f.read + ' · ' : '') +
       (f.ts || '').slice(0, 16).replace('T', ' ') +
       (f.bearing != null ? ' · ' + f.bearing + '°' : '') +
@@ -7025,7 +7066,7 @@ function showScreen(k) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
-  if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); }
+  if (k === 'data') { renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
@@ -7360,6 +7401,128 @@ function csv() {
   return rows.join('\r\n');
 }
 function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
+
+function voiceToggle(i) { speechStart(i); }
+
+/* ======================= WHO IS HOLDING THE PHONE ======================= */
+function paintWho() {
+  const b = $('whoBtn'); if (!b) return;
+  if (!usersExist()) { b.style.display = 'none'; return; }
+  const u = curUser();
+  b.style.display = '';
+  b.textContent = u ? (u.name + ' · ' + ROLES[u.role]) : 'Sign in';
+  b.classList.toggle('p', !!u);
+}
+function openWho(force) {
+  if (!usersExist()) return;
+  const list = usersAll();
+  const box = $('whoList'); box.innerHTML = '';
+  $('whoSub').textContent = curUser() ? 'Signed in as ' + curUser().name : 'Every change is stamped with the name';
+  list.forEach(u => {
+    const b = document.createElement('button'); b.className = 'numrow';
+    b.innerHTML = '<span><b>' + esc(u.name) + '</b> <span class="small">' + esc(ROLES[u.role]) +
+                  (u.pin ? ' · PIN' : '') + '</span></span><span class="small">' +
+                  (curUser() && curUser().id === u.id ? 'you' : '') + '</span>';
+    b.onclick = async () => {
+      let pin = '';
+      if (u.pin) {
+        pin = prompt('PIN for ' + u.name + ':') || '';
+        if (!pin) return;
+      }
+      if (!(await signIn(u.id, pin))) return toast('That PIN is wrong.');
+      $('whodlg').style.display = 'none';
+      paintWho(); renderList(); renderUsers(); renderAudit();
+      if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+      toast('Signed in as ' + u.name + '.');
+    };
+    box.appendChild(b);
+  });
+  const row = document.createElement('div'); row.className = 'btnrow'; row.style.marginTop = '12px';
+  if (curUser()) {
+    const out = document.createElement('button'); out.className = 'x'; out.textContent = 'Sign out';
+    out.onclick = () => { signOut(); $('whodlg').style.display = 'none'; paintWho(); renderList(); renderUsers();
+                          if (openIdx != null && panelEl) openPanel(openIdx, panelTab); };
+    row.appendChild(out);
+  }
+  if (curUser() || !force) {
+    const cl = document.createElement('button'); cl.textContent = curUser() ? 'Close' : 'Read only';
+    cl.onclick = () => { $('whodlg').style.display = 'none'; };
+    row.appendChild(cl);
+  }
+  box.appendChild(row);
+  $('whodlg').style.display = 'block';
+}
+function renderUsers() {
+  const box = $('usersBox'); if (!box) return;
+  const list = usersAll();
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<p class="small">No users – this phone is one person\'s.</p>'; return; }
+  const admin = userCan('manage');
+  list.forEach(u => {
+    const r = document.createElement('div'); r.className = 'urow';
+    const sp = document.createElement('span');
+    sp.innerHTML = '<b>' + esc(u.name) + '</b> · ' + esc(ROLES[u.role]) + (u.pin ? ' · PIN' : '') +
+                   '<div class="small">' + esc(ROLE_NOTE[u.role]) + '</div>';
+    r.appendChild(sp);
+    if (admin) {
+      const act = document.createElement('span');
+      const role = document.createElement('select');
+      Object.keys(ROLES).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = ROLES[k]; role.appendChild(o); });
+      role.value = u.role; role.className = 'sm';
+      role.onchange = () => { try { userSetRole(u.id, role.value); renderUsers(); paintWho(); } catch (e) { toast(e.message); } };
+      const pin = document.createElement('button'); pin.className = 'sm'; pin.textContent = 'PIN';
+      pin.onclick = async () => { const v = prompt('New PIN for ' + u.name + ' (empty removes it):'); if (v === null) return;
+                                  await userSetPin(u.id, v); renderUsers(); toast(v ? 'PIN set.' : 'PIN removed.'); };
+      const del = document.createElement('button'); del.className = 'sm x'; del.textContent = '×';
+      del.onclick = () => { if (!confirm('Remove ' + u.name + '?')) return;
+                            try { userRemove(u.id); } catch (e) { return toast(e.message); }
+                            renderUsers(); paintWho(); };
+      act.appendChild(role); act.appendChild(pin); act.appendChild(del);
+      r.appendChild(act);
+    }
+    box.appendChild(r);
+  });
+}
+function renderAudit() {
+  const box = $('auditBox'); if (!box) return;
+  const list = auditList().slice(-60).reverse();
+  box.innerHTML = list.length ? '' : '<div>Nothing yet.</div>';
+  list.forEach(r => {
+    const d = document.createElement('div');
+    const detail = r.detail || (r.diff ? Object.keys(r.diff).map(k => k + ' ' +
+      (r.diff[k][0] == null ? '–' : String(r.diff[k][0]).slice(0, 18)) + ' → ' +
+      (r.diff[k][1] == null ? '–' : String(r.diff[k][1]).slice(0, 18))).join(', ') : '');
+    d.innerHTML = '<span>' + esc(r.ts.slice(0, 16).replace('T', ' ')) + ' · ' + esc(r.user) + '</span> ' +
+                  esc(r.what) + (r.tree ? ' <b>' + esc(r.tree) + '</b>' : '') +
+                  (detail ? ' <span>' + esc(detail) + '</span>' : '');
+    box.appendChild(d);
+  });
+}
+function wireUsers() {
+  $('whoBtn').onclick = () => openWho(false);
+  $('uAdd').onclick = async () => {
+    if (usersExist() && !userCan('manage')) return toast('Only an admin adds users.');
+    try {
+      const u = await userAdd($('uName').value, $('uRole').value, $('uPin').value);
+      $('uName').value = ''; $('uPin').value = '';
+      // the first user made is the person making it, and an admin: otherwise
+      // the phone has a user it cannot sign in as and nobody who can manage
+      if (usersAll().length === 1) { const l = usersAll(); l[0].role = 'admin'; usersSave(l); await signIn(u.id, $('uPin').value); }
+      renderUsers(); paintWho(); renderAudit();
+      toast(usersAll().length === 1 ? 'You are ' + u.name + ', admin. Add the others.' : u.name + ' added.');
+    } catch (e) { toast(e.message); }
+  };
+  $('bAuditCsv').onclick = () => dl('trail_' + stamp() + '.csv', auditCsv(), 'text/csv');
+  $('bAuditClear').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin clears the trail.');
+    if (!confirm('Clear the trail? The clearing itself is logged.')) return;
+    lsDel(K_AUDIT); auditAdd({ what: 'trail cleared' }); renderAudit();
+  };
+  paintWho(); renderUsers(); renderAudit();
+  // users exist and nobody is signed in: ask, once, at start
+  if (usersExist() && !curUser()) openWho(true);
+}
+
 
 /* ================== READING A STRANGER'S REGISTER ==================
    The column reader lives in mapper.js; this is the part the inspector sees.
@@ -7696,8 +7859,9 @@ function wire() {
       await new Promise(r => setTimeout(r, 350));
     }
   };
-  $('bImp').onclick = () => { importReplace = false; $('fileImp').click(); };
+  $('bImp').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importReplace = false; $('fileImp').click(); };
   $('bImpRep').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin replaces the register.');
     if (!confirm('Replace the whole register with the file, losing everything on this phone that is not in it?')) return;
     importReplace = true; $('fileImp').click();
   };
@@ -7791,6 +7955,11 @@ function wire() {
   };
   paintFollow();
   $('bScroll').onclick = () => { setPref('follow', !followForm()); paintFollow(); };
+  $('prefVoice').value = prefs().voiceLang || 'de-DE';
+  $('prefVoice').onchange = () => setPref('voiceLang', $('prefVoice').value);
+  $('prefPnet').value = pnetCfg().key || '';
+  $('prefPnet').onchange = () => { const c = pnetCfg(); c.key = $('prefPnet').value.trim(); pnetSave(c);
+                                   toast(c.key ? 'Pl@ntNet key kept on this phone.' : 'Pl@ntNet key removed.'); };
   $('prefStep').value = prefs().stepOff == null ? '1.0' : prefs().stepOff;
   $('prefStep').onchange = () => {
     const v = parseFloat(String($('prefStep').value).replace(',', '.'));
@@ -7843,6 +8012,7 @@ function wire() {
           Math.abs(before - distBear(PLOT.lat, PLOT.lon, lastFix.lat, lastFix.lon).d).toFixed(0) + ' m).');
   };
   $('bResetEdits').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin deletes the field records.');
     if (!confirm('Delete every inspection record captured in the field?')) return;
     edits = {}; lsDel(K_EDIT); buildMarkers(); renderList(); renderStats(); toast('Field records deleted.');
   };
@@ -7855,9 +8025,11 @@ function wire() {
     toast('Next tree will be ' + nextTreeId() + '.');
   };
   $('roundStart').onclick = () => {
-    const who = ($('prefInspector').value || '').trim();
+    if (!userCan('edit')) return toast('A viewer cannot run a round.');
+    const who = (curUser() ? curUser().name : ($('prefInspector').value || '')).trim();
     if (!who) return toast('Put your name in first – a round has to be signed.');
-    setPref('inspector', who); roundStart(who);
+    if (!curUser()) setPref('inspector', who);
+    roundStart(who); auditAdd({ what: 'round started', detail: who });
     toast('Round started. Every tree you save is stamped and counted.');
   };
   $('roundEnd').onclick = () => {
@@ -7944,6 +8116,7 @@ step('demo trees', () => { _demo = dropDemoTrees(); });
 step('scene', buildScene);
 step('markers', buildMarkers);
 step('buttons', wire);
+step('users', wireUsers);
 step('camera file', wireFilePhoto);
 step('map', wireMap);
 step('keyboard', watchKeyboard);
