@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.30.2';
+const APP_VERSION = '2.31.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1707,6 +1707,7 @@ function onFix(fix) {
   // of the day, yet everything on screen is drawn relative to the origin.
   // Keep taking the better fix until a session pins the scene down.
   trackFix(fix);
+  if (fix.acc <= 200) proposeNormFor(fix.lat, fix.lon, null);
   autoAlign();                       // a first fix is also a first chance
   autoFit();                                         // and every fix is a chance to do better
   if (mapOn()) {
@@ -5708,7 +5709,7 @@ function fieldRow(k, lab, typ, opt, p) {
   let inp;
   if (typ === 'select') {
     inp = document.createElement('select');
-    opt.forEach(o => { const e2 = document.createElement('option'); e2.value = o; e2.textContent = o; inp.appendChild(e2); });
+    opt.forEach(o => { const e2 = document.createElement('option'); e2.value = o; e2.textContent = optLabel(k, o); inp.appendChild(e2); });
     inp.value = p[k];
   } else if (typ === 'area') {
     inp = document.createElement('textarea'); inp.value = p[k] == null ? '' : p[k];
@@ -6176,7 +6177,7 @@ function openPanel(i, tab) {
   v.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', updateVerdict));
 
   /* --- base data --- */
-  F_BASE.forEach(f => secs.base.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  F_BASE.map(f => fieldDef(f[0])).forEach(f => secs.base.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
   secs.base.appendChild(measureBlock(i));
   secs.base.appendChild(geoEditor(i));
 
@@ -6604,9 +6605,8 @@ function voiceStop() { if (recorder && recorder.state !== 'inactive') recorder.s
 function curNorm() { return normById(prefs().norm || 'fll'); }
 function setNorm(id) { setPref('norm', normById(id).id); }
 function fieldDef(k) {
-  if (FIELDS[k]) return FIELDS[k];
-  const b = F_BASE.find(f => f[0] === k);
-  return b || [k, k, 'text'];
+  const b = FIELDS[k] || F_BASE.find(f => f[0] === k) || [k, k, 'text'];
+  return [b[0], fieldLabel(k, b[1]), b[2], b[3]];
 }
 
 function prefs() { try { return JSON.parse(lsGet(K_PREF)) || {}; } catch (e) { return {}; } }
@@ -6692,6 +6692,7 @@ function fmtField(k, v) {
   if (v == null || v === '' || (Array.isArray(v) && !v.length)) return '';
   if (Array.isArray(v)) return v;
   if ((k === 'urgency' || k === 'damage_class') && v === 'none') return '';
+  if (typeof v === 'string' && OPT_L[k]) return optLabel(k, v);
   if (/_cm$/.test(k)) return v + ' cm';
   if (/_m$/.test(k)) return v + ' m';
   if (/_pct$/.test(k)) return v + ' %';
@@ -6735,32 +6736,32 @@ async function buildReport(withPhotos) {
       (r.crown_dieback_pct == null ? '' : r.crown_dieback_pct + ' %') + '</td><td>' +
       (r.t_R == null ? '' : r.t_R) + '</td></tr>').join('');
     const verdict = nrm.verdict && p[nrm.verdict] != null && p[nrm.verdict] !== '' ?
-      '<span class="vd">' + esc(fieldDef(nrm.verdict)[1]) + ': <b>' + esc(p[nrm.verdict]) + '</b></span>' : '';
-    return '<section class="tree"><h2>' + head(x) + ' <span class="lvl l' + a.lvl + '">Level ' +
+      '<span class="vd">' + esc(fieldDef(nrm.verdict)[1]) + ': <b>' + esc(optLabel(nrm.verdict, p[nrm.verdict])) + '</b></span>' : '';
+    return '<section class="tree"><h2>' + head(x) + ' <span class="lvl l' + a.lvl + '">' + esc(tr('Level')) + ' ' +
       a.lvl + ' · ' + esc(LVLTXT[a.lvl]) + '</span></h2>' + verdict +
       '<table>' +
-      row('Species', p.species ? p.species + (p.name_en ? ' (' + p.name_en + ')' : '') : '') +
-      row('Position', x.c[1].toFixed(6) + ', ' + x.c[0].toFixed(6) +
+      row(tr('Species'), p.species ? p.species + (p.name_en ? ' (' + p.name_en + ')' : '') : '') +
+      row(tr('Position'), x.c[1].toFixed(6) + ', ' + x.c[0].toFixed(6) +
           (p.position_accuracy_m != null ? '  ±' + p.position_accuracy_m + ' m' : '') +
           (p.geometry_source ? '  · ' + p.geometry_source : '')) +
-      row('DBH / height', (p.dbh_cm == null ? '–' : p.dbh_cm + ' cm') + ' / ' +
+      row(tr('DBH / height'), (p.dbh_cm == null ? '–' : p.dbh_cm + ' cm') + ' / ' +
           (p.height_m == null ? '–' : p.height_m + ' m')) +
       row('t / R', a.tr == null ? '' : a.tr.toFixed(2) + (a.tr < 0.30 ? '  (below 0.30)' : '')) +
       row('h / d', a.hd == null ? '' : a.hd.toFixed(0)) +
-      row('Symptoms', p.symptom_labels && p.symptom_labels.length ? p.symptom_labels : null) +
-      row('Wood-decay fungi', fung.length ? fung : null) +
+      row(tr('Symptoms'), p.symptom_labels && p.symptom_labels.length ? p.symptom_labels : null) +
+      row(tr('Wood-decay fungi'), fung.length ? fung : null) +
       /* The findings in the order and under the headings the standard wants
          them - the same profile that drove the form drives the paper. */
       nrm.groups.map(g => {
         const cells = g[1].map(k => row(fieldDef(k)[1], fmtField(k, p[k]))).join('');
-        return cells ? '<tr class="g"><th colspan="2">' + esc(g[0]) + '</th></tr>' + cells : '';
+        return cells ? '<tr class="g"><th colspan="2">' + esc(tr(g[0])) + '</th></tr>' + cells : '';
       }).join('') +
-      (p.edited_by || p.edited_at ? row('Recorded', (p.edited_at || '').slice(0, 16).replace('T', ' ') +
+      (p.edited_by || p.edited_at ? row(tr('Recorded'), (p.edited_at || '').slice(0, 16).replace('T', ' ') +
           (p.edited_by ? ' by ' + p.edited_by : '')) : '') +
       '</table>' +
-      (a.notes.length ? '<div class="why"><b>Reasoning</b><ul>' +
+      (a.notes.length ? '<div class="why"><b>' + esc(tr('Reasoning')) + '</b><ul>' +
         a.notes.map(n => '<li>' + esc(n) + '</li>').join('') + '</ul></div>' : '') +
-      (hist ? '<table class="hist"><caption>History</caption><tr><th>Inspected</th><th>Level</th>' +
+      (hist ? '<table class="hist"><caption>' + esc(tr('History')) + '</caption><tr><th>' + esc(tr('Inspection')) + '</th><th>' + esc(tr('Level')) + '</th>' +
         '<th>Vit.</th><th>Dieback</th><th>t/R</th></tr>' + hist + '</table>' : '') +
       (ph ? '<div class="ph">' + ph + '</div>' : '') +
       '</section>';
@@ -6796,14 +6797,14 @@ async function buildReport(withPhotos) {
     '</style>' +
     '<h1>' + esc(nrm.reportTitle) + '</h1>' +
     '<p class="sub">' + esc(nrm.label) + ' · ' + esc(nrm.source) + '</p>' +
-    '<p class="sub">' + esc(now.toLocaleString()) + ' · ' + items.length + ' trees' +
+    '<p class="sub">' + esc(now.toLocaleString()) + ' · ' + items.length + ' ' + esc(tr('trees')) +
     (CAT.name ? ' · ' + esc(CAT.name) : '') +
     (userName() ? ' · ' + esc(userName()) : '') + '</p>' +
     '<table class="sum"><tr><th>Level 0 inconspicuous</th><td>' + lv[0] + '</td>' +
     '<th>Level 1 watch</th><td>' + lv[1] + '</td></tr>' +
     '<tr><th>Level 2 conspicuous</th><td>' + lv[2] + '</td>' +
     '<th>Level 3 urgent</th><td>' + lv[3] + '</td></tr></table>' +
-    (workRows ? '<h2>Outstanding</h2><table><tr><th>Tree</th><th>Lvl</th><th>Urgency</th>' +
+    (workRows ? '<h2>' + esc(tr('Outstanding')) + '</h2><table><tr><th>Tree</th><th>Lvl</th><th>' + esc(fieldDef('urgency')[1]) + '</th>' +
       '<th>Action</th><th>Next inspection</th></tr>' + workRows + '</table>' : '') +
     trees;
 }
@@ -7654,6 +7655,46 @@ function paintMapWarn() {
 
 function closeMapper() { $('mapdlg').style.display = 'none'; mapState = null; }
 
+/* ---- the standard that applies here -----------------------------------
+   A fix in Tallinn while the form is set to the German guideline is a
+   mistake waiting to happen. The country is read off the position - the
+   phone's, or the register's on import - and the matching standard is
+   offered once. Offered, not imposed: the inspector may be working to a
+   client's rule that is not the local one. Declined, it is not asked again
+   for that standard until the app is restarted. */
+let normOffered = null;
+function proposeNormFor(lat, lon, why) {
+  const cc = countryOf(lat, lon);
+  const id = cc && normForCountry(cc);
+  if (!id || id === curNorm().id || normOffered === id || prefs().normPinned) return false;
+  normOffered = id;
+  const n = normById(id);
+  const html = '<b>' + esc(n.flag + ' ' + n.label) + '</b><br>' +
+    esc(why || 'You appear to be in ' + cc) + '. Work to this standard? The form and the report change; the trees do not.';
+  const yes = () => { setNorm(id); if (openIdx != null && panelEl) openPanel(openIdx, panelTab); renderList();
+                      const sel = $('normSel'); if (sel) sel.value = id;
+                      const nn = $('normNote'); if (nn) nn.textContent = n.note + ' — ' + n.source;
+                      toast('Form set to ' + n.label + ' · ' + (LANG_NAMES[uiLang()] || '')); };
+  if (mode === 'WebXR') mbar(html, [['Yes', () => { $('mbar').classList.remove('on'); yes(); }, 'p'],
+                                     ['Keep ' + curNorm().flag, () => { $('mbar').classList.remove('on'); }]]);
+  else askSheet(html, [['Yes', yes, 'p'], ['Keep ' + curNorm().flag + ' ' + curNorm().cc, null]]);
+  return true;
+}
+/* A question with buttons, outside AR: the same box the identification
+   suggestions use. */
+function askSheet(html, buttons) {
+  const el = $('niaBox'); el.innerHTML = '';
+  const h = document.createElement('div'); h.innerHTML = html; el.appendChild(h);
+  const row = document.createElement('div'); row.className = 'btnrow'; row.style.marginTop = '10px';
+  buttons.forEach(b => {
+    const bt = document.createElement('button'); if (b[2]) bt.className = b[2]; bt.textContent = b[0];
+    bt.onclick = () => { el.style.display = 'none'; if (b[1]) b[1](); };
+    row.appendChild(bt);
+  });
+  el.appendChild(row); el.style.display = 'block';
+}
+
+
 /* ---- straight from the server -------------------------------------------
    Nobody should have to know what curl is to get their city's trees. An
    ArcGIS layer address is turned into the query that returns GeoJSON in WGS84,
@@ -7715,6 +7756,8 @@ function runMapper() {
   const rep = mergeCatalogue(r.features, false);
   closeMapper();
   buildMarkers(); renderList(); renderStats();
+  const c0 = r.features[0].geometry.coordinates;
+  setTimeout(() => proposeNormFor(c0[1], c0[0], 'The register you loaded lies in ' + (countryOf(c0[1], c0[0]) || '?')), 400);
   alert('Register read.\n\n' + rep.added + ' new tree' + (rep.added === 1 ? '' : 's') +
         '\n' + rep.filled + ' existing filled in' +
         '\n' + rep.kept + ' left as they were' +
@@ -8010,7 +8053,7 @@ function wire() {
   };
   paintNorm();
   normSel.onchange = () => {
-    setNorm(normSel.value); paintNorm();
+    setNorm(normSel.value); paintNorm(); setPref('normPinned', true);
     if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
     renderList();
     toast('Form set to ' + curNorm().label + '.');
@@ -8022,7 +8065,15 @@ function wire() {
   };
   paintFollow();
   $('bScroll').onclick = () => { setPref('follow', !followForm()); paintFollow(); };
-  $('prefVoice').value = prefs().voiceLang || 'de-DE';
+  $('prefLang').value = prefs().lang || 'auto';
+  $('prefLang').onchange = () => {
+    const v = $('prefLang').value;
+    const pr = prefs(); if (v === 'auto') delete pr.lang; else pr.lang = v; lsSet(K_PREF, JSON.stringify(pr));
+    if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+    renderList();
+    toast('Form in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
+  };
+  $('prefVoice').value = prefs().voiceLang || 'auto';
   $('prefVoice').onchange = () => setPref('voiceLang', $('prefVoice').value);
   $('prefPnet').value = pnetCfg().key || '';
   $('prefPnet').onchange = () => { const c = pnetCfg(); c.key = $('prefPnet').value.trim(); pnetSave(c);

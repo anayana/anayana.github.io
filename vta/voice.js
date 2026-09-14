@@ -33,6 +33,14 @@ const NUM_EN = {
   seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50,
   sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000
 };
+const NUM_ET = {
+  null: 0, üks: 1, uks: 1, kaks: 2, kolm: 3, neli: 4, viis: 5, kuus: 6, seitse: 7, kaheksa: 8,
+  üheksa: 9, uheksa: 9, kümme: 10, kumme: 10, üksteist: 11, kaksteist: 12, kolmteist: 13,
+  neliteist: 14, viisteist: 15, kuusteist: 16, seitseteist: 17, kaheksateist: 18, üheksateist: 19,
+  kakskümmend: 20, kakskummend: 20, kolmkümmend: 30, kolmkummend: 30, nelikümmend: 40,
+  viiskümmend: 50, viiskummend: 50, kuuskümmend: 60, seitsekümmend: 70, kaheksakümmend: 80,
+  üheksakümmend: 90, sada: 100, tuhat: 1000
+};
 /* "einundfünfzig" -> 51, "zweihundertdrei" -> 203, "fifty one" -> 51,
    "five one" -> "51" (spoken digit by digit: the plate is read out that way). */
 function wordsToNumber(str) {
@@ -59,7 +67,8 @@ function wordsToNumber(str) {
   const toks = s.split(/\s+/).filter(t => t !== 'and' && t !== 'und');
   let total = 0, cur = 0, digitsOnly = true, digits = '';
   for (const t of toks) {
-    const v = /^\d+$/.test(t) ? parseInt(t, 10) : (NUM_EN[t] != null ? NUM_EN[t] : NUM_DE[t]);
+    const v = /^\d+$/.test(t) ? parseInt(t, 10)
+            : (NUM_EN[t] != null ? NUM_EN[t] : NUM_DE[t] != null ? NUM_DE[t] : NUM_ET[t]);
     if (v == null) return null;
     if (v > 9) digitsOnly = false; else digits += String(v);
     if (v === 1000) { total += (cur || 1) * 1000; cur = 0; }
@@ -77,16 +86,18 @@ function wordsToNumber(str) {
 const VOICE_FIELDS = [
   { k: 'vitality_roloff', say: ['vitalität', 'vitalitaet', 'vita lität', 'vitality', 'roloff'],
     kind: 'int', min: 0, max: 3, ask: { de: 'Vitalität, null bis drei?', en: 'Vitality, zero to three?' } },
-  { k: 'vitality_5', say: ['vitalität', 'vitality', 'zustand', 'condition'],
-    kind: 'opt', opts: { good: ['gut', 'good'], moderate: ['mäßig', 'maessig', 'mittel', 'moderate'],
-      poor: ['schlecht', 'poor', 'gering'], dying: ['absterbend', 'dying'], dead: ['tot', 'abgestorben', 'dead'] },
-    ask: { de: 'Vitalität: gut, mäßig, schlecht, absterbend oder tot?', en: 'Vitality: good, moderate, poor, dying or dead?' } },
-  { k: 'crown_dieback_pct', say: ['kronenverlichtung', 'verlichtung', 'totholz', 'dieback', 'crown dieback'],
-    kind: 'int', min: 0, max: 100, ask: { de: 'Kronenverlichtung in Prozent?', en: 'Crown dieback, percent?' } },
-  { k: 'damage_class', say: ['schadklasse', 'schadensklasse', 'schaden', 'schadstufe', 'damage', 'damage class'],
-    kind: 'opt', opts: { none: ['keine', 'kein', 'ohne', 'none', 'no'], slight: ['gering', 'leicht', 'slight', 'minor'],
-      moderate: ['mäßig', 'maessig', 'mittel', 'moderate'], severe: ['stark', 'schwer', 'severe', 'heavy'] },
-    ask: { de: 'Schadklasse: keine, gering, mäßig oder stark?', en: 'Damage class: none, slight, moderate or severe?' } },
+  { k: 'vitality_5', say: ['vitalität', 'vitality', 'zustand', 'condition', 'seisund', 'conditie'],
+    kind: 'opt', opts: { good: ['gut', 'good', 'hea', 'goed'], moderate: ['mäßig', 'maessig', 'mittel', 'moderate', 'rahuldav', 'matig'],
+      poor: ['schlecht', 'poor', 'gering', 'halb', 'slecht'], dying: ['absterbend', 'dying', 'hääbuv'], dead: ['tot', 'abgestorben', 'dead', 'kuivanud', 'surnud', 'dood'] },
+    ask: { de: 'Vitalität: gut, mäßig, schlecht, absterbend oder tot?', en: 'Vitality: good, moderate, poor, dying or dead?',
+           et: 'Seisund: hea, rahuldav, halb, hääbuv või kuivanud?', nl: 'Conditie: goed, matig, slecht, afstervend of dood?' } },
+  { k: 'crown_dieback_pct', say: ['kronenverlichtung', 'verlichtung', 'totholz', 'dieback', 'crown dieback', 'hõrenemine', 'võra hõrenemine'],
+    kind: 'int', min: 0, max: 100, ask: { de: 'Kronenverlichtung in Prozent?', en: 'Crown dieback, percent?', et: 'Võra hõrenemine protsentides?', nl: 'Kroonsterfte in procent?' } },
+  { k: 'damage_class', say: ['schadklasse', 'schadensklasse', 'schaden', 'schadstufe', 'damage', 'damage class', 'kahjustus', 'kahjustused', 'kahjustuse aste', 'schade'],
+    kind: 'opt', opts: { none: ['keine', 'kein', 'ohne', 'none', 'no', 'puudub', 'geen'], slight: ['gering', 'leicht', 'slight', 'minor', 'kerge', 'licht'],
+      moderate: ['mäßig', 'maessig', 'mittel', 'moderate', 'keskmine', 'matig'], severe: ['stark', 'schwer', 'severe', 'heavy', 'tugev', 'raske', 'ernstig'] },
+    ask: { de: 'Schadklasse: keine, gering, mäßig oder stark?', en: 'Damage class: none, slight, moderate or severe?',
+           et: 'Kahjustuse aste: puudub, kerge, keskmine või tugev?', nl: 'Schadeklasse: geen, licht, matig of ernstig?' } },
   { k: 'traffic_safety', say: ['verkehrssicherheit', 'verkehrssicher', 'sicherheit', 'traffic safety', 'safety'],
     kind: 'opt', opts: { adequate: ['gegeben', 'gewährleistet', 'ja', 'ok', 'adequate', 'given', 'yes'],
       restricted: ['eingeschränkt', 'eingeschraenkt', 'bedingt', 'restricted', 'reduced'],
@@ -97,30 +108,52 @@ const VOICE_FIELDS = [
       'attention tree': ['attentieboom', 'attention', 'aufmerksamkeit', 'beobachten'],
       'risk tree': ['risicoboom', 'risiko', 'risk'], 'further investigation needed': ['nader onderzoek', 'untersuchung', 'further', 'investigation'] },
     ask: { de: 'Ergebnis: ohne Befund, Attentieboom, Risicoboom oder Untersuchung?', en: 'Result: no findings, attention tree, risk tree or investigation?' } },
-  { k: 'urgency', say: ['dringlichkeit', 'frist', 'urgency', 'priorität', 'prioritaet'],
-    kind: 'opt', opts: { none: ['keine', 'none', 'nichts'], 'next growing season': ['vegetationsperiode', 'nächste vegetation', 'next season', 'growing season', 'nächstes jahr'],
-      '3 months': ['drei monate', 'drei monaten', 'three months', '3 monate'], '1 month': ['ein monat', 'einen monat', 'one month', '1 monat'],
-      immediate: ['sofort', 'umgehend', 'immediate', 'immediately', 'now'] },
-    ask: { de: 'Dringlichkeit: keine, Vegetationsperiode, drei Monate, ein Monat oder sofort?', en: 'Urgency: none, next season, three months, one month or immediate?' } },
-  { k: 'dbh_cm', say: ['durchmesser', 'bhd', 'brusthöhendurchmesser', 'dbh', 'diameter'],
-    kind: 'int', min: 1, max: 400, ask: { de: 'Durchmesser in Zentimetern?', en: 'Diameter, centimetres?' } },
-  { k: 'height_m', say: ['höhe', 'hoehe', 'baumhöhe', 'height'],
-    kind: 'int', min: 1, max: 80, ask: { de: 'Höhe in Metern?', en: 'Height, metres?' } },
-  { k: 'cavity', say: ['höhlung', 'hoehlung', 'höhle', 'cavity', 'faulstelle'],
-    kind: 'opt', opts: { yes: ['ja', 'yes', 'vorhanden'], no: ['nein', 'no', 'keine'] },
-    ask: { de: 'Höhlung, ja oder nein?', en: 'Cavity, yes or no?' } },
-  { k: 'remarks', say: ['bemerkung', 'bemerkungen', 'anmerkung', 'notiz', 'remark', 'remarks', 'note'],
-    kind: 'text', ask: { de: 'Bemerkung?', en: 'Remarks?' } }
+  { k: 'urgency', say: ['dringlichkeit', 'frist', 'urgency', 'priorität', 'prioritaet', 'kiireloomulisus', 'urgentie'],
+    kind: 'opt', opts: { none: ['keine', 'none', 'nichts', 'puudub', 'geen'], 'next growing season': ['vegetationsperiode', 'nächste vegetation', 'next season', 'growing season', 'nächstes jahr', 'vegetatsiooniperiood', 'groeiseizoen'],
+      '3 months': ['drei monate', 'drei monaten', 'three months', '3 monate', 'kolm kuud', 'drie maanden'], '1 month': ['ein monat', 'einen monat', 'one month', '1 monat', 'üks kuu', 'een maand'],
+      immediate: ['sofort', 'umgehend', 'immediate', 'immediately', 'now', 'kohe', 'onmiddellijk'] },
+    ask: { de: 'Dringlichkeit: keine, Vegetationsperiode, drei Monate, ein Monat oder sofort?', en: 'Urgency: none, next season, three months, one month or immediate?',
+           et: 'Kiireloomulisus: puudub, vegetatsiooniperiood, kolm kuud, üks kuu või kohe?', nl: 'Urgentie: geen, groeiseizoen, drie maanden, een maand of onmiddellijk?' } },
+  { k: 'dbh_cm', say: ['durchmesser', 'bhd', 'brusthöhendurchmesser', 'dbh', 'diameter', 'diameeter', 'rinnasdiameeter'],
+    kind: 'int', min: 1, max: 400, ask: { de: 'Durchmesser in Zentimetern?', en: 'Diameter, centimetres?', et: 'Diameeter sentimeetrites?', nl: 'Diameter in centimeter?' } },
+  { k: 'girth_cm', say: ['umfang', 'stammumfang', 'girth', 'circumference', 'ümbermõõt', 'umbermoot', 'omtrek'],
+    kind: 'int', min: 3, max: 1300, ask: { de: 'Stammumfang in Zentimetern?', en: 'Girth, centimetres?', et: 'Ümbermõõt sentimeetrites?', nl: 'Stamomtrek in centimeter?' } },
+  { k: 'crown_d_m', say: ['kronendurchmesser', 'krone', 'crown diameter', 'crown', 'võra', 'vora', 'võra läbimõõt', 'kroon'],
+    kind: 'int', min: 1, max: 50, ask: { de: 'Kronendurchmesser in Metern?', en: 'Crown diameter, metres?', et: 'Võra läbimõõt meetrites?', nl: 'Kroondiameter in meter?' } },
+  { k: 'value_class', say: ['wertklasse', 'value class', 'väärtusklass', 'väärtus klass', 'vaartusklass', 'waardeklasse', 'klass'],
+    kind: 'roman', ask: { de: 'Wertklasse, eins bis fünf?', en: 'Value class, one to five?', et: 'Väärtusklass, üks kuni viis?', nl: 'Waardeklasse, een tot vijf?' } },
+  { k: 'recommendation', say: ['empfehlung', 'recommendation', 'soovitus', 'aanbeveling'],
+    kind: 'opt', opts: { keep: ['erhalten', 'keep', 'retain', 'säilitada', 'behouden'], maintain: ['pflegen', 'maintain', 'prune', 'hooldada', 'onderhouden'],
+      remove: ['entfernen', 'fällen', 'remove', 'fell', 'eemaldada', 'verwijderen'], replace: ['ersetzen', 'replace', 'asendada', 'vervangen'] },
+    ask: { de: 'Empfehlung: erhalten, pflegen, entfernen oder ersetzen?', en: 'Recommendation: keep, maintain, remove or replace?', et: 'Soovitus: säilitada, hooldada, eemaldada või asendada?', nl: 'Aanbeveling: behouden, onderhouden, verwijderen of vervangen?' } },
+  { k: 'height_m', say: ['höhe', 'hoehe', 'baumhöhe', 'height', 'kõrgus', 'korgus', 'hoogte'],
+    kind: 'int', min: 1, max: 80, ask: { de: 'Höhe in Metern?', en: 'Height, metres?', et: 'Kõrgus meetrites?', nl: 'Hoogte in meter?' } },
+  { k: 'cavity', say: ['höhlung', 'hoehlung', 'höhle', 'cavity', 'faulstelle', 'õõnsus', 'oonsus', 'holte'],
+    kind: 'opt', opts: { yes: ['ja', 'yes', 'vorhanden', 'jah', 'on'], no: ['nein', 'no', 'keine', 'ei', 'nee'] },
+    ask: { de: 'Höhlung, ja oder nein?', en: 'Cavity, yes or no?', et: 'Õõnsus, jah või ei?', nl: 'Holte, ja of nee?' } },
+  { k: 'remarks', say: ['bemerkung', 'bemerkungen', 'anmerkung', 'notiz', 'remark', 'remarks', 'note', 'märkus', 'markus', 'opmerking'],
+    kind: 'text', ask: { de: 'Bemerkung?', en: 'Remarks?', et: 'Märkus?', nl: 'Opmerking?' } }
 ];
 const VOICE_CTL = {
-  next: ['weiter', 'nächste', 'naechste', 'next', 'skip', 'überspringen'],
+  next: ['weiter', 'nächste', 'naechste', 'next', 'skip', 'überspringen', 'edasi', 'järgmine', 'volgende'],
   repeat: ['wiederholen', 'nochmal', 'repeat', 'again', 'was'],
-  save: ['speichern', 'sichern', 'save'],
+  save: ['speichern', 'sichern', 'save', 'salvesta', 'opslaan'],
   photo: ['foto', 'photo', 'bild', 'picture'],
-  stop: ['stop', 'stopp', 'fertig', 'ende', 'aus', 'done', 'finish'],
+  stop: ['stop', 'stopp', 'fertig', 'ende', 'aus', 'done', 'finish', 'lõpeta', 'valmis', 'klaar'],
   which: ['welcher baum', 'which tree', 'wo bin ich', 'where am i']
 };
 
+/* "three", "drei", "kolm", "3", "III", "esimene" -> I..V */
+function romanOf(str) {
+  const t = vNorm(str).replace(/\b(klasse|klass|class)\b/g, ' ').trim();
+  const R = { i: 1, ii: 2, iii: 3, iv: 4, v: 5 };
+  if (R[t]) return ['I', 'II', 'III', 'IV', 'V'][R[t] - 1];
+  const ord = { erste: 1, zweite: 2, dritte: 3, vierte: 4, fünfte: 5, first: 1, second: 2, third: 3, fourth: 4, fifth: 5,
+                esimene: 1, teine: 2, kolmas: 3, neljas: 4, viies: 5, eerste: 1, tweede: 2, derde: 3, vierde: 4, vijfde: 5 };
+  if (ord[t]) return ['I', 'II', 'III', 'IV', 'V'][ord[t] - 1];
+  const n = wordsToNumber(t);
+  return (n >= 1 && n <= 5) ? ['I', 'II', 'III', 'IV', 'V'][n - 1] : null;
+}
 function vNorm(s) {
   return String(s || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -152,7 +185,7 @@ function voiceParse(text, ctx) {
       return { act: k };
 
   // "baum 51", "tree fifty one", "baum fünf eins"
-  const m = t.match(/^(?:baum|tree|boom|arbre)\s+(.+)$/);
+  const m = t.match(/^(?:baum|tree|boom|arbre|puu)\s+(.+)$/);
   if (m) { const n = wordsToNumber(m[1]); if (n != null) return { act: 'tree', n: n }; }
 
   // a field name followed by its value, in either order the recogniser gives
@@ -162,6 +195,11 @@ function voiceParse(text, ctx) {
     if (!name) continue;
     let rest = t.replace(name, ' ').replace(/\b(ist|is|gleich|equals|auf|to|von|of)\b/g, ' ').replace(/\s+/g, ' ').trim();
     if (f.kind === 'text') return { act: 'set', k: f.k, v: rest, kind: 'text' };
+    if (f.kind === 'roman') {
+      const n = romanOf(rest);
+      if (!n) return { act: 'ask', k: f.k };
+      return { act: 'set', k: f.k, v: n, kind: 'opt' };
+    }
     if (f.kind === 'int') {
       const n = wordsToNumber(rest);
       if (n == null || n < f.min || n > f.max) return { act: 'ask', k: f.k };
@@ -180,6 +218,7 @@ function voiceParse(text, ctx) {
   // a bare value while a question is open: "zwei", "gering", "sofort"
   if (ctx && ctx.asking) {
     const f = VOICE_FIELDS.find(x => x.k === ctx.asking);
+    if (f && f.kind === 'roman') { const n = romanOf(t); if (n) return { act: 'set', k: f.k, v: n, kind: 'opt' }; }
     if (f && f.kind === 'int') { const n = wordsToNumber(t); if (n != null && n >= f.min && n <= f.max) return { act: 'set', k: f.k, v: n, kind: 'int' }; }
     if (f && f.kind === 'opt') {
       let best = null, bl = 0;
@@ -197,7 +236,30 @@ function voiceParse(text, ctx) {
 }
 
 /* ---- speaking ---------------------------------------------------------- */
-function voiceLang() { return (typeof prefs === 'function' && prefs().voiceLang) || 'de-DE'; }
+const LANG_TAG = { en: 'en-GB', de: 'de-DE', nl: 'nl-NL', et: 'et-EE' };
+function voiceLang() {
+  const v = (typeof prefs === 'function' && prefs().voiceLang) || 'auto';
+  if (v !== 'auto') return v;
+  return LANG_TAG[(typeof uiLang === 'function') ? uiLang() : 'en'] || 'en-GB';
+}
+function askIn(f) {
+  const l = voiceLang().slice(0, 2);
+  return f.ask[l] || f.ask.en;
+}
+/* What is read back is read back in the language that was spoken, not the
+   one on the form: an English speaker hears "damage class moderate" while
+   the Estonian form shows keskmine. Both are the same stored value. */
+function nameIn(k) {
+  const l = voiceLang().slice(0, 2);
+  const base = (typeof FIELDS !== 'undefined' && FIELDS[k]) ? FIELDS[k][1]
+             : (typeof F_BASE !== 'undefined' && (F_BASE.find(f => f[0] === k) || [])[1]) || k;
+  return (l !== 'en' && typeof FIELD_L !== 'undefined' && FIELD_L[k] && FIELD_L[k][l]) || base;
+}
+function valueIn(k, v) {
+  const l = voiceLang().slice(0, 2);
+  const t = (typeof OPT_L !== 'undefined' && OPT_L[k] && OPT_L[k][v]) || null;
+  return (l !== 'en' && t && t[l]) || v;
+}
 function say(text, cb) {
   if (!('speechSynthesis' in window)) { if (cb) cb(); return; }
   try {
@@ -296,7 +358,7 @@ function speechAskNext(i) {
   if (!open.length) { vAsking = null; say(de ? 'Alles erfasst. Nächster Baum?' : 'All recorded. Next tree?'); return; }
   const f = VOICE_FIELDS.find(x => x.k === open[0]);
   vAsking = f.k;
-  say(f.ask[de ? 'de' : 'en']);
+  say(askIn(f));
 }
 function speechHeard(alts) {
   const ctx = { fields: speechFieldsNow(), open: vTree != null ? speechOpenFields(vTree) : [], asking: vAsking };
@@ -326,12 +388,12 @@ function speechHeard(alts) {
       }
       speechApply(vTree, a.k, a.v);
       const f = VOICE_FIELDS.find(x => x.k === a.k);
-      say((f ? f.say[0] : a.k) + ' ' + a.v + '.', () => speechAskNext(vTree));
+      say(nameIn(a.k) + ' ' + valueIn(a.k, a.v) + '.', () => speechAskNext(vTree));
       return;
     }
     case 'ask': {
       const f = VOICE_FIELDS.find(x => x.k === a.k);
-      vAsking = a.k; say(f.ask[de ? 'de' : 'en']);
+      vAsking = a.k; say(askIn(f));
       return;
     }
     case 'next': {
@@ -340,7 +402,7 @@ function speechHeard(alts) {
       if (vAsking && open.indexOf(vAsking) >= 0) {     // skip the one asked: mark it looked at
         const nx = open.filter(k => k !== vAsking);
         if (!nx.length) { say(de ? 'Nichts mehr offen.' : 'Nothing left open.'); vAsking = null; return; }
-        const f = VOICE_FIELDS.find(x => x.k === nx[0]); vAsking = f.k; say(f.ask[de ? 'de' : 'en']);
+        const f = VOICE_FIELDS.find(x => x.k === nx[0]); vAsking = f.k; say(askIn(f));
       } else speechAskNext(vTree);
       return;
     }

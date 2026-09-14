@@ -81,6 +81,13 @@ const FIELDS = {
   part_size: ['part_size', 'Size of the part likely to fail', 'select',
     ['', '< 25 mm', '25–100 mm', '100–450 mm', '> 450 mm']],
 
+  /* --- the verdict, Estonian shape ------------------------------------
+     A dendrological inventory in Estonia ends in a value class from I (of
+     particular value) to V (to be removed) and one word on what to do. */
+  value_class: ['value_class', 'Value class', 'select', ['', 'I', 'II', 'III', 'IV', 'V']],
+  recommendation: ['recommendation', 'Recommendation', 'select',
+    ['', 'keep', 'maintain', 'remove', 'replace']],
+
   /* --- what now --- */
   urgency: ['urgency', 'Urgency', 'select',
     ['none', 'next growing season', '3 months', '1 month', 'immediate']],
@@ -168,6 +175,28 @@ const NORMS = [
       ['Uitkomst', ['bvc_result', 'urgency', 'actions', 'interval_months', 'next_inspection', 'remarks']]
     ],
     reportTitle: 'Boomveiligheidscontrole (BVC)'
+  },
+  {
+    id: 'ee', cc: 'EE', flag: '🇪🇪',
+    label: 'Estonia — Tallinn greenery inventory',
+    source: 'Tallinna Linnavalitsuse määrus nr 15 (10.06.2020), Haljastuse inventeerimise kord; ' +
+            'Riigi Teataja, Puittaimestiku ja haljastuse inventeerimise kord',
+    note: 'Inventory as a dendrologist delivers it: species, girth at 1.3 m, height, crown, ' +
+          'condition, a value class from I to V and a recommendation. There is no separate ' +
+          'traffic-safety verdict; the value class and the recommendation carry it.',
+    defaultInterval: 12,
+    verdict: 'value_class',
+    quick: ['tag_no', 'species', 'girth_cm', 'height_m', 'crown_d_m', 'vitality_5',
+            'damage_class', 'value_class', 'recommendation', 'remarks'],
+    groups: [
+      ['Inspection', ['last_inspection', 'inspector']],
+      ['Measurements', ['girth_cm', 'height_m', 'crown_d_m']],
+      ['Condition', ['vitality_5', 'crown_dieback_pct', 'damage_class', 'cavity']],
+      ['Target', ['target_type', 'target_distance_m']],
+      ['Assessment', ['value_class', 'recommendation', 'urgency', 'actions',
+                      'interval_months', 'next_inspection', 'remarks']]
+    ],
+    reportTitle: 'Puittaimestiku inventeerimise aruanne'
   },
   {
     id: 'eac', cc: 'EU', flag: '🇪🇺',
