@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.33.0';
+const APP_VERSION = '2.34.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -363,6 +363,19 @@ async function photoAll() {
   return new Promise((res, rej) => {
     const q = db.transaction('photos').objectStore('photos').getAll();
     q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error);
+  });
+}
+/* Change one stored record - the organ somebody named on a picture, say,
+   which is worth keeping on the picture and not only in the request it was
+   sent with. */
+async function photoPatch(id, patch) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('photos', 'readwrite');
+    const st = tx.objectStore('photos');
+    const q = st.get(id);
+    q.onsuccess = () => { if (q.result) st.put(Object.assign(q.result, patch)); };
+    tx.oncomplete = () => res(true); tx.onerror = () => rej(tx.error);
   });
 }
 async function photoDel(id) {
@@ -3134,13 +3147,14 @@ function calPaint() {
 function finishCaliper() {
   const t = calTree;
   const r = calResult();
-  calStop(); calTree = null;
+  const calDone = calStop(); calTree = null;
   $('mbar').classList.remove('on');
   if (r.error) return toast(r.error);
   if (t == null) return toast('Ø ' + r.dbh_cm + ' cm, but no tree to write it on.');
   if (!r.firm && !confirm('Only ' + r.arc + '° of the stem was seen, so the far side is ' +
       'inferred. Diameter ' + r.dbh_cm + ' cm. Record it anyway?')) return;
   setEdit(t, { dbh_cm: r.dbh_cm, dbh_source: r.note });
+  resScanAdd(t, calDone, r);            // kept only if research collecting is on
   renderList();
   if (openIdx === t && panelEl) openPanel(t, panelTab);
   toast('DBH ' + r.dbh_cm + ' cm on ' + tid(t) + ' · ' + r.arc + '° scanned.');
@@ -5844,6 +5858,32 @@ function autoPrefix(lat, lon) {
   return want;
 }
 
+/* What is there to give, in the Data screen. */
+function paintRes() {
+  const box = $('resBox'); if (!box) return;
+  resCount().then(c => {
+    if (!$('resBox')) return;
+    box.innerHTML = resOn()
+      ? '<b>' + c.trees + '</b> tree' + (c.trees === 1 ? '' : 's') + ' of your own, <b>' + c.photographs +
+        '</b> photograph' + (c.photographs === 1 ? '' : 's') + ' (<b>' + c.labelled + '</b> labelled), <b>' +
+        c.scans + '</b> stem scan' + (c.scans === 1 ? '' : 's') + '.' +
+        (c.photographs > c.labelled ? ' Say what is on the unlabelled ones under Photos – it is one tap and it is the whole value.' : '')
+      : 'Off. Stem scans are not kept, and the bundle would hold ' + c.trees + ' tree' +
+        (c.trees === 1 ? '' : 's') + ' and ' + c.photographs + ' photograph' + (c.photographs === 1 ? '' : 's') + '.';
+  });
+}
+async function resGo(withPhotos) {
+  const c = resCount ? await resCount() : null;
+  if (c && !c.trees) return toast('Nothing of your own to give – a register you imported is not yours.');
+  try {
+    const b = await resExport(withPhotos, $('resRatings').checked);
+    toast('Bundle saved: ' + b.contains.trees + ' trees, ' + b.contains.photographs +
+          ' photographs, ' + b.contains.stem_scans + ' stem scans.');
+    auditAdd({ what: 'research export', detail: b.contains.trees + ' trees, ' + b.contains.photographs +
+               ' photos, ' + b.contains.stem_scans + ' scans' });
+  } catch (e) { toast('The bundle could not be built: ' + (e.message || e)); }
+}
+
 /* The state of the OSM connection, and what an upload did, in the Data screen. */
 function paintOsm(res) {
   const box = $('osmBox'); if (!box) return;
@@ -6625,6 +6665,15 @@ async function renderPhotos(tree, gal) {
       nia.disabled = false; nia.textContent = 'NIA';
     };
     fig.appendChild(nia);
+    /* What is on the picture, said once by the person who took it. It is what
+       turns a photograph into training data, and it costs one tap. */
+    const org = document.createElement('select'); org.className = 'organ';
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = '— what is on it? —';
+    org.appendChild(o0);
+    ORGANS.forEach(o => { const op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; org.appendChild(op); });
+    org.value = f.organ || (ORGANS.some(o => o[0] === f.kind) ? f.kind : '');
+    org.onchange = async () => { f.organ = org.value; try { await photoPatch(f.id, { organ: org.value }); } catch (e) {} };
+    fig.appendChild(org);
     cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : f.kind === 'tag' ? 'PLATE · '
                      : f.kind === 'leaf' ? 'LEAF · ' : f.kind === 'flower' ? 'FLOWER · '
                      : f.kind === 'fruit' ? 'FRUIT · ' : f.kind === 'habit' ? 'WHOLE TREE · ' : '') +
@@ -8041,6 +8090,27 @@ function wire() {
   $('bMapPage').onclick = openMapPage;
   $('bRepPlain').onclick = () => openReport(false);
   $('bRepPhoto').onclick = () => openReport(true);
+  /* --- research -------------------------------------------------------- */
+  const rc = resCfg();
+  $('resOn').checked = rc.on === true;
+  $('resRatings').checked = rc.ratings === true;
+  $('resWho').value = rc.contributor || '';
+  $('resOn').onchange = () => {
+    const c = resCfg();
+    if ($('resOn').checked) {
+      if (!confirm(RES_CONSENT + '\n\nFrom now on the stem scans are kept as well. ' +
+                   'Nothing leaves this phone until you save the file yourself.')) { $('resOn').checked = false; return; }
+      c.on = true; c.consent_at = new Date().toISOString();
+    } else { c.on = false; }
+    resSave(c); paintRes();
+    auditAdd({ what: 'research collecting', detail: c.on ? 'on' : 'off' });
+  };
+  $('resRatings').onchange = () => { const c = resCfg(); c.ratings = $('resRatings').checked; resSave(c); };
+  $('resWho').onchange = () => { const c = resCfg(); c.contributor = $('resWho').value.trim(); resSave(c); };
+  $('bResExp').onclick = () => resGo(false);
+  $('bResPhotos').onclick = () => resGo(true);
+  paintRes();
+
   /* --- OpenStreetMap ------------------------------------------------------ */
   $('osmClient').value = osmCfg().clientId || '';
   $('osmClient').onchange = () => { const c = osmCfg(); c.clientId = $('osmClient').value.trim(); osmSave(c); paintOsm(); };

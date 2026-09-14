@@ -272,6 +272,9 @@ table.hist th{color:#8fa697;font-weight:500}
 .photos img{width:100%;height:96px;object-fit:cover;border-radius:9px;border:1px solid #2f4137;display:block}
 .photos .del{position:absolute;top:3px;right:3px;padding:2px 7px;font-size:12px;background:rgba(90,32,32,.9);border-color:#7d3030}
 .photos figcaption{font-size:10.5px;color:#7f9488;margin-top:2px}
+.photos select.organ{width:100%;margin-top:3px;font-size:11px;padding:2px 4px;border-radius:7px;
+  background:#16211b;color:#cfe0d5;border:1px solid #2b3a31}
+html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2}
 #lightbox{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.95);display:none;align-items:center;justify-content:center}
 #lightbox img{max-width:100%;max-height:88%}
 #lightbox button{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px}
@@ -478,6 +481,29 @@ table.hist th{color:#8fa697;font-weight:500}
       <div class="btnrow">
         <button id="bExpPhotos">Save photos individually</button>
       </div>
+      <h3>Give the measurements to research</h3>
+      <div class="sym"><label><input type="checkbox" id="resOn">
+        <span>Collect what I record for research</span></label></div>
+      <div id="resBox" class="small"></div>
+      <div class="sym"><label><input type="checkbox" id="resRatings">
+        <span>Put the condition ratings in as well</span></label></div>
+      <div class="row"><label>Name in the file</label>
+        <input type="text" id="resWho" placeholder="anonymous – or the name you want cited"></div>
+      <div class="btnrow">
+        <button class="p" id="bResExp">Save the bundle</button>
+        <button id="bResPhotos">…with the photographs</button>
+      </div>
+      <p class="small">Two things here are hard to come by and you produce them anyway: a
+        photograph labelled with the organ on it and the species of the tree you were standing
+        at, and a depth-camera slice of a trunk next to the diameter a tape gave for the same
+        stem. The first trains identification, the second scores measuring a stem by phone.
+        Switched off until you switch it on, and nothing is ever sent anywhere by itself &ndash;
+        it is a file you save and give to whom you choose, under <b>CC BY 4.0</b>. In it: the
+        tree, its position, species, size, the labelled pictures and the stem scans. Not in it:
+        your name unless you type it here, the remarks, the verdicts, the traffic-safety
+        findings, and nothing at all out of a register you imported. Stem scans are kept only
+        while the switch is on.</p>
+
       <h3>OpenStreetMap</h3>
       <div id="osmBox" class="small"></div>
       <div class="row"><label>Client ID</label>
@@ -742,16 +768,17 @@ table.hist th{color:#8fa697;font-weight:500}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.33.0"></script>
-<script src="data.js?v=2.33.0"></script>
-<script src="norms.js?v=2.33.0"></script>
-<script src="i18n.js?v=2.33.0"></script>
-<script src="mapper.js?v=2.33.0"></script>
-<script src="samples.js?v=2.33.0"></script>
-<script src="users.js?v=2.33.0"></script>
-<script src="voice.js?v=2.33.0"></script>
-<script src="plantnet.js?v=2.33.0"></script>
-<script src="osm.js?v=2.33.0"></script>
-<script src="app.js?v=2.33.0"></script>
+<script src="vendor/three.min.js?v=2.34.0"></script>
+<script src="data.js?v=2.34.0"></script>
+<script src="norms.js?v=2.34.0"></script>
+<script src="i18n.js?v=2.34.0"></script>
+<script src="mapper.js?v=2.34.0"></script>
+<script src="samples.js?v=2.34.0"></script>
+<script src="users.js?v=2.34.0"></script>
+<script src="voice.js?v=2.34.0"></script>
+<script src="plantnet.js?v=2.34.0"></script>
+<script src="osm.js?v=2.34.0"></script>
+<script src="research.js?v=2.34.0"></script>
+<script src="app.js?v=2.34.0"></script>
 </body>
 </html>

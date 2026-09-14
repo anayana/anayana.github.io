@@ -121,7 +121,7 @@ async function pnetForTree(tree) {
     const sel = document.createElement('select');
     const none = document.createElement('option'); none.value = ''; none.textContent = '— leave out —'; sel.appendChild(none);
     ORGANS.forEach(o => { const op = document.createElement('option'); op.value = o[0]; op.textContent = o[1] + ' · ' + o[2]; sel.appendChild(op); });
-    sel.value = f.kind && ORGANS.some(o => o[0] === f.kind) ? f.kind : (f.kind === 'bark' ? 'bark' : '');
+    sel.value = f.organ || (f.kind && ORGANS.some(o => o[0] === f.kind) ? f.kind : (f.kind === 'bark' ? 'bark' : ''));
     const wrap = document.createElement('div'); wrap.style.cssText = 'display:flex;align-items:center;gap:6px';
     wrap.appendChild(im); wrap.appendChild(sel); row.appendChild(wrap);
     chosen.push({ f: f, sel: sel });
@@ -136,6 +136,9 @@ async function pnetForTree(tree) {
     try {
       const photos = [];
       for (const c of send.slice(0, 5)) photos.push({ blob: await (await fetch(c.f.url)).blob(), organ: c.sel.value });
+      /* The organ somebody named belongs on the picture from now on: it is the
+         label that makes the photograph worth anything to anyone later. */
+      for (const c of send) { try { await photoPatch(c.f.id, { organ: c.sel.value }); } catch (e) {} }
       const res = await pnetIdentify(photos);
       auditAdd({ what: 'identified', tree: id, detail: 'Pl@ntNet: ' + res[0].name + ' ' + Math.round(res[0].p * 100) + ' %' });
       pnetSheet(tree, res, photos.length);
