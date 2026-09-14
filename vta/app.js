@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.30.0';
+const APP_VERSION = '2.30.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -7654,6 +7654,58 @@ function paintMapWarn() {
 
 function closeMapper() { $('mapdlg').style.display = 'none'; mapState = null; }
 
+/* ---- straight from the server -------------------------------------------
+   Nobody should have to know what curl is to get their city's trees. An
+   ArcGIS layer address is turned into the query that returns GeoJSON in WGS84,
+   and read page by page until the server has no more; anything else is
+   fetched as it is and handed to the column reader. */
+function arcgisQueryUrl(u, offset) {
+  const base = u.replace(/\/query.*$/, '').replace(/\/$/, '');
+  return base + '/query?where=1%3D1&outFields=*&outSR=4326&f=geojson&resultOffset=' + (offset || 0);
+}
+async function fetchRegister(url) {
+  const u = String(url || '').trim();
+  if (!/^https?:\/\//i.test(u)) throw new Error('that is not a web address');
+  const isArc = /\/(FeatureServer|MapServer)\/\d+/.test(u);
+  if (!isArc) {
+    const r = await fetch(u);
+    if (!r.ok) throw new Error('the server answered ' + r.status);
+    return { text: await r.text(), name: u.split('/').pop().split('?')[0] || 'download' };
+  }
+  const feats = [];
+  let offset = 0, more = true, pages = 0;
+  while (more && pages++ < 50) {
+    const r = await fetch(arcgisQueryUrl(u, offset));
+    if (!r.ok) throw new Error('the server answered ' + r.status);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error.message || 'the server refused the query');
+    const got = j.features || [];
+    feats.push.apply(feats, got);
+    more = !!(j.exceededTransferLimit || (j.properties && j.properties.exceededTransferLimit)) && got.length > 0;
+    offset += got.length;
+    if (!got.length) break;
+  }
+  if (!feats.length) throw new Error('the layer returned no features');
+  return { text: JSON.stringify({ type: 'FeatureCollection', features: feats }),
+           name: 'arcgis layer (' + feats.length + ' features)' };
+}
+async function importFromUrl(url) {
+  toast('Fetching …');
+  try {
+    const r = await fetchRegister(url);
+    if (looksOurs(r.text)) return toast('That is one of our own registers – use Merge a register… for it.');
+    openMapper(r.text, r.name);
+  } catch (e) {
+    const m = (e && e.message) || String(e);
+    alert(m === 'Failed to fetch'
+      ? 'The server does not allow requests from a web page (no CORS), or there is no signal.\n\n' +
+        'Open the address in the browser instead, save the file (Ctrl+S / Share → Save), ' +
+        'then Data → Merge a register… and pick that file.'
+      : 'Could not read it: ' + m);
+  }
+}
+
+
 function runMapper() {
   if (!mapState) return;
   let r;
@@ -7946,6 +7998,7 @@ function wire() {
     rd.readAsText(f);
   };
   $('mapX').onclick = closeMapper;
+  $('bImpUrl').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importFromUrl($('impUrl').value); };
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
   NORMS.forEach(n => { const o = document.createElement('option');
