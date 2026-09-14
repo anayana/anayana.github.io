@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.25.0';
+const APP_VERSION = '2.26.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2225,6 +2225,7 @@ async function startXR() {
       // depth is asked about once, on the first frame, and then only when
       // something actually wants a stem: no pipeline running on a timer
       if (depthOk === null && depthWanted()) guard('depth', () => probeDepth(frame));
+      if (cal) { guard('caliper', calFeed); if (edgeTick % 6 === 0) guard('caliper bar', calPaint); }
       guard('standing', autoStand);
       if (edgeTick % 60 === 11) guard('far from stand', checkFarFromStand);
       if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
@@ -2717,6 +2718,173 @@ function stemFromPoints(pts, cam, dir) {
      such an arc is still worth having; the diameter is not. */
   return { x: f.cx, z: f.cy, r: f.r, rms: f.rms, n: f.n, span: span,
            firm: span > 90 && f.rms < 0.03 };
+}
+
+/* ================= DIGITAL CROSS-CALIPERING =========================
+   A caliper is held twice, at right angles, and the two readings averaged,
+   because a stem is not round and one reading across it is a lie of a few
+   centimetres either way. The phone can do better than two readings: walked
+   round the stem it sees the whole outline, and a circle fitted to all of it
+   is the mean diameter the caliper pair was trying to approximate.
+
+   What the literature says, and what this follows:
+
+   · The depth sensor on a phone works from about 0.2 m to 5 m. Under half a
+     metre the trunk fills the frame and the fit has no context; past two and
+     a half the sampling is too coarse for a bark surface. One metre from the
+     bark is the working distance, and it happens to be the step an inspector
+     already stands back to look at a stem.
+   · The diameter is defined at 1.3 m above ground, uphill side on a slope.
+     The slice taken here is 1.30 m ± 0.16 m in the session's own frame.
+   · One standing view already shows more than half the stem - 2·acos(r/d) is
+     about 158 degrees for a 50 cm stem at 1.35 m - but the far side is
+     inferred, not seen, and an out-of-round stem is then read wrong. Walking
+     an arc of at least 270 degrees leaves under a quarter to inference and
+     is the point at which the fit stops improving materially.
+   · Reported accuracy for phone LiDAR against a caliper is an RMSE of roughly
+     1.5 to 2.3 cm on regular stems, worse on forked or buttressed ones. That
+     is good enough for a register and not good enough for a dispute: it is
+     recorded as a measurement by phone, never as a caliper reading.
+   · Forks, buttresses, ivy, deep fluting and stem sprouts break the circle
+     assumption. The fit reports how far the points sit off the circle, and
+     refuses rather than guessing when the surface is not round.
+
+   The scan accumulates points in the session frame, so viewpoints from all
+   round the tree land in one cloud. Coverage is counted in ten-degree bins
+   about the running centre, which is what makes "270 degrees" a number on
+   screen instead of a hope. */
+const CAL_BINS = 36, CAL_WANT = 27;      // 10 degrees each; 27 of them is 270
+let cal = null;
+
+function calStart(tree) {
+  if (!depthWanted() || !depthOk) {
+    toast('This needs depth. Switch it on under Data → App, on a phone that has it.');
+    return false;
+  }
+  cal = { tree: tree, pts: [], bins: new Array(CAL_BINS).fill(0), fit: null,
+          t0: Date.now(), cx: null, cz: null, frames: 0 };
+  return true;
+}
+function calStop() { const c = cal; cal = null; return c; }
+
+/* One frame's worth. Cheap: it runs inside the render loop. */
+function calFeed() {
+  if (!cal || !frameLive) return;
+  const pts = depthSlice(lastFrame);
+  if (!pts) return;
+  cal.frames++;
+  const c = camPos();
+  const band = pts.filter(p => Math.abs(p.y - STEM_H) < STEM_BAND);
+  if (band.length < 8) return;
+  /* The first look sets the centre; after that only points near the stem
+     already found are taken, so the wall behind never joins the cloud. */
+  if (cal.cx == null) {
+    const d = camDir();
+    const st = stemFromPoints(band, c, { x: d.x, z: d.z });
+    if (st.error) return;
+    cal.cx = st.x; cal.cz = st.z;
+  }
+  band.forEach(p => {
+    const dx = p.x - cal.cx, dz = p.z - cal.cz;
+    const rr = Math.hypot(dx, dz);
+    if (rr > 1.1) return;                       // not this stem
+    if (Math.hypot(p.x - c.x, p.z - c.z) > 2.5) return;   // too far to sample well
+    cal.pts.push({ x: p.x, y: p.z });
+    const a = Math.atan2(dz, dx);
+    cal.bins[Math.floor(((a + Math.PI) / (2 * Math.PI)) * CAL_BINS) % CAL_BINS]++;
+  });
+  if (cal.pts.length > 6000) cal.pts = cal.pts.filter((_, i) => i % 2 === 0);
+  if (cal.frames % 8 === 0) calFit();
+}
+
+function calFit() {
+  if (!cal || cal.pts.length < 30) return;
+  const f = fitCircle(cal.pts);
+  if (!f || !(f.r > 0.02 && f.r < 1.6)) return;
+  cal.cx = f.cx; cal.cz = f.cy;                 // re-centre: the bins follow the fit
+  cal.fit = f;
+}
+function calCover() {
+  if (!cal) return 0;
+  return cal.bins.filter(b => b >= 3).length;
+}
+/* What the scan is worth, in the words the record will carry. */
+function calResult() {
+  if (!cal || !cal.fit) return { error: 'nothing measured' };
+  const bins = calCover(), deg = bins * 10;
+  const f = cal.fit;
+  const dbh = +(f.r * 200).toFixed(1);
+  /* RMS alone lets a shape through that is wrong in one place and right
+     everywhere else - an L-shaped corner of a wall fits a big circle with a
+     respectable average. What gives it away is the worst part of it, so the
+     95th percentile of the residuals has to behave as well as their mean. */
+  const dev = cal.pts.map(p => Math.abs(Math.hypot(p.x - f.cx, p.y - f.cy) - f.r))
+                     .sort((a, b) => a - b);
+  const p95 = dev.length ? dev[Math.min(dev.length - 1, Math.floor(dev.length * 0.95))] : 0;
+  if (f.rms > 0.045 || p95 > 0.055)
+    return { error: 'the surface is not round enough to read a diameter from (' +
+                    Math.round(Math.max(f.rms, p95 / 2) * 1000) + ' mm off the circle). ' +
+                    'Fork, buttress, ivy or something that is not a trunk?' };
+  return {
+    dbh_cm: dbh, arc: deg, rms_mm: Math.round(f.rms * 1000),
+    worst_mm: Math.round(p95 * 1000), n: f.n,
+    firm: deg >= CAL_WANT * 10,
+    note: 'phone depth, ' + deg + '° of the circumference, ' +
+          Math.round(f.rms * 1000) + ' mm residual'
+  };
+}
+
+/* ---- the guided scan, as the inspector sees it ------------------------
+   One instruction at a time, because reading a paragraph with a phone held at
+   chest height in the rain does not happen. */
+const CAL_STEPS = [
+  'Stand about one metre from the bark.',
+  'Hold the phone at 1.30 m, level, pointed at the stem.',
+  'Now walk slowly round the tree, keeping that distance.',
+  'Keep going until the ring closes — 270° is enough.'
+];
+let calTree = null;
+
+function startCaliper(tree) {
+  calTree = tree;
+  if (!calStart(tree)) { calTree = null; return; }
+  $('mbar').classList.add('on');
+  calPaint();
+  $('mbtn').innerHTML = '';
+  const fin = document.createElement('button'); fin.className = 'p'; fin.textContent = 'Take it';
+  fin.onclick = finishCaliper;
+  const off = document.createElement('button'); off.className = 'x'; off.textContent = 'Stop';
+  off.onclick = () => { calStop(); calTree = null; $('mbar').classList.remove('on'); };
+  $('mbtn').appendChild(fin); $('mbtn').appendChild(off);
+}
+
+/* Drawn every frame from the loop that already repaints the bar. */
+function calPaint() {
+  if (!cal) return;
+  const bins = calCover(), deg = bins * 10;
+  const r = cal.fit ? (cal.fit.r * 200).toFixed(0) + ' cm' : '–';
+  const step = cal.cx == null ? CAL_STEPS[0]
+             : deg < 60 ? CAL_STEPS[2]
+             : deg < CAL_WANT * 10 ? CAL_STEPS[3]
+             : 'Enough. Take it.';
+  $('mtxt').innerHTML = '<b>' + deg + '°</b> of the stem seen · Ø ' + r +
+    (cal.fit ? ' · ' + Math.round(cal.fit.rms * 1000) + ' mm off round' : '') +
+    '<br><span class="small">' + step + '</span>';
+}
+
+function finishCaliper() {
+  const t = calTree;
+  const r = calResult();
+  calStop(); calTree = null;
+  $('mbar').classList.remove('on');
+  if (r.error) return toast(r.error);
+  if (t == null) return toast('Ø ' + r.dbh_cm + ' cm, but no tree to write it on.');
+  if (!r.firm && !confirm('Only ' + r.arc + '° of the stem was seen, so the far side is ' +
+      'inferred. Diameter ' + r.dbh_cm + ' cm. Record it anyway?')) return;
+  setEdit(t, { dbh_cm: r.dbh_cm, dbh_source: r.note });
+  renderList();
+  if (openIdx === t && panelEl) openPanel(t, panelTab);
+  toast('DBH ' + r.dbh_cm + ' cm on ' + tid(t) + ' · ' + r.arc + '° scanned.');
 }
 
 /* Off unless switched on: see the session request above. */
@@ -4202,6 +4370,10 @@ function buildToolMenu() {
     if (t == null) return toast('No tree in view.');
     if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(t, 'bark');
     selectTree(t); startBark(t);
+  }, 'p');
+  add('DBH — walk the stem', () => {
+    if (t == null) return toast('No tree in view.');
+    selectTree(t); startCaliper(t);
   }, 'p');
   add('Stem position', () => { if (t != null) selectTree(t); startMeasure('stem'); });
   add('Tape', () => startMeasure('tape'));
@@ -6865,7 +7037,7 @@ const CSVCOLS = ['tree_id', 'lon', 'lat', 'species', 'name_en', 'planted', 'girt
   'height_m', 'crown_d_m', 'vitality_roloff', 'crown_dieback_pct', 'damage_class', 'cavity',
   'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'target_type', 'target_distance_m', 'stability', 'breakage_resistance',
   'traffic_safety', 'target_occupancy', 'urgency', 'symptoms', 'fungi_labels', 'actions', 'inspection_type', 'last_inspection',
-  'next_inspection', 'interval_months', 'inspector', 'remarks'];
+  'next_inspection', 'interval_months', 'inspector', 'dbh_source', 'remarks'];
 /* The header is the historic order first, then anything a national profile
    adds, so a file opened in a spreadsheet looks the same as it always did and
    the extra columns follow at the end instead of shuffling the familiar ones. */

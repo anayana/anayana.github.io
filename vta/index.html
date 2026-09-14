@@ -517,6 +517,24 @@ table.hist th{color:#8fa697;font-weight:500}
         this far ahead along the direction you are facing &ndash; the step you stand back from
         a stem. The session knows that direction to a fraction of a degree; the compass is not
         used for it. Set 0 to record exactly where you stand.</p>
+      <h3>Measuring the diameter by phone</h3>
+      <p class="small">With depth switched on, <b>Tools &rarr; DBH — walk the stem</b> reads the
+        diameter the way a caliper pair is meant to approximate it: not twice at right angles,
+        but all the way round.</p>
+      <ol class="small" style="margin:4px 0 4px 18px;padding:0">
+        <li>Stand about <b>one metre</b> from the bark. Closer than half a metre the trunk fills
+          the frame; past two and a half the sampling is too coarse for bark.</li>
+        <li>Hold the phone at <b>1.30 m</b>, level. On a slope, start on the uphill side &ndash;
+          that is where the diameter is defined.</li>
+        <li>Walk slowly round the tree at that distance. The bar counts the degrees actually seen.</li>
+        <li>Stop at <b>270&deg;</b> or more. One standing view already shows about 158&deg; of a
+          50&nbsp;cm stem, but the far side is then inferred rather than measured.</li>
+      </ol>
+      <p class="small">Expect the reading to sit within roughly <b>1.5 to 2.3&nbsp;cm</b> of a
+        caliper on a regular stem. Forks, buttresses, ivy, deep fluting and stem sprouts break
+        the assumption that the outline is a circle: the fit reports how far the surface sits off
+        round and refuses rather than guessing. Every value recorded this way carries how it was
+        measured and over what arc, so it is never mistaken for a caliper reading in the file.</p>
       <p class="small">Depth measures the trunk in front of the phone: the marker goes on the
         stem instead of where you stand, the diameter comes with it, and the session aligns
         itself on the stems it sees. It runs a second pipeline inside ARCore, which not every
@@ -598,11 +616,11 @@ table.hist th{color:#8fa697;font-weight:500}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.25.0"></script>
-<script src="data.js?v=2.25.0"></script>
-<script src="norms.js?v=2.25.0"></script>
-<script src="mapper.js?v=2.25.0"></script>
-<script src="samples.js?v=2.25.0"></script>
-<script src="app.js?v=2.25.0"></script>
+<script src="vendor/three.min.js?v=2.26.0"></script>
+<script src="data.js?v=2.26.0"></script>
+<script src="norms.js?v=2.26.0"></script>
+<script src="mapper.js?v=2.26.0"></script>
+<script src="samples.js?v=2.26.0"></script>
+<script src="app.js?v=2.26.0"></script>
 </body>
 </html>
