@@ -19,43 +19,43 @@
    Lower case, punctuation stripped. Order does not matter; the scorer
    handles exact hits, prefixes and contained words separately. */
 const COLSYN = {
-  tree_id: ['tree_id', 'treeid', 'id', 'nr', 'baum_id', 'baumid', 'baumnummer', 'baum_nr', 'baumnr',
+  tree_id: ['puu_id', 'puuid', 'objekt_id', 'kood', 'puu_nr', 'nr_kaardil', 'tree_id', 'treeid', 'id', 'nr', 'baum_id', 'baumid', 'baumnummer', 'baum_nr', 'baumnr',
             'gla_tree_group', 'tree_group', 'treegroup', 'asset_id', 'assetid',
             'kennzeich', 'kennzeichen', 'standortnr', 'standort_nr', 'boomnummer', 'boom_id',
             'objectid', 'objnr', 'inventarnr', 'nummer', 'no', 'ref', 'unique_id', 'gid'],
-  tag_no: ['tag_no', 'tagno', 'schild', 'schildnr', 'plakette', 'plaketten_nr', 'baumschild',
+  tag_no: ['silt', 'sildi_nr', 'tag_no', 'tagno', 'schild', 'schildnr', 'plakette', 'plaketten_nr', 'baumschild',
            'plaatje', 'label', 'tag', 'plate', 'plaquette'],
-  species: ['species', 'art', 'baum', 'baumart', 'art_bot', 'artbot', 'botanischer_name', 'botanical_name', 'lat_name',
+  species: ['liik', 'puuliik', 'taksoni_nimi', 'ladina_nimi', 'liik_lad', 'liik_ladina', 'taimeliik', 'species', 'art', 'baum', 'baumart', 'art_bot', 'artbot', 'botanischer_name', 'botanical_name', 'lat_name',
             'latname', 'spc_latin', 'taxon_name', 'taxon', 'wiss_name', 'gattung_art',
             'gattungart', 'gattung', 'boomsoort', 'soort', 'latijnse_naam', 'nom_latin',
             'especie', 'scientific_name', 'sciname', 'botanic'],
-  name_en: ['name_en', 'common_name', 'commonname', 'art_dtsch', 'artdtsch', 'deutscher_name',
+  name_en: ['liik_eesti', 'eesti_nimi', 'eestikeelne_nimi', 'nimetus', 'name_en', 'common_name', 'commonname', 'art_dtsch', 'artdtsch', 'deutscher_name',
             'trivialname', 'spc_common', 'nederlandse_naam', 'nom_commun', 'volksname'],
-  lat: ['lat', 'latitude', 'breite', 'y', 'y_coord', 'ycoord', 'geo_breite', 'wgs84_lat',
+  lat: ['laius', 'laiuskraad', 'y_lest', 'lat', 'latitude', 'breite', 'y', 'y_coord', 'ycoord', 'geo_breite', 'wgs84_lat',
         'nord', 'northing', 'breitengrad'],
-  lon: ['lon', 'lng', 'long', 'longitude', 'laenge', 'länge', 'x', 'x_coord', 'xcoord',
+  lon: ['pikkuskraad', 'x_lest', 'lon', 'lng', 'long', 'longitude', 'laenge', 'länge', 'x', 'x_coord', 'xcoord',
         'geo_laenge', 'wgs84_lon', 'ost', 'easting', 'laengengrad'],
-  planted: ['planted', 'pflanzjahr', 'pflanzdatum', 'standalter', 'jahr', 'year_planted',
+  planted: ['istutusaasta', 'istutatud', 'istutamise_aasta', 'planted', 'pflanzjahr', 'pflanzdatum', 'standalter', 'jahr', 'year_planted',
             'plantjaar', 'planting_year', 'pflanzung', 'baumjahr', 'annee_plantation'],
-  girth_cm: ['girth_cm', 'girth', 'stammumfg', 'stammumfang', 'umfang', 'umfg', 'stamomtrek',
+  girth_cm: ['umbermoot', 'ümbermõõt', 'tyve_umbermoot', 'tüve_ümbermõõt', 'rinnasumbermoot', 'girth_cm', 'girth', 'stammumfg', 'stammumfang', 'umfang', 'umfg', 'stamomtrek',
              'omtrek', 'circumference', 'circonference'],
-  dbh_cm: ['dbh_cm', 'dbh', 'bhd', 'stammdurchmesser', 'durchmesser', 'tree_dbh', 'diameter',
+  dbh_cm: ['labimoot', 'läbimõõt', 'tyve_labimoot', 'tüve_läbimõõt', 'rinnasdiameeter', 'rinnasdiam', 'dbh_cm', 'dbh', 'bhd', 'stammdurchmesser', 'durchmesser', 'tree_dbh', 'diameter',
            'diam', 'stamdiameter', 'dbh_mm', 'd13', 'bhd_cm', 'diametre'],
-  height_m: ['height_m', 'height', 'baumhoehe', 'baumhöhe', 'hoehe', 'höhe', 'tree_height',
+  height_m: ['korgus', 'kõrgus', 'puu_korgus', 'puu_kõrgus', 'height_m', 'height', 'baumhoehe', 'baumhöhe', 'hoehe', 'höhe', 'tree_height',
              'boomhoogte', 'hoogte', 'hauteur', 'altura'],
-  crown_d_m: ['crown_d_m', 'kronendurchmesser', 'krone', 'kronendm', 'crown_diameter',
+  crown_d_m: ['vora_labimoot', 'võra_läbimõõt', 'vora', 'võra', 'vora_laius', 'crown_d_m', 'kronendurchmesser', 'krone', 'kronendm', 'crown_diameter',
               'crown_spread', 'kroondiameter', 'kroon', 'couronne'],
   crown_base_m: ['crown_base_m', 'kronenansatz', 'kronansatz', 'crown_base', 'kroonaanzet'],
-  area: ['area', 'bezirk', 'ortsteil', 'revier', 'gebiet', 'stadtteil', 'district', 'borough',
+  area: ['linnaosa', 'asum', 'aadress', 'tanav', 'tänav', 'asukoht', 'area', 'bezirk', 'ortsteil', 'revier', 'gebiet', 'stadtteil', 'district', 'borough',
          'wijk', 'buurt', 'zone', 'quartier', 'strasse', 'straße', 'street', 'address',
          'adresse', 'standort', 'location', 'locatie', 'lage'],
   vitality_roloff: ['vitality_roloff', 'vitalitaet', 'vitalität', 'vitalitaetsstufe', 'roloff',
                     'vitalitaetsklasse'],
-  vitality_5: ['vitality_5', 'vitality', 'condition', 'health', 'zustand', 'conditie',
+  vitality_5: ['seisund', 'seisukord', 'tervislik_seisund', 'elujoulisus', 'elujõulisus', 'vitality_5', 'vitality', 'condition', 'health', 'zustand', 'conditie',
                'baumzustand', 'zustandsklasse', 'etat'],
   crown_dieback_pct: ['crown_dieback_pct', 'kronenverlichtung', 'totholz', 'dieback',
                       'kronenschaden', 'blattverlust', 'defoliation'],
-  damage_class: ['damage_class', 'schadstufe', 'schadensklasse', 'schaden', 'damage',
+  damage_class: ['kahjustus', 'kahjustused', 'kahjustuse_aste', 'damage_class', 'schadstufe', 'schadensklasse', 'schaden', 'damage',
                  'schade', 'schadeklasse', 'problems'],
   traffic_safety: ['traffic_safety', 'verkehrssicherheit', 'verkehrssicher', 'vs',
                    'sicherheit', 'veiligheid'],
@@ -67,16 +67,16 @@ const COLSYN = {
             'empfehlung', 'maatregel', 'maatregelen', 'work', 'works', 'pflegemassnahme'],
   inspection_type: ['inspection_type', 'kontrollart', 'art_der_kontrolle', 'controletype',
                     'inspection', 'kontrolltyp'],
-  last_inspection: ['last_inspection', 'kontrolldatum', 'letzte_kontrolle', 'datum',
+  last_inspection: ['kuupaev', 'kuupäev', 'inventeerimise_kuupaev', 'inventeerimise_kuupäev', 'inventeeritud', 'last_inspection', 'kontrolldatum', 'letzte_kontrolle', 'datum',
                     'date', 'inspection_date', 'controledatum', 'erfassungsdatum',
                     'created_at', 'aufnahmedatum', 'begehung'],
   next_inspection: ['next_inspection', 'naechste_kontrolle', 'nächste_kontrolle', 'wiedervorlage',
                     'folgekontrolle', 'volgende_controle', 'due', 'next_due'],
   interval_months: ['interval_months', 'intervall', 'kontrollintervall', 'turnus', 'interval',
                     'cyclus', 'frequency'],
-  inspector: ['inspector', 'kontrolleur', 'bearbeiter', 'pruefer', 'prüfer', 'sachbearbeiter',
+  inspector: ['inventeerija', 'dendroloog', 'koostaja', 'inspector', 'kontrolleur', 'bearbeiter', 'pruefer', 'prüfer', 'sachbearbeiter',
               'controleur', 'surveyor', 'assessor', 'erfasser'],
-  remarks: ['remarks', 'bemerkung', 'bemerkungen', 'anmerkung', 'notiz', 'kommentar',
+  remarks: ['markus', 'märkus', 'markused', 'märkused', 'kommentaar', 'remarks', 'bemerkung', 'bemerkungen', 'anmerkung', 'notiz', 'kommentar',
             'opmerking', 'opmerkingen', 'notes', 'note', 'comment', 'comments', 'freitext'],
   position_accuracy_m: ['position_accuracy_m', 'lagegenauigkeit', 'genauigkeit', 'accuracy',
                         'nauwkeurigheid', 'gps_acc']
@@ -89,6 +89,7 @@ const KEEP_PREFIX = 'src_';
 function normKey(s) {
   return String(s == null ? '' : s).toLowerCase()
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/õ/g, 'o').replace(/[éèê]/g, 'e').replace(/[áàâ]/g, 'a').replace(/ç/g, 'c')
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
@@ -194,6 +195,9 @@ function planMapping(cols, rows) {
     let pick = null, pickScore = 0;
     plan.forEach(r => {
       if (r.key) return;
+      /* a year is a year, but a scan year, a survey date or a load date is
+         not a planting year, however well its values fit the range */
+      if (k === 'planted' && /(scan|skaneer|aufnahm|erfass|kontroll|inventeer|load|creat|updat|datum|date|kuupaev)/.test(normKey(r.col))) return;
       const vals = rows.map(x => x[r.col]).filter(v => v != null && String(v).trim() !== '');
       if (vals.length < 4) return;            // too few values to tell anything from
       const h = contentHint(k, vals);

@@ -103,6 +103,43 @@ const SAMPLES = [
   },
 
   {
+    id: 'tallinn', flag: '🇪🇪', label: 'Tallinn — Maa-amet single-tree model',
+    fmt: 'GeoJSON as an ArcGIS query returns it, Estonian columns, no species', n: 10, file: 'tallinn_naidis.geojson',
+    /* What Estonia actually publishes for every tree in a city is not an
+       inspection register but a laser-scanning product: crown, height, trunk
+       position, coniferous or deciduous - and nothing a dendrologist wrote.
+       This is that shape, with a few inventory columns of the kind Tallinn's
+       own regulation asks for (liik, ümbermõõt at 1.3 m, seisund) on top, as
+       a project inventory delivers them. */
+    text: () => JSON.stringify({
+      type: 'FeatureCollection',
+      features: [
+        ['TLN-0001', 'Tilia cordata', 'Harilik pärn', 14.2, 7.1, 156, 'hea', 'Kadriorg', 24.7911, 59.4383],
+        ['TLN-0002', 'Tilia cordata', 'Harilik pärn', 13.8, 6.8, 149, 'hea', 'Kadriorg', 24.7915, 59.4384],
+        ['TLN-0003', 'Quercus robur', 'Harilik tamm', 19.5, 12.4, 262, 'rahuldav', 'Kadriorg', 24.7921, 59.4386],
+        ['TLN-0004', 'Acer platanoides', 'Harilik vaher', 11.1, 5.9, 98, 'hea', 'Kadriorg', 24.7926, 59.4388],
+        ['TLN-0005', 'Betula pendula', 'Arukask', 16.0, 6.2, 112, 'rahuldav', 'Kadriorg', 24.7931, 59.4390],
+        ['TLN-0006', 'Picea abies', 'Harilik kuusk', 17.3, 5.1, 131, 'hea', 'Kadriorg', 24.7936, 59.4392],
+        ['TLN-0007', 'Ulmus glabra', 'Künnapuu', 15.4, 9.0, 178, 'halb', 'Kadriorg', 24.7941, 59.4394],
+        ['TLN-0008', 'Populus tremula', 'Harilik haab', 18.2, 7.7, 141, 'rahuldav', 'Kadriorg', 24.7946, 59.4396],
+        ['TLN-0009', 'Fraxinus excelsior', 'Harilik saar', 14.9, 8.3, 166, 'halb', 'Kadriorg', 24.7951, 59.4398],
+        ['TLN-0010', 'Sorbus aucuparia', 'Harilik pihlakas', 7.6, 3.9, 54, 'hea', 'Kadriorg', 24.7956, 59.4400]
+      ].map((r, i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [r[8], r[9]] },
+        properties: {
+          objectid: 5001 + i, puu_id: r[0],
+          korgus: r[3], vora_labimoot: r[4], skaneerimise_aasta: 2023,
+          puutyyp: r[1] === 'Picea abies' ? 'okaspuu' : 'lehtpuu',
+          liik: r[1], liik_eesti: r[2], umbermoot: r[5], seisund: r[6],
+          inventeerimise_kuupaev: '14.05.2024', inventeerija: 'dendroloog',
+          asum: r[7]
+        }
+      }))
+    }, null, 1)
+  },
+
+  {
     id: 'nyc', flag: '🇺🇸', label: 'New York — Street Tree Census',
     fmt: 'CSV, comma, diameter in inches, health words', n: 10, file: 'nyc_sample.csv',
     text: () => [

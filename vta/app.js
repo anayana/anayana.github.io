@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.29.0';
+const APP_VERSION = '2.30.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -6686,8 +6686,21 @@ function esc(x) {
   return String(x == null ? '' : x).replace(/[&<>"]/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
+/* A value the way the paper should show it: units on numbers, lists joined,
+   "none" as nothing, dates as they are. */
+function fmtField(k, v) {
+  if (v == null || v === '' || (Array.isArray(v) && !v.length)) return '';
+  if (Array.isArray(v)) return v;
+  if ((k === 'urgency' || k === 'damage_class') && v === 'none') return '';
+  if (/_cm$/.test(k)) return v + ' cm';
+  if (/_m$/.test(k)) return v + ' m';
+  if (/_pct$/.test(k)) return v + ' %';
+  if (k === 'interval_months') return v + ' months';
+  return v;
+}
 async function buildReport(withPhotos) {
   const now = new Date();
+  const nrm = curNorm();
   const items = CAT.features.map((f, i) => ({ i: i, p: props(i), a: assess(props(i)),
                                               c: f.geometry.coordinates }));
   const lv = [0, 0, 0, 0];
@@ -6721,8 +6734,10 @@ async function buildReport(withPhotos) {
       '</td><td>' + (r.vitality_roloff == null ? '' : r.vitality_roloff) + '</td><td>' +
       (r.crown_dieback_pct == null ? '' : r.crown_dieback_pct + ' %') + '</td><td>' +
       (r.t_R == null ? '' : r.t_R) + '</td></tr>').join('');
+    const verdict = nrm.verdict && p[nrm.verdict] != null && p[nrm.verdict] !== '' ?
+      '<span class="vd">' + esc(fieldDef(nrm.verdict)[1]) + ': <b>' + esc(p[nrm.verdict]) + '</b></span>' : '';
     return '<section class="tree"><h2>' + head(x) + ' <span class="lvl l' + a.lvl + '">Level ' +
-      a.lvl + ' · ' + esc(LVLTXT[a.lvl]) + '</span></h2>' +
+      a.lvl + ' · ' + esc(LVLTXT[a.lvl]) + '</span></h2>' + verdict +
       '<table>' +
       row('Species', p.species ? p.species + (p.name_en ? ' (' + p.name_en + ')' : '') : '') +
       row('Position', x.c[1].toFixed(6) + ', ' + x.c[0].toFixed(6) +
@@ -6730,23 +6745,18 @@ async function buildReport(withPhotos) {
           (p.geometry_source ? '  · ' + p.geometry_source : '')) +
       row('DBH / height', (p.dbh_cm == null ? '–' : p.dbh_cm + ' cm') + ' / ' +
           (p.height_m == null ? '–' : p.height_m + ' m')) +
-      row('Vitality (Roloff)', p.vitality_roloff) +
-      row('Crown dieback', p.crown_dieback_pct == null ? '' : p.crown_dieback_pct + ' %') +
-      row('Damage class', p.damage_class) +
       row('t / R', a.tr == null ? '' : a.tr.toFixed(2) + (a.tr < 0.30 ? '  (below 0.30)' : '')) +
       row('h / d', a.hd == null ? '' : a.hd.toFixed(0)) +
       row('Symptoms', p.symptom_labels && p.symptom_labels.length ? p.symptom_labels : null) +
       row('Wood-decay fungi', fung.length ? fung : null) +
-      row('Target', p.target_type && p.target_type !== 'none'
-          ? p.target_type + (p.target_distance_m != null ? ' at ' + p.target_distance_m + ' m' : '') : '') +
-      row('Stability / breakage', (p.stability || '–') + ' / ' + (p.breakage_resistance || '–')) +
-      row('Traffic safety', p.traffic_safety) +
-      row('Actions', (p.actions || []).length ? p.actions : null) +
-      row('Urgency', p.urgency && p.urgency !== 'none' ? p.urgency : '') +
-      row('Inspected', (p.last_inspection || '') + (p.inspector ? ' by ' + p.inspector : '') +
-          (p.inspection_type ? ' · ' + p.inspection_type : '')) +
-      row('Next inspection', p.next_inspection) +
-      row('Remarks', p.remarks) +
+      /* The findings in the order and under the headings the standard wants
+         them - the same profile that drove the form drives the paper. */
+      nrm.groups.map(g => {
+        const cells = g[1].map(k => row(fieldDef(k)[1], fmtField(k, p[k]))).join('');
+        return cells ? '<tr class="g"><th colspan="2">' + esc(g[0]) + '</th></tr>' + cells : '';
+      }).join('') +
+      (p.edited_by || p.edited_at ? row('Recorded', (p.edited_at || '').slice(0, 16).replace('T', ' ') +
+          (p.edited_by ? ' by ' + p.edited_by : '')) : '') +
       '</table>' +
       (a.notes.length ? '<div class="why"><b>Reasoning</b><ul>' +
         a.notes.map(n => '<li>' + esc(n) + '</li>').join('') + '</ul></div>' : '') +
@@ -6761,12 +6771,14 @@ async function buildReport(withPhotos) {
     esc((x.acts || []).join(' · ')) + '</td><td>' + esc(x.p.next_inspection || '') +
     (x.due != null && x.due < 0 ? ' <b>overdue</b>' : '') + '</td></tr>').join('');
 
-  return '<!doctype html><meta charset="utf-8"><title>Tree inspection ' + stamp() + '</title>' +
+  return '<!doctype html><meta charset="utf-8"><title>' + esc(nrm.reportTitle) + ' ' + stamp() + '</title>' +
     '<style>' +
     'body{font:13px/1.45 system-ui,sans-serif;color:#111;margin:24px;max-width:900px}' +
     'h1{font-size:20px;margin:0 0 2px}h2{font-size:15px;margin:0 0 8px;display:flex;' +
     'justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid #ccc;padding-bottom:4px}' +
-    '.q{color:#777;font-weight:400}.sub{color:#555;margin:0 0 18px}' +
+    '.q{color:#777;font-weight:400}.sub{color:#555;margin:0 0 6px}.sub+.sub{margin-bottom:18px}' +
+    'tr.g th{background:#f0f2ef;color:#333;padding:5px 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase}' +
+    '.vd{display:inline-block;margin:0 0 6px;font-size:13px;color:#333}' +
     'table{border-collapse:collapse;width:100%;margin-bottom:8px}' +
     'th,td{text-align:left;vertical-align:top;padding:3px 8px 3px 0;border-bottom:1px solid #eee}' +
     'th{width:150px;color:#555;font-weight:600}' +
@@ -6782,9 +6794,11 @@ async function buildReport(withPhotos) {
     '.sum td,.sum th{border:none;padding:2px 14px 2px 0}' +
     '@media print{body{margin:0}}' +
     '</style>' +
-    '<h1>Tree inspection · visual assessment</h1>' +
+    '<h1>' + esc(nrm.reportTitle) + '</h1>' +
+    '<p class="sub">' + esc(nrm.label) + ' · ' + esc(nrm.source) + '</p>' +
     '<p class="sub">' + esc(now.toLocaleString()) + ' · ' + items.length + ' trees' +
-    (CAT.name ? ' · ' + esc(CAT.name) : '') + '</p>' +
+    (CAT.name ? ' · ' + esc(CAT.name) : '') +
+    (userName() ? ' · ' + esc(userName()) : '') + '</p>' +
     '<table class="sum"><tr><th>Level 0 inconspicuous</th><td>' + lv[0] + '</td>' +
     '<th>Level 1 watch</th><td>' + lv[1] + '</td></tr>' +
     '<tr><th>Level 2 conspicuous</th><td>' + lv[2] + '</td>' +
