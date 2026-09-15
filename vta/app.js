@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.47.0';
+const APP_VERSION = '2.48.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -6582,6 +6582,11 @@ function openPanel(i, tab) {
      field is left, which is usually the moment the next one is tapped: the
      answered line goes up, the tapped one is right below it. */
   body.addEventListener('change', ev => {
+    const t0 = ev.target;
+    /* A line answered with the finger is a line answered: the voice walk
+       moves on with it instead of waiting to be pressed forward. */
+    if (t0 && t0.dataset && t0.dataset.k != null && typeof vFollowEdit === 'function')
+      vFollowEdit(t0.dataset.k);
     if (!followForm()) return;
     const t = ev.target;
     if (!t || !t.dataset || t.dataset.k == null) return;

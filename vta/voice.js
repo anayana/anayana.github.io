@@ -300,8 +300,10 @@ function voiceParse(text, ctx) {
     }
   }
 
-  // a bare name while the species is the open question
-  if (ctx && ctx.asking === 'species') return { act: 'species', q: t };
+  // a bare name while the species is the open question - but only if it is
+  // one: otherwise every misheard sentence becomes "I do not know that
+  // species", and the line swallows the whole conversation
+  if (ctx && ctx.asking === 'species' && speciesMatches(t).length) return { act: 'species', q: t, bare: true };
 
   // a bare value while a question is open: "zwei", "gering", "sofort"
   if (ctx && ctx.asking) {
@@ -326,10 +328,30 @@ function voiceParse(text, ctx) {
 
 /* ---- speaking ---------------------------------------------------------- */
 const LANG_TAG = { en: 'en-GB', de: 'de-DE', nl: 'nl-NL', et: 'et-EE', fi: 'fi-FI' };
+const LANG_SAY = { 'en-GB': 'English', 'de-DE': 'Deutsch', 'nl-NL': 'Nederlands',
+                   'et-EE': 'Eesti', 'fi-FI': 'Suomi' };
+const LANG_ROUND = ['de-DE', 'en-GB', 'et-EE', 'fi-FI', 'nl-NL'];
+/* Which language the phone listens in.
+
+   It used to follow the form, and the form follows the country the trees are
+   in: a German inspector working a Tallinn register was talking German into
+   an Estonian recogniser, which transcribes it as Estonian nonsense and
+   matches nothing at all. Nobody could tell why - it simply "did not hear".
+   So the language of the mouth is the phone's own language, which is the one
+   its owner set, and the form's language is only the fallback. Either way it
+   is shown on the bar and changed with one tap, in the field, without going
+   through the settings. */
 function voiceLang() {
   const v = (typeof prefs === 'function' && prefs().voiceLang) || 'auto';
   if (v !== 'auto') return v;
+  const own = String((navigator.language || '')).slice(0, 2).toLowerCase();
+  if (LANG_TAG[own]) return LANG_TAG[own];
   return LANG_TAG[(typeof uiLang === 'function') ? uiLang() : 'en'] || 'en-GB';
+}
+function voiceLangNext() {
+  const cur = voiceLang();
+  const i = LANG_ROUND.indexOf(cur);
+  return LANG_ROUND[(i + 1) % LANG_ROUND.length];
 }
 function askIn(f) {
   const l = voiceLang().slice(0, 2);
@@ -406,7 +428,7 @@ function speciesSpoken(p) {
    move along the line; naming a field jumps to it; a value answers the line
    that is open. Anything that does not fit is a question, not a shrug. */
 let vRec = null, vOn = false, vTree = null, vAsking = null, vPendingText = null;
-let vFields = [], vAt = -1, vPendSpecies = null;
+let vFields = [], vAt = -1, vPendSpecies = null, vMiss = 0;
 
 function speechOk() {
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -457,13 +479,27 @@ function speechBar(txt, cls, sub) {
   el.innerHTML =
     '<span class="dot"></span>' +
     '<span class="t"><b>' + txt + '</b>' + (sub ? '<i>' + sub + '</i>' : '') + '</span>' +
+    '<button class="sm" id="speechLang" title="the language you are speaking">' +
+      (voiceLang().slice(0, 2).toUpperCase()) + '</button>' +
     '<button class="sm" id="speechBack" title="back">◀</button>' +
     '<button class="sm" id="speechNext" title="next">▶</button>' +
     '<button class="x sm" id="speechOff">Stop</button>';
   el.style.display = 'flex';
   const b = document.getElementById('speechBack'); if (b) b.onclick = () => vStep(-1);
   const n = document.getElementById('speechNext'); if (n) n.onclick = () => vStep(1);
+  const lg = document.getElementById('speechLang'); if (lg) lg.onclick = speechCycleLang;
   const off = document.getElementById('speechOff'); if (off) off.onclick = speechStop;
+}
+/* One tap on the bar: the next language, the recogniser restarted on it, and
+   the phone says which one it is now so the choice is audible as well. */
+function speechCycleLang() {
+  const nx = voiceLangNext();
+  setPref('voiceLang', nx);
+  if (typeof $ === 'function' && $('prefVoice')) $('prefVoice').value = nx;
+  vMiss = 0;
+  speechBar(vBarHead(), '', LANG_SAY[nx]);
+  if (vOn && vRec) { micStop(); vRec.lang = nx; micStart(); }
+  say(LANG_SAY[nx] + '.');
 }
 function vHeardOnBar(txt) {
   const el = document.getElementById('speechbar'); if (!el) return;
@@ -485,10 +521,11 @@ function speechStart(i) {
   }
   const R = window.SpeechRecognition || window.webkitSpeechRecognition;
   vRec = new R();
-  vRec.lang = voiceLang(); vRec.continuous = true; vRec.interimResults = false; vRec.maxAlternatives = 3;
+  vRec.lang = voiceLang(); vRec.continuous = true; vRec.interimResults = true; vRec.maxAlternatives = 3;
   vRec.onresult = ev => {
     const r = ev.results[ev.results.length - 1];
-    if (!r || !r.isFinal) return;
+    if (!r) return;
+    if (!r.isFinal) { vHeardOnBar('… ' + (r[0] && r[0].transcript || '')); return; }
     const alts = []; for (let k = 0; k < r.length; k++) alts.push(r[k].transcript);
     speechHeard(alts);
   };
@@ -504,9 +541,9 @@ function speechStart(i) {
   vAsking = null; vPendingText = null; vPendSpecies = null; vFields = []; vAt = -1;
   micStart();
   const de = voiceLang().startsWith('de');
-  speechBar(de ? 'Sprachsteuerung an' : 'Voice on',
-            '', de ? 'Sagen Sie einen Wert, „weiter“, „zurück“ oder „stop“.'
-                   : 'Say a value, “next”, “back” or “stop”.');
+  speechBar(de ? 'Sprachsteuerung an' : 'Voice on', '',
+            (de ? 'Hört auf ' : 'Listening in ') + LANG_SAY[voiceLang()] +
+            (de ? '. Wert, „weiter“, „zurück“, „stop“.' : '. Value, “next”, “back”, “stop”.'));
   auditAdd({ what: 'voice on' });
   if (vTree != null) speechAnnounce(vTree);
   else say(de ? 'Sprachsteuerung an. Welcher Baum?' : 'Voice on. Which tree?');
@@ -531,7 +568,10 @@ function speechAnnounce(i) {
   const open = speechOpenFields(i);
   const known = vFields.map(k => vValueSaid(k, p) ? vLabel(k) + ' ' + vValueSaid(k, p) : null)
                        .filter(Boolean).slice(0, 2).join(', ');
-  const head = (de ? 'Sprachsteuerung an. Baum ' : 'Voice on. Tree ') + (p.tag_no || p.tree_id) + '. ' +
+  /* The language is the first thing to say: it is the one setting that makes
+     the difference between an app that listens and one that seems deaf. */
+  const head = (de ? 'Sprachsteuerung an, ' : 'Voice on, ') + LANG_SAY[voiceLang()] + '. ' +
+               (de ? 'Baum ' : 'Tree ') + (p.tag_no || p.tree_id) + '. ' +
                (known ? known + '. ' : (de ? 'Nichts erfasst. ' : 'Nothing recorded. '));
   speechBar(vBarHead(), '', (p.tag_no || p.tree_id) + ' · ' +
             (open.length ? open.length + (de ? ' offen' : ' open') : (de ? 'vollständig' : 'complete')));
@@ -584,6 +624,7 @@ function speechHeard(alts) {
   const ctx = { fields: speechFieldsNow(), open: vTree != null ? speechOpenFields(vTree) : [], asking: vAsking };
   let a = null;
   for (const t of alts) { a = voiceParse(t, ctx); if (a.act !== 'unknown') break; }
+  if (a.act !== 'unknown') vMiss = 0;
   switch (a.act) {
     case 'tree': {
       const hits = findByNumber(String(a.n));
@@ -597,7 +638,10 @@ function speechHeard(alts) {
     case 'species': {
       if (vTree == null) { say(de ? 'Erst den Baum nennen.' : 'Name the tree first.'); return; }
       const hits = speciesMatches(a.q);
-      if (!hits.length) { say((de ? 'Die Art kenne ich nicht: ' : 'I do not know that species: ') + a.q); return; }
+      if (!hits.length) {
+        say((de ? 'Die Art kenne ich nicht: ' : 'I do not know that species: ') + a.q);
+        vMiss++; return;
+      }
       if (hits.length === 1) { vSetSpecies(hits[0]); return; }
       if (hits.length > 4) { say(de ? 'Zu viele Treffer. Genauer bitte.' : 'Too many matches. Be more precise.'); return; }
       vPendSpecies = hits; vAsking = '__species';
@@ -646,8 +690,28 @@ function speechHeard(alts) {
       say(v ? ((de ? 'Vermutlich ' : 'Probably ') + tid(v.i)) : (de ? 'Nicht ausgerichtet.' : 'Not aligned.'));
       return;
     }
-    default: {
-      /* the line that is open says what it will take, rather than shrugging */
+    default: return vMissed();
+  }
+}
+function vMissed() {
+  const de = voiceLang().startsWith('de');
+  {
+    {
+      /* Three in a row and the words are not the problem: the recogniser is
+         listening in a language nobody in this wood is speaking. Say so, and
+         say where the switch is, instead of asking the same question again
+         until the battery is flat. */
+      vMiss++;
+      if (vMiss >= 3) {
+        vMiss = 0;
+        const nx = LANG_SAY[voiceLangNext()];
+        speechBar(vBarHead(), 'ask', (de ? 'Sprache: ' : 'Language: ') + LANG_SAY[voiceLang()] +
+                  (de ? ' – auf ' : ' – tap ') + voiceLang().slice(0, 2).toUpperCase() +
+                  (de ? ' tippen für ' : ' for ') + nx);
+        say(de ? 'Ich höre auf ' + LANG_SAY[voiceLang()] + ' zu. Tippen Sie auf das Sprachfeld in der Leiste, wenn Sie eine andere sprechen.'
+               : 'I am listening in ' + LANG_SAY[voiceLang()] + '. Tap the language on the bar if you speak another.');
+        return;
+      }
       if (vAt >= 0 && vFields[vAt]) {
         say((de ? 'Nicht verstanden. ' : 'Not understood. ') + vAsk(vFields[vAt]));
         return;
@@ -687,14 +751,28 @@ function vConfirmText(heard) {
   say(de ? 'Verworfen. Bemerkung?' : 'Dropped. Remarks?');
 }
 
+/* The walk follows the finger too. Somebody who taps a value into the line
+   that is being asked has answered it, and waiting to be pressed forward is
+   the app making work for a man with one hand full. The flag keeps the
+   change event the voice itself fires from advancing twice. */
+let vApplying = false;
+function vFollowEdit(k) {
+  if (!vOn || vApplying || vTree == null || !k) return;
+  const at = vFields.indexOf(k);
+  if (at < 0 || at !== vAt) return;            // some other line was edited: stay put
+  setTimeout(() => { if (vOn) vStep(1); }, 350);
+}
+
 /* Written the way a finger would: into the form field if it is on screen,
    so the autoscroll and the verdict follow, else straight to the record. */
 function speechApply(i, k, v) {
   const inp = (typeof panelEl !== 'undefined' && panelEl && openIdx === i) ? panelEl.querySelector('[data-k="' + k + '"]') : null;
   if (inp) {
+    vApplying = true;
     inp.value = String(v);
     inp.dispatchEvent(new Event('change', { bubbles: true }));
     savePanel(true);
+    vApplying = false;
   } else {
     const patch = {}; patch[k] = v; setEdit(i, patch);
   }
