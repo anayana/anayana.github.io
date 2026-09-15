@@ -46,7 +46,7 @@ const COLSYN = {
   crown_d_m: ['latvus', 'latvuksen_leveys', 'latvusleveys', 'latvuksen_halkaisija', 'vora_labimoot', 'võra_läbimõõt', 'vora', 'võra', 'vora_laius', 'crown_d_m', 'kronendurchmesser', 'krone', 'kronendm', 'crown_diameter',
               'crown_spread', 'kroondiameter', 'kroon', 'couronne'],
   crown_base_m: ['crown_base_m', 'kronenansatz', 'kronansatz', 'crown_base', 'kroonaanzet'],
-  area: ['kaupunginosa', 'osoite', 'katu', 'alue', 'kohde', 'linnaosa', 'asum', 'aadress', 'tanav', 'tänav', 'asukoht', 'area', 'bezirk', 'ortsteil', 'revier', 'gebiet', 'stadtteil', 'district', 'borough',
+  area: ['kaupunginosa', 'osoite', 'katu', 'alue', 'kohde', 'linnaosa', 'asum', 'aadress', 'tanav', 'tänav', 'asukoht', 'asukoha_kirjeldus', 'asukoha', 'kirjeldus', 'area', 'bezirk', 'ortsteil', 'revier', 'gebiet', 'stadtteil', 'district', 'borough',
          'wijk', 'buurt', 'zone', 'quartier', 'strasse', 'straße', 'street', 'address',
          'adresse', 'standort', 'location', 'locatie', 'lage'],
   vitality_roloff: ['vitality_roloff', 'vitalitaet', 'vitalität', 'vitalitaetsstufe', 'roloff',
@@ -122,6 +122,16 @@ function scoreCol(col, key) {
 /* ---- does the content agree with the guess? ---------------------------
    A column called "nummer" full of decimals between 0 and 3 is more likely a
    vitality class than an identifier. The values get a vote. */
+/* Street words in the languages this app reads registers in. A value holding
+   one of them is an address, whatever else it looks like. */
+const STREETY = /(^|[ .])(tee|tn|tanav|tänav|pst|puiestee|maantee|mnt|str|stra(ss|ß)e|weg|allee|gasse|platz|ring|road|street|lane|avenue|drive|laan|straat|weg|rue|via)([ .]|$)/i;
+function looksBinomial(x) {
+  const t = String(x).trim();
+  if (t.length < 5 || t.length > 48) return false;
+  if (/\d/.test(t)) return false;                       // no house numbers in a species
+  if (STREETY.test(t)) return false;
+  return /^[A-ZÄÖÜÕ][a-zäöüõ-]{2,} +[a-zäöüõ][a-zäöüõ-]{2,}/.test(t);
+}
 function contentHint(key, vals) {
   const v = vals.filter(x => x != null && String(x).trim() !== '').slice(0, 60);
   if (!v.length) return 0;
@@ -143,7 +153,12 @@ function contentHint(key, vals) {
     case 'tree_id': case 'tag_no':
       return (new Set(v.map(String)).size / v.length) > 0.95 ? 8 : -12;
     case 'species':
-      return v.filter(x => /^[A-Z][a-z]+ [a-z]/.test(String(x).trim())).length / v.length > 0.5 ? 18 : 0;
+      /* "Tilia cordata" and "Komandandi tee 2a" have the same shape to a
+         regular expression, and a register of street addresses read as a
+         register of species is the worst thing this reader can do. A binomial
+         carries no digits, and its second word is a plain latin epithet - not
+         a word any street is built out of. */
+      return v.filter(x => looksBinomial(String(x))).length / v.length > 0.5 ? 18 : 0;
     default: return 0;
   }
 }
@@ -199,6 +214,9 @@ function planMapping(cols, rows) {
       /* a year is a year, but a scan year, a survey date or a load date is
          not a planting year, however well its values fit the range */
       if (k === 'planted' && /(scan|skaneer|aufnahm|erfass|kontroll|inventeer|load|creat|updat|datum|date|kuupaev)/.test(normKey(r.col))) return;
+      /* nor is a column that calls itself a place, a name or a description a
+         species, however botanical two of its words look */
+      if (k === 'species' && /(asukoht|asukoha|aadress|address|adresse|kirjeldus|description|nimi|name|nimetus|street|strasse|tanav|tänav|standort|location|locatie|lage|omanik|owner|hooldaja)/.test(normKey(r.col))) return;
       const vals = rows.map(x => x[r.col]).filter(v => v != null && String(v).trim() !== '');
       if (vals.length < 4) return;            // too few values to tell anything from
       const h = contentHint(k, vals);

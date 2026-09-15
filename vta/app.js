@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.38.0';
+const APP_VERSION = '2.40.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -7911,6 +7911,10 @@ function looksOurs(txt) {
 }
 
 function openMapper(text, name) {
+  /* A web page read as a register gives one column called "<html lang=en>" and
+     a hundred rows of markup. It is never worth showing that table. */
+  if (looksLikeHtml(text))
+    throw new Error('that is a web page, not a register – no columns to read in it');
   const parsed = parseRegisterFile(text);
   const plan = planMapping(parsed.cols, parsed.rows);
   mapState = { parsed: parsed, plan: plan, name: name || 'file' };
@@ -8055,23 +8059,68 @@ function askSheet(html, buttons) {
    ArcGIS layer address is turned into the query that returns GeoJSON in WGS84,
    and read page by page until the server has no more; anything else is
    fetched as it is and handed to the column reader. */
-function arcgisQueryUrl(u, offset) {
-  const base = u.replace(/\/query.*$/, '').replace(/\/$/, '');
-  return base + '/query?where=1%3D1&outFields=*&outSR=4326&f=geojson&resultOffset=' + (offset || 0);
+/* The rectangle the map is showing, as ArcGIS wants it: west, south, east,
+   north in plain degrees, with inSR saying they are degrees. Without it a city
+   layer answers with every tree in the city - a hundred thousand of them, on a
+   phone, to inspect the forty in one park. */
+function mapEnvelope() {
+  const v = mapCentre(), box = $('mapBox');
+  const mPerPx = 156543.03392 * Math.cos(v.lat * Math.PI / 180) / Math.pow(2, v.z);
+  const dLat = ((box && box.clientHeight) || 300) / 2 * mPerPx / mLat(v.lat);
+  const dLon = ((box && box.clientWidth) || 360) / 2 * mPerPx / mLon(v.lat);
+  return { w: v.lon - dLon, s: v.lat - dLat, e: v.lon + dLon, n: v.lat + dLat };
 }
-async function fetchRegister(url) {
-  const u = String(url || '').trim();
+function arcgisQueryUrl(u, offset, box) {
+  const base = u.replace(/\/query.*$/, '').replace(/\/$/, '');
+  let q = base + '/query?where=1%3D1&outFields=*&outSR=4326&f=geojson&resultOffset=' + (offset || 0);
+  if (box) q += '&geometry=' + [box.w, box.s, box.e, box.n].map(x => x.toFixed(6)).join(',') +
+                '&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects';
+  return q;
+}
+/* An ArcGIS service address without a layer number on the end is the service,
+   not the data: fetching it gives the directory page, which is a web page and
+   not a register. The address bar of that page is what anybody copies, so the
+   app asks the service what layers it has and takes it from there rather than
+   handing HTML to the column reader. */
+async function arcgisLayers(base) {
+  const r = await fetch(base.replace(/\/$/, '') + '?f=json');
+  if (!r.ok) throw new Error('the server answered ' + r.status);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message || 'the service refused to describe itself');
+  return (j.layers || []).filter(l => l.subLayerIds == null || !l.subLayerIds.length);
+}
+function looksLikeHtml(t) { return /^\s*(<!doctype html|<html[\s>])/i.test(String(t || '').slice(0, 400)); }
+
+async function fetchRegister(url, onlyBox) {
+  let u = String(url || '').trim();
   if (!/^https?:\/\//i.test(u)) throw new Error('that is not a web address');
+  /* .../MapServer or .../FeatureServer, with no layer after it */
+  if (/\/(FeatureServer|MapServer)\/?$/i.test(u)) {
+    const base = u.replace(/\/$/, '');
+    const ls = await arcgisLayers(base);
+    if (!ls.length) throw new Error('that service publishes no layers to read');
+    if (ls.length > 1)
+      throw new Error('that address is the whole service, which holds ' + ls.length +
+        ' layers. Put the number of the one you want on the end:\n\n' +
+        ls.slice(0, 12).map(l => '  ' + base + '/' + l.id + '   (' + l.name + ')').join('\n'));
+    u = base + '/' + ls[0].id;                     // one layer: no question to ask
+  }
   const isArc = /\/(FeatureServer|MapServer)\/\d+/.test(u);
   if (!isArc) {
     const r = await fetch(u);
     if (!r.ok) throw new Error('the server answered ' + r.status);
-    return { text: await r.text(), name: u.split('/').pop().split('?')[0] || 'download' };
+    const text = await r.text();
+    if (looksLikeHtml(text))
+      throw new Error('that address gives a web page, not data. If it is an ArcGIS layer, its ' +
+                      'address ends in /FeatureServer/0 or /MapServer/0; if it is a download ' +
+                      'page, open it and copy the link to the file itself.');
+    return { text: text, name: u.split('/').pop().split('?')[0] || 'download' };
   }
   const feats = [];
+  const box = (typeof onlyBox !== 'undefined' && onlyBox) ? onlyBox : null;
   let offset = 0, more = true, pages = 0;
   while (more && pages++ < 50) {
-    const r = await fetch(arcgisQueryUrl(u, offset));
+    const r = await fetch(arcgisQueryUrl(u, offset, box));
     if (!r.ok) throw new Error('the server answered ' + r.status);
     const j = await r.json();
     if (j.error) throw new Error(j.error.message || 'the server refused the query');
@@ -8081,15 +8130,25 @@ async function fetchRegister(url) {
     offset += got.length;
     if (!got.length) break;
   }
-  if (!feats.length) throw new Error('the layer returned no features');
+  if (!feats.length) throw new Error(box
+    ? 'the layer has nothing in the part of the map you are looking at'
+    : 'the layer returned no features');
+  const capped = pages >= 50 && more;
   return { text: JSON.stringify({ type: 'FeatureCollection', features: feats }),
-           name: 'arcgis layer (' + feats.length + ' features)' };
+           capped: capped,
+           name: 'arcgis layer (' + feats.length + ' features' +
+                 (box ? ', the map view' : '') + (capped ? ', cut off' : '') + ')' };
 }
 async function importFromUrl(url) {
-  toast('Fetching …');
+  const only = $('impBbox') && $('impBbox').checked ? mapEnvelope() : null;
+  toast('Fetching …' + (only ? ' the map view' : ''));
   try {
-    const r = await fetchRegister(url);
+    const r = await fetchRegister(url, only);
     if (looksOurs(r.text)) return toast('That is one of our own registers – use Merge a register… for it.');
+    if (r.capped && !confirm('That layer is bigger than one download: ' +
+        '100 000 rows came back and there are more.\n\nRead these anyway?\n\n' +
+        'Better: tick "Only the area shown on the map", move the map to the park you are ' +
+        'working in, and fetch again.')) return;
     openMapper(r.text, r.name);
   } catch (e) {
     const m = (e && e.message) || String(e);
