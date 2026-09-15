@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.48.0';
+const APP_VERSION = '2.49.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -732,10 +732,22 @@ function reticleStem() {
 const DIST_STEPS = [1, 2, 3, 5, 8, 12, 20, 30];
 /* A direction in the scene, said as a compass bearing - for reading only:
    the move itself never leaves the scene's own frame. */
+/* Where north is inside the session. The fit knows it to a fraction of a
+   degree once the scene is aligned; before that the compass and the camera's
+   own yaw give the same relation, roughly - north = where the camera looks,
+   in the scene, minus where the compass says it looks. Everything that turns
+   a direction into a bearing, and a bearing back into a direction, goes
+   through this one function, so the two can never disagree. */
+function sceneNorth() {
+  const n = sceneNorthDeg();
+  if (n != null) return n;
+  if (haveOrient && heading != null && mode === 'WebXR')
+    return ((camYawDeg() - heading) % 360 + 360) % 360;
+  return null;
+}
 function headingOfDir(d) {
   const inScene = (Math.atan2(d.x, -d.z) * 180 / Math.PI + 360) % 360;
-  const north = sceneNorthDeg();
-  // the session's own north when it has one, the compass when it does not
+  const north = sceneNorth();
   if (north != null) return ((inScene - north) % 360 + 360) % 360;
   return (haveOrient && heading != null) ? heading : inScene;
 }
@@ -2318,6 +2330,7 @@ function placeMarkers() {
     else g.visible = false;                    // nothing known or nothing near
   });
   requestAnchors();       // old anchors would drag the markers back
+  if (typeof layoutMarks === 'function') layoutMarks();
 }
 function refreshMarker(i) {
   const sp = sprites.find(s => s.userData.idx === i);
@@ -2677,6 +2690,7 @@ function fitScale(k, d, t, w, h) {
   return Math.min(k, LBL_MAXW * 2 * d * t.x / w, LBL_MAXH * 2 * d * t.y / h);
 }
 
+let arCardAt = null;
 function tick() {
   const cam = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
   _cp.setFromMatrixPosition(cam.matrixWorld);
@@ -2740,6 +2754,12 @@ function tick() {
           (v.gap < 3 ? ', and it could be its neighbour' : ''));
       el.className = v && v.sure ? 'ok' : 'warn';
     }
+    /* The camera is pointing at a tree the register knows. Everything worth
+       knowing before touching it belongs on the glass, not three taps away
+       behind the camera: the sizes to compare against, what the level rests
+       on, and how many marks are waiting to be checked. */
+    const who = (v && v.i != null) ? v.i : (selIdx != null ? selIdx : null);
+    if (who !== arCardAt) { arCardAt = who; paintArCard(who); }
     /* One ring per tree, and it says two things at once: its colour is the
        hazard level, which never changes, and how solid and how wide it is
        says whether the camera is pointing at it - solid and a little larger
@@ -3663,7 +3683,8 @@ const MEAS = {
   newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false },
   ref:       { label: 'Reference point',  field: null,                hits: 1, aim: false },
   stems:     { label: 'Match stems',      field: null,                hits: 9, aim: false },
-  tape:      { label: 'Tape',             field: null,                hits: 2, aim: false }
+  tape:      { label: 'Tape',             field: null,                hits: 2, aim: false },
+  mark:      { label: 'Mark a defect',    field: null,                hits: 1, aim: false }
 };
 /* One panel at a time. Two of them open is two panels of reading before the
    button you wanted, and on a phone that is the whole screen. */
@@ -3741,10 +3762,12 @@ function startMeasure(kind, refArg) {
     if (tree == null) { tree = nearestTree(); selectTree(tree); }
     if (tree == null) return toast('No tree to measure.');
   }
-  measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg };
+  measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
+              markKind: kind === 'mark' ? refArg : null };
   const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
-  const ask = cfg.aim ? 'Aim at the stem base and tap'
+  const ask = kind === 'mark' ? 'Aim at the defect on the tree and tap'
+            : cfg.aim ? 'Aim at the stem base and tap'
             : kind === 'target' ? 'Aim at the target on the ground and tap'
             : kind === 'stems' ? 'Aim at the base of a stem you can see and tap. Three or four, well spread'
             : kind === 'ref' ? 'Aim at the point itself and tap – or cancel and stand on it instead'
@@ -3827,6 +3850,23 @@ function measureTap() {
     toast('Stem position of ' + props(m.tree).tree_id + ' set.');
     requestAnchors();
     clearMeasure();
+    return;
+  }
+
+  if (m.kind === 'mark') {
+    const t = m.tree;
+    if (t == null) { toast('No tree to mark on.'); return clearMeasure(); }
+    const g = markerOf.get(t);
+    if (!g) { toast('That tree is not drawn in this session.'); return clearMeasure(); }
+    const base = g.getWorldPosition(new THREE.Vector3());
+    const dx = hitPt.x - base.x, dz = hitPt.z - base.z;
+    const az = headingOfDir({ x: dx, y: 0, z: dz });
+    const rec = { kind: m.markKind || 'other', h: +Math.max(0, hitPt.y).toFixed(2),
+                  az: +az.toFixed(0), r: +Math.hypot(dx, dz).toFixed(2), note: '' };
+    markAdd(t, rec);
+    layoutMarks();
+    clearMeasure();
+    toast(markKind(rec.kind)[1] + ' marked on ' + tid(t) + ' · ' + markWhere(rec) + '.');
     return;
   }
 
@@ -4943,6 +4983,29 @@ function buildNumMenu(prefill) {
   // tapping the field is one touch and leaves the choice with the user.
 }
 
+/* Which kind of defect is being pinned, asked once, before the aiming - so
+   the tap itself is one tap and not a tap and a menu. */
+function markMenu(tree) {
+  const el = $('mmenu');
+  el.innerHTML = '<div><b>Mark a defect on ' + esc(tid(tree)) + '</b> ' +
+                 '<span class="small">· aim at it afterwards and tap</span></div>';
+  const row = document.createElement('div'); row.className = 'btnrow';
+  MARK_KINDS.forEach(k => {
+    const b = document.createElement('button'); b.className = 'sm';
+    b.style.borderColor = k[2];
+    b.textContent = k[1];
+    b.onclick = () => { el.style.display = 'none'; startMeasure('mark', k[0]); };
+    row.appendChild(b);
+  });
+  el.appendChild(row);
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const cl = document.createElement('button'); cl.textContent = 'Cancel';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl); el.appendChild(act);
+  closePopups('mmenu');
+  el.style.display = 'block';
+}
+
 /* Bark, the tape, the rough dendrometry: used on some trees, not on every
    tree, and never in a hurry. One button, a list, gone again. */
 function buildToolMenu() {
@@ -4982,6 +5045,7 @@ function buildToolMenu() {
   add('Crown Ø ~', () => { if (t != null) selectTree(t); startMeasure('crown'); });
   add('Target dist. ~', () => { if (t != null) selectTree(t); startMeasure('target'); });
   add('Tree out of reach', () => startMeasure('newtree'));
+  add('Mark a defect', () => { if (t == null) return toast('No tree in view.'); selectTree(t); markMenu(t); }, 'p');
   el.appendChild(row);
   const note = document.createElement('p'); note.className = 'small';
   note.textContent = 'The four marked ~ are rough: a height from a phone is out by metres on ' +
@@ -6254,6 +6318,53 @@ function paintOsm(res) {
     (res.skipped.length ? '<br>' + res.skipped.map(s => esc(tid(s.i)) + ': ' + esc(s.why)).join('<br>') : '');
 }
 
+/* ---- the language, one tap from anywhere ------------------------------
+   The form's language is not a setting anybody wants to go looking for: an
+   inspector from Berlin reading an Estonian register wants the labels in
+   German and the register to stay Estonian, and wants to swap back to show
+   the tree to the man who owns it. So it sits in the top bar, beside the
+   GPS, where the language on a phone belongs. */
+const LANG_LIST = [
+  ['auto', 'Follows the standard'], ['en', 'English'], ['de', 'Deutsch'],
+  ['nl', 'Nederlands'], ['et', 'Eesti'], ['fi', 'Suomi']
+];
+function paintLang() {
+  const b = $('langBtn'); if (!b) return;
+  const set = prefs().lang;
+  b.textContent = uiLang().toUpperCase() + (set ? '' : ' ·');
+  b.title = set ? 'Form in ' + (LANG_NAMES[set] || set) : 'Follows the standard';
+}
+function openLang() {
+  const el = $('langdlg');
+  const open = el.style.display !== 'block';
+  el.innerHTML = '';
+  if (!open) { el.style.display = 'none'; return; }
+  const h = document.createElement('div'); h.className = 'small';
+  h.textContent = 'The labels and the drop-downs. What is stored does not change.';
+  el.appendChild(h);
+  const cur = prefs().lang || 'auto';
+  LANG_LIST.forEach(l => {
+    const b = document.createElement('button');
+    b.className = (l[0] === cur ? 'p' : '');
+    b.textContent = l[1] + (l[0] === 'auto' ? ' · ' + uiLangOfNorm().toUpperCase() : '');
+    b.onclick = () => {
+      const pr = prefs();
+      if (l[0] === 'auto') delete pr.lang; else pr.lang = l[0];
+      lsSet(K_PREF, JSON.stringify(pr));
+      el.style.display = 'none';
+      paintLang();
+      if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+      renderList(); renderStats();
+      toast('Form in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
+    };
+    el.appendChild(b);
+  });
+  const x = document.createElement('button'); x.textContent = 'Close';
+  x.onclick = () => { el.style.display = 'none'; };
+  el.appendChild(x);
+  el.style.display = 'block';
+}
+
 function paintVoiceCheck(busy) {
   const el = $('voiceCheck'); if (!el) return;
   const hear = (typeof speechOk === 'function') && speechOk();
@@ -6689,6 +6800,7 @@ function openPanel(i, tab) {
   secs.base.appendChild(measureBlock(i));
   secs.base.appendChild(geoEditor(i));
   secs.base.appendChild(osmBlock(i));
+  secs.vta.appendChild(markBlock(i));
 
   /* --- where it stands --- */
   const mp = secs.map;
@@ -6836,6 +6948,7 @@ function setEdit(i, patch) {
   const stamp = { edited_at: new Date().toISOString(), edited_by: userName() || undefined };
   edits[tid(i)] = Object.assign({}, edits[tid(i)] || {}, patch, stamp);
   saveEdits(); refreshMarker(i); renderList(); renderStats();
+  if (mode === 'WebXR' && arCardAt === i) paintArCard(i);
   const diff = auditDiff(before, props(i));
   if (Object.keys(diff).length) auditAdd({ what: 'edited', tree: tid(i), diff: diff });
 }
@@ -7125,7 +7238,7 @@ function voiceStop() { if (recorder && recorder.state !== 'inactive') recorder.s
    called. It is a preference, not part of the data: the same trees can be
    handed over as an FLL protocol or a Dutch BVC. */
 function curNorm() { return normById(prefs().norm || 'fll'); }
-function setNorm(id) { setPref('norm', normById(id).id); }
+function setNorm(id) { setPref('norm', normById(id).id); if (typeof paintLang === 'function') paintLang(); }
 function fieldDef(k) {
   const b = FIELDS[k] || F_BASE.find(f => f[0] === k) || [k, k, 'text'];
   return [b[0], fieldLabel(k, b[1]), b[2], b[3]];
@@ -7604,7 +7717,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); distDrawnT = 0; }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null);
+  if (k === 'data') { paintLang(); paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null);
     if (typeof wipePaint === 'function') wipePaint(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
@@ -8697,6 +8810,8 @@ function wire() {
   paintOsm();
 
   $('bGuide').onclick = () => showScreen('guide');
+  paintLang();
+  $('langBtn').onclick = openLang;
 
   /* Does this phone hear, and does it speak? Two different permissions and two
      different engines, and the field is the wrong place to find out. */
@@ -8865,6 +8980,7 @@ function wire() {
     const pr = prefs(); if (v === 'auto') delete pr.lang; else pr.lang = v; lsSet(K_PREF, JSON.stringify(pr));
     if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
     renderList();
+    paintLang();
     toast('Form in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
   };
   $('prefVoice').value = prefs().voiceLang || 'auto';

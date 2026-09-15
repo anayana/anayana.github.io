@@ -23,6 +23,10 @@ const NORM_LANG = { fll: 'de', onorm: 'de', vssg: 'de', bvc: 'nl', ee: 'et', fi:
 function uiLang() {
   const p = (typeof prefs === 'function') ? prefs() : {};
   if (p.lang && LANG_NAMES[p.lang]) return p.lang;
+  return uiLangOfNorm();
+}
+/* What the standard alone would choose, with nobody overriding it. */
+function uiLangOfNorm() {
   const n = (typeof curNorm === 'function') ? curNorm() : null;
   return (n && NORM_LANG[n.id]) || 'en';
 }
