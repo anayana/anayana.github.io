@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.51.0';
+const APP_VERSION = '2.52.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -4505,7 +4505,11 @@ function storePhoto(tree, out, modeName, job) {
     /* The lens, so a tap on the picture can be turned back into a direction:
        without the angle of view a point in an image is only a point in an
        image. Taken from the session's own projection where there is one. */
-    try {
+    /* Only for a picture this app took itself. One that came back from the
+       phone's camera app was shot through a different lens at a different
+       zoom, and stamping the session's angle of view on it would turn a
+       guess into a figure somebody trusts. */
+    if (!job) try {
       const pc = (renderer.xr && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
       const cam0 = (pc.cameras && pc.cameras.length) ? pc.cameras[0] : pc;
       const e = cam0.projectionMatrix.elements;

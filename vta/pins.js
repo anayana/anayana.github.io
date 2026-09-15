@@ -59,6 +59,19 @@ function pinToSpot(rec, pin, dbhCm) {
            r: +r.toFixed(2), guessed: true, fromPhoto: true, exact: !!(R && onStem) };
 }
 
+/* What this particular picture can do, said before anybody taps it - the
+   difference is not the app's to hide. */
+function pinWhat(rec) {
+  if (!pinCanPlace(rec))
+    return 'Tap “Mark the damage”, then the spot. This picture does not know where it was ' +
+           'taken from, so the pin stays on the picture.';
+  if (!rec.fovY)
+    return 'Tap “Mark the damage”, then the spot. Taken with the phone\'s camera app: the ' +
+           'height on the trunk will be a rough estimate, the lens is unknown.';
+  return 'Tap “Mark the damage”, then the spot. It lands on the trunk as well, at a height ' +
+         'and a side worked out from this picture.';
+}
+
 /* ---- the viewer -------------------------------------------------------- */
 let pinView = null;      // { tree, rec, armed, el }
 
@@ -87,7 +100,7 @@ function openPhoto(tree, rec) {
     if (x < 0 || x > 1 || y < 0 || y > 1) return;
     pinPlace(x, y);
   };
-  pinSay('Tap “Mark the damage”, then tap the spot on the picture.');
+  pinSay(pinWhat(rec));
   pinPaint();
 }
 function pinClose() {
@@ -144,7 +157,8 @@ async function pinKeep(x, y, kind) {
       rec.pins = pinList(rec).map(q => q.id === pin.id ? pin : q);
       try { await photoPatch(rec.id, { pins: rec.pins }); } catch (e) {}
       pinSay(markKind(kind)[1] + ' · ' + markWhere(spot) +
-             (spot.exact ? '' : ' (side taken from where the photo was shot)'), 'ok');
+             (spot.exact ? '' : ' · side taken from where the photo was shot') +
+             (rec.fovY ? '' : ' · lens unknown, the height is rough'), 'ok');
       if (typeof layoutMarks === 'function') layoutMarks();
     }
   } else {

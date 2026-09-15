@@ -164,6 +164,49 @@ const GUIDE = [
     ]
   },
   {
+    id: 'photo',
+    title: { en: 'Photographing, and marking what is on the picture',
+             de: 'Fotografieren, und auf dem Bild markieren' },
+    what: {
+      en: 'A photograph settles two years later what a tick never will. There are three ways ' +
+          'to take one, and they are not the same photograph.\n' +
+          'In the camera view, the Photo button in the bottom bar takes what the camera sees, ' +
+          'without leaving the session. This is the one that knows where it was taken from - ' +
+          'how far from the stem, which side, how high, looking which way - and with what lens.\n' +
+          'In the camera view, Tools gives the same thing with a name on it: bark at 1.30 m, ' +
+          'leaf, flower, fruit, the whole tree. Use these: the name is what makes the picture ' +
+          'worth anything to identification later.\n' +
+          'On the tree\'s own page, under Photos, the camera button opens the phone\'s own ' +
+          'camera app. It is the way that always works, on any phone, with no AR at all - but ' +
+          'the picture comes back through a different lens, so what it knows about where it ' +
+          'was taken from is rougher.',
+      de: 'Ein Foto klärt zwei Jahre später, was ein Häkchen nie klärt. Es gibt drei Wege, eines ' +
+          'zu machen, und es sind nicht dieselben Fotos.\n' +
+          'In der Kameraansicht nimmt der Knopf <b>Photo</b> in der unteren Leiste auf, was die ' +
+          'Kamera sieht, ohne die Sitzung zu verlassen. Dieses Foto weiß, von wo es gemacht wurde ' +
+          '– Abstand zum Stamm, welche Seite, welche Höhe, welche Blickrichtung – und mit welchem ' +
+          'Bildwinkel.\n' +
+          'In der Kameraansicht gibt <b>Tools</b> dasselbe mit einem Namen: Rinde auf 1,30 m, ' +
+          'Blatt, Blüte, Frucht, ganzer Baum. Nimm die: der Name macht das Bild für die ' +
+          'Bestimmung später überhaupt erst brauchbar.\n' +
+          'Auf der Baumseite unter <b>Photos</b> öffnet der Kameraknopf die Kamera-App des ' +
+          'Telefons. Das ist der Weg, der immer funktioniert, auf jedem Gerät, ganz ohne AR – ' +
+          'aber das Bild kommt durch ein anderes Objektiv zurück, also weiß es gröber, von wo es ' +
+          'aufgenommen wurde.'
+    },
+    app: [
+      { en: 'Tap any photograph to open it. “Mark the damage”, then tap the spot, then say what it is.',
+        de: 'Auf ein Foto tippen, um es zu öffnen. „Mark the damage“, dann auf die Stelle tippen, dann sagen, was es ist.' },
+      { en: 'A pin on a picture that knows its pose also lands on the trunk, at a height and a side worked out from the picture, and is drawn there in AR with the measured ones.',
+        de: 'Ein Pin auf einem Bild, das seine Pose kennt, landet zusätzlich am Stamm, mit Höhe und Seite aus dem Bild gerechnet, und wird dort in AR neben den gemessenen gezeichnet.' },
+      { en: 'The viewer says what the picture in front of you can do before you tap: on the trunk as well, rough, or on the picture only.',
+        de: 'Der Viewer sagt vorher, was dieses Bild kann: auch am Stamm, grob, oder nur auf dem Bild.' },
+      { en: '⟲ on a photograph walks you back to the spot it was taken from and lays it over the live camera, with last year’s pins on it.',
+        de: '⟲ auf einem Foto führt dich an die Aufnahmestelle zurück und legt es über das Livebild, mitsamt der Pins von damals.' }
+    ],
+    go: { sc: 'list', label: { en: 'Open the trees', de: 'Baumliste öffnen' } }
+  },
+  {
     id: 'verify',
     title: { en: 'Step 2: test the suspicion', de: 'Schritt 2: den Verdacht überprüfen' },
     what: {
