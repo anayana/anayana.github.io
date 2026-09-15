@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.49.0';
+const APP_VERSION = '2.50.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2565,6 +2565,7 @@ function xrFrame(t, frame) {
     if (!xrBlurred) guard('standing', autoStand);
     if (edgeTick % 60 === 11) guard('far from stand', checkFarFromStand);
     if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
+    if (ghost && edgeTick % 3 === 0) guard('ghost', ghostTick);
   }
   guard('draw', tick);
   try { renderer.render(scene, camera); } catch (e) { note('render', e); }
@@ -2631,6 +2632,8 @@ function enterAR() {
   stillAt = null; stillSince = 0; autoStood = 0; farSaid = false;
   stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false; stemScanAt = 0;
   panchDone = false; panchWanted = null;
+  if (typeof ghostStop === 'function') ghostStop();
+  if (typeof ghostResume === 'function') setTimeout(ghostResume, 400);
   const healed = plotHeal();
   if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
                     'put back together. Record a tree to fix it on the earth.');
@@ -2646,6 +2649,7 @@ function endAR() {
   renderer.setAnimationLoop(null);
   lsDel(K_DTRIAL);                 // ended on purpose: not a death
   letSleep();
+  if (typeof ghostStop === 'function') ghostStop();
   clearMeasure();
   dropAnchors();
   if (hitSource) { try { hitSource.cancel(); } catch (e) {} hitSource = null; }
@@ -4528,7 +4532,16 @@ function storePhoto(tree, out, modeName, job) {
       }, 'image/jpeg', 0.8);
     }
     const g = markerOf.get(tree);
-    if (g && c) meta.dist = +c.distanceTo(g.getWorldPosition(new THREE.Vector3())).toFixed(1);
+    if (g && c) {
+      const gp2 = g.getWorldPosition(new THREE.Vector3());
+      meta.dist = +c.distanceTo(gp2).toFixed(1);
+      /* Which side of the tree the camera stood on, as a true bearing from the
+         tree outwards. With the distance, the height and the direction of
+         view it is the whole pose, expressed in the tree's own terms - so it
+         still means something next year, in a session that has never heard of
+         this one's coordinates. */
+      meta.from = Math.round(headingOfDir({ x: c.x - gp2.x, y: 0, z: c.z - gp2.z }));
+    }
 
     const url = out.toDataURL('image/jpeg', 0.72);
     photoAdd(props(tree).tree_id, url, meta)
@@ -7159,6 +7172,20 @@ async function renderPhotos(tree, gal) {
       nia.disabled = false; nia.textContent = 'NIA';
     };
     fig.appendChild(nia);
+    /* Taken from a known spot: the app can walk you back to it and lay this
+       picture over the live camera, which is how last year and this year are
+       actually compared. */
+    if (typeof ghostCan === 'function' && ghostCan(f)) {
+      const rp = document.createElement('button'); rp.className = 'rptbtn sm';
+      rp.textContent = '⟲';
+      rp.title = 'Stand where this was taken and lay it over the camera';
+      rp.onclick = () => {
+        const idx = CAT.features.findIndex((x, n) => tid(n) === tree);
+        if (idx < 0) return toast('That tree is not in the register any more.');
+        ghostRepeat(idx, f);
+      };
+      fig.appendChild(rp);
+    }
     /* What is on the picture, said once by the person who took it. It is what
        turns a photograph into training data, and it costs one tap. */
     const org = document.createElement('select'); org.className = 'organ';

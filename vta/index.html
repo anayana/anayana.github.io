@@ -249,6 +249,8 @@ button.work .od{color:#ff8f7a}
 .photos figure{position:relative}
 .photos .idbtn{position:absolute;left:4px;top:4px;font-size:11px;padding:3px 7px}
 .photos .niabtn{position:absolute;left:44px;top:4px;font-size:11px;padding:3px 7px}
+.photos .rptbtn{position:absolute;left:84px;top:4px;font-size:13px;padding:2px 8px;
+  background:#2f6b4a;border-color:#3f8a60;color:#fff}
 .photos .barkbtn{position:absolute;left:84px;top:4px;font-size:11px;padding:3px 7px}
 #niaBox{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;max-height:70vh;
   overflow:auto;background:rgba(10,16,13,.98);border:1px solid #34483c;border-radius:14px;padding:12px}
@@ -304,6 +306,18 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
 #speechbar .t b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #speechbar .t i{font-style:normal;font-size:11.5px;color:#9fb3a6;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
+#ghost{position:fixed;inset:0;z-index:12;pointer-events:none;display:flex;
+  flex-direction:column;justify-content:flex-end}
+#ghost img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  pointer-events:none;transition:opacity .12s linear}
+#ghost.on{box-shadow:inset 0 0 0 3px #6fd08c}
+#ghost .gbar{position:relative;pointer-events:auto;display:flex;align-items:center;gap:8px;
+  margin:0 8px calc(128px + env(safe-area-inset-bottom));padding:8px 10px;border-radius:12px;
+  background:rgba(10,16,13,.92);border:1px solid #2b3a31}
+#ghost .gs{flex:0 0 auto;font-size:12.5px;color:#e8c15a;min-width:96px}
+#ghost .gs.ok{color:#6fd08c;font-weight:600}
+#ghost .gs.wa{color:#e2704a}
+#ghost input[type=range]{flex:1 1 auto;min-width:60px}
 #arcard{display:none;background:rgba(10,16,13,.86);backdrop-filter:blur(8px);
   border:1px solid #2b3a31;border-radius:12px;padding:8px 10px;font-size:12.5px;max-width:340px}
 #arcard .hd{display:flex;align-items:baseline;gap:7px}
@@ -862,18 +876,19 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.49.0"></script>
-<script src="data.js?v=2.49.0"></script>
-<script src="norms.js?v=2.49.0"></script>
-<script src="i18n.js?v=2.49.0"></script>
-<script src="mapper.js?v=2.49.0"></script>
-<script src="users.js?v=2.49.0"></script>
-<script src="voice.js?v=2.49.0"></script>
-<script src="plantnet.js?v=2.49.0"></script>
-<script src="osm.js?v=2.49.0"></script>
-<script src="research.js?v=2.49.0"></script>
-<script src="marks.js?v=2.49.0"></script>
-<script src="guide.js?v=2.49.0"></script>
-<script src="app.js?v=2.49.0"></script>
+<script src="vendor/three.min.js?v=2.50.0"></script>
+<script src="data.js?v=2.50.0"></script>
+<script src="norms.js?v=2.50.0"></script>
+<script src="i18n.js?v=2.50.0"></script>
+<script src="mapper.js?v=2.50.0"></script>
+<script src="users.js?v=2.50.0"></script>
+<script src="voice.js?v=2.50.0"></script>
+<script src="plantnet.js?v=2.50.0"></script>
+<script src="osm.js?v=2.50.0"></script>
+<script src="research.js?v=2.50.0"></script>
+<script src="marks.js?v=2.50.0"></script>
+<script src="ghost.js?v=2.50.0"></script>
+<script src="guide.js?v=2.50.0"></script>
+<script src="app.js?v=2.50.0"></script>
 </body>
 </html>
