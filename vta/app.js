@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.42.0';
+const APP_VERSION = '2.43.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1892,6 +1892,7 @@ function onFix(fix) {
     else drawMap();
     renderNav(); mapModeLine();
   }
+  refreshDistances(false);
   if (!origin || (!mode && !originPinned && originAcc != null && fix.acc < originAcc - 1)) {
     origin = { lat: fix.lat, lon: fix.lon };
     if (!originPinned) originAcc = fix.acc;
@@ -5431,6 +5432,26 @@ let mapViewFrom = 'fallback';
    from the outside is "the map is not at my position any more". */
 let mapMode = 'me';                 // 'me' | 'both' | 'free'
 function mapOn() { return $('sc-map') && $('sc-map').classList.contains('on'); }
+function listOn() { return $('sc-list') && $('sc-list').classList.contains('on'); }
+
+/* ---- the distances follow the inspector -------------------------------
+   Every list in this app that says "4 m" says it about where the phone was
+   when the list was drawn. The map's tree list was drawn when the tab was
+   opened and the tree list when a tree changed, so both went stale the moment
+   anybody walked: the nearest tree stayed at the top of the list long after
+   it was behind them. A fix that has moved redraws them - once a metre or
+   once every five seconds, not once a second, because reordering a list under
+   a thumb that is reaching for it is its own kind of wrong. */
+let distDrawnAt = null, distDrawnT = 0;
+function refreshDistances(force) {
+  if (!lastFix) return;
+  const now = Date.now();
+  const moved = distDrawnAt ? distBear(lastFix.lat, lastFix.lon, distDrawnAt.lat, distDrawnAt.lon).d : 1e9;
+  if (!force && moved < 1 && now - distDrawnT < 5000) return;
+  distDrawnAt = { lat: lastFix.lat, lon: lastFix.lon }; distDrawnT = now;
+  if (mapOn()) buildNavList();
+  if (listOn()) { renderList(); renderWork(); }
+}
 
 function lon2px(lon, z) { return (lon + 180) / 360 * 256 * Math.pow(2, z); }
 function lat2px(lat, z) {
@@ -7497,7 +7518,7 @@ setInterval(() => { if ($('sc-list').classList.contains('on') && !mode && lastFi
 function showScreen(k) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
-  if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
+  if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); distDrawnT = 0; }   // sensors only on a user action
   if (k === 'guide') renderGuide();
   if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
