@@ -334,8 +334,6 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
 #mapWarn div{background:#2a1a14;border:1px solid #7d4a30;border-radius:9px;
   padding:7px 10px;margin:6px 0;font-size:12.5px}
 #mapWarn div.ok{background:#12271b;border-color:#2f6a48}
-#sampleBox{display:flex;flex-direction:column;gap:5px}
-#sampleBox button{text-align:left}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:10;background:#1e3128;
   pointer-events:none;
   border:1px solid #3f8a60;border-radius:10px;padding:9px 14px;font-size:13.5px;display:none;max-width:88%}
@@ -526,7 +524,21 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
         findings, and nothing at all out of a register you imported. Stem scans are kept only
         while the switch is on.</p>
 
-      <h3>OpenStreetMap</h3>
+      <h3>Trees from OpenStreetMap</h3>
+      <div class="btnrow">
+        <button class="p" id="osmGetHere">Within 300 m of me</button>
+        <button id="osmGetMap">In the map view</button>
+      </div>
+      <div id="osmGetBox" class="small"></div>
+      <p class="small">Real trees, downloaded from OpenStreetMap, with whatever species, girth,
+        height and crown somebody recorded. This is the one tree dataset that is open by licence
+        in every country, and it is reachable from a phone in a park. It is <b>not complete</b>:
+        it holds what people have mapped, which in a well-surveyed park is most of the trees and
+        on an ordinary street is often none. What you download is under <b>ODbL 1.0, ©
+        OpenStreetMap contributors</b>; the licence is stored on every tree and rides along into
+        exports. A downloaded tree is never offered back to OSM as new.</p>
+
+      <h3>Upload to OpenStreetMap</h3>
       <div id="osmBox" class="small"></div>
       <div class="row"><label>Client ID</label>
         <input type="text" id="osmClient" placeholder="from your OSM account → OAuth 2 applications"></div>
@@ -626,12 +638,6 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       <p class="small">The standard decides which questions the form asks, in which order, and
         what the verdict is called. It does not change the trees: the same register can be
         handed over as a German protocol or a Dutch boomveiligheidscontrole.</p>
-
-      <h3>Example registers</h3>
-      <div id="sampleBox"></div>
-      <p class="small">Small demonstration sets, each shaped like a real municipal register
-        from that country, to try the column reader on. The rows are made up; the column
-        names are not.</p>
 
       <h3>Moved positions</h3>
       <div id="movedList"></div>
@@ -796,18 +802,17 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.37.0"></script>
-<script src="data.js?v=2.37.0"></script>
-<script src="norms.js?v=2.37.0"></script>
-<script src="i18n.js?v=2.37.0"></script>
-<script src="mapper.js?v=2.37.0"></script>
-<script src="samples.js?v=2.37.0"></script>
-<script src="users.js?v=2.37.0"></script>
-<script src="voice.js?v=2.37.0"></script>
-<script src="plantnet.js?v=2.37.0"></script>
-<script src="osm.js?v=2.37.0"></script>
-<script src="research.js?v=2.37.0"></script>
-<script src="guide.js?v=2.37.0"></script>
-<script src="app.js?v=2.37.0"></script>
+<script src="vendor/three.min.js?v=2.38.0"></script>
+<script src="data.js?v=2.38.0"></script>
+<script src="norms.js?v=2.38.0"></script>
+<script src="i18n.js?v=2.38.0"></script>
+<script src="mapper.js?v=2.38.0"></script>
+<script src="users.js?v=2.38.0"></script>
+<script src="voice.js?v=2.38.0"></script>
+<script src="plantnet.js?v=2.38.0"></script>
+<script src="osm.js?v=2.38.0"></script>
+<script src="research.js?v=2.38.0"></script>
+<script src="guide.js?v=2.38.0"></script>
+<script src="app.js?v=2.38.0"></script>
 </body>
 </html>

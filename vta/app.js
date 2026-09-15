@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.37.0';
+const APP_VERSION = '2.38.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -8121,24 +8121,6 @@ function runMapper() {
         '\n\nThese are register positions. Stand at each stem and record it to get a survey.');
 }
 
-/* ---- the examples ----------------------------------------------------
-   One small set per country, shaped exactly like that country's municipal
-   export. The rows are invented; the column names are the real ones, which
-   is the whole point of having them. */
-function buildSamples() {
-  const box = $('sampleBox'); if (!box) return;
-  box.innerHTML = '';
-  SAMPLES.forEach(sm => {
-    const b = document.createElement('button');
-    b.innerHTML = sm.flag + ' <b>' + esc(sm.label) + '</b> · ' + sm.n + ' trees · ' +
-                  esc(sm.fmt);
-    b.onclick = () => { try { openMapper(sm.text(), sm.file); }
-                        catch (e) { alert('Sample failed: ' + ((e && e.message) || e)); } };
-    box.appendChild(b);
-  });
-}
-
-
 /* ============================ START ============================ */
 
 function chk(state, txt) {
@@ -8342,7 +8324,43 @@ function wire() {
   $('bResPhotos').onclick = () => resGo(true);
   paintRes();
 
-  /* --- OpenStreetMap ------------------------------------------------------ */
+  /* --- OpenStreetMap: bringing real trees in ------------------------------ */
+  const osmGet = async (b, what) => {
+    const box = $('osmGetBox');
+    box.textContent = 'Asking OpenStreetMap…';
+    try {
+      const r = await osmImportTrees(b);
+      buildMarkers(); renderList(); renderStats(); drawMap();
+      box.innerHTML = r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + what +
+        (r.already ? ', ' + r.already + ' were already here' : '') +
+        (r.found ? '' : ' – nothing is mapped there yet') +
+        (r.capped ? '. The download was capped – zoom in and do it in pieces.' : '.') +
+        ' <span class="q">© OpenStreetMap contributors, ODbL 1.0</span>';
+      if (r.added) toast(r.added + ' trees from OpenStreetMap.');
+    } catch (e) {
+      box.textContent = 'OpenStreetMap could not be reached: ' +
+        (e.message === 'Failed to fetch' ? 'no signal, or the service is busy' : e.message);
+    }
+  };
+  $('osmGetHere').onclick = () => {
+    if (!lastFix) return toast('No GPS fix yet – open the map so the phone locates you.');
+    const dLat = 300 / mLat(lastFix.lat), dLon = 300 / mLon(lastFix.lat);
+    osmGet({ s: +(lastFix.lat - dLat).toFixed(6), n: +(lastFix.lat + dLat).toFixed(6),
+             w: +(lastFix.lon - dLon).toFixed(6), e: +(lastFix.lon + dLon).toFixed(6) },
+           '300 m around you');
+  };
+  $('osmGetMap').onclick = () => {
+    const v = mapCentre();
+    const box = $('mapBox');
+    const halfW = (box.clientWidth || 360) / 2, halfH = (box.clientHeight || 300) / 2;
+    const mPerPx = 156543.03392 * Math.cos(v.lat * Math.PI / 180) / Math.pow(2, v.z);
+    const dLat = halfH * mPerPx / mLat(v.lat), dLon = halfW * mPerPx / mLon(v.lat);
+    osmGet({ s: +(v.lat - dLat).toFixed(6), n: +(v.lat + dLat).toFixed(6),
+             w: +(v.lon - dLon).toFixed(6), e: +(v.lon + dLon).toFixed(6) },
+           'the map view');
+  };
+
+  /* --- OpenStreetMap: giving your own away -------------------------------- */
   $('osmClient').value = osmCfg().clientId || '';
   $('osmClient').onchange = () => { const c = osmCfg(); c.clientId = $('osmClient').value.trim(); osmSave(c); paintOsm(); };
   $('osmHost').value = osmCfg().host === 'dev' ? 'dev' : 'live';
@@ -8479,7 +8497,6 @@ function wire() {
     renderList();
     toast('Form set to ' + curNorm().label + '.');
   };
-  buildSamples();
   const paintFollow = () => {
     $('bScroll').textContent = 'Follow the form: ' + (followForm() ? 'on' : 'off');
     $('bScroll').classList.toggle('p', followForm());

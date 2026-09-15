@@ -94,6 +94,73 @@ async function osmNearby(lat, lon) {
   return (j.elements || []).map(e => ({ id: e.id, lat: e.lat, lon: e.lon, tags: e.tags || {} }));
 }
 
+/* ---- bringing real trees in ---------------------------------------------
+   The other direction, and the more useful one to begin with: OpenStreetMap
+   is the one tree dataset that is open by licence everywhere, in one schema,
+   reachable from a phone in a park. It is not complete - it holds what
+   somebody mapped, which in a well-surveyed park is most of the trees and on
+   a random street is none - and the app says so rather than letting anybody
+   believe a downloaded park is the park.
+
+   What comes back is real data under ODbL: it carries its node id, it is
+   never offered back to OSM as new, and the attribution rides along in the
+   record so it survives into any export. */
+const OSM_GET_MAX = 4000;
+function osmBboxQuery(b) {
+  return '[out:json][timeout:90];node(' + b.s + ',' + b.w + ',' + b.n + ',' + b.e +
+         ')[natural=tree];out body ' + OSM_GET_MAX + ';';
+}
+async function osmTreesIn(b) {
+  const r = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST', body: 'data=' + encodeURIComponent(osmBboxQuery(b)),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+  if (!r.ok) throw new Error('Overpass answered ' + r.status +
+    (r.status === 429 ? ' – too many requests, wait a minute' : ''));
+  const j = await r.json();
+  return (j.elements || []).filter(e => e.type === 'node' && isFinite(e.lat) && isFinite(e.lon));
+}
+/* The tags OSM uses for a tree, into the fields this app inspects with.
+   Nothing is invented on the way: a tag that is not there leaves the field
+   empty, and everything unmapped rides along as src_* so it is not lost. */
+const OSM_MAPPED = ['natural', 'species', 'genus', 'circumference', 'height', 'diameter_crown',
+                    'start_date', 'ref', 'source', 'name', 'taxon', 'leaf_type', 'leaf_cycle'];
+function osmTreeProps(e) {
+  const t = e.tags || {}, n = v => { const x = parseFloat(v); return isFinite(x) ? x : null; };
+  const p = {
+    tree_id: 'OSM-' + e.id, osm_id: String(e.id),
+    species: t.species || t.taxon || t.genus || '',
+    name_en: t['species:en'] || t.name || '',
+    geometry_source: 'OpenStreetMap',
+    licence: 'ODbL 1.0, © OpenStreetMap contributors',
+    inspection_type: '', symptoms: [], actions: [], history: [], remarks: ''
+  };
+  if (t.ref) p.tag_no = String(t.ref);
+  if (n(t.circumference)) p.girth_cm = Math.round(n(t.circumference) * 100);
+  if (n(t.height)) p.height_m = n(t.height);
+  if (n(t.diameter_crown)) p.crown_d_m = n(t.diameter_crown);
+  if (/^\d{4}/.test(t.start_date || '')) p.planted = parseInt(t.start_date, 10);
+  Object.keys(t).forEach(k => {
+    if (OSM_MAPPED.indexOf(k) < 0 && !/^species:/.test(k)) p['src_' + k.replace(/[^a-z0-9_]/gi, '_')] = t[k];
+  });
+  return p;
+}
+/* returns { found, added, already } */
+async function osmImportTrees(b) {
+  const rows = await osmTreesIn(b);
+  const have = new Set();
+  CAT.features.forEach((f, i) => { const p = props(i); if (p.osm_id) have.add(String(p.osm_id)); });
+  let added = 0, already = 0;
+  rows.forEach(e => {
+    if (have.has(String(e.id))) { already++; return; }
+    CAT.features.push({ type: 'Feature',
+      geometry: { type: 'Point', coordinates: [+(+e.lon).toFixed(7), +(+e.lat).toFixed(7)] },
+      properties: osmTreeProps(e) });
+    added++;
+  });
+  if (added) { saveCat(); auditAdd({ what: 'osm import', detail: added + ' trees from OpenStreetMap' }); }
+  return { found: rows.length, added: added, already: already, capped: rows.length >= OSM_GET_MAX };
+}
+
 /* ---- OAuth 2 with PKCE, in the page ----------------------------------- */
 function b64url(buf) {
   return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
