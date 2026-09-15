@@ -274,6 +274,9 @@ table.hist th{color:#8fa697;font-weight:500}
 .photos figure{margin:0;position:relative}
 .photos img{width:100%;height:96px;object-fit:cover;border-radius:9px;border:1px solid #2f4137;display:block}
 .photos .del{position:absolute;top:3px;right:3px;padding:2px 7px;font-size:12px;background:rgba(90,32,32,.9);border-color:#7d3030}
+.nbrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 0 8px}
+.nbrow>span.small{flex:0 0 auto}
+.nbrow button{font-size:12px;padding:4px 8px;border-radius:8px;white-space:nowrap}
 .photos figcaption{font-size:10.5px;color:#7f9488;margin-top:2px}
 .photos select.organ{width:100%;margin-top:3px;font-size:11px;padding:2px 4px;border-radius:7px;
   background:#16211b;color:#cfe0d5;border:1px solid #2b3a31}
@@ -656,7 +659,11 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       <div class="btnrow">
         <button id="bScroll">Follow the form: on</button>
         <button id="bAskDist">Ask the distance: on</button>
+        <button id="bAutoVoice">Listen at once: on</button>
       </div>
+      <p class="small">Standing at a known tree and pressing <i>I am here</i> opens its form and
+        starts the microphone straight away, because at the trunk both hands are busy. Switch
+        that off here if you would rather start it yourself.</p>
       <p class="small">A tree is recorded from where you stand, which is rarely the stem. On
         recording, the app asks how far away the trunk is and moves it there, along the way the
         camera is pointing or, outside AR, along the compass.</p>
@@ -805,17 +812,17 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.41.0"></script>
-<script src="data.js?v=2.41.0"></script>
-<script src="norms.js?v=2.41.0"></script>
-<script src="i18n.js?v=2.41.0"></script>
-<script src="mapper.js?v=2.41.0"></script>
-<script src="users.js?v=2.41.0"></script>
-<script src="voice.js?v=2.41.0"></script>
-<script src="plantnet.js?v=2.41.0"></script>
-<script src="osm.js?v=2.41.0"></script>
-<script src="research.js?v=2.41.0"></script>
-<script src="guide.js?v=2.41.0"></script>
-<script src="app.js?v=2.41.0"></script>
+<script src="vendor/three.min.js?v=2.42.0"></script>
+<script src="data.js?v=2.42.0"></script>
+<script src="norms.js?v=2.42.0"></script>
+<script src="i18n.js?v=2.42.0"></script>
+<script src="mapper.js?v=2.42.0"></script>
+<script src="users.js?v=2.42.0"></script>
+<script src="voice.js?v=2.42.0"></script>
+<script src="plantnet.js?v=2.42.0"></script>
+<script src="osm.js?v=2.42.0"></script>
+<script src="research.js?v=2.42.0"></script>
+<script src="guide.js?v=2.42.0"></script>
+<script src="app.js?v=2.42.0"></script>
 </body>
 </html>

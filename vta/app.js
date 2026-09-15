@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.41.0';
+const APP_VERSION = '2.42.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -740,6 +740,12 @@ function headingOfDir(d) {
   return (haveOrient && heading != null) ? heading : inScene;
 }
 function askDist() { return prefs().askDist !== false; }
+function autoVoice() { return prefs().autoVoice !== false; }
+function paintAutoVoice() {
+  const b = $('bAutoVoice'); if (!b) return;
+  b.textContent = 'Listen at once: ' + (autoVoice() ? 'on' : 'off');
+  b.classList.toggle('p', autoVoice());
+}
 function paintAskDist() {
   const b = $('bAskDist'); if (!b) return;
   b.textContent = 'Ask the distance: ' + (askDist() ? 'on' : 'off');
@@ -1091,32 +1097,32 @@ function standAtTree(idx) {
      course, the inspector says which tree it is: a man standing at a trunk
      reading the number off the plate knows better than any of it. */
   const i = idx == null ? nearestSurveyedByGps() : idx;
-  if (i == null) return toast('No tree near you with a position to stand at.');
+  if (i == null) { toast('No tree near you with a position to stand at.'); return false; }
   if (lastFix) {
     const c0 = CAT.features[i].geometry.coordinates;
     const d0 = distBear(c0[1], c0[0], lastFix.lat, lastFix.lon).d;
     if (d0 > Math.max(15, lastFix.acc * 2)) {
       const far = tid(i) + ' is ' + d0.toFixed(0) + ' m away by GPS.';
-      if (idx == null)
-        return toast(far + ' Walk to a tree you know, or record this one as new.');
+      if (idx == null) { toast(far + ' Walk to a tree you know, or record this one as new.'); return false; }
       /* Named by hand: GPS is the thing more likely to be wrong, but a
          mistaken tree moves the whole stand, so it is asked, not assumed. */
       if (!confirm(far + '\n\nGPS can be that wrong under a canopy, and so can a ' +
-                   'register. Are you standing at this tree?')) return;
+                   'register. Are you standing at this tree?')) return false;
     }
   }
   const l = localOf(i);
-  if (!l) return toast(tid(i) + ' has no position to hang the session on.');
+  if (!l) { toast(tid(i) + ' has no position to hang the session on.'); return false; }
   const c = camPos(), r = reticleStem();
   const at = r ? { x: r.x, z: r.z } : { x: c.x, z: c.z };
   standPts = standPts.filter(p => p.i !== i);
   standPts.push({ i: i, x: at.x, z: at.z, l: l });
-  if (applyStandPair()) return;
-  if (!lockOnTree(i)) return toast('That did not work – ' + tid(i) + ' has no local position.');
+  if (applyStandPair()) return true;
+  if (!lockOnTree(i)) { toast('That did not work – ' + tid(i) + ' has no local position.'); return false; }
   toast('Standing at ' + tid(i) + ' · position exact' +
         (hasLocal(props(i)) ? '' : ' as the register has it') +
         ', heading from the compass. ' +
         'Walk to another known tree and press again – that fixes the heading too.');
+  return true;
 }
 
 /* Standing at a tree you know is a whole fix: the position comes from that
@@ -4771,6 +4777,54 @@ function runStemMatch(pts) {
         (n ? ' · ' + n + ' tree' + (n === 1 ? '' : 's') + ' recorded today moved onto it' : ''));
 }
 
+/* Picked a tree, standing at it: everything from here is the survey. The form
+   opens on the quick page, which is the handful of fields most trees need, and
+   the microphone starts unless it has been switched off - with a glove on, at
+   a trunk, in the rain, the keyboard is not an input device. */
+function startSurvey(i) {
+  selectTree(i);
+  openPanel(i, 'quick');
+  if (!autoVoice()) return;
+  if (typeof speechOk === 'function' && !speechOk()) return;
+  setTimeout(() => { try { speechStart(i); } catch (e) {} }, 350);
+}
+
+/* The two or three nearest other trees, with how far and which way. Standing
+   at one tree, the next one is almost always one of these, and hunting for it
+   in a list of two hundred is how an inspector ends up walking the stand
+   twice. */
+function neighboursOf(i, n) {
+  const f = CAT.features[i]; if (!f || !f.geometry) return [];
+  const c = f.geometry.coordinates, out = [];
+  CAT.features.forEach((g, k) => {
+    if (k === i || !g.geometry) return;
+    const cc = g.geometry.coordinates;
+    const db = distBear(cc[1], cc[0], c[1], c[0]);      // from this tree to that one
+    if (db.d > 60) return;                              // further off is not a neighbour
+    out.push({ i: k, d: db.d, b: db.b });
+  });
+  out.sort((a, b) => a.d - b.d);
+  return out.slice(0, n || 3);
+}
+/* The row of them, under the header of a tree's page. */
+function neighbourRow(i) {
+  const wrap = document.createElement('div'); wrap.className = 'nbrow';
+  const near = neighboursOf(i, 3);
+  if (!near.length) { wrap.className = 'nbrow small'; wrap.textContent = 'No other tree within 60 m.'; return wrap; }
+  const lab = document.createElement('span'); lab.className = 'small'; lab.textContent = 'Next:';
+  wrap.appendChild(lab);
+  near.forEach(x => {
+    const p = props(x.i);
+    const b = document.createElement('button'); b.className = 'sm';
+    b.innerHTML = '<b>' + esc(p.tag_no || tid(x.i)) + '</b> · ' +
+                  x.d.toFixed(x.d < 10 ? 1 : 0) + ' m ' + bearWord(x.b);
+    b.title = p.species || '';
+    b.onclick = () => { savePanel(true); selectTree(x.i); navTarget = x.i; openPanel(x.i, panelTab); };
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
 /* The list, inside AR.
 
    Everything else in here finds the tree for you: the markers, the stem
@@ -4839,7 +4893,10 @@ function buildNumMenu(prefill) {
       here.onclick = () => {
         el.style.display = 'none';
         selectTree(x.i); navTarget = x.i;
-        standAtTree(x.i);
+        /* Standing at the tree is not the job. The job is the inspection, and
+           the inspector is at the trunk with both hands busy: the form opens
+           on the spot and the microphone is already listening. */
+        if (standAtTree(x.i)) startSurvey(x.i);
       };
       line.appendChild(b); line.appendChild(here);
       list.appendChild(line);
@@ -6399,6 +6456,8 @@ function openPanel(i, tab) {
     el.appendChild(st);
   }
 
+  el.appendChild(neighbourRow(i));
+
   const tabs = document.createElement('div'); tabs.className = 'ptabs';
   const body = document.createElement('div'); body.className = 'pb';
   const secs = {};
@@ -7440,7 +7499,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'data') { paintAskDist(); paintImpBox(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
+  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
@@ -8602,6 +8661,8 @@ function wire() {
   $('bScroll').onclick = () => { setPref('follow', !followForm()); paintFollow(); };
   paintAskDist();
   $('bAskDist').onclick = () => { setPref('askDist', !askDist()); paintAskDist(); };
+  paintAutoVoice();
+  $('bAutoVoice').onclick = () => { setPref('autoVoice', !autoVoice()); paintAutoVoice(); };
   $('prefLang').value = prefs().lang || 'auto';
   $('prefLang').onchange = () => {
     const v = $('prefLang').value;
