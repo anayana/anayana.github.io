@@ -583,8 +583,12 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
         difference reported.</p>
       <input type="file" id="fileImp" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
       <h3>Load from a web address</h3>
+      <div class="row"><label>Source</label>
+        <select id="impPick"><option value="">— pick one, or paste below —</option></select></div>
+      <div class="small" id="impNote"></div>
       <div class="row"><label>URL</label>
         <input type="url" id="impUrl" placeholder="https://…/FeatureServer/1  or a WFS / GeoJSON / CSV address"></div>
+      <div class="btnrow"><button id="bImpCheck">Does this address answer?</button></div>
       <div class="sym"><label><input type="checkbox" id="impBbox" checked>
         <span>Only the area shown on the map</span></label></div>
       <div class="small" id="impBoxWhere"></div>
@@ -823,17 +827,17 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.45.0"></script>
-<script src="data.js?v=2.45.0"></script>
-<script src="norms.js?v=2.45.0"></script>
-<script src="i18n.js?v=2.45.0"></script>
-<script src="mapper.js?v=2.45.0"></script>
-<script src="users.js?v=2.45.0"></script>
-<script src="voice.js?v=2.45.0"></script>
-<script src="plantnet.js?v=2.45.0"></script>
-<script src="osm.js?v=2.45.0"></script>
-<script src="research.js?v=2.45.0"></script>
-<script src="guide.js?v=2.45.0"></script>
-<script src="app.js?v=2.45.0"></script>
+<script src="vendor/three.min.js?v=2.46.0"></script>
+<script src="data.js?v=2.46.0"></script>
+<script src="norms.js?v=2.46.0"></script>
+<script src="i18n.js?v=2.46.0"></script>
+<script src="mapper.js?v=2.46.0"></script>
+<script src="users.js?v=2.46.0"></script>
+<script src="voice.js?v=2.46.0"></script>
+<script src="plantnet.js?v=2.46.0"></script>
+<script src="osm.js?v=2.46.0"></script>
+<script src="research.js?v=2.46.0"></script>
+<script src="guide.js?v=2.46.0"></script>
+<script src="app.js?v=2.46.0"></script>
 </body>
 </html>

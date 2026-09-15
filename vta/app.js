@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.45.0';
+const APP_VERSION = '2.46.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5824,7 +5824,7 @@ function wireMap() {
   $('mMove').onclick = () => {
     if (mapSel == null) return;
     const v = mapCentre(), id = tid(mapSel);
-    setCoords(mapSel, v.lon, v.lat, 'moved on the map', null);
+    if (!setCoords(mapSel, v.lon, v.lat, 'moved on the map', null)) return;
     drawMap(); syncMapSel(); renderMoved();
     toast(id + ' moved to the crosshair – Undo puts it back.');
   };
@@ -5890,7 +5890,11 @@ function syncMapSel() {
   }
   const f = CAT.features[mapSel], v = mapCentre(), c = f.geometry.coordinates;
   const d = distBear(c[1], c[0], v.lat, v.lon).d;
-  b.style.display = ''; b.textContent = 'Move ' + tid(mapSel) + ' here (' + d.toFixed(1) + ' m)';
+  const mine = ownTree(mapSel);
+  b.style.display = ''; b.disabled = !mine;
+  b.textContent = mine ? 'Move ' + tid(mapSel) + ' here (' + d.toFixed(1) + ' m)'
+                       : tid(mapSel) + ' cannot be moved by hand';
+  b.title = mine ? '' : ownWhy(mapSel);
   const o = f.properties.orig_coordinates;
   const st = $('mStand');
   st.style.display = localOf(mapSel) ? '' : 'none';
@@ -5900,7 +5904,7 @@ function syncMapSel() {
   if (o) u.textContent = 'Undo – put ' + tid(mapSel) + ' back (' +
     distBear(c[1], c[0], o[1], o[0]).d.toFixed(1) + ' m)';
   info.textContent = tid(mapSel) + ' picked · ' + (props(mapSel).species || 'no species') +
-    (o ? ' · moved' : '');
+    (o ? ' · moved' : '') + (mine ? '' : ' · ' + ownWhy(mapSel));
 }
 /* The tree on a map of its own, inside its page: which side of the path it is
    on, which corner of the yard - the thing a coordinate does not tell you. */
@@ -6100,7 +6104,41 @@ function fieldRow(k, lab, typ, opt, p) {
    every stem needs correcting once. Three ways in, all writing straight to the
    catalogue: type the coordinate, average a series of GPS fixes while standing
    at the stem, or nudge the point in metres. */
+/* ---- whose tree is it -------------------------------------------------
+   A tree this phone recorded is the surveyor's to move, to correct and to
+   delete. A tree out of a city's register is not: its position is the city's
+   measurement and its existence is the city's record, and an inspector who
+   drags one across a path or deletes it has quietly falsified somebody else's
+   register. The same line the licence gate uses, for the same reason. */
+function ownTree(i) {
+  const p = props(i);
+  if (p.osm_own === true) return true;
+  if (p.osm_id) return false;                       // came down from OpenStreetMap
+  /* a tree that has been moved carries where it came from originally, and that
+     is what decides - not the fact that somebody moved it once */
+  const src = String(p.orig_source || p.geometry_source || '');
+  return /^AR survey|^GPS in the field|^entered by hand|^picked on the map/.test(src);
+}
+function ownWhy(i) {
+  const p = props(i);
+  const src = String(p.geometry_source || '').trim();
+  return p.osm_id ? 'it came from OpenStreetMap'
+       : src ? 'it came from ' + src
+       : 'it did not come from this phone';
+}
+
+/* Dragging a marker to the crosshair, typing a coordinate, nudging it north:
+   these are somebody deciding where a tree is. Standing at the stem and
+   surveying it in AR, or averaging fixes at its foot, is somebody measuring
+   where it is - which is the whole point of carrying a register into the
+   field, and stays allowed on a city's trees. */
+const MOVE_BY_HAND = /^(moved on the map|entered by hand|adjusted in the field)/;
 function setCoords(i, lon, lat, source, acc) {
+  if (MOVE_BY_HAND.test(String(source || '')) && !ownTree(i)) {
+    toast(tid(i) + ' cannot be moved by hand – ' + ownWhy(i) +
+          '. Stand at the stem and survey it instead.');
+    return false;
+  }
   const f = CAT.features[i];
   if (!f.properties.orig_coordinates) {
     f.properties.orig_coordinates = f.geometry.coordinates.slice();
@@ -6118,6 +6156,7 @@ function setCoords(i, lon, lat, source, acc) {
     }
   }
   saveCat(); placeMarkers(); renderList(); syncGeo(i);
+  return true;
 }
 function syncGeo(i) {
   if (!panelEl || openIdx !== i) return;
@@ -6313,6 +6352,7 @@ function addTree(lon, lat, source, acc, local, quiet) {
    all of them rather than trying to renumber. */
 function deleteTree(i) {
   const id = tid(i);
+  if (!ownTree(i)) { toast(id + ' is not yours to delete – ' + ownWhy(i) + '.'); return null; }
   trashPush(JSON.parse(JSON.stringify(CAT.features[i])), edits[id] || null);
   CAT.features.splice(i, 1);
   if (edits[id]) { delete edits[id]; saveEdits(); }
@@ -6399,20 +6439,28 @@ function geoEditor(i) {
     const inp = document.createElement('input');
     inp.type = 'number'; inp.step = '0.0000001'; inp.value = g[2];
     inp.setAttribute('inputmode', 'decimal'); inp.dataset.geo = g[0];
+    inp.readOnly = !ownTree(i);
     inp.onchange = () => {
       const lon = parseFloat(wrap.querySelector('[data-geo="lon"]').value);
       const lat = parseFloat(wrap.querySelector('[data-geo="lat"]').value);
       if (!isFinite(lon) || !isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
         toast('Coordinate out of range.'); syncGeo(i); return;
       }
-      setCoords(i, lon, lat, 'entered by hand');
-      toast('Coordinate applied.');
+      if (setCoords(i, lon, lat, 'entered by hand')) toast('Coordinate applied.');
+      else syncGeo(i);
     };
     r.appendChild(l); r.appendChild(inp); wrap.appendChild(r);
   });
 
   const info = document.createElement('div'); info.id = 'geoInfo'; info.style.margin = '8px 0';
   wrap.appendChild(info);
+  if (!ownTree(i)) {
+    const w = document.createElement('p'); w.className = 'small';
+    w.innerHTML = '<b class="wa">This position is not yours to change by hand</b> – ' + esc(ownWhy(i)) +
+      '. Stand at the stem and survey it in AR, or average GPS at its foot: that is a measurement ' +
+      'and it is kept, with the register position underneath it.';
+    wrap.appendChild(w);
+  }
 
   const row1 = document.createElement('div'); row1.className = 'btnrow';
   const bnow = document.createElement('button'); bnow.className = 'sm'; bnow.textContent = 'GPS now';
@@ -6736,13 +6784,17 @@ function openPanel(i, tab) {
     toast('Field record reset.');
   };
   const bd = document.createElement('button'); bd.className = 'x'; bd.textContent = 'Delete';
-  bd.disabled = !userCan('manage');
-  bd.title = bd.disabled ? 'Only an admin deletes trees' : '';
+  const mine = ownTree(i);
+  bd.disabled = !userCan('manage') || !mine;
+  bd.title = !userCan('manage') ? 'Only an admin deletes trees'
+           : !mine ? 'Only trees this phone recorded can be deleted – ' + ownWhy(i) : '';
   bd.onclick = () => {
     if (!userCan('manage')) return toast('Only an admin deletes trees.');
+    if (!mine) return toast(tid(i) + ' is not yours to delete – ' + ownWhy(i) + '.');
     if (!confirm('Delete ' + tid(i) + ' from the register? Photos of it are kept.')) return;
     auditAdd({ what: 'deleted', tree: tid(i) });
-    toast(deleteTree(i) + ' deleted.');
+    const gone = deleteTree(i);
+    if (gone) toast(gone + ' deleted.');
   };
   const bar = document.createElement('button'); bar.textContent = 'AR';
   bar.title = 'Show this tree in the camera';
@@ -7561,7 +7613,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); distDrawnT = 0; }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); paintVoiceCheck(null); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
+  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
@@ -8035,14 +8087,14 @@ function looksOurs(txt) {
   } catch (e) { return false; }
 }
 
-function openMapper(text, name) {
+function openMapper(text, name, url) {
   /* A web page read as a register gives one column called "<html lang=en>" and
      a hundred rows of markup. It is never worth showing that table. */
   if (looksLikeHtml(text))
     throw new Error('that is a web page, not a register – no columns to read in it');
   const parsed = parseRegisterFile(text);
   const plan = planMapping(parsed.cols, parsed.rows);
-  mapState = { parsed: parsed, plan: plan, name: name || 'file' };
+  mapState = { parsed: parsed, plan: plan, name: name || 'file', url: url || null };
   $('mapSub').textContent = (name ? name + ' · ' : '') + parsed.rows.length + ' row' +
     (parsed.rows.length === 1 ? '' : 's') + ' · ' + parsed.cols.length + ' columns' +
     (parsed.sep ? ' · separator "' + (parsed.sep === '\t' ? 'tab' : parsed.sep) + '"' : '');
@@ -8219,6 +8271,59 @@ function arcgisQueryUrl(u, offset, box) {
                 '&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects';
   return q;
 }
+/* ---- addresses that are known to answer -------------------------------
+   Two kinds, and the difference is stated rather than blurred: sources this
+   app has actually loaded in the field, and sources found in a catalogue and
+   never tried from here. Beside them sit the addresses this phone has itself
+   imported from, which are working by definition - they worked here. */
+const K_URLS = 'vta_urls_v1';
+const IMPORT_SOURCES = [
+  { label: 'Tallinn · HHHIS puud (all city trees)',
+    url: 'https://gis.tallinn.ee/arcgis/rest/services/HHHIS/HHHIS_puud/MapServer/0',
+    note: 'Loaded in the field and read correctly. Whole city: leave "only the area shown on the ' +
+          'map" ticked. No species column – the layer carries the district, the address and remarks.',
+    tried: true },
+  { label: 'Tallinn · Väärtuslikud puud (valuable trees)',
+    url: 'https://gis.tallinn.ee/arcgis/rest/services/Hosted/muinsuskaitsekord/FeatureServer/1',
+    note: 'From the city\'s service directory, not tried from this app. A selection of notable ' +
+          'trees, not the whole stand.', tried: false }
+];
+function urlHist() { try { return JSON.parse(lsGet(K_URLS)) || []; } catch (e) { return []; } }
+function urlRemember(u, n) {
+  const url = String(u || '').trim(); if (!url) return;
+  const h = urlHist().filter(x => x.url !== url);
+  h.unshift({ url: url, n: n || 0, at: new Date().toISOString() });
+  lsSet(K_URLS, JSON.stringify(h.slice(0, 8)));
+}
+function paintImpPick() {
+  const sel = $('impPick'); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— pick one, or paste below —</option>';
+  const add = (group, items) => {
+    if (!items.length) return;
+    const g = document.createElement('optgroup'); g.label = group;
+    items.forEach(it => {
+      const o = document.createElement('option');
+      o.value = it.url; o.textContent = it.label; g.appendChild(o);
+    });
+    sel.appendChild(g);
+  };
+  add('Worked on this phone', urlHist().map(h => ({
+    url: h.url, label: (h.n ? h.n + ' trees · ' : '') + h.url.replace(/^https?:\/\//, '').slice(0, 52) })));
+  add('Tried in the field', IMPORT_SOURCES.filter(x => x.tried).map(x => ({ url: x.url, label: x.label })));
+  add('Found in a catalogue, not tried', IMPORT_SOURCES.filter(x => !x.tried).map(x => ({ url: x.url, label: x.label })));
+  sel.value = cur;
+}
+function paintImpNote(url) {
+  const el = $('impNote'); if (!el) return;
+  const known = IMPORT_SOURCES.find(x => x.url === url);
+  const mine = urlHist().find(h => h.url === url);
+  el.innerHTML = known ? (known.tried ? '' : '<b class="wa">Not tried from here.</b> ') + esc(known.note)
+    : mine ? 'Imported from this address before' + (mine.n ? ', ' + mine.n + ' trees' : '') +
+             ', on ' + esc(mine.at.slice(0, 10)) + '.'
+    : '';
+}
+
 /* An ArcGIS service address without a layer number on the end is the service,
    not the data: fetching it gives the directory page, which is a web page and
    not a register. The address bar of that page is what anybody copies, so the
@@ -8291,7 +8396,7 @@ async function importFromUrl(url) {
         '100 000 rows came back and there are more.\n\nRead these anyway?\n\n' +
         'Better: tick "Only the area shown on the map", move the map to the park you are ' +
         'working in, and fetch again.')) return;
-    openMapper(r.text, r.name);
+    openMapper(r.text, r.name, url);
   } catch (e) {
     const m = (e && e.message) || String(e);
     if (only && /nothing in the part of the map/.test(m)) {
@@ -8305,7 +8410,7 @@ async function importFromUrl(url) {
           const r2 = await fetchRegister(url, null);
           if (r2.capped && !confirm('The whole layer is bigger than one download: 100 000 rows ' +
               'came back and there are more. Read these anyway?')) return;
-          openMapper(r2.text, r2.name);
+          openMapper(r2.text, r2.name, url);
         } catch (e2) { alert('Could not read it: ' + ((e2 && e2.message) || e2)); }
       }
       return;
@@ -8326,6 +8431,7 @@ function runMapper() {
   catch (e) { return alert('Import failed: ' + ((e && e.message) || e)); }
   if (!r.features.length) return alert('Nothing usable in the file: every row lacked a position.');
   const rep = mergeCatalogue(r.features, false);
+  if (mapState.url) urlRemember(mapState.url, r.features.length);
   closeMapper();
   buildMarkers(); renderList(); renderStats();
   const c0 = r.features[0].geometry.coordinates;
@@ -8709,6 +8815,36 @@ function wire() {
   };
   $('mapX').onclick = closeMapper;
   $('impBbox').onchange = paintImpBox;
+  $('impPick').onchange = () => {
+    const u = $('impPick').value;
+    if (u) { $('impUrl').value = u; paintImpNote(u); } else paintImpNote('');
+  };
+  $('impUrl').oninput = () => paintImpNote($('impUrl').value.trim());
+  $('bImpCheck').onclick = async () => {
+    const u = ($('impUrl').value || '').trim();
+    if (!u) return toast('Paste an address first, or pick one above.');
+    const el = $('impNote'); el.textContent = 'Asking …';
+    try {
+      const probe = /\/(FeatureServer|MapServer)(\/\d+)?\/?$/i.test(u)
+        ? u.replace(/\/$/, '') + '?f=json'
+        : u + (u.indexOf('?') < 0 ? '?' : '&') + 'SERVICE=WFS&REQUEST=GetCapabilities';
+      const r = await fetch(probe);
+      const t = (await r.text()).slice(0, 4000);
+      if (!r.ok) { el.innerHTML = '<b class="wa">The server answered ' + r.status + '.</b>'; return; }
+      let name = null, count = null;
+      try { const j = JSON.parse(t); name = j.name || j.mapName || (j.layers && j.layers.length + ' layers'); } catch (e) {}
+      if (!name && /<(wfs:)?WFS_Capabilities/i.test(t)) name = 'a WFS service';
+      el.innerHTML = '<b class="ok">It answers.</b> ' + (name ? esc(String(name)) + '. ' : '') +
+        (/\/(FeatureServer|MapServer)\/\d+/.test(u) ? 'Press “Fetch and read”.'
+          : 'Put a layer number on the end, or press “Fetch and read” and the app will ask which layer.');
+    } catch (e) {
+      el.innerHTML = '<b class="wa">No answer.</b> ' + (e.message === 'Failed to fetch'
+        ? 'Either no signal, or this server does not allow requests from a web page. Open the address ' +
+          'in the browser, save the file, then Import → Merge a register…'
+        : esc(e.message));
+    }
+  };
+  paintImpPick();
   $('bImpUrl').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importFromUrl($('impUrl').value); };
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
