@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.44.0';
+const APP_VERSION = '2.45.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -6229,6 +6229,18 @@ function paintOsm(res) {
     (res.skipped.length ? '<br>' + res.skipped.map(s => esc(tid(s.i)) + ': ' + esc(s.why)).join('<br>') : '');
 }
 
+function paintVoiceCheck(busy) {
+  const el = $('voiceCheck'); if (!el) return;
+  const hear = (typeof speechOk === 'function') && speechOk();
+  const talk = (typeof ttsOk === 'function') && ttsOk();
+  el.innerHTML = (busy ? '<b>' + esc(busy) + '</b> · ' : '') +
+    'Listening: <b class="' + (hear ? 'ok' : 'no') + '">' + (hear ? 'yes' : 'no') + '</b> · ' +
+    'Speaking: <b class="' + (talk ? 'ok' : 'no') + '">' + (talk ? 'yes' : 'no') + '</b> · ' +
+    'Language: <b>' + esc(typeof voiceLang === 'function' ? voiceLang() : '?') + '</b>' +
+    (talk ? '' : '<br>This browser cannot speak. Chrome or Samsung Internet on Android can.') +
+    (hear ? '' : '<br>This browser cannot listen. Chrome on Android can.');
+}
+
 /* What the letters mean, said once, where the field is. */
 function paintPrefix() {
   const el = $('prefixHint'); if (!el) return;
@@ -7549,7 +7561,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); distDrawnT = 0; }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
+  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); paintVoiceCheck(null); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
@@ -8592,6 +8604,17 @@ function wire() {
   paintOsm();
 
   $('bGuide').onclick = () => showScreen('guide');
+
+  /* Does this phone hear, and does it speak? Two different permissions and two
+     different engines, and the field is the wrong place to find out. */
+  $('bSayTest').onclick = () => {
+    const de = voiceLang().startsWith('de');
+    paintVoiceCheck('speaking…');
+    speechSay(de ? 'Sprachsteuerung. Wenn Sie das hören, spricht das Telefon.'
+                 : 'Voice control. If you hear this, the phone speaks.',
+              () => paintVoiceCheck(null));
+  };
+  paintVoiceCheck(null);
 
   $('bExpGeo').onclick = () => {
     dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');

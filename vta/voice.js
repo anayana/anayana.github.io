@@ -154,12 +154,60 @@ const VOICE_FIELDS = [
 ];
 const VOICE_CTL = {
   next: ['weiter', 'nächste', 'naechste', 'next', 'skip', 'überspringen', 'edasi', 'järgmine', 'volgende', 'seuraava', 'eteenpäin'],
+  back: ['zurück', 'zurueck', 'back', 'previous', 'vorheriges', 'nochmal zurück', 'tagasi', 'eelmine', 'terug', 'takaisin', 'edellinen'],
+  help: ['hilfe', 'help', 'was kann ich sagen', 'what can i say', 'abi', 'apua'],
   repeat: ['wiederholen', 'nochmal', 'repeat', 'again', 'was'],
   save: ['speichern', 'sichern', 'save', 'salvesta', 'opslaan', 'tallenna'],
   photo: ['foto', 'photo', 'bild', 'picture'],
   stop: ['stop', 'stopp', 'fertig', 'ende', 'aus', 'done', 'finish', 'lõpeta', 'valmis', 'klaar', 'lopeta', 'seis'],
   which: ['welcher baum', 'which tree', 'wo bin ich', 'where am i']
 };
+
+/* Species by voice. The list the form offers is Latin with an English common
+   name; nobody standing at a birch says Betula pendula. So the genus is named
+   in the languages this app is used in, and the rest is matched against both
+   halves of the list. Two hits is not a failure - it is a question. */
+const GENUS_SAID = {
+  Tilia: ['linde', 'lime', 'linden', 'pärn', 'parn', 'lehmus'],
+  Quercus: ['eiche', 'oak', 'tamm', 'tammi', 'eik'],
+  Betula: ['birke', 'birch', 'kask', 'koivu', 'berk'],
+  Acer: ['ahorn', 'maple', 'vaher', 'vaahtera', 'esdoorn'],
+  Fagus: ['buche', 'rotbuche', 'beech', 'pöök', 'pook', 'pyökki', 'beuk'],
+  Fraxinus: ['esche', 'ash', 'saar', 'saarni', 'es'],
+  Aesculus: ['kastanie', 'rosskastanie', 'chestnut', 'horse chestnut', 'kastan', 'hevoskastanja'],
+  Platanus: ['platane', 'plane', 'plataan', 'plataani'],
+  Pinus: ['kiefer', 'föhre', 'pine', 'mänd', 'mand', 'mänty', 'den'],
+  Picea: ['fichte', 'spruce', 'kuusk', 'kuusi', 'spar'],
+  Salix: ['weide', 'willow', 'paju', 'wilg'],
+  Populus: ['pappel', 'poplar', 'aspen', 'haab', 'haapa', 'populier'],
+  Ulmus: ['ulme', 'rüster', 'elm', 'jalakas', 'jalava', 'iep'],
+  Alnus: ['erle', 'alder', 'lepp', 'leppä', 'els'],
+  Carpinus: ['hainbuche', 'weissbuche', 'hornbeam', 'valgepöök', 'valkopyökki', 'haagbeuk'],
+  Robinia: ['robinie', 'akazie', 'locust', 'robinia', 'valeakaasia'],
+  Sorbus: ['eberesche', 'vogelbeere', 'rowan', 'pihlakas', 'pihlaja', 'lijsterbes'],
+  Prunus: ['kirsche', 'cherry', 'toomingas', 'kirsikka'],
+  Malus: ['apfel', 'apple', 'õunapuu', 'ounapuu', 'omenapuu'],
+  Larix: ['lärche', 'laerche', 'larch', 'lehis', 'lehtikuusi'],
+  Corylus: ['hasel', 'hazel', 'sarapuu', 'pähkinäpensas'],
+  Crataegus: ['weissdorn', 'hawthorn', 'viirpuu', 'orapihlaja'],
+  Castanea: ['edelkastanie', 'sweet chestnut', 'kastanje']
+};
+/* [latin, common] pairs whose name contains what was said */
+function speciesMatches(said) {
+  const q = vNorm(said).replace(/\b(baum|tree|puu|boom)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!q || q.length < 3) return [];
+  const list = (typeof SPECIES !== 'undefined') ? SPECIES : [];
+  const hit = [];
+  list.forEach(sp => {
+    const lat = vNorm(sp[0]), com = vNorm(sp[1] || '');
+    if (lat === q || com === q) hit.unshift(sp);                      // an exact name wins
+    else if (lat.indexOf(q) >= 0 || com.indexOf(q) >= 0) hit.push(sp);
+  });
+  if (hit.length) return hit;
+  /* nothing by name: try the genus somebody actually said */
+  const gen = Object.keys(GENUS_SAID).find(g => GENUS_SAID[g].some(w => q === w || q.indexOf(w) >= 0));
+  return gen ? list.filter(sp => sp[0].split(' ')[0] === gen) : [];
+}
 
 /* "three", "drei", "kolm", "3", "III", "esimene" -> I..V */
 function romanOf(str) {
@@ -215,6 +263,11 @@ function voiceParse(text, ctx) {
   const m = t.match(/^(?:baum|tree|boom|arbre|puu)\s+(.+)$/);   // puu is both Estonian and Finnish
   if (m) { const n = wordsToNumber(m[1]); if (n != null) return { act: 'tree', n: n }; }
 
+  // "Art Birke", "species birch": the species is the one field whose value is
+  // a name rather than a word from a list
+  const sm = t.match(/^(?:art|baumart|species|spezies|liik|laji|soort|essence)\s+(.+)$/);
+  if (sm) return { act: 'species', q: sm[1] };
+
   // a field name followed by its value, in either order the recogniser gives
   for (const f of VOICE_FIELDS) {
     if (fields.indexOf(f.k) < 0) continue;
@@ -246,6 +299,9 @@ function voiceParse(text, ctx) {
       return { act: 'set', k: f.k, v: best, kind: 'opt' };
     }
   }
+
+  // a bare name while the species is the open question
+  if (ctx && ctx.asking === 'species') return { act: 'species', q: t };
 
   // a bare value while a question is open: "zwei", "gering", "sofort"
   if (ctx && ctx.asking) {
@@ -293,16 +349,47 @@ function valueIn(k, v) {
   const t = (typeof OPT_L !== 'undefined' && OPT_L[k] && OPT_L[k][v]) || null;
   return (l !== 'en' && t && t[l]) || v;
 }
+/* Speaking and listening take turns.
+
+   On a phone the recogniser holds the microphone and the synthesiser holds the
+   speaker, and on Android the two fight: an utterance started while the
+   recogniser is running is dropped without a word, which is exactly what "the
+   phone says nothing" looks like from the outside. So the microphone is closed
+   before every sentence and opened again after it, and a watchdog opens it
+   again anyway when the browser forgets to say the sentence ended. */
+let vSpeaking = false;
+function micStop() {
+  if (!vRec) return;
+  try { vRec.onend = null; vRec.abort ? vRec.abort() : vRec.stop(); } catch (e) {}
+}
+function micStart() {
+  if (!vOn || !vRec || vSpeaking) return;
+  vRec.onend = () => { if (vOn && !vSpeaking) setTimeout(micStart, 250); };
+  try { vRec.start(); } catch (e) {}          // already running: nothing to do
+}
 function say(text, cb) {
-  if (!('speechSynthesis' in window)) { if (cb) cb(); return; }
+  const done = () => { vSpeaking = false; micStart(); if (cb) cb(); };
+  speechSay(text, done);
+}
+/* The sentence itself, with no microphone in it - used by the test button too. */
+function speechSay(text, done) {
+  if (!('speechSynthesis' in window)) { if (done) done(); return; }
+  vSpeaking = true; micStop();
+  let over = false;
+  const finish = () => { if (over) return; over = true; if (done) done(); else vSpeaking = false; };
   try {
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = voiceLang(); u.rate = 1.05;
-    if (cb) { u.onend = cb; u.onerror = cb; }
+    const u = new SpeechSynthesisUtterance(String(text));
+    u.lang = voiceLang(); u.rate = 1.0; u.volume = 1;
+    u.onend = finish; u.onerror = finish;
     speechSynthesis.speak(u);
-  } catch (e) { if (cb) cb(); }
+    // Chrome on Android pauses the queue when the page loses focus for a moment
+    setTimeout(() => { try { speechSynthesis.resume(); } catch (e) {} }, 120);
+    // and sometimes never fires onend at all
+    setTimeout(finish, 1400 + String(text).length * 75);
+  } catch (e) { finish(); }
 }
+
 /* A Latin name is read badly by a German voice and worse by an English one;
    the common name, when there is one, is what a person wants to hear. */
 function speciesSpoken(p) {
@@ -312,11 +399,19 @@ function speciesSpoken(p) {
   return cn ? (cn + (sp ? ', ' + sp : '')) : sp;
 }
 
-/* ---- the runtime ------------------------------------------------------- */
+/* ---- the runtime -------------------------------------------------------
+   The shape of it: the phone says it is listening, names the tree, then walks
+   the form one line at a time. Every line is read out with the words that
+   answer it, so nobody has to remember the vocabulary. "Weiter" and "zurück"
+   move along the line; naming a field jumps to it; a value answers the line
+   that is open. Anything that does not fit is a question, not a shrug. */
 let vRec = null, vOn = false, vTree = null, vAsking = null, vPendingText = null;
+let vFields = [], vAt = -1, vPendSpecies = null;
+
 function speechOk() {
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
+function ttsOk() { return 'speechSynthesis' in window; }
 function speechFieldsNow() {
   const n = (typeof curNorm === 'function') ? curNorm() : null;
   const keys = n ? n.quick.concat([].concat.apply([], n.groups.map(g => g[1]))) : VOICE_FIELDS.map(f => f.k);
@@ -330,23 +425,64 @@ function speechOpenFields(i) {
            (k === 'urgency' && v === 'none' && !p.edited_at);
   });
 }
-function speechBar(txt, cls) {
-  let el = document.getElementById('speechbar');
-  if (!el) {
-    el = document.createElement('div'); el.id = 'speechbar';
-    document.body.appendChild(el);
+/* Every line the voice can fill on this tree, in the order the form shows
+   them, with the species at the front because it is what is asked first. */
+function speechWalk(i) {
+  const n = curNorm();
+  const out = n.quick.filter(k => k === 'species' || VOICE_FIELDS.some(f => f.k === k));
+  if (out.indexOf('species') < 0) out.unshift('species');
+  return out;
+}
+function vLabel(k) { return k === 'species' ? nameIn('species') : nameIn(k); }
+function vAsk(k) {
+  if (k === 'species') {
+    const de = voiceLang().startsWith('de');
+    return de ? 'Art? Zum Beispiel Birke oder Winterlinde.' : 'Species? For example birch, or small-leaved lime.';
   }
+  const f = VOICE_FIELDS.find(x => x.k === k);
+  return f ? askIn(f) : vLabel(k) + '?';
+}
+function vValueSaid(k, p) {
+  const v = p[k];
+  if (v == null || v === '') return null;
+  return k === 'species' ? speciesSpoken(p) : valueIn(k, v);
+}
+
+function speechBar(txt, cls, sub) {
+  let el = document.getElementById('speechbar');
+  if (!el) { el = document.createElement('div'); el.id = 'speechbar'; document.body.appendChild(el); }
   const want = (typeof mode !== 'undefined' && mode === 'WebXR') ? document.getElementById('xrbot') : document.body;
   if (want && el.parentNode !== want) want.appendChild(el);
   el.className = cls || '';
-  el.innerHTML = '<span class="dot"></span><span class="t">' + txt + '</span>' +
-                 '<button class="x sm" id="speechOff">Stop</button>';
+  el.innerHTML =
+    '<span class="dot"></span>' +
+    '<span class="t"><b>' + txt + '</b>' + (sub ? '<i>' + sub + '</i>' : '') + '</span>' +
+    '<button class="sm" id="speechBack" title="back">◀</button>' +
+    '<button class="sm" id="speechNext" title="next">▶</button>' +
+    '<button class="x sm" id="speechOff">Stop</button>';
   el.style.display = 'flex';
+  const b = document.getElementById('speechBack'); if (b) b.onclick = () => vStep(-1);
+  const n = document.getElementById('speechNext'); if (n) n.onclick = () => vStep(1);
   const off = document.getElementById('speechOff'); if (off) off.onclick = speechStop;
 }
+function vHeardOnBar(txt) {
+  const el = document.getElementById('speechbar'); if (!el) return;
+  const t = el.querySelector('.t i');
+  if (t) t.textContent = '“' + txt + '”'; else speechBar(vBarHead(), '', '“' + txt + '”');
+}
+function vBarHead() {
+  if (vAt < 0 || !vFields[vAt]) return voiceLang().startsWith('de') ? 'Sprachsteuerung an' : 'Voice on';
+  return vLabel(vFields[vAt]) + '  (' + (vAt + 1) + '/' + vFields.length + ')';
+}
+
 function speechStart(i) {
   if (vOn) return speechStop();
-  if (!speechOk()) return toast('This browser has no speech recognition. Chrome on Android does.');
+  if (!speechOk()) {
+    if (ttsOk()) speechSay(voiceLang().startsWith('de')
+      ? 'Dieser Browser hört nicht zu. Chrome für Android kann es.'
+      : 'This browser cannot listen. Chrome on Android can.');
+    return toast('This browser has no speech recognition. Chrome on Android does.');
+  }
   const R = window.SpeechRecognition || window.webkitSpeechRecognition;
   vRec = new R();
   vRec.lang = voiceLang(); vRec.continuous = true; vRec.interimResults = false; vRec.maxAlternatives = 3;
@@ -357,49 +493,97 @@ function speechStart(i) {
     speechHeard(alts);
   };
   vRec.onerror = ev => {
-    if (ev.error === 'not-allowed') { speechBar('Microphone refused – allow it for this site.', 'bad'); vOn = false; return; }
-    if (ev.error === 'network') { speechBar('No signal – the recogniser needs the network on this phone.', 'bad'); return; }
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+      speechBar('Microphone refused', 'bad', 'Allow the microphone for this site, then press 🎤 again.');
+      vOn = false; return;
+    }
+    if (ev.error === 'network')
+      speechBar(vBarHead(), 'bad', 'No signal – the recogniser needs the network on this phone.');
   };
-  vRec.onend = () => { if (vOn) { try { vRec.start(); } catch (e) {} } };
-  vOn = true; vTree = i == null ? (typeof openIdx !== 'undefined' ? openIdx : null) : i; vAsking = null;
-  try { vRec.start(); } catch (e) { vOn = false; return toast('Voice could not start: ' + e.message); }
-  speechBar('Listening … say “Baum 51”, or a field and its value.');
-  if (vTree != null) speechAnnounce(vTree);
-  else say(voiceLang().startsWith('de') ? 'Welcher Baum?' : 'Which tree?');
+  vOn = true; vTree = i == null ? (typeof openIdx !== 'undefined' ? openIdx : null) : i;
+  vAsking = null; vPendingText = null; vPendSpecies = null; vFields = []; vAt = -1;
+  micStart();
+  const de = voiceLang().startsWith('de');
+  speechBar(de ? 'Sprachsteuerung an' : 'Voice on',
+            '', de ? 'Sagen Sie einen Wert, „weiter“, „zurück“ oder „stop“.'
+                   : 'Say a value, “next”, “back” or “stop”.');
   auditAdd({ what: 'voice on' });
+  if (vTree != null) speechAnnounce(vTree);
+  else say(de ? 'Sprachsteuerung an. Welcher Baum?' : 'Voice on. Which tree?');
 }
 function speechStop() {
-  vOn = false; vAsking = null; vPendingText = null;
-  if (vRec) { try { vRec.onend = null; vRec.stop(); } catch (e) {} vRec = null; }
+  const was = vOn;
+  vOn = false; vAsking = null; vPendingText = null; vPendSpecies = null; vAt = -1;
+  micStop(); vRec = null;
+  vRowMark(null);
   const el = document.getElementById('speechbar'); if (el) el.style.display = 'none';
   try { speechSynthesis.cancel(); } catch (e) {}
+  vSpeaking = false;
+  if (was) auditAdd({ what: 'voice off' });
 }
-/* The tree is named, its species read out, and the first open field asked. */
+
+/* The tree is named, what is already known is read back, and the walk starts
+   at the first line nobody has answered. */
 function speechAnnounce(i) {
   vTree = i;
   const p = props(i), de = voiceLang().startsWith('de');
+  vFields = speechWalk(i);
   const open = speechOpenFields(i);
-  const head = (de ? 'Baum ' : 'Tree ') + (p.tag_no || p.tree_id) + '. ' + speciesSpoken(p) + '. ';
-  const last = p.traffic_safety && p.edited_at
-    ? (de ? 'Zuletzt: Verkehrssicherheit ' + p.traffic_safety + '. ' : 'Last: traffic safety ' + p.traffic_safety + '. ') : '';
-  speechBar((p.tag_no || p.tree_id) + ' · ' + speciesSpoken(p) + (open.length ? ' · ' + open.length + ' open' : ' · complete'));
-  say(head + last, () => speechAskNext(i));
+  const known = vFields.map(k => vValueSaid(k, p) ? vLabel(k) + ' ' + vValueSaid(k, p) : null)
+                       .filter(Boolean).slice(0, 2).join(', ');
+  const head = (de ? 'Sprachsteuerung an. Baum ' : 'Voice on. Tree ') + (p.tag_no || p.tree_id) + '. ' +
+               (known ? known + '. ' : (de ? 'Nichts erfasst. ' : 'Nothing recorded. '));
+  speechBar(vBarHead(), '', (p.tag_no || p.tree_id) + ' · ' +
+            (open.length ? open.length + (de ? ' offen' : ' open') : (de ? 'vollständig' : 'complete')));
+  const first = vFields.findIndex(k => !vValueSaid(k, p));
+  vAt = (first < 0 ? 0 : first) - 1;
+  say(head, () => vStep(1));
 }
-function speechAskNext(i) {
-  const open = speechOpenFields(i);
-  const de = voiceLang().startsWith('de');
-  if (!open.length) { vAsking = null; say(de ? 'Alles erfasst. Nächster Baum?' : 'All recorded. Next tree?'); return; }
-  const f = VOICE_FIELDS.find(x => x.k === open[0]);
-  vAsking = f.k;
-  say(askIn(f));
+/* One line forward or back, read out with the words that answer it. */
+function vStep(d) {
+  if (!vOn || vTree == null) return;
+  if (!vFields.length) vFields = speechWalk(vTree);
+  const n = vFields.length;
+  let at = vAt + d;
+  if (at >= n) {
+    const de = voiceLang().startsWith('de');
+    vAt = n - 1; vAsking = null; vRowMark(null);
+    speechBar(de ? 'Ende der Liste' : 'End of the list', '', de ? '„zurück“, „speichern“ oder „stop“' : '“back”, “save” or “stop”');
+    say(de ? 'Das war die letzte Zeile. Speichern?' : 'That was the last line. Save?');
+    return;
+  }
+  if (at < 0) at = 0;
+  vAt = at;
+  const k = vFields[at];
+  vAsking = k;
+  vRowMark(k);
+  const p = props(vTree);
+  const had = vValueSaid(k, p);
+  speechBar(vBarHead(), '', had ? (voiceLang().startsWith('de') ? 'jetzt: ' : 'now: ') + had : '');
+  say(vAsk(k) + (had ? ' ' + (voiceLang().startsWith('de') ? 'Jetzt: ' : 'Currently: ') + had + '.' : ''));
 }
+/* The line being asked, marked in the form and scrolled under the thumb. */
+function vRowMark(k) {
+  if (typeof panelEl === 'undefined' || !panelEl) return;
+  panelEl.querySelectorAll('.row.asking').forEach(r => r.classList.remove('asking'));
+  if (!k) return;
+  const inp = panelEl.querySelector('[data-k="' + k + '"]');
+  const row = inp && inp.closest ? inp.closest('.row') : null;
+  if (!row) return;
+  row.classList.add('asking');
+  try { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { }
+}
+
 function speechHeard(alts) {
+  const de = voiceLang().startsWith('de');
+  vHeardOnBar(alts[0]);
+  /* A question the phone asked outranks everything: while it is waiting to be
+     told which birch, "one" is the first birch and not tree number one. */
+  if (vAsking === '__species' && vPendSpecies) return vPickSpecies(alts[0]);
+  if (vAsking === '__confirm' && vPendingText != null) return vConfirmText(alts[0]);
   const ctx = { fields: speechFieldsNow(), open: vTree != null ? speechOpenFields(vTree) : [], asking: vAsking };
   let a = null;
   for (const t of alts) { a = voiceParse(t, ctx); if (a.act !== 'unknown') break; }
-  const de = voiceLang().startsWith('de');
-  const bar = document.getElementById('speechbar');
-  if (bar) bar.querySelector('.t').textContent = '“' + alts[0] + '”';
   switch (a.act) {
     case 'tree': {
       const hits = findByNumber(String(a.n));
@@ -410,57 +594,99 @@ function speechHeard(alts) {
       speechAnnounce(i);
       return;
     }
+    case 'species': {
+      if (vTree == null) { say(de ? 'Erst den Baum nennen.' : 'Name the tree first.'); return; }
+      const hits = speciesMatches(a.q);
+      if (!hits.length) { say((de ? 'Die Art kenne ich nicht: ' : 'I do not know that species: ') + a.q); return; }
+      if (hits.length === 1) { vSetSpecies(hits[0]); return; }
+      if (hits.length > 4) { say(de ? 'Zu viele Treffer. Genauer bitte.' : 'Too many matches. Be more precise.'); return; }
+      vPendSpecies = hits; vAsking = '__species';
+      const list = hits.map((h, n) => (n + 1) + ': ' + (h[1] || h[0])).join(', ');
+      speechBar(vBarHead(), 'ask', list);
+      say((de ? 'Welche? ' : 'Which one? ') + list);
+      return;
+    }
     case 'set': {
       if (vTree == null) { say(de ? 'Erst den Baum nennen.' : 'Name the tree first.'); return; }
       if (a.kind === 'text') {
-        // read back before keeping: this is the one open field
         vPendingText = a.v;
-        say((de ? 'Bemerkung: ' : 'Remark: ') + a.v + (de ? '. Richtig?' : '. Correct?'));
         vAsking = '__confirm';
+        speechBar(vBarHead(), 'ask', '“' + a.v + '” – ' + (de ? 'richtig?' : 'correct?'));
+        say((de ? 'Bemerkung: ' : 'Remark: ') + a.v + (de ? '. Richtig?' : '. Correct?'));
         return;
       }
       speechApply(vTree, a.k, a.v);
-      const f = VOICE_FIELDS.find(x => x.k === a.k);
-      say(nameIn(a.k) + ' ' + valueIn(a.k, a.v) + '.', () => speechAskNext(vTree));
+      const at = vFields.indexOf(a.k); if (at >= 0) vAt = at;
+      say(nameIn(a.k) + ' ' + valueIn(a.k, a.v) + '.', () => vStep(1));
       return;
     }
-    case 'ask': {
-      const f = VOICE_FIELDS.find(x => x.k === a.k);
-      vAsking = a.k; say(askIn(f));
+    case 'ask': {                                  // a field named without a value
+      const at = vFields.indexOf(a.k);
+      if (at >= 0) { vAt = at - 1; vStep(1); return; }
+      vAsking = a.k; say(vAsk(a.k));
       return;
     }
-    case 'next': {
-      if (vTree == null) return;
-      const open = speechOpenFields(vTree);
-      if (vAsking && open.indexOf(vAsking) >= 0) {     // skip the one asked: mark it looked at
-        const nx = open.filter(k => k !== vAsking);
-        if (!nx.length) { say(de ? 'Nichts mehr offen.' : 'Nothing left open.'); vAsking = null; return; }
-        const f = VOICE_FIELDS.find(x => x.k === nx[0]); vAsking = f.k; say(askIn(f));
-      } else speechAskNext(vTree);
+    case 'next': vStep(1); return;
+    case 'back': vStep(-1); return;
+    case 'help': {
+      say(de ? 'Sagen Sie einen Wert für die Zeile, oder weiter, zurück, wiederholen, Art Birke, Baum 51, Foto, speichern, stop.'
+             : 'Say a value for the line, or next, back, repeat, species birch, tree 51, photo, save, stop.');
       return;
     }
-    case 'repeat': if (vTree != null) speechAnnounce(vTree); return;
+    case 'repeat': {
+      if (vAt >= 0 && vFields[vAt]) { const k = vFields[vAt]; vAsking = k; say(vAsk(k)); }
+      else if (vTree != null) speechAnnounce(vTree);
+      return;
+    }
     case 'save': if (vTree != null) { savePanel(true); say(de ? 'Gespeichert.' : 'Saved.'); } return;
     case 'photo': if (vTree != null) takePhotoOf(vTree, null); return;
-    case 'stop': say(de ? 'Sprache aus.' : 'Voice off.'); speechStop(); return;
+    case 'stop': say(de ? 'Sprache aus.' : 'Voice off.'); setTimeout(speechStop, 700); return;
     case 'which': {
       const v = (typeof treeInView === 'function') ? treeInView() : null;
       say(v ? ((de ? 'Vermutlich ' : 'Probably ') + tid(v.i)) : (de ? 'Nicht ausgerichtet.' : 'Not aligned.'));
       return;
     }
     default: {
-      if (vAsking === '__confirm' && vPendingText != null) {
-        const t = vFix(alts[0]);
-        if (/^(ja|richtig|stimmt|yes|correct|ok)/.test(t)) {
-          speechApply(vTree, 'remarks', vPendingText); vPendingText = null;
-          say(de ? 'Notiert.' : 'Noted.', () => speechAskNext(vTree)); return;
-        }
-        vPendingText = null; vAsking = 'remarks'; say(de ? 'Verworfen. Bemerkung?' : 'Dropped. Remarks?'); return;
+      /* the line that is open says what it will take, rather than shrugging */
+      if (vAt >= 0 && vFields[vAt]) {
+        say((de ? 'Nicht verstanden. ' : 'Not understood. ') + vAsk(vFields[vAt]));
+        return;
       }
-      say(de ? 'Nicht verstanden.' : 'Not understood.');
+      say(de ? 'Nicht verstanden. Sagen Sie Hilfe.' : 'Not understood. Say help.');
     }
   }
 }
+/* Which of the candidates was meant: the number said, or a word that only one
+   of them carries. */
+function vPickSpecies(heard) {
+  const de = voiceLang().startsWith('de'), t = vFix(heard);
+  const n = wordsToNumber(t);
+  let pick = (n != null && n >= 1 && n <= vPendSpecies.length) ? vPendSpecies[n - 1] : null;
+  if (!pick) {
+    const hit = vPendSpecies.filter(h => vNorm(h[0]).indexOf(vNorm(t)) >= 0 || vNorm(h[1] || '').indexOf(vNorm(t)) >= 0);
+    if (hit.length === 1) pick = hit[0];
+  }
+  if (!pick) { say(de ? 'Nicht verstanden. Sagen Sie die Nummer.' : 'Not understood. Say the number.'); return; }
+  vSetSpecies(pick);
+}
+function vSetSpecies(sp) {
+  speechApply(vTree, 'species', sp[0]);
+  if (sp[1]) speechApply(vTree, 'name_en', sp[1]);
+  vPendSpecies = null; vAsking = null;
+  const at = vFields.indexOf('species'); if (at >= 0) vAt = at;
+  say((voiceLang().startsWith('de') ? 'Art: ' : 'Species: ') + (sp[1] || sp[0]) + '.', () => vStep(1));
+}
+function vConfirmText(heard) {
+  const de = voiceLang().startsWith('de'), t = vFix(heard);
+  if (/^(ja|richtig|stimmt|yes|correct|ok|jah|kyllä)/.test(t)) {
+    speechApply(vTree, 'remarks', vPendingText); vPendingText = null; vAsking = null;
+    const at = vFields.indexOf('remarks'); if (at >= 0) vAt = at;
+    say(de ? 'Notiert.' : 'Noted.', () => vStep(1)); return;
+  }
+  vPendingText = null; vAsking = 'remarks';
+  say(de ? 'Verworfen. Bemerkung?' : 'Dropped. Remarks?');
+}
+
 /* Written the way a finger would: into the form field if it is on screen,
    so the autoscroll and the verdict follow, else straight to the record. */
 function speechApply(i, k, v) {
