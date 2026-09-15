@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.40.0';
+const APP_VERSION = '2.41.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5364,6 +5364,9 @@ function addBerlin(feats) {
 const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAPZ = { min: 12, max: 19 };
 let mapView = null, mapTiles = {}, mapDrag = null, mapPinch = null;
+/* Where the map view came from: a fallback centre is not a place anybody
+   chose, and nothing that matters may be built on one silently. */
+let mapViewFrom = 'fallback';
 /* What the map is doing, which is three things and not two. It follows you;
    or it holds you and the tree you are walking to on the screen together; or
    you have dragged it somewhere and it stays put. Picking a tree used to fall
@@ -5390,13 +5393,14 @@ function mapCentre() {
                                   lon: CAT.features[0].geometry.coordinates[0] }) ||
             { lat: 51.0, lon: 10.0 };
   mapView = { lat: c.lat, lon: c.lon, z: (lastFix || REFS[0] || CAT.features[0]) ? 18 : 6 };
+  mapViewFrom = lastFix ? 'you' : 'fallback';
   return mapView;
 }
 /* Put the view on the phone and keep it there. */
 function mapToMe(zoom) {
   if (!lastFix) return false;
   const v = mapCentre();
-  v.lat = lastFix.lat; v.lon = lastFix.lon;
+  v.lat = lastFix.lat; v.lon = lastFix.lon; mapViewFrom = 'you';
   if (zoom) v.z = Math.max(v.z, 18);
   mapMode = 'me';
   drawMap();
@@ -5516,7 +5520,7 @@ function drawMapMarks(left, top, z) {
   if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
 }
 function mapMoveBy(dx, dy) {
-  mapMode = 'free';
+  mapMode = 'free'; mapViewFrom = 'map';        // moved by hand: a place somebody chose
   const v = mapCentre();
   const cx = lon2px(v.lon, v.z) - dx, cy = lat2px(v.lat, v.z) - dy;
   v.lon = px2lon(cx, v.z); v.lat = px2lat(cy, v.z);
@@ -5655,7 +5659,7 @@ function wireMap() {
         toast(r.added + ' trees imported – register positions, so stand at each ' +
               'stem and record it properly.');
         showScreen('map');
-        mapCentre(); mapView.lat = spot.lat; mapView.lon = spot.lon; mapView.z = 17;
+        mapCentre(); mapView.lat = spot.lat; mapView.lon = spot.lon; mapView.z = 17; mapViewFrom = 'map';
         mapMode = 'free'; drawMap();
       }
     } catch (e) {
@@ -5877,7 +5881,7 @@ function renderMoved() {
     go.onclick = () => {
       const c = CAT.features[x.i].geometry.coordinates;
       showScreen('map'); mapSel = x.i;
-      const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free';
+      const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free'; mapViewFrom = 'map'; mapViewFrom = 'map';
       drawMap(); syncMapSel();
     };
     const un = document.createElement('button'); un.className = 'sm p'; un.textContent = 'Undo';
@@ -6536,7 +6540,7 @@ function openPanel(i, tab) {
   bBig.onclick = () => {
     const c = CAT.features[i].geometry.coordinates;
     closePanel(); showScreen('map'); mapSel = i;
-    const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free';
+    const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free'; mapViewFrom = 'map';
     drawMap(); syncMapSel();
   };
   mrow.appendChild(bBig);
@@ -7436,7 +7440,7 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'data') { paintAskDist(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
+  if (k === 'data') { paintAskDist(); paintImpBox(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
@@ -8065,10 +8069,27 @@ function askSheet(html, buttons) {
    phone, to inspect the forty in one park. */
 function mapEnvelope() {
   const v = mapCentre(), box = $('mapBox');
+  /* mapCentre falls back to a reference point or the first tree when the map
+     has never been opened and there is no fix, and a reference point left over
+     from another survey is five hundred kilometres from the park you are
+     standing in. The rectangle therefore says where it came from, and the
+     screen says it out loud before anybody presses fetch. */
+  const from = mapViewFrom;
   const mPerPx = 156543.03392 * Math.cos(v.lat * Math.PI / 180) / Math.pow(2, v.z);
   const dLat = ((box && box.clientHeight) || 300) / 2 * mPerPx / mLat(v.lat);
   const dLon = ((box && box.clientWidth) || 360) / 2 * mPerPx / mLon(v.lat);
-  return { w: v.lon - dLon, s: v.lat - dLat, e: v.lon + dLon, n: v.lat + dLat };
+  return { w: v.lon - dLon, s: v.lat - dLat, e: v.lon + dLon, n: v.lat + dLat,
+           lat: v.lat, lon: v.lon, across: Math.round(2 * dLon * mLon(v.lat)), from: from };
+}
+/* What the rectangle is, in words, under the tick box. */
+function paintImpBox() {
+  const el = $('impBoxWhere'); if (!el) return;
+  if (!$('impBbox') || !$('impBbox').checked) { el.textContent = 'The whole layer will be asked for.'; return; }
+  const b = mapEnvelope();
+  el.innerHTML = 'Rectangle round <b>' + b.lat.toFixed(5) + ', ' + b.lon.toFixed(5) + '</b>, about ' +
+    (b.across >= 1000 ? (b.across / 1000).toFixed(1) + ' km' : b.across + ' m') + ' across · ' +
+    (b.from === 'map' ? 'the map view' : b.from === 'you' ? 'your position' :
+     '<b class="wa">no map view and no GPS – this is a leftover point, open the Map tab first</b>');
 }
 function arcgisQueryUrl(u, offset, box) {
   const base = u.replace(/\/query.*$/, '').replace(/\/$/, '');
@@ -8152,6 +8173,22 @@ async function importFromUrl(url) {
     openMapper(r.text, r.name);
   } catch (e) {
     const m = (e && e.message) || String(e);
+    if (only && /nothing in the part of the map/.test(m)) {
+      if (confirm('Nothing in the rectangle the map is showing.\n\nIt is centred on ' +
+          only.lat.toFixed(5) + ', ' + only.lon.toFixed(5) + ' (' +
+          (only.from === 'map' ? 'the map view' : only.from === 'you' ? 'your position' :
+           'a leftover reference point – the map has never been opened and there is no fix') +
+          ').\n\nMove the map onto the place you want and fetch again, or press OK to ask for ' +
+          'the whole layer.')) {
+        try {
+          const r2 = await fetchRegister(url, null);
+          if (r2.capped && !confirm('The whole layer is bigger than one download: 100 000 rows ' +
+              'came back and there are more. Read these anyway?')) return;
+          openMapper(r2.text, r2.name);
+        } catch (e2) { alert('Could not read it: ' + ((e2 && e2.message) || e2)); }
+      }
+      return;
+    }
     alert(m === 'Failed to fetch'
       ? 'The server does not allow requests from a web page (no CORS), or there is no signal.\n\n' +
         'Open the address in the browser instead, save the file (Ctrl+S / Share → Save), ' +
@@ -8539,6 +8576,7 @@ function wire() {
     rd.readAsText(f);
   };
   $('mapX').onclick = closeMapper;
+  $('impBbox').onchange = paintImpBox;
   $('bImpUrl').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importFromUrl($('impUrl').value); };
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
