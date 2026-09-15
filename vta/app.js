@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.43.0';
+const APP_VERSION = '2.44.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1875,29 +1875,48 @@ let lastFix = null, gpsAcc = null, watchId = null;
    was left behind: autoFit existed, was correct, and was never once run. The
    automatic correction has been dead since. A named function can be tested;
    a closure inside a callback cannot. */
+/* One step of the fix handler, walled off from the next. A fix does half a
+   dozen unrelated jobs - the track, the alignment, the map, the lists - and
+   when one of them threw, every job after it in the line stopped happening,
+   silently, for the rest of the session. That is how the nearest-tree list
+   came to be drawn once and never again. */
+function fixStep(what, fn) {
+  try { fn(); } catch (e) {
+    fixErr = fixErrLast = what + ': ' + ((e && e.message) || e);
+    if (window.console) console.warn('fix step "' + what + '" failed:', e);
+  }
+}
+let fixErr = null, fixErrLast = null, fixCount = 0;
+
 function onFix(fix) {
-  lastFix = fix; gpsAcc = fix.acc;
+  lastFix = fix; gpsAcc = fix.acc; fixCount++; fixErr = null;   // this fix's failures, not last week's
   if ($('hAcc')) $('hAcc').textContent = fix.acc.toFixed(0);
   if ($('gpsBadge')) $('gpsBadge').textContent = 'GPS ±' + fix.acc.toFixed(0) + ' m';
+  /* The lists first. Everything below this line is a job that can fail on some
+     phone somewhere; how far away the trees are is the one thing the inspector
+     is looking at while walking, so it is not queued behind any of it. */
+  fixStep('distances', () => refreshDistances(false));
   // The first fix of a session is the cold-start fix and usually the worst
   // of the day, yet everything on screen is drawn relative to the origin.
   // Keep taking the better fix until a session pins the scene down.
-  trackFix(fix);
-  if (fix.acc <= 200) proposeNormFor(fix.lat, fix.lon, null);
-  autoAlign();                       // a first fix is also a first chance
-  autoFit();                                         // and every fix is a chance to do better
-  if (mapOn()) {
+  fixStep('track', () => trackFix(fix));
+  fixStep('standard', () => { if (fix.acc <= 200) proposeNormFor(fix.lat, fix.lon, null); });
+  fixStep('align', autoAlign);       // a first fix is also a first chance
+  fixStep('fit', autoFit);                           // and every fix is a chance to do better
+  fixStep('map', () => {
+    if (!mapOn()) return;
     if (mapMode === 'me') mapToMe(!mapView);
     else if (mapMode === 'both' && navTarget != null) mapFit(navTarget);
     else drawMap();
     renderNav(); mapModeLine();
-  }
-  refreshDistances(false);
-  if (!origin || (!mode && !originPinned && originAcc != null && fix.acc < originAcc - 1)) {
-    origin = { lat: fix.lat, lon: fix.lon };
-    if (!originPinned) originAcc = fix.acc;
-    placeMarkers();
-  }
+  });
+  fixStep('origin', () => {
+    if (!origin || (!mode && !originPinned && originAcc != null && fix.acc < originAcc - 1)) {
+      origin = { lat: fix.lat, lon: fix.lon };
+      if (!originPinned) originAcc = fix.acc;
+      placeMarkers();
+    }
+  });
 }
 function startGPS() {
   if (!navigator.geolocation || watchId !== null) return;
@@ -4741,6 +4760,8 @@ function alignReport() {
   L.push(['Depth', prefs().depth === true ? 'on by hand' : prefs().depth === false ? 'off by hand'
                  : prefs().depthBanned ? 'off – died once' : prefs().depthProven ? 'on – proven' : 'on trial']);
   L.push(['Last error', lastErr || 'none']);
+  L.push(['Fixes taken', fixCount + (fixErrLast ? ' · last failure: ' + fixErrLast : '')]);
+  L.push(['Distances drawn', distDrawnT ? Math.round((Date.now() - distDrawnT) / 1000) + ' s ago' : 'not yet']);
   L.push(['Version', APP_VERSION]);
   return L;
 }
@@ -4783,7 +4804,7 @@ function runStemMatch(pts) {
    the microphone starts unless it has been switched off - with a glove on, at
    a trunk, in the rain, the keyboard is not an input device. */
 function startSurvey(i) {
-  selectTree(i);
+  selectTree(i); navTarget = i;
   openPanel(i, 'quick');
   if (!autoVoice()) return;
   if (typeof speechOk === 'function' && !speechOk()) return;
@@ -5449,7 +5470,7 @@ function refreshDistances(force) {
   const moved = distDrawnAt ? distBear(lastFix.lat, lastFix.lon, distDrawnAt.lat, distDrawnAt.lon).d : 1e9;
   if (!force && moved < 1 && now - distDrawnT < 5000) return;
   distDrawnAt = { lat: lastFix.lat, lon: lastFix.lon }; distDrawnT = now;
-  if (mapOn()) buildNavList();
+  if (mapOn()) { buildNavList(); mapModeLine(); }
   if (listOn()) { renderList(); renderWork(); }
 }
 
@@ -5502,10 +5523,13 @@ function mapFit(i) {
 function mapModeLine() {
   const el = $('mapMode'); if (!el) return;
   const t = navTarget != null && CAT.features[navTarget] ? tid(navTarget) : null;
-  el.textContent = mapMode === 'me' ? 'following you'
+  const age = distDrawnT ? Math.round((Date.now() - distDrawnT) / 1000) : null;
+  el.textContent = (mapMode === 'me' ? 'following you'
     : mapMode === 'both' ? 'holding you and ' + (t || 'the tree') + ' on screen'
-    : 'moved by hand – press “Centre on me” to follow again';
-  el.className = 'small' + (mapMode === 'free' ? ' wa' : '');
+    : 'moved by hand – press “Centre on me” to follow again') +
+    ' · distances ' + (age == null ? 'not worked out yet' : age < 2 ? 'just now' : age + ' s old') +
+    (fixErr ? ' · ' + fixErr : '');
+  el.className = 'small' + (mapMode === 'free' || fixErr || (age != null && age > 30) ? ' wa' : '');
 }
 /* The tile grid for a view, into any container, out of any cache. The big map
    and the strip in the AR overlay are the same thing at two sizes. */
@@ -5849,8 +5873,13 @@ function mapPick(e) {
     const d = Math.hypot(lon2px(c[0], v.z) - left - px, lat2px(c[1], v.z) - top - py);
     if (d < bd) { bd = d; best = i; }
   });
+  const was = mapSel;
   mapSel = (best === mapSel) ? null : best;
   drawMap(); syncMapSel();
+  /* Picking a tree is picking a tree, whichever screen it happens on: the same
+     routine as standing at one in AR - its form, on the quick page, listening.
+     Tapping the one already picked lets it go again and opens nothing. */
+  if (mapSel != null && mapSel !== was) startSurvey(mapSel);
 }
 function syncMapSel() {
   const b = $('mMove'), info = $('mSel'), u = $('mUndo');
