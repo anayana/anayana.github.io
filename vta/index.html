@@ -447,7 +447,6 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
         <button id="mMe">Centre on me</button>
         <button id="mAddTree">+ Tree at crosshair</button>
       </div>
-      <div class="btnrow" id="mSpots"></div>
       <div class="btnrow"><button id="mCache">Save this area offline</button></div>
       <div class="small" id="mSel"></div>
       <div class="btnrow"><button class="p" id="mMove" style="display:none"></button>
@@ -602,7 +601,6 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       <h3>Berlin tree register</h3>
       <p class="small">The city's open register of street and park trees. Positions in
         it are metre-level – it says which tree is which, not where the stem is.</p>
-      <div class="btnrow" id="berlinSpots"></div>
       <div class="btnrow"><button id="berlinHere">The area on the map</button></div>
       <div class="row"><label>Service</label>
         <input type="url" id="berlinUrl" placeholder="gdi.berlin.de/services/wfs/baumbestand"></div>
@@ -758,6 +756,15 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       </div>
       <p class="small">Nothing is shipped with the app: an emptied register stays
         empty. Photos survive both buttons.</p>
+      <div class="btnrow">
+        <button class="x" id="bWipe">Forget everything except the trees</button>
+      </div>
+      <div class="small" id="wipeBox"></div>
+      <p class="small">Reference points, the plot and its origin, the stands remembered from earlier
+        sessions, the bin, the trail, the addresses imported from, the round. A phone that was used
+        for trying things out carries all of it around, and a leftover reference point from another
+        survey is what sends the map five hundred kilometres away. Trees, field records and photos
+        are not touched.</p>
       <p class="small" id="about"></p>
     </section>
   </div>
@@ -827,17 +834,17 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.46.0"></script>
-<script src="data.js?v=2.46.0"></script>
-<script src="norms.js?v=2.46.0"></script>
-<script src="i18n.js?v=2.46.0"></script>
-<script src="mapper.js?v=2.46.0"></script>
-<script src="users.js?v=2.46.0"></script>
-<script src="voice.js?v=2.46.0"></script>
-<script src="plantnet.js?v=2.46.0"></script>
-<script src="osm.js?v=2.46.0"></script>
-<script src="research.js?v=2.46.0"></script>
-<script src="guide.js?v=2.46.0"></script>
-<script src="app.js?v=2.46.0"></script>
+<script src="vendor/three.min.js?v=2.47.0"></script>
+<script src="data.js?v=2.47.0"></script>
+<script src="norms.js?v=2.47.0"></script>
+<script src="i18n.js?v=2.47.0"></script>
+<script src="mapper.js?v=2.47.0"></script>
+<script src="users.js?v=2.47.0"></script>
+<script src="voice.js?v=2.47.0"></script>
+<script src="plantnet.js?v=2.47.0"></script>
+<script src="osm.js?v=2.47.0"></script>
+<script src="research.js?v=2.47.0"></script>
+<script src="guide.js?v=2.47.0"></script>
+<script src="app.js?v=2.47.0"></script>
 </body>
 </html>

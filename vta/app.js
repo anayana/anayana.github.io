@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.46.0';
+const APP_VERSION = '2.47.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5306,10 +5306,6 @@ const CRS = {
 const BERLIN_WFS = 'https://gdi.berlin.de/services/wfs/baumbestand';
 /* Places, as a centre and a radius in metres. Berlin's south-west corner, the
    two the register is being tried on first. */
-const BERLIN_SPOTS = [
-  { id: 'teerofen', name: 'Albrechts Teerofen', lat: 52.4123, lon: 13.1402, r: 700 },
-  { id: 'steinst',  name: 'Steinstücken',       lat: 52.3897, lon: 13.1231, r: 700 }
-];
 
 function pick(o, keys) {
   for (let i = 0; i < keys.length; i++) {
@@ -5683,12 +5679,6 @@ function wireMap() {
     v.lat = lat; v.lon = lon; v.z = z || 18;
     mapMode = 'free'; drawMap();
   }
-  BERLIN_SPOTS.forEach(sp => {
-    const b = document.createElement('button'); b.className = 'sm';
-    b.textContent = '→ ' + sp.name;
-    b.onclick = () => { mapGo(sp.lat, sp.lon, 17); toast('Map at ' + sp.name + '.'); };
-    $('mSpots').appendChild(b);
-  });
 
   const crsSel = $('mRefCrs');
   Object.keys(CRS).forEach(k => {
@@ -5768,11 +5758,6 @@ function wireMap() {
       bMsg('Failed: ' + e.message);
     }
   };
-  BERLIN_SPOTS.forEach(sp => {
-    const b = document.createElement('button'); b.className = 'sm'; b.textContent = sp.name;
-    b.onclick = () => runBerlin(sp);
-    $('berlinSpots').appendChild(b);
-  });
   $('berlinHere').onclick = () => {
     const v = mapCentre();
     runBerlin({ name: 'the area on the map', lat: v.lat, lon: v.lon, r: 500 });
@@ -6110,6 +6095,7 @@ function fieldRow(k, lab, typ, opt, p) {
    measurement and its existence is the city's record, and an inspector who
    drags one across a path or deletes it has quietly falsified somebody else's
    register. The same line the licence gate uses, for the same reason. */
+let wipePaint = null;
 function ownTree(i) {
   const p = props(i);
   if (p.osm_own === true) return true;
@@ -7613,7 +7599,8 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); distDrawnT = 0; }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
+  if (k === 'data') { paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null);
+    if (typeof wipePaint === 'function') wipePaint(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
@@ -8282,11 +8269,7 @@ const IMPORT_SOURCES = [
     url: 'https://gis.tallinn.ee/arcgis/rest/services/HHHIS/HHHIS_puud/MapServer/0',
     note: 'Loaded in the field and read correctly. Whole city: leave "only the area shown on the ' +
           'map" ticked. No species column – the layer carries the district, the address and remarks.',
-    tried: true },
-  { label: 'Tallinn · Väärtuslikud puud (valuable trees)',
-    url: 'https://gis.tallinn.ee/arcgis/rest/services/Hosted/muinsuskaitsekord/FeatureServer/1',
-    note: 'From the city\'s service directory, not tried from this app. A selection of notable ' +
-          'trees, not the whole stand.', tried: false }
+    tried: true }
 ];
 function urlHist() { try { return JSON.parse(lsGet(K_URLS)) || []; } catch (e) { return []; } }
 function urlRemember(u, n) {
@@ -8311,7 +8294,6 @@ function paintImpPick() {
   add('Worked on this phone', urlHist().map(h => ({
     url: h.url, label: (h.n ? h.n + ' trees · ' : '') + h.url.replace(/^https?:\/\//, '').slice(0, 52) })));
   add('Tried in the field', IMPORT_SOURCES.filter(x => x.tried).map(x => ({ url: x.url, label: x.label })));
-  add('Found in a catalogue, not tried', IMPORT_SOURCES.filter(x => !x.tried).map(x => ({ url: x.url, label: x.label })));
   sel.value = cur;
 }
 function paintImpNote(url) {
@@ -8936,6 +8918,43 @@ function wire() {
     toast('The stand is on your position now (origin moved ' +
           Math.abs(before - distBear(PLOT.lat, PLOT.lon, lastFix.lat, lastFix.lon).d).toFixed(0) + ' m).');
   };
+  /* What a phone accumulates while somebody learns the app: points set in a
+     park three countries away, a plot origin from a session that was never
+     finished, stands remembered, a bin full. None of it is the survey, all of
+     it steers the survey, and until now there was no way to be rid of it. */
+  const WIPE = [
+    ['Reference points', () => K_REF, () => REFS.length],
+    /* an origin borrowed from a tree is re-derived the moment it is needed and
+       is never a leftover; one that somebody set is */
+    ['The plot and its origin', () => K_PLOT, () => (PLOT && plotGeoreferenced() && !PLOT.provisional ? 1 : 0)],
+    ['Stands remembered', () => K_STAND, () => (loadStandMemo() || []).length],
+    ['Anchors kept', () => K_PANCH, () => (lsGet(K_PANCH) ? 1 : 0)],
+    ['The bin', () => K_TRASH, () => trashList().length],
+    ['The trail', () => K_AUDIT, () => auditList().length],
+    ['Addresses imported from', () => K_URLS, () => urlHist().length],
+    ['The open round', () => K_ROUND, () => (roundGet() ? 1 : 0)]
+  ];
+  const paintWipe = () => {
+    const el = $('wipeBox'); if (!el) return;
+    const rows = WIPE.map(w => { let n = 0; try { n = w[2]() || 0; } catch (e) {} return [w[0], n]; })
+                     .filter(r => r[1]);
+    el.innerHTML = rows.length
+      ? 'On this phone now: ' + rows.map(r => '<b>' + r[0].toLowerCase() + '</b> ' + (r[1] > 1 ? r[1] : '')).join(', ') + '.'
+      : 'Nothing left over on this phone.';
+  };
+  wipePaint = paintWipe; paintWipe();
+  $('bWipe').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin clears this.');
+    if (!confirm('Forget the reference points, the plot, the remembered stands, the bin, the trail, ' +
+                 'the addresses and the open round?\n\nTrees, field records and photographs stay.')) return;
+    WIPE.forEach(w => { try { lsDel(w[1]()); } catch (e) {} });
+    REFS = []; PLOT = null; standPts = []; refFix.clear(); lastFit = null; track = [];
+    loadPlot(); loadRefs();
+    buildMarkers(); renderList(); renderStats(); renderRefs(); renderPlotBox(); renderAlignBox();
+    renderAudit(); renderTrash(); renderRound(); paintImpPick(); paintWipe();
+    toast('Cleared. The trees and their records are untouched.');
+  };
+
   $('bResetEdits').onclick = () => {
     if (!userCan('manage')) return toast('Only an admin deletes the field records.');
     if (!confirm('Delete every inspection record captured in the field?')) return;
