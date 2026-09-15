@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.50.0';
+const APP_VERSION = '2.51.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -4502,6 +4502,16 @@ function storePhoto(tree, out, modeName, job) {
       : Math.round((camYawDeg() - nd + 360) % 360);
     if (c) meta.h = +c.y.toFixed(2);
     if (mode) meta.pitch = Math.round(camPitchDeg());
+    /* The lens, so a tap on the picture can be turned back into a direction:
+       without the angle of view a point in an image is only a point in an
+       image. Taken from the session's own projection where there is one. */
+    try {
+      const pc = (renderer.xr && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+      const cam0 = (pc.cameras && pc.cameras.length) ? pc.cameras[0] : pc;
+      const e = cam0.projectionMatrix.elements;
+      if (e && e[5]) meta.fovY = +(2 * Math.atan(1 / Math.abs(e[5])) * 180 / Math.PI).toFixed(1);
+      if (e && e[0]) meta.fovX = +(2 * Math.atan(1 / Math.abs(e[0])) * 180 / Math.PI).toFixed(1);
+    } catch (e2) {}
     const kindNow = shotKind; shotKind = null;
     if (kindNow) meta.kind = kindNow;
     if (kindNow === 'bark') {
@@ -4578,7 +4588,8 @@ function shotOk(tree, rec) {
   const el = shotBox(); el.innerHTML = '';
   el.className = 'ok';
   const im = document.createElement('img'); im.src = rec.url; im.alt = '';
-  im.onclick = () => { $('lbImg').src = rec.url; $('lightbox').style.display = 'flex'; };
+  im.onclick = () => { if (typeof openPhoto === 'function') openPhoto(tree, rec);
+                       else { $('lbImg').src = rec.url; $('lightbox').style.display = 'flex'; } };
   el.appendChild(im);
   const tx = document.createElement('div'); tx.className = 'tx';
   const h = document.createElement('b');
@@ -7115,7 +7126,8 @@ async function renderPhotos(tree, gal) {
       return;
     }
     const im = document.createElement('img'); im.src = f.url; im.alt = tree;
-    im.onclick = () => { $('lbImg').src = f.url; $('lightbox').style.display = 'flex'; };
+    const idxOfTree = CAT.features.findIndex((x, n) => tid(n) === tree);
+    im.onclick = () => openPhoto(idxOfTree, f);
     const db2 = document.createElement('button'); db2.className = 'del sm'; db2.textContent = '×';
     db2.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
     const cap = document.createElement('figcaption');
@@ -7204,6 +7216,8 @@ async function renderPhotos(tree, gal) {
       (f.h != null ? ' · ' + f.h.toFixed(2) + ' m' : '') +
       (f.dist != null ? ' · ' + f.dist + ' m' : '');
     fig.appendChild(im); fig.appendChild(db2); fig.appendChild(cap);
+    const dots = (typeof pinDots === 'function') ? pinDots(f) : null;
+    if (dots) fig.appendChild(dots);
     gal.appendChild(fig);
   });
 }

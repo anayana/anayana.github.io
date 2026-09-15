@@ -56,6 +56,7 @@ function ghostBuild() {
   const el = document.createElement('div'); el.id = 'ghost';
   el.innerHTML =
     '<img alt="last time">' +
+    '<div class="gpins"></div>' +
     '<div class="gbar">' +
       '<span class="gs" id="ghostSay">walk to the ring</span>' +
       '<input type="range" id="ghostOp" min="0" max="100" value="50" aria-label="how strongly the old picture shows">' +
@@ -67,6 +68,10 @@ function ghostBuild() {
   ghost.img = el.querySelector('img');
   ghost.img.src = ghost.rec.url;
   ghost.img.style.opacity = ghost.opacity;
+  /* The rings the inspector drew on last year's picture, over this year's
+     bark: the point of standing here is to look at exactly those spots. */
+  ghost.img.onload = ghostPins;
+  ghostPins();
   el.querySelector('#ghostOp').oninput = ev => {
     ghost.opacity = (+ev.target.value) / 100;
     ghost.img.style.opacity = ghost.opacity;
@@ -79,6 +84,29 @@ function ghostBuild() {
   };
   el.querySelector('#ghostX').onclick = ghostStop;
 }
+/* The pins of the old photograph, laid over the live camera in the same
+   places. The image is drawn with object-fit: cover, so a pin at 0.3 of the
+   picture's width is at 0.3 of the covered box, which is what is computed
+   here rather than guessed. */
+function ghostPins() {
+  if (!ghost || !ghost.el) return;
+  const box = ghost.el.querySelector('.gpins'); if (!box) return;
+  box.innerHTML = '';
+  const pins = (typeof pinList === 'function') ? pinList(ghost.rec) : [];
+  if (!pins.length) return;
+  const iw = ghost.img.naturalWidth || 4, ih = ghost.img.naturalHeight || 3;
+  const bw = ghost.el.clientWidth || window.innerWidth, bh = ghost.el.clientHeight || window.innerHeight;
+  const sc = Math.max(bw / iw, bh / ih);                  // cover
+  const dw = iw * sc, dh = ih * sc, ox = (bw - dw) / 2, oy = (bh - dh) / 2;
+  pins.forEach(p => {
+    const d = document.createElement('i');
+    d.style.left = (ox + p.x * dw) + 'px';
+    d.style.top = (oy + p.y * dh) + 'px';
+    if (typeof markKind === 'function') d.style.borderColor = markKind(p.kind)[2];
+    box.appendChild(d);
+  });
+}
+
 /* A ring on the ground where the photographer stood. */
 function ghostRing() {
   if (typeof scene === 'undefined' || !scene) return;
