@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.56.0';
+const APP_VERSION = '2.57.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -9167,6 +9167,7 @@ step('buttons', wire);
 step('users', wireUsers);
 step('reports', wireReports);
 step('map sheets', wireSheets);
+step('signature', wireSign);
 step('OSM sign-in', () => { osmFinishLogin().then(done => { if (done) { paintOsm(); toast('Signed in to OpenStreetMap as ' + (osmCfg().user || 'you') + '.'); } }).catch(e => toast(e.message)); });
 step('camera file', wireFilePhoto);
 step('map', wireMap);

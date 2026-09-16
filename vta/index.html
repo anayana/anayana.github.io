@@ -388,6 +388,16 @@ html.day #langdlg{background:#fff;border-color:#c3ccc2}
 #auditBox{max-height:220px;overflow:auto;font-size:12px;border:1px solid #223027;border-radius:9px;padding:6px 8px}
 #auditBox div{padding:3px 0;border-bottom:1px solid #16201a;color:#cfe0d5}
 #auditBox div span{color:#7f9488}
+#signdlg{position:fixed;left:8px;right:8px;top:8px;z-index:32;background:#0d1512;
+  border:1px solid #2f6b4a;border-radius:14px;padding:14px}
+html.day #signdlg{background:#fff;border-color:#8fbfa2}
+#signdlg h3{margin:0 0 4px}
+#signdlg .pad{position:relative;height:180px;margin:10px 0 4px;border-radius:10px;
+  background:#f7f8f5;border:1px solid #2f4137;touch-action:none;overflow:hidden}
+#signdlg canvas{display:block;touch-action:none}
+#signdlg .pad .base{position:absolute;left:8%;right:8%;bottom:26%;border-top:1px dashed #9aa79c}
+img.sigprev{display:block;max-width:60%;height:auto;background:#f7f8f5;border:1px solid #2f4137;
+  border-radius:8px;padding:4px;margin:2px 0 4px}
 #tpldlg{position:fixed;left:8px;right:8px;top:8px;bottom:8px;z-index:30;overflow-y:auto;
   background:#0d1512;border:1px solid #2f6b4a;border-radius:14px;padding:14px 14px 20px}
 html.day #tpldlg{background:#fff;border-color:#8fbfa2}
@@ -566,6 +576,24 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       <div id="rHeadBox"></div>
       <p class="small">This is what stands above every report: the two addresses, the job, the
         date and place, and who signs it.</p>
+
+      <h3>Signature</h3>
+      <div id="signBox"></div>
+      <div class="btnrow">
+        <button class="p" id="signDraw">Sign here</button>
+        <button id="signDel">Remove</button>
+      </div>
+      <div class="row"><label>Print a checksum on the report</label>
+        <input type="checkbox" id="signCheck" checked></div>
+      <p class="small">Drawn with a finger, kept on this phone, and set above the line in the
+        page, the Word file and the long report.</p>
+      <p class="small">This is a picture of a signature &ndash; the same thing a signature on
+        paper is, worth what the process around it is worth. It is <b>not</b> a qualified
+        electronic signature: one of those needs a certificate issued to a named person by a
+        trust service provider on a card or a signing service, and no web page on a phone can
+        make one. What the app can do instead is the checksum: the finished report is hashed
+        with SHA-256 and the hash printed on it, so a changed figure gives a different number.
+        That is a seal against silent alteration and says nothing about who signed.</p>
 
       <h3>Template</h3>
       <div class="row"><label>Columns</label><select id="repTpl"></select></div>
@@ -1009,24 +1037,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.56.0"></script>
-<script src="data.js?v=2.56.0"></script>
-<script src="norms.js?v=2.56.0"></script>
-<script src="i18n.js?v=2.56.0"></script>
-<script src="mapper.js?v=2.56.0"></script>
-<script src="users.js?v=2.56.0"></script>
-<script src="voice.js?v=2.56.0"></script>
-<script src="plantnet.js?v=2.56.0"></script>
-<script src="osm.js?v=2.56.0"></script>
-<script src="research.js?v=2.56.0"></script>
-<script src="marks.js?v=2.56.0"></script>
-<script src="pins.js?v=2.56.0"></script>
-<script src="ghost.js?v=2.56.0"></script>
-<script src="guide.js?v=2.56.0"></script>
-<script src="docx.js?v=2.56.0"></script>
-<script src="reports.js?v=2.56.0"></script>
-<script src="mapsheet.js?v=2.56.0"></script>
-<script src="gate.js?v=2.56.0"></script>
-<script src="app.js?v=2.56.0"></script>
+<script src="vendor/three.min.js?v=2.57.0"></script>
+<script src="data.js?v=2.57.0"></script>
+<script src="norms.js?v=2.57.0"></script>
+<script src="i18n.js?v=2.57.0"></script>
+<script src="mapper.js?v=2.57.0"></script>
+<script src="users.js?v=2.57.0"></script>
+<script src="voice.js?v=2.57.0"></script>
+<script src="plantnet.js?v=2.57.0"></script>
+<script src="osm.js?v=2.57.0"></script>
+<script src="research.js?v=2.57.0"></script>
+<script src="marks.js?v=2.57.0"></script>
+<script src="pins.js?v=2.57.0"></script>
+<script src="ghost.js?v=2.57.0"></script>
+<script src="guide.js?v=2.57.0"></script>
+<script src="docx.js?v=2.57.0"></script>
+<script src="reports.js?v=2.57.0"></script>
+<script src="mapsheet.js?v=2.57.0"></script>
+<script src="sign.js?v=2.57.0"></script>
+<script src="gate.js?v=2.57.0"></script>
+<script src="app.js?v=2.57.0"></script>
 </body>
 </html>

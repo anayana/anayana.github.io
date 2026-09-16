@@ -1,7 +1,7 @@
 /* Service worker: keep the whole app available offline.
    Navigation requests are network-first so fixes reach the field as soon as there
    is a connection; assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'vta-v118';
+const CACHE = 'vta-v119';
 /* Map tiles live in their own cache: they are none of the app's business to
    version, and an area looked at once should still be there in the field with
    no network. Kept across updates, cleared only with the app's storage. */
@@ -10,25 +10,26 @@ const TILE_HOST = 'tile.openstreetmap.org';
 const ASSETS = [
   './',
   'index.html',
-  'app.js?v=2.56.0',
-  'data.js?v=2.56.0',
-  'norms.js?v=2.56.0',
-  'i18n.js?v=2.56.0',
-  'mapper.js?v=2.56.0',
-  'users.js?v=2.56.0',
-  'voice.js?v=2.56.0',
-  'plantnet.js?v=2.56.0',
-  'osm.js?v=2.56.0',
-  'research.js?v=2.56.0',
-  'marks.js?v=2.56.0',
-  'pins.js?v=2.56.0',
-  'ghost.js?v=2.56.0',
-  'guide.js?v=2.56.0',
-  'docx.js?v=2.56.0',
-  'reports.js?v=2.56.0',
-  'mapsheet.js?v=2.56.0',
-  'gate.js?v=2.56.0',
-  'vendor/three.min.js?v=2.56.0',
+  'app.js?v=2.57.0',
+  'data.js?v=2.57.0',
+  'norms.js?v=2.57.0',
+  'i18n.js?v=2.57.0',
+  'mapper.js?v=2.57.0',
+  'users.js?v=2.57.0',
+  'voice.js?v=2.57.0',
+  'plantnet.js?v=2.57.0',
+  'osm.js?v=2.57.0',
+  'research.js?v=2.57.0',
+  'marks.js?v=2.57.0',
+  'pins.js?v=2.57.0',
+  'ghost.js?v=2.57.0',
+  'guide.js?v=2.57.0',
+  'docx.js?v=2.57.0',
+  'reports.js?v=2.57.0',
+  'mapsheet.js?v=2.57.0',
+  'sign.js?v=2.57.0',
+  'gate.js?v=2.57.0',
+  'vendor/three.min.js?v=2.57.0',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',

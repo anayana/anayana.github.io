@@ -130,9 +130,47 @@ function dxTable(rows, opt) {
     (w || rows[0].map(() => 1000)).map(x => '<w:gridCol w:w="' + x + '"/>').join('') +
     '</w:tblGrid>' + body + '</w:tbl>';
 }
-function dxBlocks(blocks) {
+/* A picture, inline in its own paragraph. Word measures in EMU - 914400 to
+   the inch - which is why the millimetres a person thinks in are converted
+   here rather than anywhere else. */
+const EMU_MM = 914400 / 25.4;
+function dxImage(rid, wmm, hmm, n) {
+  const cx = Math.round(wmm * EMU_MM), cy = Math.round(hmm * EMU_MM);
+  return '<w:p><w:pPr><w:spacing w:before="40" w:after="0"/></w:pPr><w:r><w:drawing>' +
+    '<wp:inline distT="0" distB="0" distL="0" distR="0" ' +
+    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">' +
+    '<wp:extent cx="' + cx + '" cy="' + cy + '"/>' +
+    '<wp:docPr id="' + n + '" name="Picture ' + n + '"/>' +
+    '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+    '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<pic:nvPicPr><pic:cNvPr id="' + n + '" name="Picture ' + n + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
+    '<pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+    'r:embed="' + rid + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
+    '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>' +
+    '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+}
+/* data:image/png;base64,… -> the bytes Word wants in the ZIP */
+function dxBytes(dataUrl) {
+  const i = String(dataUrl || '').indexOf(',');
+  if (i < 0) return null;
+  const bin = atob(String(dataUrl).slice(i + 1));
+  const out = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) out[k] = bin.charCodeAt(k);
+  return out;
+}
+
+function dxBlocks(blocks, media) {
   return blocks.map(b => {
     if (b.br) return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    if (b.img) {
+      const bytes = dxBytes(b.img);
+      if (!bytes) return '';
+      const n = media.length + 1;
+      media.push({ name: 'image' + n + '.png', data: bytes });
+      return dxImage('rIdImg' + n, b.w || 50, b.h || 20, n);
+    }
     if (b.table) return dxTable(b.table, b) + '<w:p><w:pPr><w:spacing w:after="0"/></w:pPr></w:p>';
     if (b.h) return dxPara(b.t, b);
     return dxPara(b.p, b);
@@ -142,7 +180,8 @@ function dxBlocks(blocks) {
 /* ---- the four parts of a .docx ---------------------------------------- */
 function docxBlob(blocks, opt) {
   opt = opt || {};
-  const body = dxBlocks(blocks);
+  const media = [];
+  const body = dxBlocks(blocks, media);
   const doc =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
@@ -182,12 +221,15 @@ function docxBlob(blocks, opt) {
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    media.map((m, k) => '<Relationship Id="rIdImg' + (k + 1) + '" Type="http://schemas.openxmlformats.org' +
+      '/officeDocument/2006/relationships/image" Target="media/' + m.name + '"/>').join('') +
     '</Relationships>';
   const ct =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
+    (media.length ? '<Default Extension="png" ContentType="image/png"/>' : '') +
     '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
     '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
     '</Types>';
@@ -197,5 +239,6 @@ function docxBlob(blocks, opt) {
     { name: 'word/document.xml', data: doc },
     { name: 'word/_rels/document.xml.rels', data: docRels },
     { name: 'word/styles.xml', data: styles }
-  ], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  ].concat(media.map(m => ({ name: 'word/media/' + m.name, data: m.data }))),
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 }

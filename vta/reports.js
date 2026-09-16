@@ -198,7 +198,11 @@ function repHeadHtml() {
 function repSignHtml() {
   const h = rHead();
   const date = h.date || new Date().toISOString().slice(0, 10);
-  return '<div class="sign"><div class="line"></div>' +
+  const sz = (typeof signSize === 'function') ? signSize() : { w: 52, h: 17 };
+  return '<div class="sign">' +
+    (h.sign ? '<img class="ink" src="' + h.sign + '" style="width:' + sz.w + 'mm;height:' +
+              sz.h + 'mm" alt="">' : '<div class="gap"></div>') +
+    '<div class="line"></div>' +
     '<div>' + esc((h.place ? h.place + ', ' : '') + date) + '</div>' +
     '<div><b>' + esc(h.signer || userName() || '') + '</b>' +
     (h.role ? ' · ' + esc(h.role) : '') + '</div></div>';
@@ -216,6 +220,19 @@ function repTableHtml(tpl) {
     cols.map(c => '<th>' + esc(c.head) + '</th>').join('') + '</tr></thead><tbody>' +
     rows.map(r => '<tr>' + r.map(v => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') +
     '</tbody></table>';
+}
+/* The checksum is of the document as it stands without it, and is then put
+   into it - so recomputing it means taking the printed line back out, which
+   is exactly what the note on the page says. */
+async function repHtmlSealed(tpl) {
+  const html = repHtml(tpl);
+  if (prefs().repHash === false || typeof signHash !== 'function') return html;
+  const hex = await signHash(html);
+  if (!hex) return html;
+  return html.replace('</body>', '').replace(/$/,
+    '<p class="sum">SHA-256 ' + signHashShort(hex) + ' …<br>' +
+    esc(T('Checksum of this report without this line. It says the report has not been changed ' +
+          'since it was made; it says nothing about who made it.')) + '</p>');
 }
 function repHtml(tpl) {
   tpl = tpl || tplCurrent();
@@ -235,6 +252,8 @@ function repHtml(tpl) {
     'table.rep th{background:#eee;text-align:left}' +
     'p.note{margin:0 0 14px;color:#333}' +
     '.sign{margin-top:34px}.sign .line{border-top:1px solid #333;width:58mm;margin-bottom:3px}' +
+    '.sign .ink{display:block;margin:0 0 -2mm 2mm}.sign .gap{height:16mm}' +
+    '.sum{margin-top:10px;color:#555;font-size:9px;font-family:ui-monospace,Menlo,Consolas,monospace}' +
     '.foot{margin-top:20px;color:#666;font-size:10px}' +
     '@media print{body{margin:0}.noprint{display:none}}' +
     '</style>' +
@@ -263,6 +282,7 @@ function repDocx(tpl) {
   if (h.note) blocks.push({ p: h.note });
   blocks.push({ table: [(tpl.cols || []).map(c => c.head)].concat(repRows(tpl)), head: true, sz: 8 });
   blocks.push({ p: '' });
+  if (h.sign) { const sz = signSize(); blocks.push({ img: h.sign, w: sz.w, h: sz.h }); }
   blocks.push({ p: '________________________________________' });
   blocks.push({ p: (h.place ? h.place + ', ' : '') + date });
   blocks.push({ p: (h.signer || userName() || '') + (h.role ? ' · ' + h.role : ''), b: true });
@@ -283,6 +303,7 @@ function repCsv(tpl) {
 
 function repPaint() {
   repHeadPaint();
+  if (typeof signPaint === 'function') signPaint();
   const sel = $('repTpl'); if (!sel) return;
   const cur = prefs().reportTpl || '';
   sel.innerHTML = '';
@@ -440,11 +461,11 @@ function wireReports() {
     setPref('reportTpl', '');
     repPaint(); toast('Deleted.');
   };
-  $('repOutHtml').onclick = () => {
+  $('repOutHtml').onclick = async () => {
     if (!CAT.features.length) return toast('No trees to report on yet.');
     const w = window.open('', '_blank');
     if (!w) return toast('The browser blocked the new tab.');
-    w.document.write(repHtml()); w.document.close();
+    w.document.write(await repHtmlSealed()); w.document.close();
   };
   $('repOutDocx').onclick = () => {
     if (!CAT.features.length) return toast('No trees to report on yet.');

@@ -509,7 +509,45 @@ const UI = {
   'Note under the head': { de: 'Hinweis unter dem Kopf', nl: 'Opmerking onder het hoofd',
       et: 'Märkus päise all', fi: 'Huomautus otsikon alla' },
   'Report date': { de: 'Berichtsdatum', nl: 'Rapportdatum',
-      et: 'Aruande kuupäev', fi: 'Raportin päivämäärä' }
+      et: 'Aruande kuupäev', fi: 'Raportin päivämäärä' },
+  /* the signature */
+  'Signature': { de: 'Unterschrift', nl: 'Handtekening', et: 'Allkiri', fi: 'Allekirjoitus' },
+  'Sign here': { de: 'Hier unterschreiben', nl: 'Hier ondertekenen',
+      et: 'Allkirjasta siin', fi: 'Allekirjoita tähän' },
+  'Remove': { de: 'Entfernen', nl: 'Verwijderen', et: 'Eemalda', fi: 'Poista' },
+  'Keep': { de: 'Übernehmen', nl: 'Bewaren', et: 'Säilita', fi: 'Säilytä' },
+  'Clear': { de: 'Löschen', nl: 'Wissen', et: 'Tühjenda', fi: 'Tyhjennä' },
+  'Drawn': { de: 'Gezeichnet', nl: 'Getekend', et: 'Joonistatud', fi: 'Piirretty' },
+  'Sign with a finger or a stylus. It is kept on this phone and set above the line in every report.': {
+      de: 'Mit dem Finger oder einem Stift unterschreiben. Sie bleibt auf diesem Telefon und steht ' +
+          'in jedem Bericht über der Linie.',
+      nl: 'Onderteken met een vinger of een stylus. Hij blijft op deze telefoon en staat in elk ' +
+          'rapport boven de lijn.',
+      et: 'Allkirjasta sõrme või pliiatsiga. See jääb sellesse telefoni ja on igas aruandes joone kohal.',
+      fi: 'Allekirjoita sormella tai kynällä. Se jää tähän puhelimeen ja tulee jokaisessa ' +
+          'raportissa viivan yläpuolelle.' },
+  'No signature yet – the report prints an empty line.': {
+      de: 'Noch keine Unterschrift – der Bericht druckt eine leere Linie.',
+      nl: 'Nog geen handtekening – het rapport drukt een lege lijn af.',
+      et: 'Allkirja veel ei ole – aruanne prindib tühja joone.',
+      fi: 'Ei vielä allekirjoitusta – raportti tulostaa tyhjän viivan.' },
+  'Nothing drawn yet.': { de: 'Noch nichts gezeichnet.', nl: 'Nog niets getekend.',
+      et: 'Midagi ei ole veel joonistatud.', fi: 'Mitään ei ole vielä piirretty.' },
+  'Signature kept.': { de: 'Unterschrift übernommen.', nl: 'Handtekening bewaard.',
+      et: 'Allkiri salvestatud.', fi: 'Allekirjoitus tallennettu.' },
+  'Signature removed.': { de: 'Unterschrift entfernt.', nl: 'Handtekening verwijderd.',
+      et: 'Allkiri eemaldatud.', fi: 'Allekirjoitus poistettu.' },
+  'Remove the signature?': { de: 'Unterschrift entfernen?', nl: 'Handtekening verwijderen?',
+      et: 'Kas eemaldada allkiri?', fi: 'Poistetaanko allekirjoitus?' },
+  'Checksum of this report without this line. It says the report has not been changed since it was made; it says nothing about who made it.': {
+      de: 'Prüfsumme dieses Berichts ohne diese Zeile. Sie sagt, dass der Bericht seit der ' +
+          'Erstellung nicht verändert wurde; über den Ersteller sagt sie nichts.',
+      nl: 'Controlegetal van dit rapport zonder deze regel. Het zegt dat het rapport sinds het ' +
+          'opstellen niet is gewijzigd; over wie het opstelde zegt het niets.',
+      et: 'Selle aruande kontrollsumma ilma selle reata. See ütleb, et aruannet ei ole pärast ' +
+          'koostamist muudetud; koostaja kohta ei ütle see midagi.',
+      fi: 'Tämän raportin tarkistussumma ilman tätä riviä. Se kertoo, ettei raporttia ole ' +
+          'muutettu laatimisen jälkeen; laatijasta se ei kerro mitään.' }
 };
 
 /* The words that are not text nodes - placeholders and the like - said in the
