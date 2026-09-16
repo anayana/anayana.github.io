@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.54.3';
+const APP_VERSION = '2.55.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -549,15 +549,14 @@ function distBear(lat, lon, lat0, lon0) {
    give a residual that says whether to believe the result. This is the
    surveyor's resection, and the fit below is its least-squares form. */
 
-let REFS = [];                     // known points: { id, lat, lon, note, acc }
 const refFix = new Map();          // control key -> { x, z } measured in this session
 
-/* Anything with a coordinate you trust can hold the scene down, and after the
-   first survey the trees themselves are the closest such things - which beats
-   walking back to a marker post every time a session restarts. Reference
-   points first, then the nearest trees. */
+/* Anything with a coordinate you trust can hold the scene down, and the trees
+   themselves are the closest such things - which beats walking back to a
+   marker post every time a session restarts. Surveyed reference points used to
+   sit in front of these; carrying a list of posts around turned out to be work
+   nobody did, and the trees do the job. */
 function controlList() {
-  const out = REFS.map(r => ({ key: 'r:' + r.id, name: r.id, lat: r.lat, lon: r.lon, ref: true }));
   const c = (mode && world) ? camPos() : null;
   const trees = CAT.features.map((f, i) => {
     if (!f.geometry || f.geometry.type !== 'Point') return null;
@@ -567,16 +566,9 @@ function controlList() {
     return { key: 't:' + tid(i), name: props(i).tree_id, lat: co[1], lon: co[0], ref: false, d: d };
   }).filter(Boolean);
   trees.sort((a, b) => a.d - b.d);
-  return out.concat(trees.slice(0, 8));
+  return trees.slice(0, 8);
 }
 function controlByKey(k) { return controlList().find(x => x.key === k) || null; }
-function loadRefs() {
-  REFS = [];
-  const raw = lsGet(K_REF);
-  if (raw) { try { REFS = JSON.parse(raw) || []; } catch (e) { REFS = []; } }
-}
-function saveRefs() { lsSet(K_REF, JSON.stringify(REFS)); }
-function refById(id) { return REFS.find(r => r.id === id) || null; }
 
 /* Rotation and translation only - the scale is known to be 1, and letting a
    fit absorb scale would quietly hide a bad control point. Complex form:
@@ -609,7 +601,7 @@ function fitRigid(pairs) {
 
 /* Everything the fit needs is in the session; applying it is just the origin
    and the yaw the rest of the app already runs on. */
-function fitFromRefs(quiet) {
+function fitFromControls(quiet) {
   const used = controlList().filter(r => refFix.has(r.key));
   if (used.length === 1) {
     // one point pins the position exactly and leaves the heading to the
@@ -669,7 +661,7 @@ function addTreeHere() {
     const near = nearestSurveyedByGps();
     if (near != null && lockOnTree(near)) {
       toast('Continuing the survey from ' + (props(near).tag_no ? '№ ' + props(near).tag_no : tid(near)) +
-            ' – match stems under Refs for a tighter lock.');
+            ' – match stems under Align for a tighter lock.');
     } else {
       S2P = { phi: heading != null ? phiFromHeading(heading) : 0, tx: c.x, tz: c.z };
       if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
@@ -1180,7 +1172,7 @@ function markControlHere(key) {
   const p = camPos();
   refFix.set(key, { x: p.x, z: p.z });
   const done = controlList().filter(r => refFix.has(r.key)).length;
-  fitFromRefs(false);          // one point already moves the scene onto it
+  fitFromControls(false);          // one point already moves the scene onto it
   showFit(); buildRefMenu();
 }
 
@@ -3897,7 +3889,7 @@ function measureTap() {
     const c = controlByKey(m.refId);
     const done = controlList().filter(r => refFix.has(r.key)).length;
     if (done < 2) toast((c ? c.name : 'Point') + ' measured – one more and it fits.');
-    else fitFromRefs(false);
+    else fitFromControls(false);
     showFit(); buildRefMenu();
     $('refmenu').style.display = 'block';       // stay open: the next point is one tap away
     return;
@@ -5162,7 +5154,7 @@ function buildRefMenu() {
   ap.className = done >= 2 ? 'p' : ''; ap.disabled = done < 2;
   ap.textContent = done >= 2 ? 'Apply and close' : 'Apply (needs 2)';
   ap.onclick = () => {
-    if (!fitFromRefs(false)) return;
+    if (!fitFromControls(false)) return;
     el.style.display = 'none';
   };
   act.appendChild(ap);
@@ -5575,11 +5567,10 @@ function px2lat(y, z) {
 function mapCentre() {
   if (mapView) return mapView;
   const c = (lastFix && { lat: lastFix.lat, lon: lastFix.lon }) ||
-            (REFS[0] && { lat: REFS[0].lat, lon: REFS[0].lon }) ||
             (CAT.features[0] && { lat: CAT.features[0].geometry.coordinates[1],
                                   lon: CAT.features[0].geometry.coordinates[0] }) ||
             { lat: 51.0, lon: 10.0 };
-  mapView = { lat: c.lat, lon: c.lon, z: (lastFix || REFS[0] || CAT.features[0]) ? 18 : 6 };
+  mapView = { lat: c.lat, lon: c.lon, z: (lastFix || CAT.features[0]) ? 18 : 6 };
   mapViewFrom = lastFix ? 'you' : 'fallback';
   return mapView;
 }
@@ -5687,7 +5678,6 @@ function drawMapMarks(left, top, z) {
     const c = f.geometry.coordinates;
     put(c[1], c[0], 'mkT' + (i === mapSel ? ' sel' : ''), (z >= 18 || i === mapSel) ? props(i).tree_id : '');
   });
-  REFS.forEach(r => put(r.lat, r.lon, 'mkR', r.id));
   /* The tree being walked to, and the line to it from where you are: which
      way and how far, on a map that also shows the path and the building in
      between. */
@@ -5772,24 +5762,6 @@ function wireMap() {
     mapMode = 'free'; drawMap();
   }
 
-  const crsSel = $('mRefCrs');
-  Object.keys(CRS).forEach(k => {
-    const o = document.createElement('option'); o.value = k; o.textContent = k + ' · ' + CRS[k].name;
-    crsSel.appendChild(o);
-  });
-  crsSel.value = prefs().crs || 'EPSG:25833';
-  crsSel.onchange = () => setPref('crs', crsSel.value);
-  const readXY = () => {
-    const e = parseFloat(String($('mRefE').value).replace(',', '.'));
-    const n = parseFloat(String($('mRefN').value).replace(',', '.'));
-    if (!isFinite(e) || !isFinite(n)) { toast('Type both coordinates.'); return null; }
-    const g = CRS[crsSel.value].to(e, n);
-    if (!isFinite(g.lat) || !isFinite(g.lon) || Math.abs(g.lat) > 90) {
-      toast('Those are not coordinates in ' + crsSel.value + '.'); return null;
-    }
-    g.e = e; g.n = n;
-    return g;
-  };
   $('mNavNo').oninput = buildNavList;
   $('mNavStop').onclick = () => {
     navTarget = null; $('mNavNo').value = '';
@@ -5797,33 +5769,6 @@ function wireMap() {
     toast('Back on your own position.');
   };
   $('mNavNo').onfocus = buildNavList;
-  $('mShowXY').onclick = () => {
-    const g = readXY(); if (!g) return;
-    mapGo(g.lat, g.lon, 19);
-    toast('Map at ' + g.lat.toFixed(6) + ', ' + g.lon.toFixed(6) + '.');
-  };
-  $('mAddRefXY').onclick = () => {
-    const g = readXY(); if (!g) return;
-    const e = g.e, n = g.n;
-    const id = ($('mRefId').value || '').trim() || ('P' + (REFS.length + 1));
-    if (refById(id)) return toast('A reference point called ' + id + ' already exists.');
-    REFS.push({ id: id, lat: +g.lat.toFixed(7), lon: +g.lon.toFixed(7),
-                note: crsSel.value + ' ' + e.toFixed(2) + ' / ' + n.toFixed(2), acc: 0.05 });
-    saveRefs(); renderRefs();
-    $('mRefId').value = ''; $('mRefE').value = ''; $('mRefN').value = '';
-    mapGo(g.lat, g.lon, 19);
-    toast(id + ' set from ' + crsSel.value + '.');
-  };
-  /* What the crosshair is, in the chosen system - to read a point off the map
-     and check it against a register, or the other way round. */
-  const showXY = () => {
-    const v = mapCentre(), c = CRS[crsSel.value];
-    if (!c) return;
-    const q = c.from(v.lat, v.lon), d = (crsSel.value === 'EPSG:4326') ? 6 : 2;
-    $('mRefXY').textContent = 'Crosshair in ' + crsSel.value + ': ' +
-      q.e.toFixed(d) + ' / ' + q.n.toFixed(d);
-  };
-  setInterval(() => { if ($('sc-map').classList.contains('on')) showXY(); }, 500);
 
   /* --- the Berlin register --- */
   const bMsg = t => { $('berlinMsg').textContent = t; };
@@ -5888,15 +5833,6 @@ function wireMap() {
     b.disabled = false; b.textContent = 'Save this area offline';
     toast(failed ? (urls.length - failed) + ' of ' + urls.length + ' tiles stored.'
                  : urls.length + ' tiles stored for offline use.');
-  };
-  $('mAddRef').onclick = () => {
-    const v = mapCentre();
-    const id = ($('mRefId').value || '').trim() || ('P' + (REFS.length + 1));
-    if (refById(id)) return toast('A reference point called ' + id + ' already exists.');
-    REFS.push({ id: id, lat: +v.lat.toFixed(7), lon: +v.lon.toFixed(7),
-                note: 'picked on the map', acc: null });
-    saveRefs(); $('mRefId').value = ''; drawMap(); renderRefs();
-    toast('Reference point ' + id + ' set at the crosshair.');
   };
   $('mMove').onclick = () => {
     if (mapSel == null) return;
@@ -6088,32 +6024,6 @@ function renderMoved() {
     toast(list.length + ' positions put back.');
   };
   all.appendChild(ab); box.appendChild(all);
-}
-function renderRefs() {
-  const box = $('refList'); if (!box) return;
-  box.innerHTML = '';
-  if (!REFS.length) {
-    box.innerHTML = '<p class="small">None yet. Pan the crosshair onto something you can ' +
-      'stand on and recognise – a path junction, a building corner, a post – and set a point.</p>';
-    return;
-  }
-  REFS.forEach(r => {
-    const row = document.createElement('div'); row.className = 'kv';
-    const a = document.createElement('span');
-    a.innerHTML = '<b>' + r.id + '</b> <span class="small">' + r.lat.toFixed(6) + ', ' +
-                  r.lon.toFixed(6) + '</span>';
-    const bs = document.createElement('span');
-    const go = document.createElement('button'); go.className = 'sm'; go.textContent = 'Show';
-    go.onclick = () => { const v = mapCentre(); v.lat = r.lat; v.lon = r.lon; v.z = 19; drawMap(); };
-    const del = document.createElement('button'); del.className = 'sm x'; del.textContent = 'Delete';
-    del.onclick = () => {
-      REFS = REFS.filter(x => x.id !== r.id); refFix.delete(r.id); saveRefs();
-      drawMap(); renderRefs(); toast(r.id + ' deleted.');
-    };
-    bs.appendChild(go); bs.appendChild(del);
-    row.appendChild(a); row.appendChild(bs);
-    box.appendChild(row);
-  });
 }
 
 /* ============================ PANEL ============================ */
@@ -7536,8 +7446,7 @@ function buildMapPage() {
              urg: p.urgency && p.urgency !== 'none' ? p.urgency : '',
              next: p.next_inspection || '', area: p.area || '' };
   });
-  const refs = REFS.map(r => ({ lat: r.lat, lon: r.lon, id: r.id }));
-  const data = JSON.stringify({ trees: feats, refs: refs, made: new Date().toISOString() });
+  const data = JSON.stringify({ trees: feats, refs: [], made: new Date().toISOString() });
   return '<!doctype html><meta charset="utf-8">' +
   '<meta name="viewport" content="width=device-width,initial-scale=1">' +
   '<title>Tree register</title><style>' +
@@ -7799,7 +7708,7 @@ function showScreen(k) {
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
-    renderRefs(); syncMapSel(); buildNavList(); renderNav(); mapModeLine();
+    syncMapSel(); buildNavList(); renderNav(); mapModeLine();
   }
 }
 function renderStats() {
@@ -8077,13 +7986,6 @@ function backupWarning() {
 function merged() {
   const out = JSON.parse(JSON.stringify(CAT));
   out.features.forEach((f, i) => { Object.assign(f.properties, edits[tid(i)] || {}); });
-  // control points travel with the register - they are the work of a morning
-  // and losing them costs more than losing a tree record
-  REFS.forEach(r => out.features.push({
-    type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] },
-    properties: { tree_id: r.id, is_reference: true, geometry_source: r.note || 'reference point',
-                  position_accuracy_m: r.acc == null ? undefined : r.acc }
-  }));
   return out;
 }
 function dl(name, content, mime) {
@@ -8961,7 +8863,8 @@ function wire() {
                 'and record it to get a survey.');
           return;
         }
-        const refs = all.filter(x => x.properties && x.properties.is_reference);
+        /* older exports of this app carried reference points in the same file.
+           They are not trees, and there is nowhere to put them any more. */
         const feats = all.filter(x => !(x.properties && x.properties.is_reference));
         feats.forEach((x, n) => {
           if (!x.properties) x.properties = {};
@@ -8969,16 +8872,6 @@ function wire() {
         });
         const rep = mergeCatalogue(feats, importReplace);
         importReplace = false;
-        if (refs.length) {
-          refs.forEach(x => {
-            const id = x.properties.tree_id || ('P' + (REFS.length + 1));
-            if (refById(id)) return;
-            REFS.push({ id: id, lon: x.geometry.coordinates[0], lat: x.geometry.coordinates[1],
-                        note: x.properties.geometry_source || 'imported',
-                        acc: x.properties.position_accuracy_m == null ? null : +x.properties.position_accuracy_m });
-          });
-          saveRefs(); renderRefs();
-        }
         buildMarkers(); renderList(); renderStats();
         alert('Register loaded.\n\n' + rep.added + ' new tree' + (rep.added === 1 ? '' : 's') +
               '\n' + rep.filled + ' existing filled in' +
@@ -9115,7 +9008,6 @@ function wire() {
      finished, stands remembered, a bin full. None of it is the survey, all of
      it steers the survey, and until now there was no way to be rid of it. */
   const WIPE = [
-    ['Reference points', () => K_REF, () => REFS.length],
     /* an origin borrowed from a tree is re-derived the moment it is needed and
        is never a leftover; one that somebody set is */
     ['The plot and its origin', () => K_PLOT, () => (PLOT && plotGeoreferenced() && !PLOT.provisional ? 1 : 0)],
@@ -9137,12 +9029,13 @@ function wire() {
   wipePaint = paintWipe; paintWipe();
   $('bWipe').onclick = () => {
     if (!userCan('manage')) return toast('Only an admin clears this.');
-    if (!confirm('Forget the reference points, the plot, the remembered stands, the bin, the trail, ' +
-                 'the addresses and the open round?\n\nTrees, field records and photographs stay.')) return;
+    if (!confirm('Forget the plot, the remembered stands, the bin, the trail, the addresses ' +
+                 'and the open round?\n\nTrees, field records and photographs stay.')) return;
     WIPE.forEach(w => { try { lsDel(w[1]()); } catch (e) {} });
-    REFS = []; PLOT = null; standPts = []; refFix.clear(); lastFit = null; track = [];
-    loadPlot(); loadRefs();
-    buildMarkers(); renderList(); renderStats(); renderRefs(); renderPlotBox(); renderAlignBox();
+    lsDel(K_REF);                       // reference points, from a version that had them
+    PLOT = null; standPts = []; refFix.clear(); lastFit = null; track = [];
+    loadPlot();
+    buildMarkers(); renderList(); renderStats(); renderPlotBox(); renderAlignBox();
     renderAudit(); renderTrash(); renderRound(); paintImpPick(); paintWipe();
     toast('Cleared. The trees and their records are untouched.');
   };
@@ -9260,8 +9153,8 @@ function step(name, fn) {
   }
 }
 step('language', () => { langMigrate(); uiApply(); });
+step('old keys', () => lsDel(K_REF));   // reference points are gone
 step('register', loadAll);
-step('reference points', loadRefs);
 step('plot', loadPlot);
 step('plot repair', plotHeal);
 let _demo = 0;

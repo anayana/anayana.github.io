@@ -98,7 +98,6 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #mapMarks .mk{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:50%;
   border:2px solid #0b110e}
 #mapMarks .mk.mkT{background:#54c07a}
-#mapMarks .mk.mkR{background:#ffb347;border-radius:2px;width:12px;height:12px;margin:-7px 0 0 -7px}
 #mapMarks .mk.mkMe{background:#5aa9ff;box-shadow:0 0 0 5px rgba(90,169,255,.25)}
 #mapMarks .mk.sel{background:#ffe083;width:15px;height:15px;margin:-8px 0 0 -8px}
 #mapMarks .acc{position:absolute;border:1px solid rgba(90,169,255,.55);
@@ -547,23 +546,6 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       <div class="btnrow"><button class="p" id="mMove" style="display:none"></button>
         <button id="mUndo" style="display:none"></button>
         <button id="mStand" style="display:none"></button></div>
-      <h3>Reference points</h3>
-      <div class="row"><label>Name for the next point</label>
-        <input type="text" id="mRefId" placeholder="P1" inputmode="text"></div>
-      <div class="btnrow"><button class="p" id="mAddRef">Set reference point at crosshair</button></div>
-      <div class="row"><label>…or from coordinates</label>
-        <select id="mRefCrs"></select></div>
-      <div class="row"><label>East / Longitude</label>
-        <input type="text" id="mRefE" inputmode="decimal" placeholder="373505.67"></div>
-      <div class="row"><label>North / Latitude</label>
-        <input type="text" id="mRefN" inputmode="decimal" placeholder="5808524.08"></div>
-      <div class="btnrow"><button id="mShowXY">Go to these coordinates</button>
-        <button id="mAddRefXY">Set reference point there</button></div>
-      <div class="small" id="mRefXY"></div>
-      <div id="refList"></div>
-      <p class="small">Measure three or four of these in AR (button <b>Refs</b>) before
-        recording trees. Two fix the scene's position and heading, more give a
-        residual that says whether to trust the result.</p>
     </section>
 
     <section class="screen" id="sc-data">
@@ -964,21 +946,21 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.54.3"></script>
-<script src="data.js?v=2.54.3"></script>
-<script src="norms.js?v=2.54.3"></script>
-<script src="i18n.js?v=2.54.3"></script>
-<script src="mapper.js?v=2.54.3"></script>
-<script src="users.js?v=2.54.3"></script>
-<script src="voice.js?v=2.54.3"></script>
-<script src="plantnet.js?v=2.54.3"></script>
-<script src="osm.js?v=2.54.3"></script>
-<script src="research.js?v=2.54.3"></script>
-<script src="marks.js?v=2.54.3"></script>
-<script src="pins.js?v=2.54.3"></script>
-<script src="ghost.js?v=2.54.3"></script>
-<script src="guide.js?v=2.54.3"></script>
-<script src="gate.js?v=2.54.3"></script>
-<script src="app.js?v=2.54.3"></script>
+<script src="vendor/three.min.js?v=2.55.0"></script>
+<script src="data.js?v=2.55.0"></script>
+<script src="norms.js?v=2.55.0"></script>
+<script src="i18n.js?v=2.55.0"></script>
+<script src="mapper.js?v=2.55.0"></script>
+<script src="users.js?v=2.55.0"></script>
+<script src="voice.js?v=2.55.0"></script>
+<script src="plantnet.js?v=2.55.0"></script>
+<script src="osm.js?v=2.55.0"></script>
+<script src="research.js?v=2.55.0"></script>
+<script src="marks.js?v=2.55.0"></script>
+<script src="pins.js?v=2.55.0"></script>
+<script src="ghost.js?v=2.55.0"></script>
+<script src="guide.js?v=2.55.0"></script>
+<script src="gate.js?v=2.55.0"></script>
+<script src="app.js?v=2.55.0"></script>
 </body>
 </html>
