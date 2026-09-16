@@ -1,7 +1,7 @@
 /* Service worker: keep the whole app available offline.
    Navigation requests are network-first so fixes reach the field as soon as there
    is a connection; assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'vta-v115';
+const CACHE = 'vta-v116';
 /* Map tiles live in their own cache: they are none of the app's business to
    version, and an area looked at once should still be there in the field with
    no network. Kept across updates, cleared only with the app's storage. */
@@ -10,22 +10,22 @@ const TILE_HOST = 'tile.openstreetmap.org';
 const ASSETS = [
   './',
   'index.html',
-  'app.js?v=2.54.2',
-  'data.js?v=2.54.2',
-  'norms.js?v=2.54.2',
-  'i18n.js?v=2.54.2',
-  'mapper.js?v=2.54.2',
-  'users.js?v=2.54.2',
-  'voice.js?v=2.54.2',
-  'plantnet.js?v=2.54.2',
-  'osm.js?v=2.54.2',
-  'research.js?v=2.54.2',
-  'marks.js?v=2.54.2',
-  'pins.js?v=2.54.2',
-  'ghost.js?v=2.54.2',
-  'guide.js?v=2.54.2',
-  'gate.js?v=2.54.2',
-  'vendor/three.min.js?v=2.54.2',
+  'app.js?v=2.54.3',
+  'data.js?v=2.54.3',
+  'norms.js?v=2.54.3',
+  'i18n.js?v=2.54.3',
+  'mapper.js?v=2.54.3',
+  'users.js?v=2.54.3',
+  'voice.js?v=2.54.3',
+  'plantnet.js?v=2.54.3',
+  'osm.js?v=2.54.3',
+  'research.js?v=2.54.3',
+  'marks.js?v=2.54.3',
+  'pins.js?v=2.54.3',
+  'ghost.js?v=2.54.3',
+  'guide.js?v=2.54.3',
+  'gate.js?v=2.54.3',
+  'vendor/three.min.js?v=2.54.3',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',
