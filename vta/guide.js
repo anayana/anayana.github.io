@@ -7,10 +7,10 @@
    person standing under the tree, in the order they do it, and which button
    in this app answers which part of it.
 
-   The language picker offers every language the app speaks, German and
-   English first because those two are the ones this text is written in. The
-   others are listed honestly: pick Eesti and the page says, in Estonian, that
-   the method text has not been translated and is being shown in English.
+   It is in the app's language, and the app has exactly one - there is no
+   separate setting here to find and forget. Only German and English are
+   written; set the app to Eesti and this page says, in Estonian, that the
+   method text has not been translated and is being shown in English.
    Machine-inventing a safety procedure in a language nobody here has checked
    is not a translation, it is a liability.
 
@@ -21,24 +21,18 @@
    ========================================================================= */
 
 const K_GUIDE = 'vta_guide_v1';
-/* Everything the app speaks, the two the guide is written in first. */
-const GUIDE_LANGS = ['de', 'en', 'nl', 'et', 'fi'];
+/* The two languages this text is actually written in. */
 const GUIDE_WRITTEN = ['de', 'en'];
-/* Said in the language that was asked for, because a person who picks Suomi
-   is telling you that is the language they read. */
+/* Said in the language that was asked for, because a person reading the app
+   in Suomi is telling you that is the language they read. */
 const GUIDE_UNWRITTEN = {
   nl: 'De methodetekst is nog niet vertaald – hier in het Engels.',
   et: 'Metoodika tekst ei ole veel tõlgitud – kuvatakse inglise keeles.',
   fi: 'Menetelmän tekstiä ei ole vielä käännetty – näytetään englanniksi.'
 };
-/* What the reader picked ... */
-function guidePick() {
-  const g = prefs().guideLang;
-  if (GUIDE_LANGS.indexOf(g) >= 0) return g;
-  const u = uiLang();
-  return GUIDE_LANGS.indexOf(u) >= 0 ? u : 'en';
-}
-/* ... and what there is to show them. */
+/* What the app is in ... */
+function guidePick() { return uiLang(); }
+/* ... and what there is to show them in it. */
 function guideLang() {
   const g = guidePick();
   return GUIDE_WRITTEN.indexOf(g) >= 0 ? g : 'en';
@@ -441,20 +435,14 @@ function renderGuide() {
     : 'A Regelkontrolle after the FLL guidelines, step by step – and which button of this app answers which step.';
   box.appendChild(head);
 
+  /* No language switch of its own - there is one in this app and it is the
+     app's. This only says which it is and opens it. */
   const pick = guidePick();
   const sw = document.createElement('div'); sw.className = 'btnrow';
-  const sel = document.createElement('select'); sel.id = 'guideLangSel';
-  sel.setAttribute('aria-label', 'Language of the method text');
-  GUIDE_LANGS.forEach(code => {
-    const o = document.createElement('option');
-    o.value = code;
-    o.textContent = (LANG_NAMES[code] || code.toUpperCase()) +
-                    (GUIDE_WRITTEN.indexOf(code) >= 0 ? '' : ' · EN');
-    if (code === pick) o.selected = true;
-    sel.appendChild(o);
-  });
-  sel.onchange = () => { setPref('guideLang', sel.value); renderGuide(); };
-  sw.appendChild(sel);
+  const b = document.createElement('button'); b.id = 'guideLangBtn';
+  b.textContent = (L === 'de' ? 'Sprache: ' : 'Language: ') + (LANG_NAMES[pick] || pick);
+  b.onclick = () => { if (typeof openLang === 'function') openLang(); };
+  sw.appendChild(b);
   box.appendChild(sw);
 
   if (GUIDE_WRITTEN.indexOf(pick) < 0) {

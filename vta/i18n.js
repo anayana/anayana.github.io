@@ -23,12 +23,37 @@ const NORM_LANG = { fll: 'de', onorm: 'de', vssg: 'de', bvc: 'nl', ee: 'et', fi:
 function uiLang() {
   const p = (typeof prefs === 'function') ? prefs() : {};
   if (p.lang && LANG_NAMES[p.lang]) return p.lang;
+  return uiLangAuto();
+}
+/* Left alone: the phone's own language, because its owner chose it. Only a
+   phone set to a language this app does not speak falls through to the
+   register's standard - which is how it used to work for everybody, and how
+   a German inspector ended up with an Estonian form and a microphone that
+   listened in Estonian while he spoke German. */
+function uiLangAuto() {
+  const own = String((typeof navigator !== 'undefined' && navigator.language) || '').slice(0, 2).toLowerCase();
+  if (LANG_NAMES[own]) return own;
   return uiLangOfNorm();
 }
 /* What the standard alone would choose, with nobody overriding it. */
 function uiLangOfNorm() {
   const n = (typeof curNorm === 'function') ? curNorm() : null;
   return (n && NORM_LANG[n.id]) || 'en';
+}
+/* Three settings became one. Somebody who had pinned a voice language meant
+   that as their language, so it is carried over rather than thrown away. */
+function langMigrate() {
+  if (typeof prefs !== 'function') return;
+  const p = prefs();
+  if (p.guideLang == null && p.voiceLang == null) return;
+  if (!p.lang) {
+    const v = String(p.voiceLang || '').slice(0, 2).toLowerCase();
+    const g = String(p.guideLang || '').slice(0, 2).toLowerCase();
+    const pick = LANG_NAMES[v] ? v : (LANG_NAMES[g] ? g : null);
+    if (pick) p.lang = pick;
+  }
+  delete p.guideLang; delete p.voiceLang;
+  lsSet(K_PREF, JSON.stringify(p));
 }
 
 /* ---- field labels ---------------------------------------------------- */
@@ -274,4 +299,274 @@ function placePrefix(lat, lon) {
   const p = placeOf(lat, lon);
   if (!p) return '';
   return p.cc + '-' + (p.code ? p.code + '-' : '');
+}
+
+/* ============================================================================
+   ONE SWITCH FOR THE WHOLE APP
+
+   There used to be three: one for the form, one for the guide, one for the
+   microphone. Nobody wants to set a language three times, and nobody finds
+   the third one. So there is one, prefs().lang, and everything reads it:
+   the labels, the drop-downs, the method text, what the phone says and what
+   it listens for.
+
+   Left alone it follows the phone. That is the one default that is right more
+   often than any other: the person holding it set that language themselves.
+   The register's own standard is the second guess, for a phone set to a
+   language this app does not speak. The register is not touched either way -
+   an Estonian register stays Estonian, it is only the labels that move.
+
+   Input is never restricted to one language. The parser carries the words of
+   all five at once, so "damage class moderate" is understood by an Estonian
+   form and stored as the same value it would store for "kahjustuse aste
+   keskmine". That is the "your language plus English" part, and it needs no
+   setting at all.
+
+   What is below is the chrome: tabs, headings, buttons. German is checked.
+   Dutch, Estonian and Finnish are translated but have not been read by a
+   native speaker, and the app says so where the language is chosen. Long
+   explanatory prose is not in here; it stays English until somebody who
+   speaks the language writes it.
+   ========================================================================= */
+
+/* Languages whose chrome and method text a native speaker has gone over. */
+const LANG_CHECKED = ['en', 'de'];
+
+const UI = {
+  /* the tab bar and the screens */
+  'Trees': { de: 'Bäume', nl: 'Bomen', et: 'Puud', fi: 'Puut' },
+  'Map': { de: 'Karte', nl: 'Kaart', et: 'Kaart', fi: 'Kartta' },
+  'Data': { de: 'Daten', nl: 'Gegevens', et: 'Andmed', fi: 'Tiedot' },
+  'Method': { de: 'Methode', nl: 'Methode', et: 'Meetod', fi: 'Menetelmä' },
+  'AR survey': { de: 'AR-Aufnahme', nl: 'AR-opname', et: 'AR-vaatlus', fi: 'AR-kartoitus' },
+  'The method': { de: 'Die Methode', nl: 'De methode', et: 'Meetod', fi: 'Menetelmä' },
+  'Who is holding the phone?': { de: 'Wer hält das Handy?', nl: 'Wie houdt de telefoon vast?',
+                                 et: 'Kes hoiab telefoni?', fi: 'Kuka pitää puhelinta?' },
+  'Does this read your register correctly?': { de: 'Wird Ihr Register richtig gelesen?',
+      nl: 'Wordt uw register goed gelezen?', et: 'Kas teie registrit loetakse õigesti?',
+      fi: 'Luetaanko rekisterisi oikein?' },
+  /* section headings */
+  'Device check': { de: 'Gerätetest', nl: 'Apparaatcontrole', et: 'Seadme kontroll', fi: 'Laitteen tarkistus' },
+  'Reference points': { de: 'Referenzpunkte', nl: 'Referentiepunten', et: 'Tugipunktid', fi: 'Kiintopisteet' },
+  'Round': { de: 'Rundgang', nl: 'Ronde', et: 'Ring', fi: 'Kierros' },
+  'Report': { de: 'Bericht', nl: 'Rapport', et: 'Aruanne', fi: 'Raportti' },
+  'Export': { de: 'Export', nl: 'Export', et: 'Eksport', fi: 'Vienti' },
+  'Give the measurements to research': { de: 'Messwerte der Forschung geben',
+      nl: 'Metingen aan onderzoek geven', et: 'Anna mõõtmised teadusele', fi: 'Anna mittaukset tutkimukseen' },
+  'Trees from OpenStreetMap': { de: 'Bäume aus OpenStreetMap', nl: 'Bomen uit OpenStreetMap',
+      et: 'Puud OpenStreetMapist', fi: 'Puut OpenStreetMapista' },
+  'Upload to OpenStreetMap': { de: 'Zu OpenStreetMap hochladen', nl: 'Uploaden naar OpenStreetMap',
+      et: 'Laadi OpenStreetMapi üles', fi: 'Lähetä OpenStreetMapiin' },
+  'Import': { de: 'Import', nl: 'Import', et: 'Import', fi: 'Tuonti' },
+  'Load from a web address': { de: 'Von einer Webadresse laden', nl: 'Van een webadres laden',
+      et: 'Lae veebiaadressilt', fi: 'Lataa verkko-osoitteesta' },
+  'Berlin tree register': { de: 'Berliner Baumkataster', nl: 'Bomenregister Berlijn',
+      et: 'Berliini puuregister', fi: 'Berliinin puurekisteri' },
+  'Identification service': { de: 'Bestimmungsdienst', nl: 'Determinatiedienst',
+      et: 'Määramisteenus', fi: 'Tunnistuspalvelu' },
+  'The plot': { de: 'Der Bestand', nl: 'De opstand', et: 'Ala', fi: 'Kuvio' },
+  'Alignment': { de: 'Ausrichtung', nl: 'Uitlijning', et: 'Joondus', fi: 'Kohdistus' },
+  'Users': { de: 'Benutzer', nl: 'Gebruikers', et: 'Kasutajad', fi: 'Käyttäjät' },
+  'Trail': { de: 'Protokoll', nl: 'Logboek', et: 'Logi', fi: 'Loki' },
+  'Standard': { de: 'Regelwerk', nl: 'Richtlijn', et: 'Standard', fi: 'Standardi' },
+  'Moved positions': { de: 'Verschobene Positionen', nl: 'Verplaatste posities',
+      et: 'Nihutatud asukohad', fi: 'Siirretyt sijainnit' },
+  'Deleted trees': { de: 'Gelöschte Bäume', nl: 'Verwijderde bomen', et: 'Kustutatud puud', fi: 'Poistetut puut' },
+  'Language': { de: 'Sprache', nl: 'Taal', et: 'Keel', fi: 'Kieli' },
+  'Voice': { de: 'Sprachsteuerung', nl: 'Spraak', et: 'Kõnejuhtimine', fi: 'Puheohjaus' },
+  'Measuring the diameter by phone': { de: 'Durchmesser mit dem Handy messen',
+      nl: 'Diameter met de telefoon meten', et: 'Läbimõõdu mõõtmine telefoniga',
+      fi: 'Läpimitan mittaus puhelimella' },
+  'Status': { de: 'Status', nl: 'Status', et: 'Olek', fi: 'Tila' },
+  'Reset': { de: 'Zurücksetzen', nl: 'Resetten', et: 'Lähtestamine', fi: 'Nollaus' },
+  /* buttons */
+  'Start AR': { de: 'AR starten', nl: 'AR starten', et: 'Käivita AR', fi: 'Käynnistä AR' },
+  'Camera': { de: 'Kamera', nl: 'Camera', et: 'Kaamera', fi: 'Kamera' },
+  'How a tree inspection works': { de: 'Wie eine Baumkontrolle abläuft',
+      nl: 'Hoe een boomcontrole verloopt', et: 'Kuidas puude kontroll käib',
+      fi: 'Miten puun tarkastus etenee' },
+  'Install on the home screen': { de: 'Auf dem Startbildschirm installieren',
+      nl: 'Op het beginscherm installeren', et: 'Paigalda avakuvale', fi: 'Asenna aloitusnäytölle' },
+  'by distance': { de: 'nach Entfernung', nl: 'op afstand', et: 'kauguse järgi', fi: 'etäisyyden mukaan' },
+  'by number': { de: 'nach Nummer', nl: 'op nummer', et: 'numbri järgi', fi: 'numeron mukaan' },
+  '+ Tree at my GPS position': { de: '+ Baum an meiner GPS-Position', nl: '+ Boom op mijn GPS-positie',
+      et: '+ Puu minu GPS-asukohta', fi: '+ Puu GPS-sijaintiini' },
+  '+ Tree by coordinates': { de: '+ Baum nach Koordinaten', nl: '+ Boom op coördinaten',
+      et: '+ Puu koordinaatide järgi', fi: '+ Puu koordinaateilla' },
+  'Create': { de: 'Anlegen', nl: 'Aanmaken', et: 'Loo', fi: 'Luo' },
+  'Cancel': { de: 'Abbrechen', nl: 'Annuleren', et: 'Loobu', fi: 'Peruuta' },
+  'Close': { de: 'Schließen', nl: 'Sluiten', et: 'Sulge', fi: 'Sulje' },
+  'Save': { de: 'Speichern', nl: 'Opslaan', et: 'Salvesta', fi: 'Tallenna' },
+  'Stop walking to it': { de: 'Zielführung beenden', nl: 'Navigatie stoppen',
+      et: 'Lõpeta juhatamine', fi: 'Lopeta opastus' },
+  'Centre on me': { de: 'Auf mich zentrieren', nl: 'Op mij centreren',
+      et: 'Keskenda minule', fi: 'Keskitä minuun' },
+  '+ Tree at crosshair': { de: '+ Baum am Fadenkreuz', nl: '+ Boom op het kruis',
+      et: '+ Puu sihikule', fi: '+ Puu tähtäimeen' },
+  'Save this area offline': { de: 'Diesen Bereich offline speichern', nl: 'Dit gebied offline opslaan',
+      et: 'Salvesta see ala võrguühenduseta', fi: 'Tallenna tämä alue offline-tilaan' },
+  'Set reference point at crosshair': { de: 'Referenzpunkt am Fadenkreuz setzen',
+      nl: 'Referentiepunt op het kruis zetten', et: 'Määra tugipunkt sihikule',
+      fi: 'Aseta kiintopiste tähtäimeen' },
+  'Go to these coordinates': { de: 'Zu diesen Koordinaten', nl: 'Naar deze coördinaten',
+      et: 'Nende koordinaatideni', fi: 'Näihin koordinaatteihin' },
+  'Set reference point there': { de: 'Referenzpunkt dort setzen', nl: 'Referentiepunt daar zetten',
+      et: 'Määra tugipunkt sinna', fi: 'Aseta kiintopiste sinne' },
+  'Take it from where I am': { de: 'Von meinem Standort nehmen', nl: 'Van mijn locatie nemen',
+      et: 'Võta minu asukohast', fi: 'Ota sijainnistani' },
+  'No prefix': { de: 'Kein Kürzel', nl: 'Geen voorvoegsel', et: 'Eesliiteta', fi: 'Ei etuliitettä' },
+  'Start a round': { de: 'Rundgang beginnen', nl: 'Ronde starten', et: 'Alusta ringi', fi: 'Aloita kierros' },
+  'Close the round': { de: 'Rundgang abschließen', nl: 'Ronde afsluiten', et: 'Lõpeta ring', fi: 'Päätä kierros' },
+  'Map page': { de: 'Kartenblatt', nl: 'Kaartblad', et: 'Kaardileht', fi: 'Karttalehti' },
+  'Inspection report': { de: 'Kontrollbericht', nl: 'Controlerapport', et: 'Kontrolliaruanne', fi: 'Tarkastusraportti' },
+  '…with photos': { de: '…mit Fotos', nl: "…met foto's", et: '…koos fotodega', fi: '…valokuvien kanssa' },
+  'Save photos individually': { de: 'Fotos einzeln speichern', nl: "Foto's afzonderlijk opslaan",
+      et: 'Salvesta fotod eraldi', fi: 'Tallenna kuvat erikseen' },
+  'Save the bundle': { de: 'Paket speichern', nl: 'Bundel opslaan', et: 'Salvesta pakett', fi: 'Tallenna paketti' },
+  '…with the photographs': { de: '…mit den Fotos', nl: "…met de foto's", et: '…koos fotodega',
+      fi: '…valokuvien kanssa' },
+  'Within 300 m of me': { de: 'Im Umkreis von 300 m', nl: 'Binnen 300 m van mij',
+      et: '300 m raadiuses minust', fi: '300 m säteellä minusta' },
+  'In the map view': { de: 'Im Kartenausschnitt', nl: 'In het kaartbeeld', et: 'Kaardivaates', fi: 'Karttanäkymässä' },
+  'Sign in to OSM': { de: 'Bei OSM anmelden', nl: 'Aanmelden bij OSM', et: 'Logi OSMi sisse', fi: 'Kirjaudu OSM:ään' },
+  'Sign out': { de: 'Abmelden', nl: 'Afmelden', et: 'Logi välja', fi: 'Kirjaudu ulos' },
+  'Upload my own trees': { de: 'Eigene Bäume hochladen', nl: 'Eigen bomen uploaden',
+      et: 'Laadi oma puud üles', fi: 'Lähetä omat puuni' },
+  'Merge a register…': { de: 'Register zusammenführen…', nl: 'Register samenvoegen…',
+      et: 'Ühenda register…', fi: 'Yhdistä rekisteri…' },
+  'Replace…': { de: 'Ersetzen…', nl: 'Vervangen…', et: 'Asenda…', fi: 'Korvaa…' },
+  'Does this address answer?': { de: 'Antwortet diese Adresse?', nl: 'Antwoordt dit adres?',
+      et: 'Kas see aadress vastab?', fi: 'Vastaako tämä osoite?' },
+  'Fetch and read': { de: 'Holen und lesen', nl: 'Ophalen en lezen', et: 'Lae ja loe', fi: 'Hae ja lue' },
+  'The area on the map': { de: 'Der Bereich auf der Karte', nl: 'Het gebied op de kaart',
+      et: 'Kaardil olev ala', fi: 'Kartalla näkyvä alue' },
+  'Put the stand on my position': { de: 'Bestand auf meine Position legen',
+      nl: 'Opstand op mijn positie leggen', et: 'Aseta ala minu asukohta', fi: 'Sijoita kuvio sijaintiini' },
+  'Add user': { de: 'Benutzer anlegen', nl: 'Gebruiker toevoegen', et: 'Lisa kasutaja', fi: 'Lisää käyttäjä' },
+  'Export the trail (CSV)': { de: 'Protokoll exportieren (CSV)', nl: 'Logboek exporteren (CSV)',
+      et: 'Ekspordi logi (CSV)', fi: 'Vie loki (CSV)' },
+  'Clear the trail': { de: 'Protokoll löschen', nl: 'Logboek wissen', et: 'Kustuta logi', fi: 'Tyhjennä loki' },
+  'Test the voice': { de: 'Sprachausgabe testen', nl: 'Spraak testen', et: 'Testi kõnet', fi: 'Testaa puhetta' },
+  'Fetch the current version': { de: 'Aktuelle Version holen', nl: 'Huidige versie ophalen',
+      et: 'Lae uusim versioon', fi: 'Hae uusin versio' },
+  'Delete field records': { de: 'Feldaufnahmen löschen', nl: 'Veldopnames verwijderen',
+      et: 'Kustuta välitöö andmed', fi: 'Poista maastotiedot' },
+  'Delete all trees': { de: 'Alle Bäume löschen', nl: 'Alle bomen verwijderen',
+      et: 'Kustuta kõik puud', fi: 'Poista kaikki puut' },
+  'Forget everything except the trees': { de: 'Alles außer den Bäumen vergessen',
+      nl: 'Alles behalve de bomen vergeten', et: 'Unusta kõik peale puude',
+      fi: 'Unohda kaikki paitsi puut' },
+  '+ Tree': { de: '+ Baum', nl: '+ Boom', et: '+ Puu', fi: '+ Puu' },
+  'Photo': { de: 'Foto', nl: 'Foto', et: 'Foto', fi: 'Kuva' },
+  'Tools': { de: 'Werkzeuge', nl: 'Gereedschap', et: 'Tööriistad', fi: 'Työkalut' },
+  'Align': { de: 'Ausrichten', nl: 'Uitlijnen', et: 'Joonda', fi: 'Kohdista' },
+  'Exit': { de: 'Beenden', nl: 'Sluiten', et: 'Välju', fi: 'Poistu' },
+  'To do': { de: 'Zu erledigen', nl: 'Te doen', et: 'Teha', fi: 'Tehtävää' },
+  /* the front door */
+  'Tree inspection in the field – offline, on this phone': {
+      de: 'Baumkontrolle im Feld – offline, auf diesem Telefon',
+      nl: 'Boomcontrole in het veld – offline, op deze telefoon',
+      et: 'Puude kontroll välitööl – võrguühenduseta, selles telefonis',
+      fi: 'Puiden tarkastus maastossa – offline, tässä puhelimessa' },
+  'Name': { de: 'Name', nl: 'Naam', et: 'Nimi', fi: 'Nimi' },
+  'Password': { de: 'Passwort', nl: 'Wachtwoord', et: 'Parool', fi: 'Salasana' },
+  'Stay signed in on this phone': { de: 'Auf diesem Telefon angemeldet bleiben',
+      nl: 'Aangemeld blijven op deze telefoon', et: 'Jää selles telefonis sisse logituks',
+      fi: 'Pysy kirjautuneena tässä puhelimessa' },
+  'Start': { de: 'Los', nl: 'Start', et: 'Alusta', fi: 'Aloita' },
+  'Continue without a name': { de: 'Ohne Namen weiter', nl: 'Doorgaan zonder naam',
+      et: 'Jätka nimeta', fi: 'Jatka ilman nimeä' }
+};
+
+/* The words that are not text nodes - placeholders and the like - said in the
+   app's language by the screen that owns them. */
+const UI_GATE = {
+  name_ph: { en: 'your name, as it should appear on the record',
+             de: 'Ihr Name, so wie er im Datensatz stehen soll',
+             nl: 'uw naam, zoals die in het record moet staan',
+             et: 'teie nimi, nagu see kirjes olema peab',
+             fi: 'nimesi, kuten sen tulee näkyä tiedoissa' },
+  pw_new: { en: 'a password, or leave it empty', de: 'ein Passwort, oder leer lassen',
+            nl: 'een wachtwoord, of laat het leeg', et: 'parool või jäta tühjaks',
+            fi: 'salasana, tai jätä tyhjäksi' },
+  pw_none: { en: 'this name has no password', de: 'dieser Name hat kein Passwort',
+             nl: 'deze naam heeft geen wachtwoord', et: 'sellel nimel ei ole parooli',
+             fi: 'tällä nimellä ei ole salasanaa' },
+  pw_kept: { en: 'remembered on this phone', de: 'auf diesem Telefon gemerkt',
+             nl: 'onthouden op deze telefoon', et: 'selles telefonis meeles',
+             fi: 'muistettu tässä puhelimessa' },
+  newname: { en: 'the new name', de: 'der neue Name', nl: 'de nieuwe naam',
+             et: 'uus nimi', fi: 'uusi nimi' },
+  another: { en: '+ a new name…', de: '+ ein neuer Name…', nl: '+ een nieuwe naam…',
+             et: '+ uus nimi…', fi: '+ uusi nimi…' },
+  foot: { en: 'There is no server. The name and the password stay on this phone; they say who ' +
+              'signs an inspection, and they are not a lock on the data.',
+          de: 'Es gibt keinen Server. Name und Passwort bleiben auf diesem Telefon; sie sagen, ' +
+              'wer eine Kontrolle unterschreibt, und sind kein Schloss auf den Daten.',
+          nl: 'Er is geen server. De naam en het wachtwoord blijven op deze telefoon; ze zeggen ' +
+              'wie een controle ondertekent, en zijn geen slot op de gegevens.',
+          et: 'Serverit ei ole. Nimi ja parool jäävad sellesse telefoni; need ütlevad, kes ' +
+              'kontrolli allkirjastab, ja need ei ole andmetel lukk.',
+          fi: 'Palvelinta ei ole. Nimi ja salasana jäävät tähän puhelimeen; ne kertovat, kuka ' +
+              'allekirjoittaa tarkastuksen, eivätkä ne ole lukko tiedoille.' },
+  wrongpw: { en: 'That password is wrong.', de: 'Das Passwort stimmt nicht.',
+             nl: 'Dat wachtwoord klopt niet.', et: 'See parool on vale.',
+             fi: 'Salasana on väärä.' },
+  needpw: { en: 'That name has a password.', de: 'Dieser Name hat ein Passwort.',
+            nl: 'Die naam heeft een wachtwoord.', et: 'Sellel nimel on parool.',
+            fi: 'Tällä nimellä on salasana.' },
+  needname: { en: 'A name, so the records are signed.', de: 'Ein Name, damit die Aufnahmen unterschrieben sind.',
+              nl: 'Een naam, zodat de opnames ondertekend zijn.',
+              et: 'Nimi, et kirjed oleksid allkirjastatud.',
+              fi: 'Nimi, jotta tiedot on allekirjoitettu.' },
+  unchecked: { en: '· This language is translated but has not been read by anyone who speaks it, ' +
+                   'and the method text in it is still English.',
+               de: '· Diese Sprache ist übersetzt, aber von niemandem gegengelesen worden, der sie ' +
+                   'spricht; der Methodentext darin ist weiterhin Englisch.',
+               nl: '· Deze taal is vertaald maar door niemand die haar spreekt nagelezen, en de ' +
+                   'methodetekst erin is nog Engels.',
+               et: '· See keel on tõlgitud, kuid keegi seda kõnelev ei ole seda üle lugenud, ja ' +
+                   'metoodika tekst on selles endiselt inglise keeles.',
+               fi: '· Tämä kieli on käännetty, mutta kukaan sitä puhuva ei ole lukenut sitä, ja ' +
+                   'menetelmän teksti on siinä yhä englanniksi.' }
+};
+function gt2(key) {
+  const row = UI_GATE[key] || {};
+  return row[uiLang()] || row.en || '';
+}
+
+/* The chrome in the app's language, English where nothing is written. */
+function T(en) {
+  const e = String(en == null ? '' : en);
+  const l = uiLang();
+  if (l === 'en') return e;
+  const row = UI[e];
+  return (row && row[l]) || e;
+}
+
+/* Swap the chrome in place. The English original is kept on the node, so
+   switching again works from the original and never from a translation. */
+const uiOrig = new WeakMap();
+function uiApply(root) {
+  const scope = root || document.body;
+  if (!scope || !scope.querySelectorAll) return;
+  const w = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => {
+      const p = n.parentNode, tag = p && p.nodeName;
+      if (!tag || tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const hits = [];
+  for (let n = w.nextNode(); n; n = w.nextNode()) hits.push(n);
+  hits.forEach(n => {
+    const had = uiOrig.get(n);
+    const raw = (had != null) ? had : n.nodeValue;
+    const key = raw.trim();
+    if (!key || !UI[key]) return;
+    if (had == null) uiOrig.set(n, raw);
+    const t = T(key);
+    const out = raw.replace(key, t);
+    if (n.nodeValue !== out) n.nodeValue = out;
+  });
 }

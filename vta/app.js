@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.53.0';
+const APP_VERSION = '2.54.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -6346,21 +6346,52 @@ function paintOsm(res) {
     (res.skipped.length ? '<br>' + res.skipped.map(s => esc(tid(s.i)) + ': ' + esc(s.why)).join('<br>') : '');
 }
 
-/* ---- the language, one tap from anywhere ------------------------------
-   The form's language is not a setting anybody wants to go looking for: an
-   inspector from Berlin reading an Estonian register wants the labels in
-   German and the register to stay Estonian, and wants to swap back to show
-   the tree to the man who owns it. So it sits in the top bar, beside the
-   GPS, where the language on a phone belongs. */
+/* ---- the language, one tap from anywhere, one setting for everything ----
+   There is one language in this app and this is it. The labels, the
+   drop-downs, the method text, what the phone says and what its recogniser
+   listens for all read prefs().lang. It used to be three separate settings
+   and the third was buried in the settings screen, which is a good way of
+   having a Dutch inspector shout German at an Estonian microphone.
+
+   It sits in the top bar beside the GPS, on the microphone bar in the field,
+   on the sign-in screen, and in the settings - four ways to the same switch,
+   not four switches.
+
+   The register is not touched by it. An Estonian register stays Estonian;
+   only what is written round it moves. */
 const LANG_LIST = [
-  ['auto', 'Follows the standard'], ['en', 'English'], ['de', 'Deutsch'],
+  ['auto', 'Follows the phone'], ['en', 'English'], ['de', 'Deutsch'],
   ['nl', 'Nederlands'], ['et', 'Eesti'], ['fi', 'Suomi']
 ];
+/* One name for a language, with the truth about it attached: German and
+   English are read by somebody who speaks them, the other three are not. */
+function langLabel(code) {
+  const nm = LANG_NAMES[code] || code;
+  return nm + (LANG_CHECKED.indexOf(code) < 0 ? ' ·' : '');
+}
 function paintLang() {
   const b = $('langBtn'); if (!b) return;
   const set = prefs().lang;
   b.textContent = uiLang().toUpperCase() + (set ? '' : ' ·');
-  b.title = set ? 'Form in ' + (LANG_NAMES[set] || set) : 'Follows the standard';
+  b.title = set ? 'The app in ' + (LANG_NAMES[set] || set) : 'Follows the phone';
+}
+/* Everything that shows words, after the language moved. One function,
+   called from every place that can change it. */
+function langChanged() {
+  if (typeof uiApply === 'function') uiApply();
+  paintLang();
+  const sel = $('prefLang'); if (sel) sel.value = prefs().lang || 'auto';
+  if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+  if (typeof renderList === 'function') renderList();
+  if (typeof renderStats === 'function') renderStats();
+  if (typeof renderGuide === 'function' && $('guideBox')) renderGuide();
+  if (typeof gatePaint === 'function') gatePaint();
+}
+function setLang(code) {
+  const pr = prefs();
+  if (!code || code === 'auto') delete pr.lang; else pr.lang = code;
+  lsSet(K_PREF, JSON.stringify(pr));
+  langChanged();
 }
 function openLang() {
   const el = $('langdlg');
@@ -6368,25 +6399,26 @@ function openLang() {
   el.innerHTML = '';
   if (!open) { el.style.display = 'none'; return; }
   const h = document.createElement('div'); h.className = 'small';
-  h.textContent = 'The labels and the drop-downs. What is stored does not change.';
+  h.textContent = 'One language for the whole app – labels, method, and what the phone says and hears. ' +
+                  'What is stored does not change.';
   el.appendChild(h);
   const cur = prefs().lang || 'auto';
   LANG_LIST.forEach(l => {
     const b = document.createElement('button');
     b.className = (l[0] === cur ? 'p' : '');
-    b.textContent = l[1] + (l[0] === 'auto' ? ' · ' + uiLangOfNorm().toUpperCase() : '');
+    b.textContent = (l[0] === 'auto' ? l[1] + ' · ' + uiLangAuto().toUpperCase() : langLabel(l[0]));
     b.onclick = () => {
-      const pr = prefs();
-      if (l[0] === 'auto') delete pr.lang; else pr.lang = l[0];
-      lsSet(K_PREF, JSON.stringify(pr));
       el.style.display = 'none';
-      paintLang();
-      if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
-      renderList(); renderStats();
-      toast('Form in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
+      setLang(l[0]);
+      toast('The app in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
     };
     el.appendChild(b);
   });
+  const n = document.createElement('div'); n.className = 'small'; n.style.marginTop = '8px';
+  n.textContent = '· Nederlands, Eesti and Suomi are translated but have not been read by anyone ' +
+                  'who speaks them, and the method text in them is still English. Say the word and ' +
+                  'they get written properly.';
+  el.appendChild(n);
   const x = document.createElement('button'); x.textContent = 'Close';
   x.onclick = () => { el.style.display = 'none'; };
   el.appendChild(x);
@@ -9021,15 +9053,9 @@ function wire() {
   $('bAutoVoice').onclick = () => { setPref('autoVoice', !autoVoice()); paintAutoVoice(); };
   $('prefLang').value = prefs().lang || 'auto';
   $('prefLang').onchange = () => {
-    const v = $('prefLang').value;
-    const pr = prefs(); if (v === 'auto') delete pr.lang; else pr.lang = v; lsSet(K_PREF, JSON.stringify(pr));
-    if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
-    renderList();
-    paintLang();
-    toast('Form in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
+    setLang($('prefLang').value);
+    toast('The app in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
   };
-  $('prefVoice').value = prefs().voiceLang || 'auto';
-  $('prefVoice').onchange = () => setPref('voiceLang', $('prefVoice').value);
   $('prefPnet').value = pnetCfg().key || '';
   $('prefPnet').onchange = () => { const c = pnetCfg(); c.key = $('prefPnet').value.trim(); pnetSave(c);
                                    toast(c.key ? 'Pl@ntNet key kept on this phone.' : 'Pl@ntNet key removed.'); };
@@ -9233,6 +9259,7 @@ function step(name, fn) {
     if (m) m.textContent = lastErr;
   }
 }
+step('language', () => { langMigrate(); uiApply(); });
 step('register', loadAll);
 step('reference points', loadRefs);
 step('plot', loadPlot);
@@ -9258,6 +9285,7 @@ step('storage', () => storageCheck(true));
 step('checks', checks);
 step('list', renderList);
 step('summary', renderStats);
+step('the front door', gateOpen);
 $('about').textContent = 'VTA Field ' + APP_VERSION;
 if (_demo) toast(_demo + ' demo trees removed – the register is yours now.');
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

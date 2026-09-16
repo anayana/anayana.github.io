@@ -331,21 +331,21 @@ const LANG_TAG = { en: 'en-GB', de: 'de-DE', nl: 'nl-NL', et: 'et-EE', fi: 'fi-F
 const LANG_SAY = { 'en-GB': 'English', 'de-DE': 'Deutsch', 'nl-NL': 'Nederlands',
                    'et-EE': 'Eesti', 'fi-FI': 'Suomi' };
 const LANG_ROUND = ['de-DE', 'en-GB', 'et-EE', 'fi-FI', 'nl-NL'];
-/* Which language the phone listens in.
+/* Which language the phone listens in: the app's, and nothing else.
 
-   It used to follow the form, and the form follows the country the trees are
-   in: a German inspector working a Tallinn register was talking German into
-   an Estonian recogniser, which transcribes it as Estonian nonsense and
-   matches nothing at all. Nobody could tell why - it simply "did not hear".
-   So the language of the mouth is the phone's own language, which is the one
-   its owner set, and the form's language is only the fallback. Either way it
-   is shown on the bar and changed with one tap, in the field, without going
-   through the settings. */
+   It used to be a setting of its own, which meant the app had three
+   languages to set and the third one was buried in the settings. It is now
+   the one the whole app is in - which, left alone, is the phone's own
+   language, because that is the language its owner speaks. The button on the
+   microphone bar is still there and still works in the field with one tap;
+   it moves the whole app, not just the ear.
+
+   Listening is not restricted to that language. The words of all five are in
+   the parser at once, so an English sentence is understood by an Estonian
+   form and stored as the same value. Only the recogniser - the thing that
+   turns sound into letters - has to be told one language, and getting that
+   one wrong is what "it does not hear me" looks like from outside. */
 function voiceLang() {
-  const v = (typeof prefs === 'function' && prefs().voiceLang) || 'auto';
-  if (v !== 'auto') return v;
-  const own = String((navigator.language || '')).slice(0, 2).toLowerCase();
-  if (LANG_TAG[own]) return LANG_TAG[own];
   return LANG_TAG[(typeof uiLang === 'function') ? uiLang() : 'en'] || 'en-GB';
 }
 function voiceLangNext() {
@@ -490,12 +490,15 @@ function speechBar(txt, cls, sub) {
   const lg = document.getElementById('speechLang'); if (lg) lg.onclick = speechCycleLang;
   const off = document.getElementById('speechOff'); if (off) off.onclick = speechStop;
 }
-/* One tap on the bar: the next language, the recogniser restarted on it, and
-   the phone says which one it is now so the choice is audible as well. */
+/* One tap on the bar: the next language for the whole app, the recogniser
+   restarted on it, and the phone says which one it is now so the choice is
+   audible as well. The labels on the form move with it - the man who taps
+   this is standing in front of a tree and wants everything in that language,
+   not only the ear. */
 function speechCycleLang() {
   const nx = voiceLangNext();
-  setPref('voiceLang', nx);
-  if (typeof $ === 'function' && $('prefVoice')) $('prefVoice').value = nx;
+  setPref('lang', nx.slice(0, 2));
+  if (typeof langChanged === 'function') langChanged();
   vMiss = 0;
   speechBar(vBarHead(), '', LANG_SAY[nx]);
   if (vOn && vRec) { micStop(); vRec.lang = nx; micStart(); }
