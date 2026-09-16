@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.57.1';
+const APP_VERSION = '2.58.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -9198,8 +9198,21 @@ step('checks', checks);
 step('list', renderList);
 step('summary', renderStats);
 step('the front door', gateOpen);
-$('about').textContent = 'VTA Field ' + APP_VERSION;
-if (_demo) toast(_demo + ' demo trees removed – the register is yours now.');
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+step('version', () => { $('about').textContent = 'VTA Field ' + APP_VERSION; });
+/* The app is up: the watchdog in index.html stands down. This is the last
+   thing that happens and it is not allowed to depend on anything above it -
+   a rescue screen over a working app is worse than no rescue screen. */
+try { if (typeof window.__vtaUp === 'function') window.__vtaUp(); } catch (e) {}
+step('demo notice', () => { if (_demo) toast(_demo + ' demo trees removed – the register is yours now.'); });
+/* Where the worker is allowed to run: https, or a loopback address, which
+   browsers count as trustworthy for exactly this reason. It used to say
+   'localhost' and nothing else, so a worker never started on 127.0.0.1 - which
+   is what every test here runs against, so the offline behaviour of the app
+   was the one part of it never being tested. */
+function swAllowed() {
+  return location.protocol === 'https:' ||
+         ['localhost', '127.0.0.1', '[::1]', '::1'].indexOf(location.hostname) >= 0;
+}
+if ('serviceWorker' in navigator && swAllowed()) {
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }

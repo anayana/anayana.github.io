@@ -475,6 +475,69 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 </style>
 </head>
 <body>
+<!-- ===========================================================================
+     THE WATCHDOG
+
+     An installed app has no address bar and no reload button. If it does not
+     start, there is nothing to press and nothing to read - which is what a
+     dead app on a phone in a wood looks like. So this runs before anything
+     else, owns no dependencies, and puts a way out on the screen if the app
+     has not said it is up within ten seconds.
+
+     "Repair" throws away the service worker and the file cache and reloads.
+     It does not touch the register, the field records or the photographs:
+     those live in localStorage and IndexedDB and are not caches.
+     ======================================================================== -->
+<script>
+(function () {
+  var errs = [];
+  window.addEventListener('error', function (e) {
+    errs.push((e && (e.message || (e.target && e.target.src))) || 'error');
+  }, true);
+  var timer = setTimeout(show, 10000);
+  window.__vtaUp = function () { clearTimeout(timer); var el = document.getElementById('stuck');
+                                 if (el) el.remove(); };
+  function show() {
+    if (document.getElementById('stuck')) return;
+    var d = document.createElement('div');
+    d.id = 'stuck';
+    d.setAttribute('style', 'position:fixed;inset:0;z-index:99;background:#0d1310;color:#e7f0ea;' +
+      'font:16px/1.55 system-ui,sans-serif;padding:26px 20px;overflow:auto');
+    d.innerHTML =
+      '<h1 style="font-size:20px;margin:0 0 8px">VTA Field started, but did not finish</h1>' +
+      '<p style="color:#9db3a6;margin:0 0 16px">Usually a connection that is answering slowly or ' +
+      'not at all. Your trees, records and photographs are on the phone and are not touched by ' +
+      'either button.</p>' +
+      '<p><button id="stuckR" style="font:inherit;padding:12px 18px;width:100%;border-radius:10px;' +
+      'background:#2f6b4a;color:#fff;border:0">Try again</button></p>' +
+      '<p><button id="stuckF" style="font:inherit;padding:12px 18px;width:100%;border-radius:10px;' +
+      'background:#1b2620;color:#e7f0ea;border:1px solid #3a5245">Repair and reload</button></p>' +
+      '<p style="color:#7f9488;font-size:12px;word-break:break-word">' +
+      (errs.length ? errs.slice(0, 4).join('<br>') : 'nothing reported an error &ndash; it is still waiting') +
+      '</p>';
+    document.body.appendChild(d);
+    document.getElementById('stuckR').onclick = function () { location.reload(); };
+    document.getElementById('stuckF').onclick = function () {
+      var done = function () { location.reload(); };
+      var jobs = [];
+      try {
+        if (window.caches && caches.keys)
+          jobs.push(caches.keys().then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+          }));
+      } catch (e) {}
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+          jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+      } catch (e) {}
+      Promise.all(jobs).then(done, done);
+      setTimeout(done, 4000);
+    };
+  }
+})();
+</script>
 <video id="video" playsinline muted></video>
 
 <div id="app">
@@ -1043,25 +1106,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.57.1"></script>
-<script src="data.js?v=2.57.1"></script>
-<script src="norms.js?v=2.57.1"></script>
-<script src="i18n.js?v=2.57.1"></script>
-<script src="mapper.js?v=2.57.1"></script>
-<script src="users.js?v=2.57.1"></script>
-<script src="voice.js?v=2.57.1"></script>
-<script src="plantnet.js?v=2.57.1"></script>
-<script src="osm.js?v=2.57.1"></script>
-<script src="research.js?v=2.57.1"></script>
-<script src="marks.js?v=2.57.1"></script>
-<script src="pins.js?v=2.57.1"></script>
-<script src="ghost.js?v=2.57.1"></script>
-<script src="guide.js?v=2.57.1"></script>
-<script src="docx.js?v=2.57.1"></script>
-<script src="reports.js?v=2.57.1"></script>
-<script src="mapsheet.js?v=2.57.1"></script>
-<script src="sign.js?v=2.57.1"></script>
-<script src="gate.js?v=2.57.1"></script>
-<script src="app.js?v=2.57.1"></script>
+<script src="vendor/three.min.js?v=2.58.0"></script>
+<script src="data.js?v=2.58.0"></script>
+<script src="norms.js?v=2.58.0"></script>
+<script src="i18n.js?v=2.58.0"></script>
+<script src="mapper.js?v=2.58.0"></script>
+<script src="users.js?v=2.58.0"></script>
+<script src="voice.js?v=2.58.0"></script>
+<script src="plantnet.js?v=2.58.0"></script>
+<script src="osm.js?v=2.58.0"></script>
+<script src="research.js?v=2.58.0"></script>
+<script src="marks.js?v=2.58.0"></script>
+<script src="pins.js?v=2.58.0"></script>
+<script src="ghost.js?v=2.58.0"></script>
+<script src="guide.js?v=2.58.0"></script>
+<script src="docx.js?v=2.58.0"></script>
+<script src="reports.js?v=2.58.0"></script>
+<script src="mapsheet.js?v=2.58.0"></script>
+<script src="sign.js?v=2.58.0"></script>
+<script src="gate.js?v=2.58.0"></script>
+<script src="app.js?v=2.58.0"></script>
 </body>
 </html>
