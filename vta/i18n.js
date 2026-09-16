@@ -499,16 +499,20 @@ const UI_GATE = {
              et: 'uus nimi', fi: 'uusi nimi' },
   another: { en: '+ a new name…', de: '+ ein neuer Name…', nl: '+ een nieuwe naam…',
              et: '+ uus nimi…', fi: '+ uusi nimi…' },
-  foot: { en: 'There is no server. The name and the password stay on this phone; they say who ' +
-              'signs an inspection, and they are not a lock on the data.',
-          de: 'Es gibt keinen Server. Name und Passwort bleiben auf diesem Telefon; sie sagen, ' +
-              'wer eine Kontrolle unterschreibt, und sind kein Schloss auf den Daten.',
-          nl: 'Er is geen server. De naam en het wachtwoord blijven op deze telefoon; ze zeggen ' +
-              'wie een controle ondertekent, en zijn geen slot op de gegevens.',
-          et: 'Serverit ei ole. Nimi ja parool jäävad sellesse telefoni; need ütlevad, kes ' +
-              'kontrolli allkirjastab, ja need ei ole andmetel lukk.',
-          fi: 'Palvelinta ei ole. Nimi ja salasana jäävät tähän puhelimeen; ne kertovat, kuka ' +
-              'allekirjoittaa tarkastuksen, eivätkä ne ole lukko tiedoille.' },
+  foot: { en: 'There is no server. The name and the password stay on this phone. They record who ' +
+              'signed an inspection – they do not protect the data. That is the phone\u2019s own lock ' +
+              'screen, and nothing else.',
+          de: 'Es gibt keinen Server. Name und Passwort bleiben auf diesem Telefon. Sie halten fest, ' +
+              'wer eine Kontrolle unterschrieben hat – schützen aber die Daten nicht. Das tut allein ' +
+              'die Bildschirmsperre des Telefons.',
+          nl: 'Er is geen server. De naam en het wachtwoord blijven op deze telefoon. Ze leggen vast ' +
+              'wie een controle heeft ondertekend – ze beveiligen de gegevens niet. Dat doet alleen ' +
+              'het vergrendelscherm van de telefoon.',
+          et: 'Serverit ei ole. Nimi ja parool jäävad sellesse telefoni. Need näitavad, kes kontrolli ' +
+              'allkirjastas – andmeid need ei kaitse. Seda teeb ainult telefoni enda lukustuskuva.',
+          fi: 'Palvelinta ei ole. Nimi ja salasana jäävät tähän puhelimeen. Ne kertovat, kuka on ' +
+              'allekirjoittanut tarkastuksen – ne eivät suojaa tietoja. Sen tekee vain puhelimen ' +
+              'oma lukitusnäyttö.' },
   wrongpw: { en: 'That password is wrong.', de: 'Das Passwort stimmt nicht.',
              nl: 'Dat wachtwoord klopt niet.', et: 'See parool on vale.',
              fi: 'Salasana on väärä.' },
