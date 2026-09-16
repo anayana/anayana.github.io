@@ -26,6 +26,7 @@ const ASSETS = [
   'guide.js?v=2.56.0',
   'docx.js?v=2.56.0',
   'reports.js?v=2.56.0',
+  'mapsheet.js?v=2.56.0',
   'gate.js?v=2.56.0',
   'vendor/three.min.js?v=2.56.0',
   'manifest.webmanifest',

@@ -598,6 +598,27 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       </div>
       <p class="small">One HTML file with the trees in it – opens in any browser, can be
         mailed or put on a web server as it is.</p>
+
+      <h3>Map sheets to print</h3>
+      <div class="row"><label>Paper</label><select id="sheetPaper">
+        <option value="a4l">A4 landscape</option><option value="a4p">A4 portrait</option>
+        <option value="a3l">A3 landscape</option><option value="a3p">A3 portrait</option></select></div>
+      <div class="row"><label>Scale</label><select id="sheetScale">
+        <option value="0">As detailed as it fits</option>
+        <option value="1000">1:1000</option><option value="2000">1:2000</option>
+        <option value="5000">1:5000</option><option value="10000">1:10000</option></select></div>
+      <div class="row"><label>Tree numbers on the map</label>
+        <input type="checkbox" id="sheetLabels" checked></div>
+      <div id="sheetPlan"></div>
+      <div class="btnrow"><button class="p" id="sheetGo">Build the sheets</button></div>
+      <div class="small" id="sheetNote"></div>
+      <p class="small">The scale is chosen first and the area is cut into as many sheets as that
+        scale needs &ndash; a job squeezed onto one page is unreadable and no use to anybody in a
+        park. Every tile is written into the file, so the sheets print and mail without a signal.</p>
+      <p class="small">1:1000 is the largest scale offered because the map tiles stop at zoom 19:
+        below that the same pixels are only stretched, which is a bigger blur and not more
+        detail. The dots and the numbers are drawn by the printer, not by the tiles, so they stay
+        sharp at every scale.</p>
     </section>
 
     <section class="screen" id="sc-data">
@@ -1004,6 +1025,7 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <script src="guide.js?v=2.56.0"></script>
 <script src="docx.js?v=2.56.0"></script>
 <script src="reports.js?v=2.56.0"></script>
+<script src="mapsheet.js?v=2.56.0"></script>
 <script src="gate.js?v=2.56.0"></script>
 <script src="app.js?v=2.56.0"></script>
 </body>

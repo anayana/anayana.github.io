@@ -7703,7 +7703,8 @@ function showScreen(k) {
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
   if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); distDrawnT = 0; }   // sensors only on a user action
   if (k === 'guide') renderGuide();
-  if (k === 'rep' && typeof repPaint === 'function') repPaint();
+  if (k === 'rep') { if (typeof repPaint === 'function') repPaint();
+                     if (typeof sheetPaint === 'function') sheetPaint(); }
   if (k === 'data') { paintLang(); paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null);
     if (typeof wipePaint === 'function') wipePaint(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
@@ -9165,6 +9166,7 @@ step('markers', buildMarkers);
 step('buttons', wire);
 step('users', wireUsers);
 step('reports', wireReports);
+step('map sheets', wireSheets);
 step('OSM sign-in', () => { osmFinishLogin().then(done => { if (done) { paintOsm(); toast('Signed in to OpenStreetMap as ' + (osmCfg().user || 'you') + '.'); } }).catch(e => toast(e.message)); });
 step('camera file', wireFilePhoto);
 step('map', wireMap);
