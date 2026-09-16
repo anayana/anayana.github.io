@@ -417,8 +417,8 @@ html.day #langdlg{background:#fff;border-color:#c3ccc2}
 #gate[hidden]{display:none}
 html.day #gate{background:#f2f4f0}
 #gate .gwrap{width:100%;max-width:440px;padding:0 0 24px}
-#gate .gart{display:block;width:100%;height:auto;border-bottom:1px solid #26332b}
-#gate .ghead{padding:14px 16px 0}
+#gate .gart{display:block;width:76px;height:76px;margin:34px auto 0}
+#gate .ghead{padding:14px 16px 0;text-align:center}
 #gate .ghead h1{margin:0;font-size:25px;letter-spacing:.2px}
 #gate .gsub{color:#9db3a6;font-size:13px;margin-top:3px}
 html.day #gate .gsub{color:#4a5c50}
@@ -935,76 +935,10 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
      ======================================================================= -->
 <div id="gate" hidden>
   <div class="gwrap">
-    <svg class="gart" viewBox="0 0 400 250" role="img" aria-label="A drawing of a city street with a tree being inspected">
-      <defs>
-        <linearGradient id="gsky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#16324a"/><stop offset="0.6" stop-color="#2b5a5a"/>
-          <stop offset="1" stop-color="#3d6b52"/>
-        </linearGradient>
-        <linearGradient id="gcrown" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#5fa87a"/><stop offset="1" stop-color="#2b6144"/>
-        </linearGradient>
-        <linearGradient id="gcrown2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#84c596"/><stop offset="1" stop-color="#357049"/>
-        </linearGradient>
-      </defs>
-      <rect width="400" height="250" fill="url(#gsky)"/>
-      <circle cx="58" cy="40" r="17" fill="#e8c15a" opacity="0.45"/>
-      <!-- the town behind, standing on the pavement -->
-      <g fill="#14273a" opacity="0.9">
-        <rect x="0" y="96" width="44" height="86"/><rect x="48" y="72" width="32" height="110"/>
-        <rect x="84" y="104" width="50" height="78"/><rect x="140" y="86" width="28" height="96"/>
-        <rect x="174" y="110" width="40" height="72"/><rect x="352" y="80" width="48" height="102"/>
-      </g>
-      <g fill="#e8c15a" opacity="0.45">
-        <rect x="8" y="106" width="5" height="7"/><rect x="22" y="126" width="5" height="7"/>
-        <rect x="56" y="84" width="5" height="7"/><rect x="66" y="104" width="5" height="7"/>
-        <rect x="94" y="116" width="5" height="7"/><rect x="116" y="138" width="5" height="7"/>
-        <rect x="148" y="98" width="5" height="7"/><rect x="184" y="122" width="5" height="7"/>
-        <rect x="364" y="92" width="5" height="7"/><rect x="380" y="118" width="5" height="7"/>
-      </g>
-      <!-- pavement, kerb, road -->
-      <rect x="0" y="182" width="400" height="26" fill="#243128"/>
-      <rect x="0" y="182" width="400" height="2" fill="#33453a"/>
-      <rect x="0" y="208" width="400" height="42" fill="#18221d"/>
-      <rect x="0" y="208" width="400" height="2" fill="#2d4034"/>
-      <g stroke="#2d4034" stroke-width="2.5" stroke-dasharray="16 14"><path d="M0 232 H400"/></g>
-      <!-- the street trees, standing on the pavement -->
-      <g>
-        <rect x="46" y="152" width="5" height="32" fill="#5b4736"/>
-        <ellipse cx="48" cy="142" rx="24" ry="20" fill="url(#gcrown)"/>
-        <rect x="128" y="146" width="6" height="38" fill="#5b4736"/>
-        <ellipse cx="131" cy="134" rx="29" ry="24" fill="url(#gcrown2)"/>
-        <rect x="212" y="154" width="5" height="30" fill="#5b4736"/>
-        <ellipse cx="214" cy="145" rx="22" ry="18" fill="url(#gcrown)"/>
-      </g>
-      <!-- the tree under inspection, and what the eye goes to on it -->
-      <g>
-        <path d="M312 186 V124" stroke="#6b5440" stroke-width="14" stroke-linecap="round"/>
-        <path d="M312 138 q-2 -14 -16 -22 M312 146 q4 -13 18 -19" stroke="#6b5440" stroke-width="7"
-              fill="none" stroke-linecap="round"/>
-        <ellipse cx="312" cy="104" rx="52" ry="38" fill="url(#gcrown2)"/>
-        <ellipse cx="288" cy="116" rx="20" ry="14" fill="#2b6144" opacity="0.55"/>
-        <!-- the root plate: where a Regelkontrolle starts -->
-        <path d="M294 186 q18 -11 36 0" stroke="#7d6349" stroke-width="7" fill="none" stroke-linecap="round"/>
-        <!-- a cavity on the stem, ringed -->
-        <ellipse cx="310" cy="164" rx="4" ry="6.5" fill="#150e09"/>
-        <circle cx="310" cy="164" r="12" fill="none" stroke="#e2704a" stroke-width="1.8"/>
-        <!-- 1.3 m, where the diameter is taken -->
-        <g stroke="#e8c15a" stroke-width="1.3" opacity="0.95">
-          <path d="M282 150 H344" stroke-dasharray="5 5"/>
-          <path d="M282 145 v10"/>
-        </g>
-        <text x="246" y="154" fill="#e8c15a" font-size="11" font-family="system-ui,sans-serif">1.3 m</text>
-      </g>
-      <!-- the inspector: on foot, from the ground, phone up -->
-      <g stroke="#e6efe8" fill="none" stroke-width="4.5" stroke-linecap="round">
-        <path d="M150 182 v-24"/>
-        <path d="M150 198 l-8 -16 M150 198 l8 -16"/>
-        <path d="M150 166 l16 -12"/>
-      </g>
-      <circle cx="150" cy="150" r="8" fill="#e6efe8"/>
-      <rect x="163" y="144" width="11" height="17" rx="2.5" fill="#8fd6a8"/>
+    <svg class="gart" viewBox="0 0 96 96" role="img" aria-label="A tree">
+      <circle cx="48" cy="34" r="25" fill="#3f8a60"/>
+      <path d="M48 84 V42" stroke="#3f8a60" stroke-width="8" stroke-linecap="round"/>
+      <path d="M36 88 H60" stroke="#3f8a60" stroke-width="5" stroke-linecap="round" opacity="0.45"/>
     </svg>
 
     <div class="ghead">
@@ -1034,21 +968,21 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.54.0"></script>
-<script src="data.js?v=2.54.0"></script>
-<script src="norms.js?v=2.54.0"></script>
-<script src="i18n.js?v=2.54.0"></script>
-<script src="mapper.js?v=2.54.0"></script>
-<script src="users.js?v=2.54.0"></script>
-<script src="voice.js?v=2.54.0"></script>
-<script src="plantnet.js?v=2.54.0"></script>
-<script src="osm.js?v=2.54.0"></script>
-<script src="research.js?v=2.54.0"></script>
-<script src="marks.js?v=2.54.0"></script>
-<script src="pins.js?v=2.54.0"></script>
-<script src="ghost.js?v=2.54.0"></script>
-<script src="guide.js?v=2.54.0"></script>
-<script src="gate.js?v=2.54.0"></script>
-<script src="app.js?v=2.54.0"></script>
+<script src="vendor/three.min.js?v=2.54.1"></script>
+<script src="data.js?v=2.54.1"></script>
+<script src="norms.js?v=2.54.1"></script>
+<script src="i18n.js?v=2.54.1"></script>
+<script src="mapper.js?v=2.54.1"></script>
+<script src="users.js?v=2.54.1"></script>
+<script src="voice.js?v=2.54.1"></script>
+<script src="plantnet.js?v=2.54.1"></script>
+<script src="osm.js?v=2.54.1"></script>
+<script src="research.js?v=2.54.1"></script>
+<script src="marks.js?v=2.54.1"></script>
+<script src="pins.js?v=2.54.1"></script>
+<script src="ghost.js?v=2.54.1"></script>
+<script src="guide.js?v=2.54.1"></script>
+<script src="gate.js?v=2.54.1"></script>
+<script src="app.js?v=2.54.1"></script>
 </body>
 </html>
