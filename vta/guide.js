@@ -7,18 +7,41 @@
    person standing under the tree, in the order they do it, and which button
    in this app answers which part of it.
 
-   Two languages, because the guideline is German and the app is not. Nothing
-   here is a quotation: the FLL guidelines are a purchased document and stay
-   that way - this is the procedure described in plain words, the way a
+   The language picker offers every language the app speaks, German and
+   English first because those two are the ones this text is written in. The
+   others are listed honestly: pick Eesti and the page says, in Estonian, that
+   the method text has not been translated and is being shown in English.
+   Machine-inventing a safety procedure in a language nobody here has checked
+   is not a translation, it is a liability.
+
+   Nothing here is a quotation: the FLL guidelines are a purchased document and
+   stay that way - this is the procedure described in plain words, the way a
    colleague explains it on the way to the first tree. It is a teaching aid,
    not a legal text, and it does not make anybody a qualified inspector.
    ========================================================================= */
 
 const K_GUIDE = 'vta_guide_v1';
-function guideLang() {
+/* Everything the app speaks, the two the guide is written in first. */
+const GUIDE_LANGS = ['de', 'en', 'nl', 'et', 'fi'];
+const GUIDE_WRITTEN = ['de', 'en'];
+/* Said in the language that was asked for, because a person who picks Suomi
+   is telling you that is the language they read. */
+const GUIDE_UNWRITTEN = {
+  nl: 'De methodetekst is nog niet vertaald – hier in het Engels.',
+  et: 'Metoodika tekst ei ole veel tõlgitud – kuvatakse inglise keeles.',
+  fi: 'Menetelmän tekstiä ei ole vielä käännetty – näytetään englanniksi.'
+};
+/* What the reader picked ... */
+function guidePick() {
   const g = prefs().guideLang;
-  if (g === 'de' || g === 'en') return g;
-  return uiLang() === 'de' ? 'de' : 'en';
+  if (GUIDE_LANGS.indexOf(g) >= 0) return g;
+  const u = uiLang();
+  return GUIDE_LANGS.indexOf(u) >= 0 ? u : 'en';
+}
+/* ... and what there is to show them. */
+function guideLang() {
+  const g = guidePick();
+  return GUIDE_WRITTEN.indexOf(g) >= 0 ? g : 'en';
 }
 function gt(pair) { return pair[guideLang()] || pair.en; }
 function guideDone() { try { return JSON.parse(lsGet(K_GUIDE)) || {}; } catch (e) { return {}; } }
@@ -418,14 +441,27 @@ function renderGuide() {
     : 'A Regelkontrolle after the FLL guidelines, step by step – and which button of this app answers which step.';
   box.appendChild(head);
 
+  const pick = guidePick();
   const sw = document.createElement('div'); sw.className = 'btnrow';
-  [['de', 'Deutsch'], ['en', 'English']].forEach(pair => {
-    const b = document.createElement('button');
-    b.textContent = pair[1]; if (pair[0] === L) b.className = 'p';
-    b.onclick = () => { setPref('guideLang', pair[0]); renderGuide(); };
-    sw.appendChild(b);
+  const sel = document.createElement('select'); sel.id = 'guideLangSel';
+  sel.setAttribute('aria-label', 'Language of the method text');
+  GUIDE_LANGS.forEach(code => {
+    const o = document.createElement('option');
+    o.value = code;
+    o.textContent = (LANG_NAMES[code] || code.toUpperCase()) +
+                    (GUIDE_WRITTEN.indexOf(code) >= 0 ? '' : ' · EN');
+    if (code === pick) o.selected = true;
+    sel.appendChild(o);
   });
+  sel.onchange = () => { setPref('guideLang', sel.value); renderGuide(); };
+  sw.appendChild(sel);
   box.appendChild(sw);
+
+  if (GUIDE_WRITTEN.indexOf(pick) < 0) {
+    const w = document.createElement('div'); w.className = 'small wa'; w.id = 'guideUntranslated';
+    w.textContent = GUIDE_UNWRITTEN[pick] || 'Not translated yet – shown in English.';
+    box.appendChild(w);
+  }
 
   const n = GUIDE.filter(s => done[s.id]).length;
   const prog = document.createElement('div'); prog.className = 'small'; prog.id = 'guideProg';

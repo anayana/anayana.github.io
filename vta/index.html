@@ -410,6 +410,9 @@ html.day #langdlg{background:#fff;border-color:#c3ccc2}
   pointer-events:none;
   border:1px solid #3f8a60;border-radius:10px;padding:9px 14px;font-size:13.5px;display:none;max-width:88%}
 .small{font-size:12px;color:#7f9488}
+#guideLangSel{background:#131c17;color:#e7f0ea;border:1px solid #2f6b4a;border-radius:9px;padding:7px 9px;font-size:14px;min-width:150px}
+html.day #guideLangSel{background:#fff;color:#16241c;border-color:#8fbfa2}
+#guideUntranslated{margin:2px 0 8px}
 details.guide{background:#131c17;border:1px solid #26332b;border-radius:12px;padding:10px 12px;margin:0 0 8px}
 details.guide.did{border-color:#2f6b4a}
 details.guide summary{cursor:pointer;font-size:14.5px}
@@ -436,8 +439,11 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
   <div id="screens">
 
     <section class="screen on" id="sc-start">
+      <h2>AR survey</h2>
+      <p class="lead">The camera view: markers on the trees, the diameter off the trunk,
+        defects pinned where they are.</p>
       <div class="btnrow">
-        <button class="p" id="bxr">Start</button>
+        <button class="p" id="bxr">Start AR</button>
       </div>
       <div class="btnrow">
         <button class="sm" id="bcam">Camera</button>
@@ -486,7 +492,7 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
     </section>
 
     <section class="screen" id="sc-guide">
-      <h2>How a tree inspection works</h2>
+      <h2>The method</h2>
       <div id="guideBox"></div>
     </section>
 
@@ -832,11 +838,11 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
     </section>
   </div>
   <div id="tabbar">
-    <button class="on" data-sc="start"><span class="ic">◎</span>Start</button>
+    <button class="on" data-sc="start"><span class="ic">◎</span>AR</button>
     <button data-sc="list"><span class="ic">☰</span>Trees</button>
     <button data-sc="map"><span class="ic">◍</span>Map</button>
     <button data-sc="data"><span class="ic">⇪</span>Data</button>
-    <button data-sc="guide"><span class="ic">?</span>Guide</button>
+    <button data-sc="guide"><span class="ic">✓</span>Method</button>
   </div>
   <div class="panel" id="panelHome"></div>
 </div>
@@ -899,20 +905,20 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.52.0"></script>
-<script src="data.js?v=2.52.0"></script>
-<script src="norms.js?v=2.52.0"></script>
-<script src="i18n.js?v=2.52.0"></script>
-<script src="mapper.js?v=2.52.0"></script>
-<script src="users.js?v=2.52.0"></script>
-<script src="voice.js?v=2.52.0"></script>
-<script src="plantnet.js?v=2.52.0"></script>
-<script src="osm.js?v=2.52.0"></script>
-<script src="research.js?v=2.52.0"></script>
-<script src="marks.js?v=2.52.0"></script>
-<script src="pins.js?v=2.52.0"></script>
-<script src="ghost.js?v=2.52.0"></script>
-<script src="guide.js?v=2.52.0"></script>
-<script src="app.js?v=2.52.0"></script>
+<script src="vendor/three.min.js?v=2.53.0"></script>
+<script src="data.js?v=2.53.0"></script>
+<script src="norms.js?v=2.53.0"></script>
+<script src="i18n.js?v=2.53.0"></script>
+<script src="mapper.js?v=2.53.0"></script>
+<script src="users.js?v=2.53.0"></script>
+<script src="voice.js?v=2.53.0"></script>
+<script src="plantnet.js?v=2.53.0"></script>
+<script src="osm.js?v=2.53.0"></script>
+<script src="research.js?v=2.53.0"></script>
+<script src="marks.js?v=2.53.0"></script>
+<script src="pins.js?v=2.53.0"></script>
+<script src="ghost.js?v=2.53.0"></script>
+<script src="guide.js?v=2.53.0"></script>
+<script src="app.js?v=2.53.0"></script>
 </body>
 </html>
