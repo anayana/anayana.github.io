@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.57.0';
+const APP_VERSION = '2.57.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5521,7 +5521,12 @@ function addBerlin(feats) {
    looked at once is there again without a network. */
 
 const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const MAPZ = { min: 12, max: 19 };
+/* How far out the map goes. It used to stop at twelve, which is a city and no
+   further - fine for one round, useless for "where are these trees at all"
+   when a register has just been imported from the other end of the country.
+   Three is the whole world; the tile grid already wraps and clips, so nothing
+   else had to change. */
+const MAPZ = { min: 3, max: 19 };
 let mapView = null, mapTiles = {}, mapDrag = null, mapPinch = null;
 /* Where the map view came from: a fallback centre is not a place anybody
    chose, and nothing that matters may be built on one silently. */
@@ -5550,7 +5555,7 @@ function refreshDistances(force) {
   const moved = distDrawnAt ? distBear(lastFix.lat, lastFix.lon, distDrawnAt.lat, distDrawnAt.lon).d : 1e9;
   if (!force && moved < 1 && now - distDrawnT < 5000) return;
   distDrawnAt = { lat: lastFix.lat, lon: lastFix.lon }; distDrawnT = now;
-  if (mapOn()) { buildNavList(); mapModeLine(); }
+  if (mapOn()) { buildNavList(); mapModeLine(); paintHome(); }
   if (listOn()) { renderList(); renderWork(); }
 }
 
@@ -5599,6 +5604,13 @@ function mapFit(i) {
 }
 /* Said out loud under the map, because a map that has stopped following you
    looks exactly like a map that is broken. */
+/* The symbol on the map itself: yellow while the map has been dragged away
+   from you, plain while it is following, faded with no fix to go back to. */
+function paintHome() {
+  const b = $('mHome'); if (!b) return;
+  b.classList.toggle('off', mapMode !== 'me');
+  b.classList.toggle('no', !lastFix);
+}
 function mapModeLine() {
   const el = $('mapMode'); if (!el) return;
   const t = navTarget != null && CAT.features[navTarget] ? tid(navTarget) : null;
@@ -5704,7 +5716,7 @@ function mapMoveBy(dx, dy) {
   const v = mapCentre();
   const cx = lon2px(v.lon, v.z) - dx, cy = lat2px(v.lat, v.z) - dy;
   v.lon = px2lon(cx, v.z); v.lat = px2lat(cy, v.z);
-  drawMap();
+  drawMap(); paintHome();
 }
 function mapZoom(dz) {
   const v = mapCentre();
@@ -5800,10 +5812,12 @@ function wireMap() {
     runBerlin({ name: 'the area on the map', lat: v.lat, lon: v.lon, r: 500 });
   };
 
-  $('mMe').onclick = () => {
+  const backToMe = () => {
     if (!mapToMe(true)) return toast('No GPS fix yet – the map centres itself as soon as there is one.');
-    mapModeLine();
+    mapModeLine(); paintHome();
   };
+  $('mMe').onclick = backToMe;
+  $('mHome').onclick = backToMe;
   $('mCache').onclick = async () => {
     const v = mapCentre(), box = $('mapBox');
     const w = box.clientWidth, h = box.clientHeight;
@@ -7710,7 +7724,7 @@ function showScreen(k) {
   if (k === 'map') {
     startGPS(); startOrient();
     mapMode = 'me'; if (!mapToMe(true)) drawMap();
-    syncMapSel(); buildNavList(); renderNav(); mapModeLine();
+    syncMapSel(); buildNavList(); renderNav(); mapModeLine(); paintHome();
   }
 }
 function renderStats() {

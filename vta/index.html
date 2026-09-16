@@ -108,6 +108,10 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
   color:#fff;text-shadow:0 0 4px #000;pointer-events:none}
 #mapZ{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:5px}
 #mapZ button{width:34px;height:34px;padding:0;font-size:17px}
+/* the way back to yourself, lit up exactly when the map is not following you */
+#mHome{margin-top:6px;font-size:19px;line-height:1}
+#mHome.off{border-color:#e8c15a;color:#e8c15a}
+#mHome.no{opacity:.45}
 #mapAttr{position:absolute;right:0;bottom:0;background:rgba(10,16,13,.72);font-size:10px;
   padding:2px 6px;border-radius:6px 0 0 0}
 #mapAttr a{color:#8fd6a8}
@@ -545,7 +549,9 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       <div id="mapWrap">
         <div id="mapBox"><div id="mapTiles"></div><div id="mapMarks"></div></div>
         <div id="mapCross">✛</div>
-        <div id="mapZ"><button id="mZin">+</button><button id="mZout">−</button></div>
+        <div id="mapZ"><button id="mZin" title="Zoom in">+</button>
+          <button id="mZout" title="Zoom out">−</button>
+          <button id="mHome" title="Back to where I am">⌖</button></div>
         <div id="mapAttr">© <a href="https://www.openstreetmap.org/copyright"
           target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>
@@ -1037,25 +1043,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.57.0"></script>
-<script src="data.js?v=2.57.0"></script>
-<script src="norms.js?v=2.57.0"></script>
-<script src="i18n.js?v=2.57.0"></script>
-<script src="mapper.js?v=2.57.0"></script>
-<script src="users.js?v=2.57.0"></script>
-<script src="voice.js?v=2.57.0"></script>
-<script src="plantnet.js?v=2.57.0"></script>
-<script src="osm.js?v=2.57.0"></script>
-<script src="research.js?v=2.57.0"></script>
-<script src="marks.js?v=2.57.0"></script>
-<script src="pins.js?v=2.57.0"></script>
-<script src="ghost.js?v=2.57.0"></script>
-<script src="guide.js?v=2.57.0"></script>
-<script src="docx.js?v=2.57.0"></script>
-<script src="reports.js?v=2.57.0"></script>
-<script src="mapsheet.js?v=2.57.0"></script>
-<script src="sign.js?v=2.57.0"></script>
-<script src="gate.js?v=2.57.0"></script>
-<script src="app.js?v=2.57.0"></script>
+<script src="vendor/three.min.js?v=2.57.1"></script>
+<script src="data.js?v=2.57.1"></script>
+<script src="norms.js?v=2.57.1"></script>
+<script src="i18n.js?v=2.57.1"></script>
+<script src="mapper.js?v=2.57.1"></script>
+<script src="users.js?v=2.57.1"></script>
+<script src="voice.js?v=2.57.1"></script>
+<script src="plantnet.js?v=2.57.1"></script>
+<script src="osm.js?v=2.57.1"></script>
+<script src="research.js?v=2.57.1"></script>
+<script src="marks.js?v=2.57.1"></script>
+<script src="pins.js?v=2.57.1"></script>
+<script src="ghost.js?v=2.57.1"></script>
+<script src="guide.js?v=2.57.1"></script>
+<script src="docx.js?v=2.57.1"></script>
+<script src="reports.js?v=2.57.1"></script>
+<script src="mapsheet.js?v=2.57.1"></script>
+<script src="sign.js?v=2.57.1"></script>
+<script src="gate.js?v=2.57.1"></script>
+<script src="app.js?v=2.57.1"></script>
 </body>
 </html>
