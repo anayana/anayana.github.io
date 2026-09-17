@@ -14,6 +14,7 @@ project:
     - KieferMistel.html
     - vta/
     - vta-repair.html      # outside vta/, so no worker of the app can intercept it
+    - baum/                # a clean copy of the app at a path with no history
     - companions/
 
 website:

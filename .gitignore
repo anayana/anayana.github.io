@@ -12,5 +12,6 @@
 
 **/*.quarto_ipynb
 !vta/*.html
+!baum/*.html
 !vta-repair.html
 !companions/index.html

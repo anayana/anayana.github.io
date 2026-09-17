@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d1310">
+<meta name="mobile-web-app-capable" content="yes">
+<title>VTA Field – Tree Inspection in AR</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:#0d1310;color:#e8ece9;overscroll-behavior:none}
+body{overflow:hidden}
+#video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:0}
+canvas.ar{position:fixed;inset:0;z-index:1;display:none}
+button,select,input,textarea{font:inherit}
+button{background:#1b2620;color:#dff0e6;border:1px solid #3a5245;border-radius:10px;
+  padding:9px 12px;cursor:pointer;touch-action:manipulation}
+button:active{background:#2b3d33}
+button.p{background:#2f6b4a;border-color:#3f8a60;color:#fff}
+button.x{background:#5a2020;border-color:#7d3030;color:#ffdede}
+button.sm{padding:5px 9px;font-size:13px;border-radius:8px}
+button[disabled]{opacity:.45}
+a{color:#7fbf96}
+
+/* ---------- screens (non-AR) ---------- */
+#app{position:fixed;inset:0;z-index:3;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#app.hidden{display:none}
+#topbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #223027;background:#101815}
+#topbar h1{font-size:16px;margin:0;flex:1;font-weight:600}
+#topbar .badge{font-size:11px;color:#8fa697;border:1px solid #2b3a31;border-radius:20px;padding:2px 8px}
+#screens{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.screen{display:none;padding:14px 12px 40px}
+.screen.on{display:block}
+#tabbar{display:flex;border-top:1px solid #223027;background:#101815}
+#tabbar button{flex:1;border:0;border-radius:0;background:none;color:#8fa697;padding:9px 4px;font-size:12px}
+#tabbar button.on{color:#7fbf96;box-shadow:inset 0 2px 0 #3f8a60;background:#141d18}
+#tabbar .ic{display:block;font-size:17px;line-height:1.2}
+
+h2{font-size:17px;margin:0 0 6px}
+h3{margin:16px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#7fbf96}
+p.lead{color:#9fb3a6;margin:0 0 14px}
+.card{background:#131c17;border:1px solid #26332b;border-radius:12px;padding:12px;margin:0 0 10px}
+.note{background:#141b17;border:1px solid #26332b;border-left:3px solid #3f8a60;border-radius:8px;
+  padding:10px 12px;margin:12px 0;font-size:13px;color:#b9c9be}
+.note.warn{border-left-color:#e8c15a}
+.chk{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #1b2420;font-size:13px}
+.chk .i{width:18px;flex:0 0 18px;text-align:center}
+.ok{color:#6fd08c}.no{color:#e2704a}.wa{color:#e8c15a}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.btnrow button{flex:1 1 auto;min-width:44%}
+#msg{margin-top:10px;font-size:13px;color:#e8c15a;min-height:18px}
+
+/* ---------- tree list ---------- */
+.tree{display:flex;gap:10px;align-items:center;background:#131c17;border:1px solid #26332b;
+  border-radius:12px;padding:10px 12px;margin-bottom:8px;width:100%;text-align:left;color:inherit}
+.tree .dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px}
+.tree .m{flex:1;min-width:0}
+.tree .t1{font-weight:600;font-size:15px}
+.tree .t2{color:#93a89b;font-size:12.5px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree .t3{color:#7f9488;font-size:12px}
+.tree .nav{text-align:right;flex:0 0 66px}
+.treerow{display:flex;gap:6px;align-items:stretch;margin-bottom:8px}
+.treerow .tree{flex:1;min-width:0;margin-bottom:0}
+.treerow .arbtn{flex:0 0 auto;padding:8px 12px;font-size:13px}
+.tree .arr{font-size:22px;line-height:1;display:block}
+.tree .dist{font-size:12px;color:#9fb3a6;font-variant-numeric:tabular-nums}
+
+/* ---------- daylight ----------
+   Not a theme, a legibility mode: the surfaces go light and the type goes dark
+   so the screen can be read in open sun. The level colours stay as they are -
+   they mean something. */
+html.day body{background:#f3f4f1;color:#15201a}
+html.day #topbar,html.day #tabbar{background:#e7eae4;border-color:#c3ccc2}
+html.day .tree,html.day button.work,html.day .funrow,html.day #workWrap,
+html.day .panel,html.day .bar,html.day #chooser,html.day #mmenu,html.day #refmenu,
+html.day #niaBox{background:#fff;border-color:#c3ccc2;color:#15201a}
+html.day button{background:#eceee9;border-color:#c3ccc2;color:#15201a}
+html.day button.p{background:#2f7a4d;border-color:#2f7a4d;color:#fff}
+html.day button.x{background:#a33a2c;border-color:#a33a2c;color:#fff}
+html.day .row input,html.day .row select,html.day .row textarea{background:#fff;
+  border-color:#c3ccc2;color:#15201a}
+html.day .small,html.day .row label,html.day .kv span:first-child{color:#4a5a50}
+html.day .row,html.day .kv,html.day .sym label,html.day .trashrow{border-color:#dde2da}
+html.day #mapBox{background:#e7eae4}
+html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:#6b4c12}
+
+/* ---------- map ---------- */
+#mapWrap{position:relative;border:1px solid #2b3a31;border-radius:12px;overflow:hidden;margin-bottom:6px}
+#mapBox{position:relative;height:52vh;min-height:260px;background:#16211b;overflow:hidden;
+  touch-action:none;cursor:grab}
+#mapTiles img{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none}
+#mapMarks{position:absolute;inset:0;pointer-events:none}
+#mapMarks .mk{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:50%;
+  border:2px solid #0b110e}
+#mapMarks .mk.mkT{background:#54c07a}
+#mapMarks .mk.mkMe{background:#5aa9ff;box-shadow:0 0 0 5px rgba(90,169,255,.25)}
+#mapMarks .mk.sel{background:#ffe083;width:15px;height:15px;margin:-8px 0 0 -8px}
+#mapMarks .acc{position:absolute;border:1px solid rgba(90,169,255,.55);
+  background:rgba(90,169,255,.13);border-radius:50%;box-sizing:border-box}
+#mapMarks .mk span{position:absolute;left:14px;top:-4px;font-size:11px;white-space:nowrap;
+  color:#eaf3ee;text-shadow:0 0 3px #0b110e,0 0 3px #0b110e,0 0 3px #0b110e}
+#mapCross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:26px;
+  color:#fff;text-shadow:0 0 4px #000;pointer-events:none}
+#mapZ{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:5px}
+#mapZ button{width:34px;height:34px;padding:0;font-size:17px}
+/* the way back to yourself, lit up exactly when the map is not following you */
+#mHome{margin-top:6px;font-size:19px;line-height:1}
+#mHome.off{border-color:#e8c15a;color:#e8c15a}
+#mHome.no{opacity:.45}
+#mapAttr{position:absolute;right:0;bottom:0;background:rgba(10,16,13,.72);font-size:10px;
+  padding:2px 6px;border-radius:6px 0 0 0}
+#mapAttr a{color:#8fd6a8}
+
+/* ---------- AR overlay ---------- */
+/* One column, three zones: what sits at the top, the camera view, and the
+   controls at the bottom. Nothing is positioned over anything else - the
+   stack lays itself out, so a menu pushes the bar down instead of covering it. */
+#xrui{position:fixed;inset:0;z-index:4;display:none;pointer-events:none}
+#xrui.on{display:flex;flex-direction:column}
+#xrui>*{pointer-events:auto}
+#xrtop,#xrbot{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;
+  pointer-events:none;min-height:0}
+#xrtop>*,#xrbot>*{pointer-events:auto}
+#xrtop{padding:max(env(safe-area-inset-top),28px) 8px 0}
+#xrmid{flex:1 1 auto;min-height:24px;pointer-events:none}
+/* clear of the browser's own full-screen card, and of the on-screen keyboard */
+#xrbot{padding:0 8px calc(72px + env(safe-area-inset-bottom) + var(--kb,0px));
+  max-height:82%;overflow:hidden}
+.bar{background:rgba(12,18,15,.82);backdrop-filter:blur(8px);
+  border:1px solid #2b3a31;border-radius:12px;padding:7px 10px}
+#hud{font-size:12px;display:flex;gap:9px;flex-wrap:wrap;
+  align-items:center;padding:5px 10px}
+#hud b{color:#8fd6a8;font-weight:600}
+#hMore{display:flex;gap:9px;flex-wrap:wrap}
+#hFit.ok{color:#8fd6a8;font-weight:600}
+#hFit.warn{color:#ffcf8f;font-weight:600}
+#hDepth.warn{color:#ffcf8f}
+#hView.ok{color:#8fd6a8;font-weight:600}
+#hView.warn{color:#ffcf8f}
+/* the same map, small, on a tree's own page */
+#tmWrap{position:relative;height:230px;border:1px solid #2b3a31;border-radius:12px;
+  overflow:hidden;background:#16211b;margin-bottom:8px}
+#tmTiles img{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none}
+#tmMarks{position:absolute;inset:0;pointer-events:none}
+#tmMarks .mk{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:50%;
+  border:2px solid #0b110e}
+#tmMarks .mk.t{background:#54c07a}
+#tmMarks .mk.me{background:#5aa9ff;box-shadow:0 0 0 5px rgba(90,169,255,.25)}
+#tmMarks .mk.go{background:#ffe083;width:16px;height:16px;margin:-9px 0 0 -9px}
+#tmMarks .mk span{position:absolute;left:13px;top:-4px;font-size:11px;white-space:nowrap;
+  color:#eaf3ee;text-shadow:0 0 3px #0b110e,0 0 3px #0b110e,0 0 3px #0b110e}
+
+/* the tree being walked to, on the map */
+#mNavList{margin:4px 0}
+#mNavInfo{min-height:18px;padding:2px 0}
+#mNavInfo .navarw{display:inline-block;font-size:19px;line-height:1;color:#8fd6a8;
+  transform-origin:50% 50%}
+#mNavList button.numrow{margin-top:5px}
+#mapMarks .mk.mkGo{background:#ffe083;width:16px;height:16px;margin:-9px 0 0 -9px}
+#mapMarks svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#hwarn{display:none;font-size:12px;
+  color:#ffcf8f;align-items:center;gap:8px;padding:6px 8px 6px 10px}
+#hwarn.on{display:flex}
+#hwarn>span{flex:1}
+#hwarn button{padding:2px 8px;font-size:13px}
+/* Everything on the bar, all of it, all the time. Two rows on a phone is a
+   better price than a button nobody can find. */
+#ctl{display:flex;flex-wrap:wrap;gap:5px;padding:7px;flex:0 0 auto}
+#ctl button{font-size:12.5px;padding:6px 9px;white-space:nowrap;flex:0 0 auto}
+#chooser,#mmenu,#refmenu,#nummenu,#pickmenu,#toolmenu{background:rgba(10,16,13,.96);
+  border:1px solid #34483c;border-radius:14px;padding:12px;display:none;
+  min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+#chooser .btnrow button,#mmenu .btnrow button,#refmenu .btnrow button{min-width:30%}
+#nummenu{display:none}
+button.numrow{display:flex;gap:8px;align-items:center;justify-content:space-between;width:100%;
+  text-align:left;background:#131c17;border:1px solid #26332b;border-radius:10px;
+  padding:8px 10px;margin-top:6px;color:inherit}
+button.numrow.ex{border-color:#8fd6a8}
+.numline{display:flex;gap:6px;align-items:stretch;margin-top:5px}
+.numline button.numrow{flex:1;min-width:0;margin-top:0}
+.numline button.here{flex:0 0 auto;white-space:nowrap}
+button.numrow .dim{color:#8ea396}
+.refrow{display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #223027}
+.refrow .nm{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.refrow.has .nm{color:#8fd6a8}
+.refrow button{font-size:12.5px;padding:6px 9px;flex:0 0 auto}
+#mbar{display:none;font-size:13px;max-height:34vh;overflow:auto}
+#mbar.on{display:block}
+#mbtn{display:flex;gap:6px;margin-top:8px}
+#mbtn button{flex:1;font-size:13px;padding:7px 10px}
+#edge{position:absolute;inset:0;pointer-events:none}
+.ea{position:absolute;transform:translate(-50%,-50%);display:none;align-items:center;gap:5px;
+  background:rgba(12,18,15,.82);border:1px solid #2b3a31;border-radius:20px;padding:3px 9px;
+  font-size:11px;white-space:nowrap;color:#cfe0d5}
+.ea.on{display:flex}
+.ea .g{display:inline-block;font-size:13px;line-height:1}
+
+/* ---------- panel / bottom sheet ---------- */
+.panel{position:fixed;left:0;right:0;bottom:0;top:0;z-index:6;background:#0c1310;display:none;
+  flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.panel.on{display:flex}
+.ph{padding:11px 14px;border-bottom:1px solid #26332b;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ph h2{margin:0;font-size:17px}
+.ph .sub{color:#93a89b;font-size:12px;margin-top:2px}
+.ptabs{display:flex;gap:4px;padding:8px 10px 0;border-bottom:1px solid #26332b}
+.ptabs button{flex:1;border:0;background:none;color:#8fa697;border-radius:9px 9px 0 0;padding:8px 4px;font-size:13px}
+.ptabs button.on{color:#dff0e6;background:#16211b;box-shadow:inset 0 -2px 0 #3f8a60}
+.pb{overflow:auto;padding:10px 14px 20px;flex:1;-webkit-overflow-scrolling:touch}
+.pf{padding:9px 12px;border-top:1px solid #26332b;display:flex;gap:6px}
+.pf button{flex:1}
+.pf button.x{flex:0 0 auto}
+.row{display:grid;grid-template-columns:45% 55%;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #1a231d}
+.row label{color:#9fb3a6;font-size:12.5px}
+.row input,.row select,.row textarea{width:100%;background:#131b17;border:1px solid #2f4137;color:#e8ece9;
+  border-radius:8px;padding:7px 8px;font-size:14px}
+.row textarea{min-height:54px;resize:vertical;grid-column:1/-1}
+.row.wide{grid-template-columns:1fr}
+.spbox{display:flex;flex-direction:column;gap:5px}
+.photos figure.bark{outline:2px solid #8fd6a8;outline-offset:1px;border-radius:10px}
+.funrow{display:flex;gap:8px;align-items:flex-start;background:#131c17;border:1px solid #26332b;
+  border-radius:10px;padding:8px 10px;margin-bottom:6px}
+.funrow>div:first-child{flex:1;min-width:0}
+.funrow .dim{color:#8ea396;margin-top:3px}
+.funrow button{flex:0 0 auto}
+.warnbox{background:#2a1f12;border:1px solid #5c4326;color:#ffcf8f;border-radius:10px;
+  padding:9px 11px;margin-bottom:8px;font-size:13px}
+.plaus{background:#2a1f12;border:1px solid #5c4326;color:#ffcf8f;border-radius:8px;
+  padding:6px 9px;margin:6px 0;font-size:12.5px;line-height:1.4}
+#hBatt.warn{color:#ff8f7a;font-weight:600}
+button.voice{margin-bottom:8px}
+button.voice.rec{background:#5a1f1f;border-color:#a33;color:#ffd9d4}
+.photos figure.audio{width:100%}
+.photos figure.audio audio{width:100%}
+.trashrow{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #223027;
+  font-size:13px}
+.trashrow span{flex:1;min-width:0}
+#workWrap{margin-bottom:10px;border:1px solid #26332b;border-radius:12px;background:#111a15}
+#workWrap summary{padding:10px 12px;cursor:pointer;font-weight:600}
+#workWrap summary .small{font-weight:400;color:#9fb3a6;margin-left:6px}
+#workBox{padding:0 8px 8px}
+button.work{display:flex;gap:10px;align-items:center;background:#131c17;border:1px solid #26332b;
+  border-radius:10px;padding:9px 11px;margin-bottom:6px;width:100%;text-align:left;color:inherit}
+button.work .urg{color:#ffb347}
+button.work .od{color:#ff8f7a}
+.funrow .reflink{flex:0 0 auto;display:inline-block;padding:6px 9px;border:1px solid #2f4137;
+  border-radius:8px;color:#8fd6a8;text-decoration:none;font-size:13px}
+.photos figure{position:relative}
+.photos .idbtn{position:absolute;left:4px;top:4px;font-size:11px;padding:3px 7px}
+.photos .niabtn{position:absolute;left:44px;top:4px;font-size:11px;padding:3px 7px}
+.photos .rptbtn{position:absolute;left:84px;top:4px;font-size:13px;padding:2px 8px;
+  background:#2f6b4a;border-color:#3f8a60;color:#fff}
+.photos .barkbtn{position:absolute;left:84px;top:4px;font-size:11px;padding:3px 7px}
+#niaBox{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;max-height:70vh;
+  overflow:auto;background:rgba(10,16,13,.98);border:1px solid #34483c;border-radius:14px;padding:12px}
+#niaBox>button{width:100%;margin-top:8px}
+.niarow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;
+  border-bottom:1px solid #223027}
+.niarow>div:first-child{flex:1 1 100%;min-width:0}
+.niarow .dim{color:#8ea396}
+.niabar{flex:1;height:6px;background:#1a231d;border-radius:3px;overflow:hidden}
+.niabar i{display:block;height:100%;background:#8fd6a8}
+.sym label{display:flex;gap:9px;align-items:flex-start;padding:6px 2px;border-bottom:1px solid #1a231d;font-size:13.5px}
+.sym input{width:20px;height:20px;flex:0 0 20px;accent-color:#3f8a60;margin:0}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.pad button{padding:11px 0}
+.verdict{border-radius:10px;padding:10px 12px;margin:4px 0 8px;font-size:13.5px;border:1px solid}
+.verdict b{display:block;font-size:15px;margin-bottom:3px}
+.verdict ul{margin:6px 0 0;padding-left:18px}
+.verdict li{margin:2px 0}
+table.hist{width:100%;border-collapse:collapse;font-size:12.5px}
+table.hist th,table.hist td{border-bottom:1px solid #1c2620;padding:5px 5px;text-align:left;vertical-align:top}
+table.hist th{color:#8fa697;font-weight:500}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:8px}
+.photos figure{margin:0;position:relative}
+.photos img{width:100%;height:96px;object-fit:cover;border-radius:9px;border:1px solid #2f4137;display:block}
+.photos .del{position:absolute;top:3px;right:3px;padding:2px 7px;font-size:12px;background:rgba(90,32,32,.9);border-color:#7d3030}
+.nbrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 0 8px}
+.nbrow>span.small{flex:0 0 auto}
+.nbrow button{font-size:12px;padding:4px 8px;border-radius:8px;white-space:nowrap}
+.photos figcaption{font-size:10.5px;color:#7f9488;margin-top:2px}
+.photos select.organ{width:100%;margin-top:3px;font-size:11px;padding:2px 4px;border-radius:7px;
+  background:#16211b;color:#cfe0d5;border:1px solid #2b3a31}
+html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2}
+#lightbox{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.95);display:none;align-items:center;justify-content:center}
+#lightbox img{max-width:100%;max-height:88%}
+#lightbox button{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px}
+#shotok{display:none;position:fixed;left:8px;right:8px;bottom:calc(88px + env(safe-area-inset-bottom));
+  z-index:11;gap:10px;align-items:center;background:rgba(10,22,15,.97);border:1px solid #3f8a60;
+  border-radius:12px;padding:8px;pointer-events:auto}
+#shotok.bad{border-color:#8a4040;background:rgba(28,12,12,.97)}
+#xrbot #shotok{position:static;left:auto;right:auto;bottom:auto;margin-bottom:6px}
+#shotok img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #2f4137;flex:0 0 auto}
+#shotok .tx{flex:1 1 auto;min-width:0}
+#shotok .tx b{display:block;font-size:14px}
+#shotok .bs{display:flex;gap:6px;flex:0 0 auto}
+#speechbar{display:none;align-items:center;gap:8px;background:rgba(12,18,15,.94);border:1px solid #3f8a60;
+  border-radius:12px;padding:7px 10px;font-size:12.5px;position:fixed;left:8px;right:8px;
+  bottom:calc(60px + env(safe-area-inset-bottom));z-index:11}
+#xrbot #speechbar{position:static;left:auto;right:auto;bottom:auto;margin-bottom:6px}
+#speechbar .dot{width:9px;height:9px;border-radius:50%;background:#e2704a;flex:0 0 auto;
+  animation:vpulse 1.2s ease-in-out infinite}
+#speechbar.bad .dot{background:#8b9a91;animation:none}
+#speechbar .t{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+#speechbar .t b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#speechbar .t i{font-style:normal;font-size:11.5px;color:#9fb3a6;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+#pinview{position:fixed;inset:0;z-index:23;background:rgba(6,10,8,.97);display:flex;
+  flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#pinview .wrap{position:relative;flex:1 1 auto;display:flex;align-items:center;
+  justify-content:center;min-height:0;overflow:hidden}
+#pinview img{max-width:100%;max-height:100%;object-fit:contain}
+#pinview .pins{position:absolute;inset:0;pointer-events:none}
+#pinview .pin{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;
+  width:30px;height:30px;border-radius:50%;border:3px solid #e2704a;background:rgba(10,16,13,.55);
+  font:600 13px/1 system-ui;display:flex;align-items:center;justify-content:center;padding:0}
+#pinview .bar{display:flex;gap:8px;align-items:center;padding:9px 10px;background:#0d1310;
+  border-top:1px solid #26332b;flex-wrap:wrap}
+#pinview .say{flex:1 1 130px;min-width:0;font-size:12.5px;color:#9fb3a6}
+#pinview .say.ok{color:#6fd08c}
+#pinview .say.wa{color:#e8c15a}
+#pinview .kinds{position:absolute;left:8px;right:8px;bottom:64px;background:rgba(10,16,13,.97);
+  border:1px solid #34483c;border-radius:14px;padding:10px;z-index:2}
+.pindots{position:absolute;inset:0;pointer-events:none}
+.pindots i{position:absolute;width:9px;height:9px;margin:-5px 0 0 -5px;border-radius:50%;
+  border:1.5px solid #0b110e}
+.photos figure{position:relative}
+#ghost .gpins{position:absolute;inset:0;pointer-events:none}
+#ghost .gpins i{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
+  border:3px solid #e2704a;box-shadow:0 0 0 2px rgba(0,0,0,.45)}
+#ghost{position:fixed;inset:0;z-index:12;pointer-events:none;display:flex;
+  flex-direction:column;justify-content:flex-end}
+#ghost img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  pointer-events:none;transition:opacity .12s linear}
+#ghost.on{box-shadow:inset 0 0 0 3px #6fd08c}
+#ghost .gbar{position:relative;pointer-events:auto;display:flex;align-items:center;gap:8px;
+  margin:0 8px calc(128px + env(safe-area-inset-bottom));padding:8px 10px;border-radius:12px;
+  background:rgba(10,16,13,.92);border:1px solid #2b3a31}
+#ghost .gs{flex:0 0 auto;font-size:12.5px;color:#e8c15a;min-width:96px}
+#ghost .gs.ok{color:#6fd08c;font-weight:600}
+#ghost .gs.wa{color:#e2704a}
+#ghost input[type=range]{flex:1 1 auto;min-width:60px}
+#arcard{display:none;background:rgba(10,16,13,.86);backdrop-filter:blur(8px);
+  border:1px solid #2b3a31;border-radius:12px;padding:8px 10px;font-size:12.5px;max-width:340px}
+#arcard .hd{display:flex;align-items:baseline;gap:7px}
+#arcard .hd b{font-size:15px}
+#arcard .hd .sp{flex:1 1 auto;min-width:0;color:#9fb3a6;font-style:italic;font-size:11.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#arcard .hd button{padding:1px 7px;font-size:12px}
+#arcard .kv{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-variant-numeric:tabular-nums}
+#arcard .kv i{color:#7f9488;font-style:normal;font-size:11px}
+#arcard .mk{margin-top:5px;color:#e8c15a}
+#arcard .wy{margin-top:5px;color:#b9c9be;font-size:11.5px}
+#arcard .dt{margin-top:4px;color:#7f9488;font-size:11px}
+.markrow{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #223027}
+.markrow.gone{opacity:.55}
+.markrow .dot{width:11px;height:11px;border-radius:50%;flex:0 0 11px;margin-top:4px}
+.markrow .m{flex:1 1 auto;min-width:0}
+.markrow .a{display:flex;gap:5px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end}
+html.day .markrow{border-color:#dde2da}
+#speechbar.ask{border-color:#e8c15a}
+#speechbar button{padding:4px 9px;font-size:12px}
+.row.asking{outline:2px solid #3f8a60;outline-offset:2px;border-radius:8px;background:#16221b}
+html.day .row.asking{background:#e6f0e9}
+@keyframes vpulse{0%,100%{opacity:.35}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){#speechbar .dot{animation:none}}
+#whodlg{position:fixed;inset:0;z-index:13;background:rgba(6,10,8,.97);display:none}
+#whodlg .inner{display:flex;flex-direction:column;height:100%}
+#whodlg .pb{flex:1 1 auto;overflow:auto;padding:8px 14px 24px}
+#whodlg button.numrow{margin-top:8px;padding:12px}
+#whodlg input{width:100%;margin-top:6px}
+#whoBtn{margin-left:auto;background:#1b2620;border:1px solid #3a5245;color:#dff0e6;
+  padding:3px 9px;border-radius:9px;font-size:12px}
+#langBtn{background:#1b2620;border:1px solid #3a5245;color:#dff0e6;padding:3px 9px;
+  border-radius:9px;font-size:12px;letter-spacing:.04em}
+html.day #langBtn{background:#eceee9;border-color:#c3ccc2;color:#15201a}
+#langdlg{position:fixed;left:10px;right:10px;top:54px;z-index:22;display:none;
+  background:rgba(10,16,13,.98);border:1px solid #34483c;border-radius:14px;padding:10px}
+html.day #langdlg{background:#fff;border-color:#c3ccc2}
+#langdlg button{width:100%;text-align:left;margin-top:5px}
+.readonly{opacity:.72}
+.readonly input,.readonly select,.readonly textarea{pointer-events:none;background:#101815}
+.rolebanner{background:#2a1a14;border:1px solid #7d4a30;border-radius:9px;padding:7px 10px;
+  font-size:12.5px;margin:6px 0}
+#usersBox .urow{display:flex;gap:8px;align-items:center;justify-content:space-between;
+  padding:6px 0;border-bottom:1px solid #1a231d;font-size:13px}
+#usersBox .urow .sm{padding:3px 8px;font-size:12px}
+#auditBox{max-height:220px;overflow:auto;font-size:12px;border:1px solid #223027;border-radius:9px;padding:6px 8px}
+#auditBox div{padding:3px 0;border-bottom:1px solid #16201a;color:#cfe0d5}
+#auditBox div span{color:#7f9488}
+#signdlg{position:fixed;left:8px;right:8px;top:8px;z-index:32;background:#0d1512;
+  border:1px solid #2f6b4a;border-radius:14px;padding:14px}
+html.day #signdlg{background:#fff;border-color:#8fbfa2}
+#signdlg h3{margin:0 0 4px}
+#signdlg .pad{position:relative;height:180px;margin:10px 0 4px;border-radius:10px;
+  background:#f7f8f5;border:1px solid #2f4137;touch-action:none;overflow:hidden}
+#signdlg canvas{display:block;touch-action:none}
+#signdlg .pad .base{position:absolute;left:8%;right:8%;bottom:26%;border-top:1px dashed #9aa79c}
+img.sigprev{display:block;max-width:60%;height:auto;background:#f7f8f5;border:1px solid #2f4137;
+  border-radius:8px;padding:4px;margin:2px 0 4px}
+#tpldlg{position:fixed;left:8px;right:8px;top:8px;bottom:8px;z-index:30;overflow-y:auto;
+  background:#0d1512;border:1px solid #2f6b4a;border-radius:14px;padding:14px 14px 20px}
+html.day #tpldlg{background:#fff;border-color:#8fbfa2}
+#tpldlg h3{margin:0 0 6px}
+#tpldlg textarea{width:100%;box-sizing:border-box;min-height:90px;font-size:14px;padding:9px;
+  border-radius:10px;background:#131b17;border:1px solid #2f4137;color:#e8ece9}
+html.day #tpldlg textarea{background:#fff;border-color:#c3ccc2;color:#16241c}
+#tpldlg .kv{font-size:13px}
+#rHeadBox textarea{min-height:66px}
+#mapdlg{position:fixed;inset:0;z-index:12;background:rgba(6,10,8,.97);display:none}
+#mapdlg .inner{display:flex;flex-direction:column;height:100%}
+#mapdlg .ph{flex:0 0 auto}
+#mapdlg .pb{flex:1 1 auto;overflow:auto;padding:0 8px 20px}
+#mapTab{width:100%;border-collapse:collapse;font-size:12.5px}
+#mapTab th{text-align:left;color:#7f9488;font-weight:600;padding:6px 4px;
+  position:sticky;top:0;background:#0a120d;border-bottom:1px solid #223029}
+#mapTab td{padding:5px 4px;border-bottom:1px solid #16201a;vertical-align:top}
+#mapTab td.src{color:#cfe0d5;word-break:break-word;max-width:34%}
+#mapTab select{width:100%;font-size:12.5px;padding:4px}
+#mapTab .ex{color:#6f8579;font-size:11px;word-break:break-word}
+#mapTab .cf{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:11px}
+#mapTab .cf.hi{color:#7fd0a0}#mapTab .cf.mid{color:#e8c15a}#mapTab .cf.lo{color:#8b9a91}
+#mapWarn{padding:0 12px}
+#mapWarn div{background:#2a1a14;border:1px solid #7d4a30;border-radius:9px;
+  padding:7px 10px;margin:6px 0;font-size:12.5px}
+#mapWarn div.ok{background:#12271b;border-color:#2f6a48}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:10;background:#1e3128;
+  pointer-events:none;
+  border:1px solid #3f8a60;border-radius:10px;padding:9px 14px;font-size:13.5px;display:none;max-width:88%}
+.small{font-size:12px;color:#7f9488}
+#guideUntranslated{margin:2px 0 8px}
+/* the front door */
+#gate{position:fixed;inset:0;z-index:60;background:#0d1512;overflow-y:auto;
+      display:flex;align-items:flex-start;justify-content:center}
+#gate[hidden]{display:none}
+html.day #gate{background:#f2f4f0}
+#gate .gwrap{width:100%;max-width:440px;padding:0 0 24px}
+#gate .gart{display:block;width:84px;height:84px;margin:34px auto 0;border-radius:18px}
+#gate .ghead{padding:14px 16px 0;text-align:center}
+#gate .ghead h1{margin:0;font-size:25px;letter-spacing:.2px}
+#gate .gsub{color:#9db3a6;font-size:13px;margin-top:3px}
+html.day #gate .gsub{color:#4a5c50}
+#gate .gform{padding:14px 16px 0;display:flex;flex-direction:column;gap:7px}
+#gate .glab{font-size:12.5px;color:#9db3a6;margin-top:6px}
+html.day #gate .glab{color:#4a5c50}
+#gate input[type=text],#gate input[type=password],#gate select,#gate #gateUserRow>*{
+  width:100%;box-sizing:border-box;font-size:16px;padding:10px;border-radius:10px;
+  background:#131c17;border:1px solid #2f6b4a;color:#e7f0ea}
+html.day #gate input[type=text],html.day #gate input[type=password],html.day #gate select,
+html.day #gate #gateUserRow>*{background:#fff;border-color:#8fbfa2;color:#16241c}
+#gate .gchk{display:flex;align-items:center;gap:9px;font-size:14px;margin-top:4px}
+#gate .gchk input{width:20px;height:20px}
+#gate .gnote,#gate .gfoot{font-size:12px;color:#8fa79a;line-height:1.45}
+html.day #gate .gnote,html.day #gate .gfoot{color:#53645a}
+#gate .gfoot{padding:14px 16px 0;border-top:1px solid #1e2a24;margin-top:16px}
+#gate .gsay{font-size:13px;min-height:17px}
+#gate .gsay.no{color:#e2704a}
+#gate button{margin-top:6px}
+#gate button.p{font-size:17px;padding:13px}
+details.guide{background:#131c17;border:1px solid #26332b;border-radius:12px;padding:10px 12px;margin:0 0 8px}
+details.guide.did{border-color:#2f6b4a}
+details.guide summary{cursor:pointer;font-size:14.5px}
+details.guide p{color:#c2d2c7;font-size:13.5px;margin:9px 0}
+details.guide h3{margin:12px 0 4px}
+ul.guideapp{margin:4px 0 0;padding-left:18px}
+ul.guideapp li{font-size:13px;color:#b9c9be;margin:5px 0}
+html.day details.guide{background:#fff;border-color:#c3ccc2}
+html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid #1a231d;font-size:13px}
+.kv span:last-child{color:#cfe0d5;font-variant-numeric:tabular-nums;text-align:right}
+</style>
+</head>
+<body>
+<!-- ===========================================================================
+     THE WATCHDOG
+
+     An installed app has no address bar and no reload button. If it does not
+     start, there is nothing to press and nothing to read - which is what a
+     dead app on a phone in a wood looks like. So this runs before anything
+     else, owns no dependencies, and puts a way out on the screen if the app
+     has not said it is up within ten seconds.
+
+     "Repair" throws away the service worker and the file cache and reloads.
+     It does not touch the register, the field records or the photographs:
+     those live in localStorage and IndexedDB and are not caches.
+     ======================================================================== -->
+<script>
+(function () {
+  var errs = [];
+  window.addEventListener('error', function (e) {
+    errs.push((e && (e.message || (e.target && e.target.src))) || 'error');
+  }, true);
+  var timer = setTimeout(show, 10000);
+  window.__vtaUp = function () { clearTimeout(timer); var el = document.getElementById('stuck');
+                                 if (el) el.remove(); };
+  function show() {
+    if (document.getElementById('stuck')) return;
+    var d = document.createElement('div');
+    d.id = 'stuck';
+    d.setAttribute('style', 'position:fixed;inset:0;z-index:99;background:#0d1310;color:#e7f0ea;' +
+      'font:16px/1.55 system-ui,sans-serif;padding:26px 20px;overflow:auto');
+    d.innerHTML =
+      '<h1 style="font-size:20px;margin:0 0 8px">VTA Field started, but did not finish</h1>' +
+      '<p style="color:#9db3a6;margin:0 0 16px">Usually a connection that is answering slowly or ' +
+      'not at all. Your trees, records and photographs are on the phone and are not touched by ' +
+      'either button.</p>' +
+      '<p><button id="stuckR" style="font:inherit;padding:12px 18px;width:100%;border-radius:10px;' +
+      'background:#2f6b4a;color:#fff;border:0">Try again</button></p>' +
+      '<p><button id="stuckF" style="font:inherit;padding:12px 18px;width:100%;border-radius:10px;' +
+      'background:#1b2620;color:#e7f0ea;border:1px solid #3a5245">Repair and reload</button></p>' +
+      '<p style="color:#7f9488;font-size:12px;word-break:break-word">' +
+      (errs.length ? errs.slice(0, 4).join('<br>') : 'nothing reported an error &ndash; it is still waiting') +
+      '</p>';
+    document.body.appendChild(d);
+    document.getElementById('stuckR').onclick = function () { location.reload(); };
+    document.getElementById('stuckF').onclick = function () {
+      var done = function () { location.reload(); };
+      var jobs = [];
+      try {
+        if (window.caches && caches.keys)
+          jobs.push(caches.keys().then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+          }));
+      } catch (e) {}
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+          jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+      } catch (e) {}
+      Promise.all(jobs).then(done, done);
+      setTimeout(done, 4000);
+    };
+  }
+})();
+</script>
+<video id="video" playsinline muted></video>
+
+<div id="app">
+  <div id="topbar">
+    <h1 id="ttl">VTA Field</h1>
+    <span class="badge" id="gpsBadge">GPS –</span>
+    <button class="badge" id="langBtn" title="Language of the form"></button>
+    <button class="badge" id="whoBtn" style="display:none"></button>
+  </div>
+  <div id="screens">
+
+    <section class="screen on" id="sc-start">
+      <h2>AR survey</h2>
+      <p class="lead">The camera view: markers on the trees, the diameter off the trunk,
+        defects pinned where they are.</p>
+      <div class="btnrow">
+        <button class="p" id="bxr">Start AR</button>
+      </div>
+      <div class="btnrow">
+        <button class="sm" id="bcam">Camera</button>
+        <button class="sm" id="blidar">LiDAR</button>
+      </div>
+      <p class="small">Camera is for phones without AR. LiDAR is for phones that have a
+        LiDAR scanner.</p>
+      <div class="btnrow">
+        <button id="bGuide">How a tree inspection works</button>
+      </div>
+      <p class="small">The Regelkontrolle after the FLL guidelines, step by step, and which
+        button here does which part of it. In German and English.</p>
+      <div class="btnrow"><button id="bInstall" style="display:none">Install on the home screen</button></div>
+      <div id="msg"></div>
+      <h3>Device check</h3>
+      <div id="checks"></div>
+    </section>
+
+    <section class="screen" id="sc-list">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <h2 style="flex:1;margin:0">Trees <span class="small" id="listCount"></span></h2>
+        <button class="sm" id="bSort">by distance</button>
+      </div>
+      <details id="workWrap">
+        <summary>To do <span class="small" id="workHead"></span></summary>
+        <div id="workBox"></div>
+      </details>
+      <div id="listBox"></div>
+      <div class="btnrow">
+        <button id="bNew">+ Tree at my GPS position</button>
+        <button id="bNewXY">+ Tree by coordinates</button>
+      </div>
+      <div id="newXY" style="display:none">
+        <div class="row"><label>Longitude (WGS84)</label>
+          <input type="number" step="0.0000001" inputmode="decimal" id="nxLon"></div>
+        <div class="row"><label>Latitude (WGS84)</label>
+          <input type="number" step="0.0000001" inputmode="decimal" id="nxLat"></div>
+        <div class="btnrow">
+          <button class="p" id="nxOk">Create</button>
+          <button id="nxCancel">Cancel</button>
+        </div>
+        <p class="small">A hand-entered position carries no GPS error. Record one
+          tree this way, stand at it, choose &ldquo;I am at&nbsp;…&rdquo; in AR, and the whole
+          scene hangs off a known point instead of a fix.</p>
+      </div>
+    </section>
+
+    <section class="screen" id="sc-guide">
+      <h2>The method</h2>
+      <div id="guideBox"></div>
+    </section>
+
+    <section class="screen" id="sc-map">
+      <h2>Map</h2>
+      <div id="mapWrap">
+        <div id="mapBox"><div id="mapTiles"></div><div id="mapMarks"></div></div>
+        <div id="mapCross">✛</div>
+        <div id="mapZ"><button id="mZin" title="Zoom in">+</button>
+          <button id="mZout" title="Zoom out">−</button>
+          <button id="mHome" title="Back to where I am">⌖</button></div>
+        <div id="mapAttr">© <a href="https://www.openstreetmap.org/copyright"
+          target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
+      </div>
+      <div id="mapInfo" class="small"></div>
+      <div id="mapMode" class="small">following you</div>
+      <div class="row"><label>Go to tree number</label>
+        <input type="text" id="mNavNo" inputmode="numeric" autocomplete="off" placeholder="e.g. 417"></div>
+      <div id="mNavList"></div>
+      <div id="mNavInfo" class="small"></div>
+      <div class="btnrow"><button id="mNavStop" class="sm">Stop walking to it</button></div>
+      <div class="btnrow">
+        <button id="mMe">Centre on me</button>
+        <button id="mAddTree">+ Tree at crosshair</button>
+      </div>
+      <div class="btnrow"><button id="mCache">Save this area offline</button></div>
+      <div class="small" id="mSel"></div>
+      <div class="btnrow"><button class="p" id="mMove" style="display:none"></button>
+        <button id="mUndo" style="display:none"></button>
+        <button id="mStand" style="display:none"></button></div>
+    </section>
+
+    <section class="screen" id="sc-rep">
+      <h2>Reports</h2>
+      <p class="lead">Who it is for, in which columns, and in which file. The head is typed
+        once; the columns come from the client's own blank form.</p>
+
+      <h3>Letter head</h3>
+      <div id="rHeadBox"></div>
+      <p class="small">This is what stands above every report: the two addresses, the job, the
+        date and place, and who signs it.</p>
+
+      <h3>Signature</h3>
+      <div id="signBox"></div>
+      <div class="btnrow">
+        <button class="p" id="signDraw">Sign here</button>
+        <button id="signDel">Remove</button>
+      </div>
+      <div class="row"><label>Print a checksum on the report</label>
+        <input type="checkbox" id="signCheck" checked></div>
+      <p class="small">Drawn with a finger, kept on this phone, and set above the line in the
+        page, the Word file and the long report.</p>
+      <p class="small">This is a picture of a signature &ndash; the same thing a signature on
+        paper is, worth what the process around it is worth. It is <b>not</b> a qualified
+        electronic signature: one of those needs a certificate issued to a named person by a
+        trust service provider on a card or a signing service, and no web page on a phone can
+        make one. What the app can do instead is the checksum: the finished report is hashed
+        with SHA-256 and the hash printed on it, so a changed figure gives a different number.
+        That is a seal against silent alteration and says nothing about who signed.</p>
+
+      <h3>Template</h3>
+      <div class="row"><label>Columns</label><select id="repTpl"></select></div>
+      <div class="small" id="repTplNote"></div>
+      <div class="btnrow">
+        <button class="p" id="repNew">Read a blank form…</button>
+        <button id="repEdit">Change the columns</button>
+        <button id="repDel">Delete</button>
+      </div>
+      <div id="repCols"></div>
+
+      <h3>Write it</h3>
+      <div class="btnrow">
+        <button class="p" id="repOutHtml">Page to print</button>
+        <button id="repOutDocx">Word (.docx)</button>
+        <button id="repOutCsv">CSV</button>
+      </div>
+      <p class="small">The page opens in a new tab: print it, and the phone's own print
+        dialogue writes the PDF. Word opens the .docx straight from the download.</p>
+
+      <h3>The long report</h3>
+      <div class="btnrow">
+        <button id="bRepPlain">Inspection report</button>
+        <button id="bRepPhoto">…with photos</button>
+      </div>
+      <p class="small">Every tree on its own, with its measurements, its history and its
+        verdict – not a table. Opens as a page to print.</p>
+      <div class="btnrow">
+        <button id="bMapPage">Map page</button>
+      </div>
+      <p class="small">One HTML file with the trees in it – opens in any browser, can be
+        mailed or put on a web server as it is.</p>
+
+      <h3>Map sheets to print</h3>
+      <div class="row"><label>Paper</label><select id="sheetPaper">
+        <option value="a4l">A4 landscape</option><option value="a4p">A4 portrait</option>
+        <option value="a3l">A3 landscape</option><option value="a3p">A3 portrait</option></select></div>
+      <div class="row"><label>Scale</label><select id="sheetScale">
+        <option value="0">As detailed as it fits</option>
+        <option value="1000">1:1000</option><option value="2000">1:2000</option>
+        <option value="5000">1:5000</option><option value="10000">1:10000</option></select></div>
+      <div class="row"><label>Tree numbers on the map</label>
+        <input type="checkbox" id="sheetLabels" checked></div>
+      <div id="sheetPlan"></div>
+      <div class="btnrow"><button class="p" id="sheetGo">Build the sheets</button></div>
+      <div class="small" id="sheetNote"></div>
+      <p class="small">The scale is chosen first and the area is cut into as many sheets as that
+        scale needs &ndash; a job squeezed onto one page is unreadable and no use to anybody in a
+        park. Every tile is written into the file, so the sheets print and mail without a signal.</p>
+      <p class="small">1:1000 is the largest scale offered because the map tiles stop at zoom 19:
+        below that the same pixels are only stretched, which is a bigger blur and not more
+        detail. The dots and the numbers are drawn by the printer, not by the tiles, so they stay
+        sharp at every scale.</p>
+    </section>
+
+    <section class="screen" id="sc-data">
+      <h2>Data</h2>
+
+      <h3>Round <span class="small" id="roundHead"></span></h3>
+      <div class="row"><label>Inspector</label>
+        <input type="text" id="prefInspector" placeholder="your name"></div>
+      <div class="row"><label>Number prefix</label>
+        <input type="text" id="prefPrefix" placeholder="none – trees are 00001, 00002 …"></div>
+      <p class="small" id="prefixHint"></p>
+      <div class="btnrow">
+        <button id="bPrefixHere">Take it from where I am</button>
+        <button id="bPrefixOff">No prefix</button>
+      </div>
+      <div class="btnrow">
+        <button class="p" id="roundStart">Start a round</button>
+        <button id="roundEnd">Close the round</button>
+      </div>
+      <div id="roundBox"></div>
+
+
+      <h3>Export</h3>
+      <div class="btnrow">
+        <button id="bExpGeo">GeoJSON</button>
+        <button id="bExpCsv">CSV</button>
+      </div>
+      <div class="btnrow">
+        <button id="bExpPhotos">Save photos individually</button>
+      </div>
+      <h3>Give the measurements to research</h3>
+      <div class="sym"><label><input type="checkbox" id="resOn">
+        <span>Collect what I record for research</span></label></div>
+      <div id="resBox" class="small"></div>
+      <div class="sym"><label><input type="checkbox" id="resRatings">
+        <span>Put the condition ratings in as well</span></label></div>
+      <div class="row"><label>Name in the file</label>
+        <input type="text" id="resWho" placeholder="anonymous – or the name you want cited"></div>
+      <div class="btnrow">
+        <button class="p" id="bResExp">Save the bundle</button>
+        <button id="bResPhotos">…with the photographs</button>
+      </div>
+      <p class="small">Two things here are hard to come by and you produce them anyway: a
+        photograph labelled with the organ on it and the species of the tree you were standing
+        at, and a depth-camera slice of a trunk next to the diameter a tape gave for the same
+        stem. The first trains identification, the second scores measuring a stem by phone.
+        Switched off until you switch it on, and nothing is ever sent anywhere by itself &ndash;
+        it is a file you save and give to whom you choose, under <b>CC BY 4.0</b>. In it: the
+        tree, its position, species, size, the labelled pictures and the stem scans. Not in it:
+        your name unless you type it here, the remarks, the verdicts, the traffic-safety
+        findings, and nothing at all out of a register you imported. Stem scans are kept only
+        while the switch is on.</p>
+
+      <h3>Trees from OpenStreetMap</h3>
+      <div class="btnrow">
+        <button class="p" id="osmGetHere">Within 300 m of me</button>
+        <button id="osmGetMap">In the map view</button>
+      </div>
+      <div id="osmGetBox" class="small"></div>
+      <p class="small">Real trees, downloaded from OpenStreetMap, with whatever species, girth,
+        height and crown somebody recorded. This is the one tree dataset that is open by licence
+        in every country, and it is reachable from a phone in a park. It is <b>not complete</b>:
+        it holds what people have mapped, which in a well-surveyed park is most of the trees and
+        on an ordinary street is often none. What you download is under <b>ODbL 1.0, ©
+        OpenStreetMap contributors</b>; the licence is stored on every tree and rides along into
+        exports. A downloaded tree is never offered back to OSM as new.</p>
+
+      <h3>Upload to OpenStreetMap</h3>
+      <div id="osmBox" class="small"></div>
+      <div class="row"><label>Client ID</label>
+        <input type="text" id="osmClient" placeholder="from your OSM account → OAuth 2 applications"></div>
+      <div class="row"><label>Server</label>
+        <select id="osmHost"><option value="live">openstreetmap.org</option>
+          <option value="dev">the sandbox (for trying it out)</option></select></div>
+      <div class="btnrow">
+        <button class="p" id="osmConnect">Sign in to OSM</button>
+        <button id="osmOut">Sign out</button>
+      </div>
+      <div class="btnrow">
+        <button class="p" id="osmUp">Upload my own trees</button>
+      </div>
+      <div id="osmOut2" class="small"></div>
+      <p class="small">Only trees this phone recorded on site go up, and only the tree itself &ndash;
+        species, girth, height, crown, year. Findings and verdicts stay here. A register you
+        imported is never uploaded: its licence is the city's to give, not yours. Each tree is
+        checked against what is already mapped within three metres, and a run is capped at fifty
+        trees, because more than that is an import in OSM's sense and wants the import guidelines
+        first. Setting it up once: on openstreetmap.org, under <i>My Settings &rarr; OAuth 2
+        applications</i>, register this page &ndash; redirect URI is this address without anything
+        after it, permissions <i>read user preferences</i> and <i>modify the map</i> &ndash; then
+        paste the client ID here.</p>
+
+      <h3>Import</h3>
+      <div class="btnrow">
+        <button id="bImp">Merge a register…</button>
+        <button class="x" id="bImpRep">Replace…</button>
+      </div>
+      <p class="small">Merging adds trees this phone does not have and fills in what it is
+        missing. It never deletes, and where a value differs, yours is kept and the
+        difference reported.</p>
+      <input type="file" id="fileImp" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
+      <h3>Load from a web address</h3>
+      <div class="row"><label>Source</label>
+        <select id="impPick"><option value="">— pick one, or paste below —</option></select></div>
+      <div class="small" id="impNote"></div>
+      <div class="row"><label>URL</label>
+        <input type="url" id="impUrl" placeholder="https://…/FeatureServer/1  or a WFS / GeoJSON / CSV address"></div>
+      <div class="btnrow"><button id="bImpCheck">Does this address answer?</button></div>
+      <div class="sym"><label><input type="checkbox" id="impBbox" checked>
+        <span>Only the area shown on the map</span></label></div>
+      <div class="small" id="impBoxWhere"></div>
+      <div class="btnrow"><button class="p" id="bImpUrl">Fetch and read</button></div>
+      <p class="small">Paste the address of an ArcGIS layer, a WFS GetFeature request, or a GeoJSON
+        or CSV file. An ArcGIS layer address is completed to a query by itself and read in pages.
+        The columns are shown for confirmation before anything is imported. A server that does not
+        allow browser requests is named as such &ndash; then open the address in the browser, save
+        the file, and use <i>Merge a register&hellip;</i>.</p>
+
+      <h3>Berlin tree register</h3>
+      <p class="small">The city's open register of street and park trees. Positions in
+        it are metre-level – it says which tree is which, not where the stem is.</p>
+      <div class="btnrow"><button id="berlinHere">The area on the map</button></div>
+      <div class="row"><label>Service</label>
+        <input type="url" id="berlinUrl" placeholder="gdi.berlin.de/services/wfs/baumbestand"></div>
+      <div class="small" id="berlinMsg"></div>
+
+      <h3>Identification service</h3>
+      <div class="row"><label>Endpoint (blank = public)</label>
+        <input type="url" id="niaUrl" placeholder="multi-source.identify.biodiversityanalysis.eu"></div>
+      <div class="row"><label>Token (optional)</label>
+        <input type="text" id="niaTok" placeholder="raises the daily limit"></div>
+      <div class="btnrow"><button id="niaSave">Save</button></div>
+      <p class="small">Nature Identification API by Observation.org and Naturalis. Without a
+        token the public endpoint allows ten identifications a day. Suggestions are never
+        recorded on their own.</p>
+
+      <h3>The plot</h3>
+      <div id="plotBox" class="small"></div>
+      <div class="btnrow"><button id="plotHere">Put the stand on my position</button></div>
+
+      <h3>Alignment</h3>
+      <div id="alignBox" class="small"></div>
+      <p class="small">This is what the app can and cannot see. If a session will not
+        align itself, the answer is one of these lines.</p>
+
+      <h3>Users</h3>
+      <div id="usersBox"></div>
+      <div class="row"><label>Name</label><input type="text" id="uName" placeholder="new user"></div>
+      <div class="row"><label>Role</label><select id="uRole">
+        <option value="inspector">Inspector</option><option value="viewer">Viewer</option>
+        <option value="admin">Admin</option></select></div>
+      <div class="row"><label>PIN (optional)</label>
+        <input type="password" id="uPin" inputmode="numeric" placeholder="4–8 digits"></div>
+      <div class="btnrow"><button class="p" id="uAdd">Add user</button></div>
+      <p class="small">With no users the phone is one person's and asks nothing. Create one and
+        it asks who is holding it; every change is then stamped with that name and the time and
+        written to the trail below. A viewer reads and changes nothing; an inspector records; an
+        admin also imports, replaces, deletes and manages users. The PIN keeps a colleague from
+        saving under your name &ndash; the lock screen keeps everyone else out.</p>
+
+      <h3>Trail</h3>
+      <div id="auditBox"></div>
+      <div class="btnrow">
+        <button id="bAuditCsv">Export the trail (CSV)</button>
+        <button class="x" id="bAuditClear">Clear the trail</button>
+      </div>
+
+      <h3>Standard</h3>
+      <div class="row"><label>Work to</label><select id="normSel"></select></div>
+      <p class="small" id="normNote"></p>
+      <p class="small">The standard decides which questions the form asks, in which order, and
+        what the verdict is called. It does not change the trees: the same register can be
+        handed over as a German protocol or a Dutch boomveiligheidscontrole.</p>
+
+      <h3>Moved positions</h3>
+      <div id="movedList"></div>
+
+      <h3>Deleted trees</h3>
+      <div id="trashBox"></div>
+
+      <h3>App</h3>
+      <div class="btnrow">
+        <button id="bDay">Daylight: off</button>
+        <button id="bSafe">Depth: off</button>
+      </div>
+      <div class="btnrow">
+        <button id="bScroll">Follow the form: on</button>
+        <button id="bAskDist">Ask the distance: on</button>
+        <button id="bAutoVoice">Listen at once: on</button>
+      </div>
+      <p class="small">Standing at a known tree and pressing <i>I am here</i> opens its form and
+        starts the microphone straight away, because at the trunk both hands are busy. Switch
+        that off here if you would rather start it yourself.</p>
+      <p class="small">A tree is recorded from where you stand, which is rarely the stem. On
+        recording, the app asks how far away the trunk is and moves it there, along the way the
+        camera is pointing or, outside AR, along the compass.</p>
+      <p class="small">After an entry is made the form scrolls that line to the top edge, so the
+        answered questions leave the screen and the next open ones are in front of you.</p>
+      <h3>Language</h3>
+      <div class="row"><label>The whole app</label><select id="prefLang">
+        <option value="auto">Follows the phone</option><option value="en">English</option>
+        <option value="de">Deutsch</option><option value="nl">Nederlands &middot;</option>
+        <option value="et">Eesti &middot;</option><option value="fi">Suomi &middot;</option></select></div>
+      <p class="small">One setting for everything: what the fields are called, what the drop-downs
+        say, the method text, and which language the phone speaks and listens in. The same switch
+        sits in the top bar and on the microphone bar, so it can be changed in the field without
+        coming here.</p>
+      <p class="small">The values underneath are stored in one vocabulary whatever the language, so
+        a record spoken in English and shown in Estonian is the same record. <b>Speaking is never
+        limited to the chosen language</b> &ndash; the words of all five are in the parser at once, so
+        &bdquo;damage class moderate&ldquo; is understood by an Estonian form and stored as the value
+        it shows as <i>keskmine</i>. Remarks stay in the language they were spoken in.</p>
+      <p class="small">&middot; Nederlands, Eesti and Suomi are translated but have not been read by
+        anyone who speaks them, and the method text in those languages is still English.</p>
+
+      <h3>Voice</h3>
+      <div class="btnrow">
+        <button class="p" id="bSayTest">Test the voice</button>
+      </div>
+      <div class="small" id="voiceCheck"></div>
+      <p class="small">The 🎤 on a tree's page listens. Say <b>„Baum 51"</b> and it opens the
+        tree and reads the species; then it asks the open fields one by one &ndash; „Vitalität
+        zwei", „Schadklasse gering", „Verkehrssicherheit gegeben", „Dringlichkeit sofort",
+        „Bemerkung &hellip;" &ndash; and reads back what it took. „Weiter" skips, „Foto" takes
+        one, „Speichern", „Stop". On Chrome for Android the recogniser runs on Google's servers,
+        so it needs a signal; the bar says so when there is none.</p>
+
+      <h3>Pl@ntNet</h3>
+      <div class="row"><label>API key</label>
+        <input type="password" id="prefPnet" placeholder="my-api.plantnet.org"></div>
+      <p class="small">Species from several organs at once &ndash; leaf, flower, fruit, bark, the
+        whole tree &ndash; the way Tree-Quest does it. Free for non-commercial use with a daily
+        quota; the key is yours and stays on this phone. In a tree's Photos tab,
+        <b>Pl@ntNet</b> sends up to five of its pictures together.</p>
+
+      <div class="row"><label>Step in front of the stem (m)</label>
+        <input type="text" id="prefStep" inputmode="decimal" placeholder="1.0"></div>
+      <p class="small">When neither depth nor the ring has the trunk, a recorded tree is put
+        this far ahead along the direction you are facing &ndash; the step you stand back from
+        a stem. The session knows that direction to a fraction of a degree; the compass is not
+        used for it. Set 0 to record exactly where you stand.</p>
+      <h3>Measuring the diameter by phone</h3>
+      <p class="small">With depth switched on, <b>Tools &rarr; DBH — walk the stem</b> reads the
+        diameter the way a caliper pair is meant to approximate it: not twice at right angles,
+        but all the way round.</p>
+      <ol class="small" style="margin:4px 0 4px 18px;padding:0">
+        <li>Stand about <b>one metre</b> from the bark. Closer than half a metre the trunk fills
+          the frame; past two and a half the sampling is too coarse for bark.</li>
+        <li>Hold the phone at <b>1.30 m</b>, level. On a slope, start on the uphill side &ndash;
+          that is where the diameter is defined.</li>
+        <li>Walk slowly round the tree at that distance. The bar counts the degrees actually seen.</li>
+        <li>Stop at <b>270&deg;</b> or more. One standing view already shows about 158&deg; of a
+          50&nbsp;cm stem, but the far side is then inferred rather than measured.</li>
+      </ol>
+      <p class="small">Expect the reading to sit within roughly <b>1.5 to 2.3&nbsp;cm</b> of a
+        caliper on a regular stem. Forks, buttresses, ivy, deep fluting and stem sprouts break
+        the assumption that the outline is a circle: the fit reports how far the surface sits off
+        round and refuses rather than guessing. Every value recorded this way carries how it was
+        measured and over what arc, so it is never mistaken for a caliper reading in the file.</p>
+      <p class="small">Depth measures the trunk in front of the phone: the marker goes on the
+        stem instead of where you stand, the diameter comes with it, and the session aligns
+        itself on the stems it sees. It runs a second pipeline inside ARCore, which not every
+        phone survives &ndash; so it is off until you switch it on. If a session dies a few
+        seconds after starting, switch it off again and everything else keeps working.</p>
+      <div class="btnrow"><button id="bUpdate">Fetch the current version</button></div>
+      <p class="small">Throws the offline copy away and reloads from the server.
+        Trees and photos stay.</p>
+      <h3>Status</h3>
+      <div id="backupWarn" class="warnbox" style="display:none"></div>
+      <div id="storeWarn" class="warnbox" style="display:none"></div>
+      <div id="stats"></div>
+      <h3>Reset</h3>
+      <div class="btnrow">
+        <button class="x" id="bResetEdits">Delete field records</button>
+        <button class="x" id="bEmpty">Delete all trees</button>
+      </div>
+      <p class="small">Nothing is shipped with the app: an emptied register stays
+        empty. Photos survive both buttons.</p>
+      <div class="btnrow">
+        <button class="x" id="bWipe">Forget everything except the trees</button>
+      </div>
+      <div class="small" id="wipeBox"></div>
+      <p class="small">Reference points, the plot and its origin, the stands remembered from earlier
+        sessions, the bin, the trail, the addresses imported from, the round. A phone that was used
+        for trying things out carries all of it around, and a leftover reference point from another
+        survey is what sends the map five hundred kilometres away. Trees, field records and photos
+        are not touched.</p>
+      <p class="small" id="about"></p>
+    </section>
+  </div>
+  <div id="tabbar">
+    <button class="on" data-sc="start"><span class="ic">◎</span>AR</button>
+    <button data-sc="list"><span class="ic">☰</span>Trees</button>
+    <button data-sc="map"><span class="ic">◍</span>Map</button>
+    <button data-sc="rep"><span class="ic">▤</span>Reports</button>
+    <button data-sc="data"><span class="ic">⇪</span>Data</button>
+    <button data-sc="guide"><span class="ic">✓</span>Method</button>
+  </div>
+  <div class="panel" id="panelHome"></div>
+</div>
+
+<div id="niaBox"></div>
+
+<div id="xrui">
+  <div id="edge"></div>
+  <div id="xrtop">
+  <div class="bar" id="hud">
+    <span>±<b id="hAcc">–</b> m · <b id="hHead">–</b>° · <span id="hFit"></span><span id="hBatt"></span></span>
+    <span id="hMore">
+      <span>Mode <b id="hMode">–</b></span>
+      <span id="hDepth"></span>
+      <span>North <b id="hOff">0</b>°</span>
+      <span id="hView"></span>
+      <span id="hSel"></span>
+      <span id="hNear"></span>
+    </span>
+  </div>
+  <div class="bar" id="hwarn"><span id="hwarnT"></span><button id="hwarnX">✕</button></div>
+  <div id="arcard"></div>
+  </div>
+  <div id="xrmid"></div>
+  <div id="xrbot">
+  <div id="chooser"></div>
+  <div id="mmenu"></div>
+  <div id="refmenu"></div>
+  <div id="nummenu"></div>
+  <div id="pickmenu"></div>
+  <div id="toolmenu"></div>
+  <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
+  <div class="bar" id="ctl">
+    <button class="p" id="bnew">+ Tree</button>
+    <button id="bwhich">Trees</button>
+    <button id="bshot">Photo</button>
+    <button id="btools">Tools</button>
+    <button id="balign">Align</button>
+    <button class="x" id="bq">Exit</button>
+  </div>
+  </div>
+  <div class="panel" id="panelXR"></div>
+</div>
+
+<div id="whodlg"><div class="inner">
+  <div class="ph"><div><h2>Who is holding the phone?</h2><div class="sub" id="whoSub"></div></div></div>
+  <div class="pb" id="whoList"></div>
+</div></div>
+
+<div id="mapdlg"><div class="inner">
+  <div class="ph"><div><h2>Does this read your register correctly?</h2>
+    <div class="sub" id="mapSub"></div></div>
+    <button id="mapGo" class="p">Import</button><button id="mapX">Cancel</button></div>
+  <div id="mapWarn"></div>
+  <div class="pb"><table id="mapTab"></table></div>
+</div></div>
+
+<!-- ===========================================================================
+     THE FRONT DOOR
+     A drawing, not a photograph: a street of trees under inspection, made of
+     shapes. Nothing here claims to be a picture of a real place.
+     ======================================================================= -->
+<div id="gate" hidden>
+  <div class="gwrap">
+    <img class="gart" src="icon-192.png" width="192" height="192" alt="">
+
+    <div class="ghead">
+      <h1>VTA Field</h1>
+      <div class="gsub">Tree inspection in the field &ndash; offline, on this phone</div>
+    </div>
+
+    <div class="gform">
+      <label class="glab" for="gateUser">Name</label>
+      <div id="gateUserRow"></div>
+      <label class="glab" for="gatePw">Password</label>
+      <input id="gatePw" type="password" autocomplete="current-password" placeholder="leave empty for none">
+      <label class="gchk"><input type="checkbox" id="gateKeep"> Stay signed in on this phone</label>
+      <label class="glab" for="gateLang">Language</label>
+      <select id="gateLang"></select>
+      <div class="gnote" id="gateNote"></div>
+      <div class="gsay" id="gateSay"></div>
+      <button class="p" id="gateGo">Start</button>
+      <button class="sm" id="gateSkip">Continue without a name</button>
+    </div>
+    <div class="gfoot">There is no server. The name and the password stay on this phone and
+      record who signed an inspection.</div>
+  </div>
+</div>
+<div id="langdlg"></div>
+<div id="lightbox"><img id="lbImg" alt=""><button id="lbClose">Close</button></div>
+<input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
+<div id="toast"></div>
+
+<script src="vendor/three.min.js?v=3.0.0"></script>
+<script src="data.js?v=3.0.0"></script>
+<script src="norms.js?v=3.0.0"></script>
+<script src="i18n.js?v=3.0.0"></script>
+<script src="mapper.js?v=3.0.0"></script>
+<script src="users.js?v=3.0.0"></script>
+<script src="voice.js?v=3.0.0"></script>
+<script src="plantnet.js?v=3.0.0"></script>
+<script src="osm.js?v=3.0.0"></script>
+<script src="research.js?v=3.0.0"></script>
+<script src="marks.js?v=3.0.0"></script>
+<script src="pins.js?v=3.0.0"></script>
+<script src="ghost.js?v=3.0.0"></script>
+<script src="guide.js?v=3.0.0"></script>
+<script src="docx.js?v=3.0.0"></script>
+<script src="reports.js?v=3.0.0"></script>
+<script src="mapsheet.js?v=3.0.0"></script>
+<script src="sign.js?v=3.0.0"></script>
+<script src="gate.js?v=3.0.0"></script>
+<script src="app.js?v=3.0.0"></script>
+</body>
+</html>

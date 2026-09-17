@@ -1,0 +1,9228 @@
+/* =====================================================================
+   VTA Field - visual tree assessment with AR
+   No build step. three.js r128 (served locally), WebXR immersive-ar with a
+   camera + compass fallback. All data stays on the device.
+   ===================================================================== */
+'use strict';
+const APP_VERSION = '3.0.0';
+const $ = id => document.getElementById(id);
+
+/* ============================ SCHEMA ============================ */
+
+const SYMPTOMS = [
+  ['Trunk / root collar', [
+    ['t_longcrack', 'Longitudinal crack'],
+    ['t_transcrack', 'Transverse crack (breakage risk)'],
+    ['t_rib', 'Rib or bulge (reaction wood)'],
+    ['t_swelling', 'Swelling, deformation'],
+    ['t_cavity', 'Cavity or open decay'],
+    ['t_bark', 'Bark or cambium damage'],
+    ['t_lightning', 'Lightning scar'],
+    ['t_bleeding', 'Resin or slime flux'],
+    ['t_fork', 'Fork with included bark'],
+    ['t_fungi', 'Fruiting bodies of wood-decay fungi'],
+    ['t_lean', 'Lean or change of inclination']
+  ]],
+  ['Root zone / rooting space', [
+    ['r_damage', 'Root damage, excavation, trenching'],
+    ['r_heave', 'Soil heave, tension cracks in the soil'],
+    ['r_flare', 'Root flare missing or one-sided'],
+    ['r_compaction', 'Soil compaction or sealing'],
+    ['r_fungi', 'Fruiting bodies in the root zone']
+  ]],
+  ['Crown', [
+    ['c_deadwood', 'Deadwood > 3 cm'],
+    ['c_hanger', 'Hangers, loose branches'],
+    ['c_breakage', 'Branch failures, breakage points'],
+    ['c_dieback', 'Crown dieback'],
+    ['c_watershoots', 'Water shoots, crown restructuring'],
+    ['c_topping', 'Topping cuts, decay at pruning wounds']
+  ]]
+];
+const SYM_LABEL = {};
+SYMPTOMS.forEach(g => g[1].forEach(s => { SYM_LABEL[s[0]] = s[1]; }));
+
+/* Species offered for picking. Northern and central European street, park and
+   forest trees - free text still wins, this only saves the typing. */
+const SPECIES = [
+  ['Acer platanoides', 'Norway maple'], ['Acer pseudoplatanus', 'Sycamore'],
+  ['Acer saccharinum', 'Silver maple'], ['Aesculus hippocastanum', 'Horse chestnut'],
+  ['Alnus glutinosa', 'Black alder'], ['Alnus incana', 'Grey alder'],
+  ['Betula pendula', 'Silver birch'], ['Betula pubescens', 'Downy birch'],
+  ['Carpinus betulus', 'Hornbeam'], ['Castanea sativa', 'Sweet chestnut'],
+  ['Corylus avellana', 'Hazel'], ['Crataegus monogyna', 'Hawthorn'],
+  ['Fagus sylvatica', 'Beech'], ['Fraxinus excelsior', 'Ash'],
+  ['Juglans regia', 'Walnut'], ['Larix decidua', 'European larch'],
+  ['Larix sibirica', 'Siberian larch'], ['Malus domestica', 'Apple'],
+  ['Picea abies', 'Norway spruce'], ['Pinus sylvestris', 'Scots pine'],
+  ['Pinus cembra', 'Swiss pine'], ['Platanus x hispanica', 'London plane'],
+  ['Populus tremula', 'Aspen'], ['Populus nigra', 'Black poplar'],
+  ['Prunus avium', 'Wild cherry'], ['Prunus padus', 'Bird cherry'],
+  ['Pseudotsuga menziesii', 'Douglas fir'], ['Quercus petraea', 'Sessile oak'],
+  ['Quercus robur', 'Pedunculate oak'], ['Quercus rubra', 'Red oak'],
+  ['Robinia pseudoacacia', 'Black locust'], ['Salix alba', 'White willow'],
+  ['Salix caprea', 'Goat willow'], ['Sorbus aucuparia', 'Rowan'],
+  ['Sorbus intermedia', 'Swedish whitebeam'], ['Taxus baccata', 'Yew'],
+  ['Thuja occidentalis', 'White cedar'], ['Tilia cordata', 'Small-leaved lime'],
+  ['Tilia platyphyllos', 'Large-leaved lime'], ['Tilia x europaea', 'Common lime'],
+  ['Ulmus glabra', 'Wych elm'], ['Ulmus laevis', 'European white elm']
+];
+
+/* ---- wood-decay fungi ----
+   A fruiting body is not a symptom like any other: which fungus it is decides
+   the kind of decay, where in the tree it sits, and therefore whether the
+   tree fails by uprooting or by snapping - and how much warning there will be.
+   So the finding is recorded as a species and the consequence is drawn from
+   it, rather than everything collapsing into one "fungi seen" tick.
+
+   Determination stays with the inspector. The app carries what each find
+   means, not what it looks like: telling species apart from a photograph is a
+   job for a mycologist, and a wrong answer here is a felled healthy tree or a
+   standing dangerous one.
+   [key, scientific, common, where, rot, minimum level, what it does] */
+const FUNGI = [
+  ['kdeu', 'Kretzschmaria deusta', 'Brittle cinder', 'root', 'soft rot', 3,
+   'Brittle failure of the butt with almost no external warning and no reaction growth. Easily overlooked as a crust. One of the most dangerous finds on beech and lime.'],
+  ['mgig', 'Meripilus giganteus', 'Giant polypore', 'root', 'white rot', 3,
+   'Advanced decay of the major roots by the time it fruits. Uprooting, often without a lean beforehand.'],
+  ['arme', 'Armillaria spp.', 'Honey fungus', 'root', 'white rot', 3,
+   'Kills and rots the root plate. Anchorage lost progressively; check for rhizomorphs under the bark.'],
+  ['gads', 'Ganoderma adspersum', 'Southern bracket', 'root', 'white rot', 3,
+   'Aggressive butt rot with little compartmentalisation. Both uprooting and stem failure.'],
+  ['gapp', 'Ganoderma applanatum', 'Artist\u2019s bracket', 'root', 'white rot', 3,
+   'Butt and lower stem rot, slower than G. adspersum but the section loss is real.'],
+  ['hann', 'Heterobasidion annosum', 'Root and butt rot', 'root', 'white rot', 3,
+   'Conifers. Hollows the butt from inside; spruce snaps at the base in wind.'],
+  ['pfra', 'Perenniporia fraxinea', 'Ash bracket', 'root', 'white rot', 3,
+   'Butt rot of ash, plane and robinia. Severe strength loss low on the stem.'],
+  ['pschw', 'Phaeolus schweinitzii', 'Dyer\u2019s polypore', 'root', 'brown rot', 3,
+   'Conifers. Brown cubical rot of roots and butt - brittle, low warning.'],
+  ['gfro', 'Grifola frondosa', 'Hen of the woods', 'root', 'white rot', 2,
+   'Usually oak, slow butt rot. Watch rather than panic, but measure the residual wall.'],
+  ['rulm', 'Rigidoporus ulmarius', 'Giant elm bracket', 'root', 'white rot', 2,
+   'Butt rot, often on elm and horse chestnut. Long-lived, slow.'],
+  ['ffom', 'Fomes fomentarius', 'Tinder fungus', 'stem', 'white rot', 3,
+   'Birch and beech. Extensive stem decay by the time brackets show; stem failure.'],
+  ['fpin', 'Fomitopsis pinicola', 'Red-belted conk', 'stem', 'brown rot', 3,
+   'Brown rot leaves brittle, cubically cracked wood with little residual strength.'],
+  ['ihis', 'Inonotus hispidus', 'Shaggy bracket', 'stem', 'white rot', 3,
+   'Ash and plane. Localised soft white rot at branch unions - branch and stem failure.'],
+  ['lsul', 'Laetiporus sulphureus', 'Chicken of the woods', 'stem', 'brown rot', 2,
+   'Brown cubical rot of the heartwood. Oak often compartmentalises well; judge by the residual wall, not the bracket.'],
+  ['psqu', 'Polyporus squamosus', 'Dryad\u2019s saddle', 'stem', 'white rot', 2,
+   'Enters through wounds; decay usually local to the wound but can be extensive.'],
+  ['post', 'Pleurotus ostreatus', 'Oyster mushroom', 'stem', 'white rot', 2,
+   'Often follows other damage. Take it as a sign to look for the wound that let it in.'],
+  ['iobl', 'Inonotus obliquus', 'Chaga', 'stem', 'white rot', 2,
+   'Birch. The sterile mass marks long-standing internal decay.'],
+  ['gres', 'Ganoderma resinaceum', 'Lacquered bracket', 'stem', 'white rot', 2,
+   'Lower stem of oak and plane. Slower than G. adspersum.'],
+  ['tver', 'Trametes versicolor', 'Turkey tail', 'stem', 'white rot', 1,
+   'Mostly on dead wood and dying parts. On living tissue, look for what killed it first.'],
+  ['badu', 'Bjerkandera adusta', 'Smoky bracket', 'stem', 'white rot', 1,
+   'Usually a secondary coloniser of already dead wood.'],
+  ['scom', 'Schizophyllum commune', 'Split gill', 'stem', 'white rot', 1,
+   'Weak parasite on stressed or damaged wood; a stress indicator more than a hazard.'],
+  ['cpur', 'Chondrostereum purpureum', 'Silver leaf', 'crown', 'white rot', 2,
+   'Enters through pruning wounds; dieback and brittle branches above the infection.']
+];
+const FUNGI_BY = {};
+FUNGI.forEach(f => { FUNGI_BY[f[0]] = f; });
+const FUNGI_WHERE = { root: 'Root plate and butt', stem: 'Stem', crown: 'Crown and branches' };
+
+const SAFE = ['adequate', 'restricted', 'not given'];
+/* The legacy field list. The panel is driven by the norm profiles in norms.js
+   now; this stays only as the column order the CSV has always had, so an
+   existing spreadsheet keeps working. */
+const F_VTA = [
+  ['inspection_type', 'Inspection type', 'select', ['Routine inspection', 'Visual inspection', 'Detailed assessment', 'Post-storm inspection']],
+  ['last_inspection', 'Inspection date', 'date'],
+  ['inspector', 'Inspector', 'text'],
+  ['vitality_roloff', 'Vitality (Roloff 0–3)', 'select', [0, 1, 2, 3]],
+  ['crown_dieback_pct', 'Crown dieback (%)', 'number'],
+  ['damage_class', 'Damage class', 'select', ['none', 'slight', 'moderate', 'severe']],
+  ['cavity', 'Cavity / decay pocket', 'select', ['no', 'yes']],
+  ['wall_t_cm', 'Residual wall t (cm)', 'number'],
+  ['radius_r_cm', 'Stem radius R (cm)', 'number'],
+  ['stability', 'Stability (uprooting)', 'select', SAFE],
+  ['breakage_resistance', 'Breakage resistance', 'select', SAFE],
+  ['target_type', 'Target', 'select', ['none', 'path', 'road', 'parking', 'building', 'playground', 'other']],
+  ['target_distance_m', 'Distance to target (m)', 'number'],
+  ['target_occupancy', 'Use of the target', 'select',
+   ['', 'rarely used', 'occasional', 'frequent', 'constant']],
+  ['traffic_safety', 'Traffic safety', 'select', SAFE],
+  ['urgency', 'Urgency', 'select', ['none', 'next growing season', '3 months', '1 month', 'immediate']],
+  ['actions', 'Actions', 'list'],
+  ['interval_months', 'Interval (months)', 'number'],
+  ['next_inspection', 'Next inspection', 'date'],
+  ['remarks', 'Remarks', 'area']
+];
+const F_BASE = [
+  ['tree_id', 'Tree ID', 'text'],
+  ['tag_no', 'Number on the trunk', 'text'],
+  ['area', 'District / compartment', 'text'],
+  ['species', 'Species (scientific)', 'species'],
+  ['name_en', 'Common name', 'text'],
+  ['name_fi', 'Name (Finnish)', 'text'],
+  ['planted', 'Year planted', 'number'],
+  ['girth_cm', 'Girth at 1.0 m (cm)', 'number'],
+  ['dbh_cm', 'DBH at 1.3 m (cm)', 'number'],
+  ['height_m', 'Height (m)', 'number'],
+  ['crown_d_m', 'Crown diameter (m)', 'number'],
+  ['crown_base_m', 'Crown base (m)', 'number'],
+  ['tree_pit_m2', 'Tree pit (m²)', 'number'],
+  ['location', 'Location', 'text'],
+  ['position_accuracy_m', 'Position accuracy (m)', 'number']
+];
+const LVLCOL = ['#4caf7d', '#9ccc52', '#e8c15a', '#e2704a'];
+const LVLTXT = ['inconspicuous', 'minor findings', 'conspicuous – review measures', 'urgent – detailed assessment'];
+
+/* ============================ STORAGE ============================ */
+
+const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1',
+      K_NIA = 'vta_nia_v1', K_EXP = 'vta_exported_v1', K_TRASH = 'vta_trash_v1',
+      K_ROUND = 'vta_round_v1', K_PREF = 'vta_prefs_v1', K_PLOT = 'vta_plot_v1';
+let mem = {};                                  // fallback when localStorage is blocked
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { delete mem[k]; } }
+
+let CAT, edits;
+function loadAll() {
+  CAT = null;
+  const raw = lsGet(K_CAT);
+  if (raw) { try { CAT = JSON.parse(raw); } catch (e) { CAT = null; } }
+  if (!CAT || !CAT.features) CAT = JSON.parse(JSON.stringify(TREES_DEFAULT));
+  edits = {};
+  const re = lsGet(K_EDIT);
+  if (re) { try { edits = JSON.parse(re) || {}; } catch (e) { edits = {}; } }
+}
+/* The app used to ship three OSM demo trees. They are gone from the shipped
+   catalogue, but a phone that ran an earlier version still has them in its
+   stored one, where they only get in the way of a real survey. Drop them once,
+   matched on the OSM node id, which nothing recorded in the field carries. */
+const DEMO_OSM = ['12498051519', '12498051520', '12498051521'];
+function dropDemoTrees() {
+  if (!CAT || !CAT.features) return 0;
+  const gone = [];
+  CAT.features = CAT.features.filter(f => {
+    const p = f.properties || {};
+    if (DEMO_OSM.indexOf(String(p.osm_id)) >= 0) {      // nothing you record has an osm_id
+      gone.push(p.tree_id); return false;
+    }
+    return true;
+  });
+  if (!gone.length) return 0;
+  gone.forEach(id => { delete edits[id]; });
+  saveCat(); saveEdits();
+  return gone.length;
+}
+function saveCat() { lsSet(K_CAT, JSON.stringify(CAT)); }
+function saveEdits() { lsSet(K_EDIT, JSON.stringify(edits)); }
+function tid(i) { return (CAT.features[i].properties || {}).tree_id || ('#' + i); }
+function props(i) { return Object.assign({}, CAT.features[i].properties, edits[tid(i)] || {}); }
+function isEdited(i) { return !!edits[tid(i)]; }
+
+/* --------- keeping the data ---------
+   Photos live in IndexedDB, which a browser is entitled to evict when the disk
+   runs short - quietly, and noticed only when the record is wanted. Asking for
+   persistence takes that decision away from the browser, and the fill level is
+   worth a line on screen before it becomes a problem rather than after. */
+let storeInfo = { used: 0, quota: 0, persisted: false, ok: false };
+async function storageCheck(ask) {
+  if (!navigator.storage) return storeInfo;
+  try {
+    if (ask && navigator.storage.persist && navigator.storage.persisted &&
+        !(await navigator.storage.persisted())) await navigator.storage.persist();
+    if (navigator.storage.persisted) storeInfo.persisted = await navigator.storage.persisted();
+    if (navigator.storage.estimate) {
+      const e = await navigator.storage.estimate();
+      storeInfo.used = e.usage || 0; storeInfo.quota = e.quota || 0;
+    }
+    storeInfo.ok = true;
+  } catch (e) {}
+  return storeInfo;
+}
+function mb(n) { return (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + ' MB'; }
+
+/* --------- deleted trees are kept for a while ---------
+   A mis-tap on Delete used to end a tree and its history. The record waits in
+   a bin instead; its photographs are keyed by tree id and are never deleted,
+   so restoring brings them back with it. */
+function trashList() {
+  try { return JSON.parse(lsGet(K_TRASH)) || []; } catch (e) { return []; }
+}
+function trashPush(feature, edit) {
+  const t = trashList();
+  t.unshift({ ts: new Date().toISOString(), feature: feature, edit: edit || null });
+  lsSet(K_TRASH, JSON.stringify(t.slice(0, 20)));
+}
+function trashRestore(n) {
+  const t = trashList(), it = t[n];
+  if (!it) return null;
+  const id = it.feature.properties.tree_id;
+  if (CAT.features.some(f => f.properties.tree_id === id)) return 'exists';
+  CAT.features.push(it.feature);
+  if (it.edit) { edits[id] = it.edit; saveEdits(); }
+  saveCat(); t.splice(n, 1); lsSet(K_TRASH, JSON.stringify(t));
+  buildMarkers(); renderList(); renderStats(); renderTrash();
+  return id;
+}
+
+/* --------- plausibility ---------
+   Nothing here blocks a value: the field is always right and the form is
+   always wrong. But a residual wall thicker than the stem radius, or a
+   twenty-four metre tree entered as two hundred and forty, should be seen
+   before it reaches a report with a signature under it. */
+function plausible(p) {
+  const w = [], n = num;
+  const t = n(p.wall_t_cm), R = n(p.radius_r_cm), h = n(p.height_m),
+        d = n(p.dbh_cm), g = n(p.girth_cm), cd = n(p.crown_dieback_pct);
+  if (t != null && R != null && t >= R) w.push('Residual wall t (' + t + ') is not smaller than the radius R (' + R + ').');
+  if (h != null && (h < 1 || h > 70)) w.push('Height ' + h + ' m is outside 1–70 m.');
+  if (d != null && (d < 1 || d > 300)) w.push('DBH ' + d + ' cm is outside 1–300 cm.');
+  if (d != null && g != null) {
+    const fromG = g / Math.PI;
+    if (Math.abs(fromG - d) > Math.max(6, 0.3 * d))
+      w.push('DBH ' + d + ' cm and girth ' + g + ' cm disagree – the girth implies ' + fromG.toFixed(0) + ' cm.');
+  }
+  if (cd != null && (cd < 0 || cd > 100)) w.push('Crown dieback ' + cd + ' % is outside 0–100.');
+  if (p.last_inspection && p.next_inspection && p.next_inspection < p.last_inspection)
+    w.push('The next inspection is dated before the last one.');
+  if (n(p.target_distance_m) != null && n(p.target_distance_m) > 200)
+    w.push('Distance to target ' + p.target_distance_m + ' m – beyond any fall zone.');
+  return w;
+}
+
+/* Two people, or one person twice, recording the same stem. */
+/* Comparing a new stem against the register in lat/lon compares it against
+   other people's GPS errors, which is how a tree ends up "0.0 m" from one it
+   is nowhere near. Where the new stem has been surveyed, only surveyed trees
+   are candidates and the distance is measured inside the survey, where it
+   means something. */
+function nearbyTree(lon, lat, within, local) {
+  let best = null, bd = within;
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const p = props(i);
+    let d;
+    if (local && hasLocal(p)) d = Math.hypot(+p.lx - local.lx, +p.ly - local.ly);
+    else if (local) return;                       // unsurveyed: nothing to compare with
+    else d = distBear(f.geometry.coordinates[1], f.geometry.coordinates[0], lat, lon).d;
+    if (d < bd) { bd = d; best = { i: i, d: d }; }
+  });
+  return best;
+}
+
+/* --------- photos in IndexedDB --------- */
+let PDB = null, photosOk = ('indexedDB' in window);
+function pdb() {
+  return new Promise((res, rej) => {
+    if (PDB) return res(PDB);
+    const r = indexedDB.open('vta-photos', 1);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains('photos')) {
+        const s = db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('tree', 'tree');
+      }
+    };
+    r.onsuccess = () => { PDB = r.result; res(PDB); };
+    r.onerror = () => rej(r.error);
+  });
+}
+async function photoAdd(tree, url, meta) {
+  const db = await pdb();
+  const rec = Object.assign({ tree: tree, url: url, ts: new Date().toISOString() }, meta || {});
+  return new Promise((res, rej) => {
+    const tx = db.transaction('photos', 'readwrite');
+    // the generated key comes back, so the caller can read the record out again
+    // and say "stored" only once the database really has it
+    let key = null;
+    const rq = tx.objectStore('photos').add(rec);
+    rq.onsuccess = () => { key = rq.result; };
+    tx.oncomplete = () => res(key); tx.onerror = () => rej(tx.error);
+  });
+}
+async function photoGet(id) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const q = db.transaction('photos').objectStore('photos').get(id);
+    q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error);
+  });
+}
+async function photoList(tree) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const q = db.transaction('photos').objectStore('photos').index('tree').getAll(tree);
+    q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error);
+  });
+}
+async function photoAll() {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const q = db.transaction('photos').objectStore('photos').getAll();
+    q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error);
+  });
+}
+/* Change one stored record - the organ somebody named on a picture, say,
+   which is worth keeping on the picture and not only in the request it was
+   sent with. */
+async function photoPatch(id, patch) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('photos', 'readwrite');
+    const st = tx.objectStore('photos');
+    const q = st.get(id);
+    q.onsuccess = () => { if (q.result) st.put(Object.assign(q.result, patch)); };
+    tx.oncomplete = () => res(true); tx.onerror = () => rej(tx.error);
+  });
+}
+async function photoDel(id) {
+  const db = await pdb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('photos', 'readwrite');
+    tx.objectStore('photos').delete(id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+function shrink(file, max, q) {
+  return new Promise(res => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+    img.src = url;
+  });
+}
+
+/* ========================= VTA EVALUATION ========================= */
+
+function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
+function assess(p) {
+  const notes = [], sym = p.symptoms || [];
+  const has = k => sym.indexOf(k) >= 0;
+  let lvl = 0;
+  const up = (n, txt) => { lvl = Math.max(lvl, n); if (txt) notes.push(txt); };
+
+  const t = num(p.wall_t_cm), R = num(p.radius_r_cm);
+  let tr = null;
+  if (t > 0 && R > 0) {
+    tr = t / R;
+    if (tr < 0.30) up(3, 't/R = ' + tr.toFixed(2) + ' – below 0.30. Critical residual wall thickness after Mattheck; detailed assessment required.');
+    else if (tr < 0.35) up(2, 't/R = ' + tr.toFixed(2) + ' – close to the 0.30 threshold, track the development.');
+    else notes.push('t/R = ' + tr.toFixed(2) + ' – above the 0.30 threshold.');
+  } else if (p.cavity === 'yes') {
+    up(2, 'Cavity recorded but t and R are missing – t/R cannot be checked. Measure the residual wall.');
+  }
+
+  const h = num(p.height_m), d = num(p.dbh_cm);
+  let hd = null;
+  if (h > 0 && d > 0) {
+    hd = h * 100 / d;
+    if (hd > 80) up(1, 'h/d = ' + hd.toFixed(0) + ' – slender stem, raised sensitivity to wind and snow load.');
+  }
+
+  const fun = p.fungi || [];
+  fun.forEach(k => {
+    const f = FUNGI_BY[k]; if (!f) return;
+    up(f[5], f[1] + ' (' + f[2] + ') – ' + f[4] + ' in the ' +
+       (f[3] === 'root' ? 'root plate or butt' : f[3] === 'stem' ? 'stem' : 'crown') + '. ' + f[6]);
+  });
+  if (!fun.length && (has('t_fungi') || has('r_fungi')))
+    up(3, 'Fruiting bodies of wood-decay fungi, species not recorded – assume decay and identify the fungus, the species decides how the tree fails.');
+  if (has('r_heave')) up(3, 'Soil heave or tension cracks – indication of root failure, check stability now.');
+  if (has('t_lean')) up(3, 'Lean or change of inclination – check stability now.');
+  if (has('c_hanger')) up(3, 'Hangers or loose branches – immediate hazard, remove without delay.');
+  if (has('t_transcrack')) up(2, 'Transverse crack – risk of stem failure.');
+  if (has('t_cavity')) up(2, 'Open cavity – loss of cross-section, determine the residual wall thickness.');
+  if (has('t_fork')) up(1, 'Fork with included bark – risk of splitting, consider a crown brace.');
+  if (has('r_damage')) up(2, 'Root damage – loss of anchorage, establish the extent.');
+  if (has('t_rib') || has('t_swelling')) up(1, 'Reaction wood (rib or swelling) – the tree is compensating for a weak spot underneath.');
+
+  const vit = num(p.vitality_roloff);
+  if (vit === 3) up(2, 'Vitality stage 3 (resignation) – regenerative capacity exhausted.');
+  else if (vit === 2) up(1, 'Vitality stage 2 (stagnation).');
+  const cd = num(p.crown_dieback_pct);
+  if (cd >= 60) up(2, 'Crown dieback ' + cd + ' % – severely damaged crown.');
+  else if (cd >= 30) up(1, 'Crown dieback ' + cd + ' %.');
+
+  const tgt = num(p.target_distance_m);
+  if (tgt != null && h > 0 && p.target_type && p.target_type !== 'none' && tgt <= h) {
+    // a target inside the fall zone does not make the tree worse, it makes a
+    // failure more costly - so it only sharpens an already conspicuous tree.
+    // How often the target is occupied is the difference between a hazard and
+    // a risk: a footpath walked twice a week is not a playground.
+    const occ = p.target_occupancy || '';
+    const busy = occ === 'frequent' || occ === 'constant';
+    const where = 'Target (' + p.target_type + ')' + (occ ? ', ' + occ + ' use,' : '') +
+                  ' ' + tgt.toFixed(1) + ' m from the stem, inside the fall zone of a ' +
+                  h.toFixed(1) + ' m tree.';
+    if (lvl >= 2) up(3, where);
+    else if (busy && lvl >= 1) up(2, where + ' Frequented target sharpens an already noticeable tree.');
+    else notes.push(where);
+  }
+
+  if (p.traffic_safety === 'not given') up(3, 'Traffic safety rated as not given.');
+  else if (p.traffic_safety === 'restricted') up(2, 'Traffic safety rated as restricted.');
+  if (p.stability === 'not given' || p.breakage_resistance === 'not given') up(3, null);
+
+  if (p.next_inspection) {
+    const dd = new Date(p.next_inspection);
+    if (!isNaN(dd) && dd < new Date()) up(1, 'Inspection overdue (was due ' + p.next_inspection + ').');
+  }
+  return { lvl: lvl, tr: tr, hd: hd, notes: notes };
+}
+
+/* ========================== GEODESY ========================== */
+
+/* Metres per degree, as a function of latitude. The flat constants this
+   replaces (110540 / 111320) are the values for about 45 degrees; at 62 north
+   the latitude one is 0.8 % short, which is 0.4 m over a fifty-metre stand and
+   grows with every metre of it. */
+function mLat(lat) {
+  const r = lat * Math.PI / 180;
+  return 111132.92 - 559.82 * Math.cos(2 * r) + 1.175 * Math.cos(4 * r) - 0.0023 * Math.cos(6 * r);
+}
+function mLon(lat) {
+  const r = lat * Math.PI / 180;
+  return 111412.84 * Math.cos(r) - 93.5 * Math.cos(3 * r) + 0.118 * Math.cos(5 * r);
+}
+function enu(lat, lon, lat0, lon0) {
+  return { e: (lon - lon0) * mLon(lat0), n: (lat - lat0) * mLat(lat0) };
+}
+/* A coordinate a given distance away on a given compass bearing. The plane
+   approximation is the same one the whole app uses; over the tens of metres
+   between an inspector and a trunk it is exact to the millimetre. */
+function moveWgs(lat, lon, d, bearDeg) {
+  const a = THREE.MathUtils.degToRad(bearDeg);
+  return { lat: lat + (d * Math.cos(a)) / mLat(lat),
+           lon: lon + (d * Math.sin(a)) / mLon(lat) };
+}
+
+/* A point in the scene back to WGS84. Accurate relative to everything else in
+   the session; in absolute terms it inherits the error of the origin fix. */
+function sceneToWgs(v) {
+  settleComp();                       // a placement ends the glide rather than inheriting it
+  /* Through the survey, not through the old GPS origin: scene -> plot local ->
+     WGS84. If the session is not tied to the plot there is no answer, and
+     saying so beats inventing one. */
+  if (S2P && plotGeoreferenced()) {
+    const l = s2pInvert(v.x, v.z);
+    const g = plotToWgs(l.lx, l.ly);
+    if (g) return g;
+  }
+  if (!origin || !world) return null;
+  // worldToLocal inverts the cached matrix, and applyYaw() has just turned the
+  // world without a render in between - refresh it or the answer is the old
+  // heading's answer
+  world.updateMatrixWorld(true);
+  const l = world.worldToLocal(v.clone());
+  return { lat: origin.lat + (-l.z) / mLat(origin.lat),
+           lon: origin.lon + l.x / mLon(origin.lat) };
+}
+/* The inverse: declare that the spot you are standing on has these
+   coordinates. The scene's zero point is wherever the session started, not
+   where you are now, so the origin is shifted by your offset from it -
+   otherwise walking twenty metres before saying "I am at ..." puts the whole
+   scene twenty metres out. */
+function distBear(lat, lon, lat0, lon0) {
+  const d = enu(lat, lon, lat0, lon0);
+  return { d: Math.hypot(d.e, d.n), b: (Math.atan2(d.e, d.n) * 180 / Math.PI + 360) % 360 };
+}
+
+/* ===================== CONTROL POINTS / GEOREFERENCE =====================
+   GPS puts the scene within metres and the compass turns it by tens of
+   degrees; at 30 m a 20-degree heading error is a 10 m miss, which is what a
+   register looks like when every marker is "somehow offset". ARCore's visual
+   odometry, by contrast, is good to about a percent of the distance walked -
+   centimetres over a stand. So the local frame is the accurate part, and all
+   that is missing is where it sits on the earth and which way it points.
+
+   Two known points measured in that frame determine both: three or four
+   give a residual that says whether to believe the result. This is the
+   surveyor's resection, and the fit below is its least-squares form. */
+
+const refFix = new Map();          // control key -> { x, z } measured in this session
+
+/* Anything with a coordinate you trust can hold the scene down, and the trees
+   themselves are the closest such things - which beats walking back to a
+   marker post every time a session restarts. Surveyed reference points used to
+   sit in front of these; carrying a list of posts around turned out to be work
+   nobody did, and the trees do the job. */
+function controlList() {
+  const c = (mode && world) ? camPos() : null;
+  const trees = CAT.features.map((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return null;
+    const co = f.geometry.coordinates;
+    const g = world ? markerOf.get(i) : null;
+    const d = (c && g) ? c.distanceTo(g.getWorldPosition(new THREE.Vector3())) : 1e9;
+    return { key: 't:' + tid(i), name: props(i).tree_id, lat: co[1], lon: co[0], ref: false, d: d };
+  }).filter(Boolean);
+  trees.sort((a, b) => a.d - b.d);
+  return trees.slice(0, 8);
+}
+function controlByKey(k) { return controlList().find(x => x.key === k) || null; }
+
+/* Rotation and translation only - the scale is known to be 1, and letting a
+   fit absorb scale would quietly hide a bad control point. Complex form:
+   s = e^(-i*phi) * (u - u0), with u = e - i*n on the map side and s = x + i*z
+   in the scene. */
+function fitRigid(pairs) {
+  const N = pairs.length;
+  if (N < 2) return null;
+  let ue = 0, un = 0, sx = 0, sz = 0;
+  pairs.forEach(p => { ue += p.u.e; un += p.u.n; sx += p.s.x; sz += p.s.z; });
+  ue /= N; un /= N; sx /= N; sz /= N;
+  let cr = 0, ci = 0;
+  pairs.forEach(p => {
+    const ur = p.u.e - ue, ui = -(p.u.n - un);
+    const sr = p.s.x - sx, si = p.s.z - sz;
+    cr += sr * ur + si * ui; ci += si * ur - sr * ui;      // sum of s * conj(u)
+  });
+  if (Math.hypot(cr, ci) < 1e-9) return null;              // all points coincide
+  const phi = -Math.atan2(ci, cr);
+  const cp = Math.cos(phi), sp = Math.sin(phi);
+  const e0 = ue - (cp * sx - sp * sz), n0 = un + (sp * sx + cp * sz);
+  let sum = 0, mx = 0, worst = null;
+  pairs.forEach(p => {
+    const ur = p.u.e - e0, ui = -(p.u.n - n0);
+    const d = Math.hypot(cp * ur + sp * ui - p.s.x, -sp * ur + cp * ui - p.s.z);
+    sum += d * d; if (d > mx) { mx = d; worst = p.id; }
+  });
+  return { phi: phi, e0: e0, n0: n0, rms: Math.sqrt(sum / N), max: mx, worst: worst, n: N };
+}
+
+/* Everything the fit needs is in the session; applying it is just the origin
+   and the yaw the rest of the app already runs on. */
+function fitFromControls(quiet) {
+  const used = controlList().filter(r => refFix.has(r.key));
+  if (used.length === 1) {
+    // one point pins the position exactly and leaves the heading to the
+    // compass - worse than a real fit, far better than a GPS origin
+    const r = used[0], p = refFix.get(r.key);
+    if (heading == null) { if (!quiet) toast('One point needs the compass for the heading – no heading yet.'); return null; }
+    syncNorth(true);
+    const v = new THREE.Vector3(p.x, 0, p.z).applyAxisAngle(_yAx, -THREE.MathUtils.degToRad(worldYaw + headOff));
+    origin = { lat: r.lat + v.z / mLat(r.lat), lon: r.lon - v.x / mLon(r.lat) };
+    originAcc = null; originPinned = true;
+    placeMarkers(); requestAnchors(); lastFit = null; showFit();
+    if (!quiet) toast('Position set from ' + r.name + ' – heading still from the compass. One more point fixes it.');
+    return null;
+  }
+  if (used.length < 2) { if (!quiet) toast('Measure at least two control points.'); return null; }
+  const lat0 = used.reduce((a, r) => a + r.lat, 0) / used.length;
+  const lon0 = used.reduce((a, r) => a + r.lon, 0) / used.length;
+  const f = fitS2P(used.map(r => {
+    const l = wgsToPlot(r.lat, r.lon);
+    return l ? { id: r.name, l: l, s: refFix.get(r.key) } : null;
+  }).filter(Boolean), 'control points');
+  if (!f) { if (!quiet) toast('Control points are too close together, or the plot has no position yet.'); return null; }
+  if (!quiet) toast('Fitted on ' + f.n + ' points · residual ' + f.rms.toFixed(2) +
+                    ' m, worst ' + f.max.toFixed(2) + ' m (' + f.worst + ')');
+  return f;
+}
+/* Aiming a reticle at a fence post is a lot of ceremony for a number the
+   session already knows: where the phone is. Stand on the point, press the
+   button. You are within half a metre of it, which over a thirty-metre
+   baseline is a degree of heading - the compass is off by twenty. */
+/* The one thing the app exists for should not be two menus deep behind a
+   reticle. Stand at the stem, press the button. */
+function addTreeHere() {
+  if (mode !== 'WebXR') return toast('Needs the WebXR mode – its tracking is what places the tree.');
+  setArMode();
+  const c = camPos();
+  // The first tree of a survey defines the plot frame: this spot is its
+  // origin and the way the phone is facing is not allowed to matter, so the
+  // frame is laid out along north as the compass currently believes it. Every
+  // later tree is measured against it by the session's own tracking, which is
+  // the accurate part; if the compass was ten degrees out, the whole stand is
+  // ten degrees out together and two known points straighten it later.
+  if (!S2P) {
+    /* Laying a fresh frame over a stand that is already surveyed is the worst
+       thing this app can do: the new tree lands on local (0,0), which is where
+       the first tree of the previous survey sits - the "already recorded 0.0 m
+       from here" - and every earlier tree silently ends up measured against an
+       origin that has moved. A survey is only ever started on empty ground.
+       Otherwise the session has to be tied to the stand first, which is what
+       "I am at ..." and matching stems are for. */
+    /* Pressing the button means record a tree, so a tree gets recorded. If the
+       stand is already surveyed the session ties itself to the nearest tree it
+       knows - GPS is easily good enough to say which tree of a stand you are
+       standing in, and the compass gives the rest. Laying a fresh frame over an
+       existing survey would put this tree on top of an old one and quietly
+       move every earlier tree, so that only happens on empty ground. */
+    const near = nearestSurveyedByGps();
+    if (near != null && lockOnTree(near)) {
+      toast('Continuing the survey from ' + (props(near).tag_no ? '№ ' + props(near).tag_no : tid(near)) +
+            ' – match stems under Align for a tighter lock.');
+    } else {
+      S2P = { phi: heading != null ? phiFromHeading(heading) : 0, tx: c.x, tz: c.z };
+      if (lastFix && (!plotGeoreferenced() || PLOT.provisional)) plotAbsorbFix(lastFix, 0, 0);
+      s2pFrom = 'this spot'; s2pRms = null; s2pAuto = false;
+      placeMarkers(); requestAnchors(); showFit();
+      const others = CAT.features.filter((f, i) => hasLocal(props(i))).length;
+      toast(others ? 'No GPS fix – recording into a fresh frame, so this tree is not measured ' +
+                     'against the earlier ones. Lock on a known tree when you can.'
+                   : 'Survey started here – this spot is the plot origin.');
+    }
+  }
+  /* Where the tree is, rather than where you are. Two ways, in order: the
+     depth image if this phone gives it, and otherwise the reticle - the ring
+     on the ground where the phone is pointing, which is the foot of the stem
+     when you are looking at the stem. That is the metre you have been seeing:
+     the button recorded the phone's own position, and you stand a step in
+     front of the trunk. */
+  /* Not guard(): that watchdog switches a part off after three failures,
+     which is right for something running sixty times a second and wrong for
+     the button the app exists for. A failure here is said out loud and the
+     next press tries again. */
+  askStem(st => {
+    try { recordTreeAt(st); }
+    catch (e) { note('record', e); toast('Recording failed: ' + ((e && e.message) || e)); }
+  });
+}
+
+/* The reticle, when it is where a stem's foot would be: in front of you,
+   within a step or two. Further off it is the ground you happen to be looking
+   at, which is not a tree, so it is ignored. */
+const RET_MIN = 0.35, RET_MAX = 2.6;
+/* You stand a step in front of the trunk and face it. That step is the whole
+   error, and the session already knows which way you are facing to a fraction
+   of a degree - the compass is not needed and would only make it worse. So
+   when nothing better is available the tree is put one step ahead along the
+   view, and the marker lands round the stem instead of on your own boots.
+   The step is settable because people and trees differ. */
+function stepOff() {
+  const v = parseFloat(prefs().stepOff);
+  return isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.0;
+}
+function reticleStem() {
+  if (!hitPt) return null;
+  const c = camPos();
+  const d = Math.hypot(hitPt.x - c.x, hitPt.z - c.z);
+  if (d < RET_MIN || d > RET_MAX) return null;
+  return { x: hitPt.x, z: hitPt.z, d: d };
+}
+/* ---- how far away is it? ------------------------------------------------
+   A tree is recorded from where the inspector is standing, and that is
+   usually not the stem: a step in front of it at best, across a lawn at
+   worst. The app can measure the near case and guesses the rest, and a guess
+   of one metre for a tree twelve metres away is the whole error of the
+   record. So it asks, once, at the moment of recording, when the inspector is
+   looking straight at the tree and knows the answer to within a pace.
+
+   The direction is not asked: in AR it is where the camera points, which the
+   session knows exactly, and outside AR it is the compass, which is the best
+   that phone has. Only the distance is a question. */
+const DIST_STEPS = [1, 2, 3, 5, 8, 12, 20, 30];
+/* A direction in the scene, said as a compass bearing - for reading only:
+   the move itself never leaves the scene's own frame. */
+/* Where north is inside the session. The fit knows it to a fraction of a
+   degree once the scene is aligned; before that the compass and the camera's
+   own yaw give the same relation, roughly - north = where the camera looks,
+   in the scene, minus where the compass says it looks. Everything that turns
+   a direction into a bearing, and a bearing back into a direction, goes
+   through this one function, so the two can never disagree. */
+function sceneNorth() {
+  const n = sceneNorthDeg();
+  if (n != null) return n;
+  if (haveOrient && heading != null && mode === 'WebXR')
+    return ((camYawDeg() - heading) % 360 + 360) % 360;
+  return null;
+}
+function headingOfDir(d) {
+  const inScene = (Math.atan2(d.x, -d.z) * 180 / Math.PI + 360) % 360;
+  const north = sceneNorth();
+  if (north != null) return ((inScene - north) % 360 + 360) % 360;
+  return (haveOrient && heading != null) ? heading : inScene;
+}
+function askDist() { return prefs().askDist !== false; }
+function autoVoice() { return prefs().autoVoice !== false; }
+function paintAutoVoice() {
+  const b = $('bAutoVoice'); if (!b) return;
+  b.textContent = 'Listen at once: ' + (autoVoice() ? 'on' : 'off');
+  b.classList.toggle('p', autoVoice());
+}
+function paintAskDist() {
+  const b = $('bAskDist'); if (!b) return;
+  b.textContent = 'Ask the distance: ' + (askDist() ? 'on' : 'off');
+  b.classList.toggle('p', askDist());
+}
+/* from: {lat, lon} the position the tree was recorded at (the inspector, or
+   the camera); dir: compass degrees the tree lies in; scene: the same in
+   scene coordinates when there is a session, so the move keeps the survey's
+   own frame rather than going out through GPS and back. */
+let distAsk = null;
+/* In AR it belongs in the stack above the control bar, like every other menu
+   there - a question that covers + Tree and Exit is a question in the way.
+   Outside AR the sheet at the foot of the screen is the one people know. */
+function distBox() { return mode ? $('mmenu') : $('niaBox'); }
+function distanceSheet(i, o) {
+  if (!askDist()) return false;
+  const el = distBox();
+  const from = o.from, dir = o.dir, was = o.was, howNote = o.note;
+  distAsk = { i: i, from: from, dir: dir, scene: o.scene, was: was, after: o.after };
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>How far away is the stem of ' + esc(tid(i)) + '?</b>';
+  el.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'small';
+  sub.style.margin = '2px 0 8px';
+  sub.textContent = (howNote || ('Recorded ' + was.toFixed(1) + ' m ahead')) +
+    ' · ' + Math.round(dir) + '° ' + bearWord(dir) +
+    '. Tap the distance to the trunk you are looking at.';
+  el.appendChild(sub);
+
+  const row = document.createElement('div'); row.className = 'btnrow';
+  const put = (label, d) => {
+    const b = document.createElement('button');
+    b.className = 'sm' + (Math.abs(d - was) < 0.25 ? ' p' : '');
+    b.style.minWidth = '0'; b.textContent = label;
+    b.onclick = () => applyDist(d);
+    row.appendChild(b);
+  };
+  put('I am at it', 0);
+  DIST_STEPS.forEach(d => put(d + ' m', d));
+  el.appendChild(row);
+
+  const r2 = document.createElement('div'); r2.className = 'row';
+  const lab = document.createElement('label'); lab.textContent = 'Or exactly';
+  const inp = document.createElement('input');
+  inp.type = 'number'; inp.step = '0.1'; inp.min = '0'; inp.id = 'distIn';
+  inp.setAttribute('inputmode', 'decimal'); inp.placeholder = was.toFixed(1);
+  r2.appendChild(lab); r2.appendChild(inp); el.appendChild(r2);
+
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const ok = document.createElement('button'); ok.className = 'p'; ok.textContent = 'Move it there';
+  ok.onclick = () => {
+    const v = parseFloat($('distIn').value);
+    if (!isFinite(v) || v < 0) return toast('Type the distance in metres, or tap one above.');
+    applyDist(v);
+  };
+  const keep = document.createElement('button'); keep.textContent = 'Leave it where it is';
+  keep.onclick = () => { const f = distAsk && distAsk.after; el.style.display = 'none'; distAsk = null; if (f) f(); };
+  act.appendChild(ok); act.appendChild(keep); el.appendChild(act);
+
+  const off = document.createElement('button'); off.className = 'sm';
+  off.textContent = 'Stop asking me this';
+  off.onclick = () => {
+    const f = distAsk && distAsk.after;
+    setPref('askDist', false); el.style.display = 'none'; distAsk = null;
+    toast('The distance will not be asked again – switch it back on under Data → App.');
+    if (f) f();
+  };
+  el.appendChild(off);
+  if (mode) closePopups('mmenu');
+  el.style.display = 'block';
+  return true;
+}
+function applyDist(d) {
+  const a = distAsk; if (!a) return;
+  distBox().style.display = 'none'; distAsk = null;
+  const i = a.i;
+  const done = () => { if (a.after) a.after(); };
+  if (!CAT.features[i]) return done();
+  if (Math.abs(d - a.was) < 0.05) return done();     // that is where it already is
+  let g = null, l = null;
+  if (a.scene && S2P) {
+    const at = { x: a.scene.x + a.scene.dx * d, z: a.scene.z + a.scene.dz * d };
+    l = s2pInvert(at.x, at.z);
+    g = plotToWgs(l.lx, l.ly);
+    sessScene.set(i, { x: at.x, z: at.z });
+  }
+  if (!g) { g = moveWgs(a.from.lat, a.from.lon, d, a.dir); l = null; }
+  CAT.features[i].geometry.coordinates = [+g.lon.toFixed(7), +g.lat.toFixed(7)];
+  const patch = { geometry_source: (props(i).geometry_source || '').replace(/ · \d+(\.\d+)? m (ahead|away).*$/, '') +
+                    ' · ' + d.toFixed(1) + ' m away, ' + Math.round(a.dir) + '°' };
+  if (l) { patch.lx = +l.lx.toFixed(3); patch.ly = +l.ly.toFixed(3); }
+  else if (a.acc != null) patch.position_accuracy_m = a.acc;
+  setEdit(i, patch);
+  saveCat(); buildMarkers(); placeMarkers(); renderList(); drawMap();
+  if (openIdx === i && panelEl) openPanel(i, panelTab);
+  toast(tid(i) + ' moved to ' + d.toFixed(1) + ' m ' + bearWord(a.dir) + ' of where you stood.');
+  done();
+}
+
+function recordTreeAt(st) {
+  if (mode !== 'WebXR') return toast('The camera view is not running.');
+  if (!S2P) return toast('The session has no frame to measure in – leave AR and come back.');
+  const c = camPos();
+  const ret = (st && !st.error) ? null : reticleStem();
+  let at, how;
+  if (st && !st.error) { at = { x: st.x, z: st.z }; how = 'depth'; }
+  else if (ret) { at = { x: ret.x, z: ret.z }; how = 'reticle'; }
+  else {
+    const d = camDir(), fl = Math.hypot(d.x, d.z);
+    const off = stepOff();
+    if (fl > 0.1 && off > 0) {
+      at = { x: c.x + d.x / fl * off, z: c.z + d.z / fl * off };
+      how = 'step';
+    } else { at = { x: c.x, z: c.z }; how = 'stand'; }
+  }
+  const l = s2pInvert(at.x, at.z);
+  let g = plotToWgs(l.lx, l.ly) || (lastFix ? { lat: lastFix.lat, lon: lastFix.lon } : null);
+  if (!g) return toast('Could not work out a position for it – tell me what the header says.');
+  /* You are standing at this stem and the phone knows where you are to a few
+     metres. If the plot's own georeference puts the tree somewhere else
+     entirely, the georeference is wrong - not the fix, and not the survey. Put
+     the stand back on the earth here: every tree keeps its local coordinates,
+     so the shape of the stand is untouched and the whole thing lands within
+     GPS accuracy of where it belongs. */
+  if (lastFix && lastFix.acc <= 25) {
+    const off = distBear(g.lat, g.lon, lastFix.lat, lastFix.lon).d;
+    const allow = Math.max(30, lastFix.acc * 4);
+    if (off > allow) {
+      plotAnchorAt(l, lastFix.lat, lastFix.lon);
+      g = plotToWgs(l.lx, l.ly) || g;
+      toast('The stand was ' + off.toFixed(0) + ' m from where you are standing – ' +
+            'put back on your position. Distances between trees are unchanged.');
+    }
+  }
+  const near = nearbyTree(g.lon, g.lat, 2.0, l);
+  const i = addTree(g.lon, g.lat,
+                    how === 'depth' ? 'AR survey · stem from depth'
+                  : how === 'reticle' ? 'AR survey · aimed at the stem'
+                  : how === 'step' ? 'AR survey · a step ahead' : 'AR survey',
+                    PLOT.acc, l, true);
+  setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+  // a diameter measured off the trunk beats one nobody entered, but only when
+  // enough of the trunk was seen to determine it
+  if (st && st.firm) setEdit(i, { dbh_cm: Math.round(st.r * 200) });
+  // the measurement that matters: where this stem is in the session, which no
+  // later correction of the frame can spoil
+  sessScene.set(i, { x: at.x, z: at.z });
+  placeMarkers();
+  selectTree(i);
+  /* Depth found the trunk itself - that distance is measured, not guessed, so
+     it is the one case the question has nothing to add. Everything else is an
+     assumption about where the inspector was standing, and gets asked. */
+  const dv = camDir(), fl2 = Math.hypot(dv.x, dv.z) || 1;
+  const asked = how !== 'depth' && distanceSheet(i, {
+    from: g, dir: headingOfDir(dv),
+    scene: { x: c.x, z: c.z, dx: dv.x / fl2, dz: dv.z / fl2 },
+    was: Math.hypot(at.x - c.x, at.z - c.z),
+    note: how === 'reticle' ? 'Recorded at the ring' : how === 'step' ? 'Recorded a step ahead'
+                                                     : 'Recorded where you stand',
+    after: () => openPanel(i)
+  });
+  if (!asked) openPanel(i);
+  const rough = s2pAuto && CAT.features.some((f, k) => k !== i && hasLocal(props(k)));
+  toast('Tree ' + tid(i) + (how === 'depth'
+          ? ' recorded on the stem in front of you' +
+            (st.firm ? ', Ø ' + Math.round(st.r * 200) + ' cm' : '') + '.'
+          : how === 'reticle'
+          ? ' recorded at the ring, ' + ret.d.toFixed(1) + ' m ahead.'
+          : how === 'step'
+          ? ' recorded ' + stepOff().toFixed(1) + ' m ahead, where you are facing.'
+          : ' recorded where you stand.') +
+        (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : '') +
+        (rough ? ' Against the trees already here it is only as good as GPS – tap three stems and it moves onto the right place.' : ''));
+}
+
+/* ---- standing at trees you know ----
+   Without depth there is one measurement in the wood that beats GPS by two
+   orders of magnitude and costs a single tap: standing at a tree whose
+   position the register already holds. One of them fixes where the session
+   is, to the accuracy of that tree, with the heading still from the compass.
+   Two of them, far enough apart, fix the heading as well - exactly, by the
+   line between them - and then the whole stand is where it belongs for the
+   rest of the session. It is the same arithmetic as the stem match, with the
+   trees named by where you are standing instead of by their spacing. */
+let standPts = [];
+
+/* Markers hundreds of metres away at the start of a session mean one of two
+   things, and the phone cannot tell them apart: either you are standing a
+   long way from the stand, or the stand's georeference has been dragged off
+   its ground. So it is said plainly and the repair is one tap - rigid, every
+   distance between two trees kept, the whole stand put on your position. */
+let farSaid = false;
+function checkFarFromStand() {
+  if (farSaid || !lastFix || lastFix.acc > 15 || mode !== 'WebXR') return;
+  const withL = CAT.features.filter((f, i) => hasLocal(props(i)));
+  if (withL.length < 2) return;
+  let bd = 1e12;
+  withL.forEach(f => {
+    const c = f.geometry.coordinates;
+    bd = Math.min(bd, distBear(c[1], c[0], lastFix.lat, lastFix.lon).d);
+  });
+  if (bd < 60) return;
+  farSaid = true;
+  mbar('<b>Nothing of the stand is here</b><br>The nearest tree in the register is ' +
+       (bd > 999 ? (bd / 1000).toFixed(1) + ' km' : bd.toFixed(0) + ' m') +
+       ' away. If you are standing in it, its position on the earth is wrong and one press ' +
+       'puts it right – the trees keep every distance between them.',
+       [['The stand is here', () => {
+          $('mbar').classList.remove('on');
+          const l = S2P ? s2pInvert(camPos().x, camPos().z) : null;
+          const i = nearestByGps();
+          const use = l || (i == null ? null : localOf(i));
+          if (!use) return toast('Nothing to hang it on yet.');
+          plotAnchorAt(use, lastFix.lat, lastFix.lon);
+          placeMarkers(); requestAnchors(); clearMeasure(); renderPlotBox();
+          toast('The stand is on your position now. Stop at a tree you know to sharpen it.');
+        }, 'p'], ['Not now', () => { $('mbar').classList.remove('on'); }]]);
+}
+
+/* ---- the alignment nobody presses ----
+   You walk up to a tree and stop. That is a measurement: the phone is at a
+   tree the register holds, and the session knows where the phone is to a
+   centimetre. Two of them, far enough apart and the right distance apart,
+   fix the session on the stand exactly.
+
+   Everything here is about not guessing the wrong tree. It only looks when
+   the phone has been still for two seconds; the tree has to be within two
+   and a half metres of where the current alignment says it is, with the next
+   candidate four metres further off, so a row of trees cannot be mistaken
+   for its neighbour; and the two points have to be the distance apart that
+   the register says they are, or the pair is thrown away. When the alignment
+   is worse than that, nothing is within range and nothing happens - which is
+   the right answer, not a wrong lock. */
+let stillSince = 0, stillAt = null, autoStood = 0;
+const STAND_R = 2.5, STAND_GAP = 4.0, STAND_STILL = 2000, STAND_MOVE = 0.35,
+      STAND_ACC_AUTO = 8,    // a fix this good names the tree by itself
+      STAND_ACC_ASK = 15;    // up to this it asks; beyond it stays quiet
+function autoStand() {
+  if (mode !== 'WebXR' || !S2P || sceneLocked || measure) return;
+  if (lockStems >= 2) return;                       // already exact, leave it alone
+  const c = camPos();
+  if (!stillAt || Math.hypot(c.x - stillAt.x, c.z - stillAt.z) > STAND_MOVE) {
+    stillAt = { x: c.x, z: c.z }; stillSince = performance.now();
+    return;                                          // still walking
+  }
+  if (performance.now() - stillSince < STAND_STILL) return;
+  /* Which tree, if it is beyond doubt. Asked of GPS, not of the current
+     alignment: the alignment can be ten metres out, which is the state this
+     exists to repair, and then nothing would ever be in range. GPS is a few
+     metres out in absolute terms but the register was built from GPS too, so
+     standing at a tree the nearest entry is the right one - provided the next
+     one is far enough behind it that no coin is being tossed. */
+  /* Under a canopy the fix is seldom inside eight metres, and then this
+     stage never fired at all. Up to fifteen it is still worth asking - the
+     question costs one tap, a wrong lock costs the session - and a tree you
+     stood at last time needs no asking at all. */
+  if (!lastFix || lastFix.acc > STAND_ACC_ASK) return;
+  let best = null, bd = 1e9, second = 1e9;
+  CAT.features.forEach((f, i) => {
+    if (!hasLocal(props(i)) || !f.geometry) return;
+    const q = f.geometry.coordinates;
+    const d = distBear(q[1], q[0], lastFix.lat, lastFix.lon).d;
+    if (d < bd) { second = bd; bd = d; best = { i: i, e: localOf(i).lx, n: localOf(i).ly }; }
+    else if (d < second) second = d;
+  });
+  if (!best || bd > Math.max(STAND_R, lastFix.acc) || second < bd + STAND_GAP) return;
+  if (standPts.some(p => p.i === best.i)) return;    // already have this one
+  // the ring is the stem's foot; the phone is a step beside it
+  const r = reticleStem();
+  const at = r ? { x: r.x, z: r.z } : { x: c.x, z: c.z };
+  stillSince = performance.now() + 1e6;              // one per stop
+  const remembered = standMemo.some(m => m.i === best.i);
+  if (lastFix.acc > STAND_ACC_AUTO && !remembered) {
+    if (standAsked === best.i) return;               // asked already at this stop
+    standAsked = best.i;
+    mbar('<b>Standing at ' + esc(tid(best.i)) + '?</b><br>GPS is ±' + lastFix.acc.toFixed(0) +
+         ' m here, too rough to be sure by itself.',
+         [['Yes', () => { $('mbar').classList.remove('on');
+                          standPts.push({ i: best.i, x: at.x, z: at.z, l: { lx: best.e, ly: best.n }, auto: true });
+                          autoStood++; standTaken(best.i); }, 'p'],
+          ['No', () => { $('mbar').classList.remove('on'); }]]);
+    return;
+  }
+  standPts.push({ i: best.i, x: at.x, z: at.z, l: { lx: best.e, ly: best.n }, auto: true });
+  autoStood++;
+  standTaken(best.i);
+}
+let standAsked = null;
+function standTaken(i) {
+  if (!applyStandPair()) {
+    lockOnTree(i);
+    diag.match = 'standing at ' + tid(i) + ' – walk to another known tree and stop';
+    toast('At ' + tid(i) + ' – position taken. Stop at one more known tree and the ' +
+          'heading is exact too.');
+  }
+}
+/* ---- what the last session learned ----
+   The session frame is new every time, so nothing in session coordinates
+   survives. The trees you stood at do: they are register trees, named by
+   index, and their plot coordinates do not change between sessions. Kept, so
+   the next session knows which two stops made it exact last time - and treats
+   a stop at one of them as evidence rather than a question. */
+const K_STAND = 'vta_stand_v1';
+let standMemo = [];
+function loadStandMemo() {
+  try {
+    const m = JSON.parse(lsGet(K_STAND)) || null;
+    standMemo = (m && m.plot === (PLOT && PLOT.id) && Array.isArray(m.pts)) ? m.pts : [];
+  } catch (e) { standMemo = []; }
+  // only trees that still exist with a local position
+  standMemo = standMemo.filter(m => CAT.features[m.i] && hasLocal(props(m.i)) &&
+                                    tid(m.i) === m.id);
+}
+function saveStandMemo(pts) {
+  standMemo = pts.map(p => ({ i: p.i, id: tid(p.i), l: p.l }));
+  lsSet(K_STAND, JSON.stringify({ plot: PLOT && PLOT.id, at: new Date().toISOString(),
+                                  pts: standMemo }));
+}
+
+/* Two stand points that agree with the register: the exact fit. */
+function applyStandPair() {
+  for (let m = 0; m < standPts.length; m++)
+    for (let n = m + 1; n < standPts.length; n++) {
+      const a = standPts[m], b = standPts[n];
+      const d = Math.hypot(a.x - b.x, a.z - b.z);
+      const dl = Math.hypot(a.l.lx - b.l.lx, a.l.ly - b.l.ly);
+      if (d < 5 || Math.abs(d - dl) > 1.5) continue;
+      const f = fitS2P([a, b].map(p => ({ id: tid(p.i), l: p.l, s: { x: p.x, z: p.z } })),
+                       'the two trees you stood at');
+      if (!f) continue;
+      lockStems = 2;
+      const k = rebaseSession();
+      saveStandMemo([a, b]);
+      persistStemAnchors([a, b]);
+      diag.match = 'aligned on ' + tid(a.i) + ' and ' + tid(b.i) + ', ±' + f.rms.toFixed(2) + ' m';
+      toast('Aligned by itself on ' + tid(a.i) + ' and ' + tid(b.i) + ' · ±' + f.rms.toFixed(2) + ' m' +
+            (k ? ' · ' + k + ' recorded trees moved with it' : ''));
+      return true;
+    }
+  return false;
+}
+
+function standAtTree(idx) {
+  if (mode !== 'WebXR') return toast('Only in the camera view.');
+  /* Which tree you are standing at is a question for GPS, which is wrong by
+     metres, and never for the scene, which - if the alignment is off - is
+     wrong by hundreds and would then confirm its own error. Unless, of
+     course, the inspector says which tree it is: a man standing at a trunk
+     reading the number off the plate knows better than any of it. */
+  const i = idx == null ? nearestSurveyedByGps() : idx;
+  if (i == null) { toast('No tree near you with a position to stand at.'); return false; }
+  if (lastFix) {
+    const c0 = CAT.features[i].geometry.coordinates;
+    const d0 = distBear(c0[1], c0[0], lastFix.lat, lastFix.lon).d;
+    if (d0 > Math.max(15, lastFix.acc * 2)) {
+      const far = tid(i) + ' is ' + d0.toFixed(0) + ' m away by GPS.';
+      if (idx == null) { toast(far + ' Walk to a tree you know, or record this one as new.'); return false; }
+      /* Named by hand: GPS is the thing more likely to be wrong, but a
+         mistaken tree moves the whole stand, so it is asked, not assumed. */
+      if (!confirm(far + '\n\nGPS can be that wrong under a canopy, and so can a ' +
+                   'register. Are you standing at this tree?')) return false;
+    }
+  }
+  const l = localOf(i);
+  if (!l) { toast(tid(i) + ' has no position to hang the session on.'); return false; }
+  const c = camPos(), r = reticleStem();
+  const at = r ? { x: r.x, z: r.z } : { x: c.x, z: c.z };
+  standPts = standPts.filter(p => p.i !== i);
+  standPts.push({ i: i, x: at.x, z: at.z, l: l });
+  if (applyStandPair()) return true;
+  if (!lockOnTree(i)) { toast('That did not work – ' + tid(i) + ' has no local position.'); return false; }
+  toast('Standing at ' + tid(i) + ' · position exact' +
+        (hasLocal(props(i)) ? '' : ' as the register has it') +
+        ', heading from the compass. ' +
+        'Walk to another known tree and press again – that fixes the heading too.');
+  return true;
+}
+
+/* Standing at a tree you know is a whole fix: the position comes from that
+   tree exactly and the rotation from the compass. Worse than three stems,
+   enormously better than nothing, and available when the wood is too dense to
+   see three. */
+function lockOnTree(i) {
+  const l = localOf(i);
+  if (!l || !world) return false;
+  const cam = camPos();
+  /* Heading from the compass if there is one; otherwise keep the rotation
+     the session already has - a stand point fixes position, not heading, and
+     a rotation of zero is a guess dressed up as a measurement. */
+  const phi = heading != null ? phiFromHeading(heading) : (S2P ? S2P.phi : 0);
+  S2P = { phi: phi, tx: 0, tz: 0 };
+  const at = s2pApply(l.lx, l.ly);
+  S2P.tx = cam.x - at.x; S2P.tz = cam.z - at.z;
+  s2pFrom = 'the tree you stand at'; s2pRms = null; s2pAuto = false;
+  rebaseSession();
+  placeMarkers(); requestAnchors(); showFit();
+  return true;
+}
+/* A tree the app surveyed carries its own local coordinates; a tree out of a
+   city register carries a coordinate somebody else measured, often better than
+   anything a phone will manage. Both are worth standing at, the surveyed one
+   first when they are equally close. */
+function nearestSurveyedByGps() {
+  if (!lastFix) return null;
+  let best = null, bd = 1e9;
+  CAT.features.forEach((f, i) => {
+    if (!hasLocal(props(i)) || !f.geometry) return;
+    const c = f.geometry.coordinates;
+    const d = distBear(c[1], c[0], lastFix.lat, lastFix.lon).d;
+    if (d < bd) { bd = d; best = i; }
+  });
+  return best;
+}
+
+function markControlHere(key) {
+  if (mode !== 'WebXR') return toast('Standing needs the WebXR mode – its tracking is what measures the point.');
+  const c = controlByKey(key);
+  if (!c) return;
+  const p = camPos();
+  refFix.set(key, { x: p.x, z: p.z });
+  const done = controlList().filter(r => refFix.has(r.key)).length;
+  fitFromControls(false);          // one point already moves the scene onto it
+  showFit(); buildRefMenu();
+}
+
+/* The state of the fit belongs on screen, not in a toast that has scrolled
+   away by the time you are standing at the next tree. */
+function showFit() {
+  const el = $('hFit'); if (!el) return;
+  const done = controlList().filter(r => refFix.has(r.key)).length;
+  if (!mode) { el.textContent = ''; return; }
+  // say what it means for the markers, not what the maths is called
+  el.textContent = S2P
+      ? ((PLOT && PLOT.unlocated) ? 'surveying without GPS – exact between trees, not on the map yet'
+       : s2pAuto ? 'rough – markers from ' + s2pFrom +
+                   (s2pRms != null ? ' ±' + s2pRms.toFixed(0) + ' m' : '') +
+                   ' · stop at a tree you know'
+                 : 'locked on ' + s2pFrom + (s2pRms != null ? ' ±' + s2pRms.toFixed(2) + ' m' : ''))
+    : done >= 2 ? 'ready – press Apply'
+    : (heading == null && lastFix && plotGeoreferenced() &&
+       CAT.features.some((f, i) => hasLocal(props(i))))
+      ? 'no compass yet – wave the phone in a figure of eight, or walk 12 m'
+    : (lastFix && lastFix.acc > AUTO_ACC && plotGeoreferenced())
+      ? 'GPS ±' + lastFix.acc.toFixed(0) + ' m – too rough to place markers, waiting for better'
+    : 'not locked – record a tree to start a survey';
+  el.className = (S2P && !s2pAuto && !(PLOT && PLOT.unlocated)) ? 'ok' : 'warn';
+}
+let lastFit = null;
+
+/* ---- correcting without moving ----
+   When the fit improves, the markers are in a better place than they were -
+   but the tree has not moved and neither have you, so nothing on screen should
+   jump. The correction is applied to the transform immediately, which is what
+   every coordinate is computed from, and cancelled out of the *drawing* by an
+   equal and opposite offset that then decays to nothing. The markers stay
+   where they were and glide the last metre or two over a couple of seconds.
+
+   Algebra: a marker sits at R(phi0)(w1 + delta) before and R(phi1)w1 after,
+   where delta is the old origin seen from the new one. The offset that makes
+   the second look like the first is a rotation by phi0-phi1 followed by a
+   translation of R(phi0)delta. */
+let worldComp = null, compRot = 0, compPos = new THREE.Vector3(), compAt = 0;
+/* Any correction is walked off in about this long, with a floor so a
+   centimetre does not snap and a ceiling so five metres does not take a
+   minute. */
+const COMP_SECS = 2.5, COMP_ROT_MIN = 3 * Math.PI / 180, COMP_POS_MIN = 0.25;
+function rotY(v, a) {
+  return new THREE.Vector3(v.x * Math.cos(a) + v.z * Math.sin(a), 0,
+                          -v.x * Math.sin(a) + v.z * Math.cos(a));
+}
+function applyComp() {
+  if (!worldComp) return;
+  worldComp.rotation.y = compRot;
+  worldComp.position.copy(compPos);
+  worldComp.updateMatrixWorld(true);
+}
+function compActive() { return Math.abs(compRot) > 1e-4 || compPos.lengthSq() > 1e-6; }
+function settleComp() {          // anything that needs the truth ends the glide
+  compRot = 0; compPos.set(0, 0, 0); applyComp();
+}
+function decayComp(dt) {
+  if (!compActive()) return;
+  const rRate = Math.max(COMP_ROT_MIN, Math.abs(compRot) / COMP_SECS);
+  const r = Math.min(Math.abs(compRot), rRate * dt);
+  compRot -= Math.sign(compRot) * r;
+  const len = compPos.length();
+  const pRate = Math.max(COMP_POS_MIN, len / COMP_SECS);
+  if (len > 0) compPos.multiplyScalar(Math.max(0, len - pRate * dt) / len);
+  if (Math.abs(compRot) < 1e-4 && compPos.lengthSq() < 1e-6) settleComp(); else applyComp();
+}
+
+
+/* ============================ THE TWO JOBS ============================
+   Recording a stand and finding a tree in it are not the same task and were
+   fighting each other. Recording needs the session's own geometry and nothing
+   else. Finding needs to know where you are, which before a lock is a GPS
+   question and after a lock is not.
+
+   Survey: markers are drawn from the local survey, and only for trees the
+   session can place. Nothing is drawn from GPS.
+   Navigate: until the session is locked onto the stand there is an arrow and a
+   distance - honest about being GPS - and no markers at all. Lock on, and it
+   becomes the survey view. */
+/* AR does one job: recording what is in front of you. Finding a tree by its
+   number is a map question - which way, how far, which side of the path -
+   and a map answers it better than an arrow floating over a camera image.
+   It lives on the map screen now. */
+let arMode = 'survey';
+function setArMode() { arMode = 'survey'; showFit(); placeMarkers(); }
+
+/* The tree being walked to. Set from the map, drawn on the map. */
+let navTarget = null;
+
+/* Which way and how far, in words, under the map. Updated with every fix, so
+   it counts down as you walk. */
+function renderNav() {
+  const box = $('mNavInfo'); if (!box) return;
+  if (navTarget == null || !CAT.features[navTarget]) { box.textContent = ''; return; }
+  const p = props(navTarget), c = CAT.features[navTarget].geometry.coordinates;
+  if (!lastFix) {
+    box.innerHTML = '<b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b> · waiting for a fix';
+    return;
+  }
+  const db = distBear(c[1], c[0], lastFix.lat, lastFix.lon);
+  const rel = heading == null ? null : ((db.b - heading) % 360 + 360) % 360;
+  box.innerHTML = '<span class="navarw" style="transform:rotate(' + (rel == null ? 0 : rel) + 'deg)">↑</span> ' +
+    '<b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b> · ' +
+    '<b>' + db.d.toFixed(db.d < 100 ? 1 : 0) + ' m</b> · ' +
+    (rel == null ? 'no compass' : 'bearing ' + db.b.toFixed(0) + '°') +
+    ' · ' + esc(p.species || 'no species') + ' · ±' + lastFix.acc.toFixed(0) + ' m';
+}
+/* Type a number, pick the tree, walk to it. The same search the plate reader
+   uses, on the screen that can show you the way. */
+function buildNavList() {
+  const box = $('mNavList'); if (!box) return;
+  const q = ($('mNavNo').value || '').trim();
+  box.innerHTML = '';
+  const hits = findByNumber(q, true).slice(0, 6);
+  if (!hits.length) {
+    box.innerHTML = '<p class="small">' + (q ? 'No tree with that number.' : 'No trees yet.') + '</p>';
+    return;
+  }
+  hits.forEach(x => {
+    const b = document.createElement('button');
+    b.className = 'numrow' + (x.exact ? ' ex' : '') + (x.i === navTarget ? ' ex' : '');
+    b.innerHTML = '<span><b>' + esc(x.p.tag_no || x.p.tree_id) + '</b> ' +
+      '<span class="small">' + esc(x.p.species || '') + '</span></span>' +
+      '<span class="small">' + (x.d == null ? '' : x.d.toFixed(x.d < 100 ? 1 : 0) + ' m') + '</span>';
+    b.onclick = () => {
+      navTarget = x.i; mapSel = x.i;
+      const c = CAT.features[x.i].geometry.coordinates;
+      const v = mapCentre();
+      // both dots on the screen if they fit, otherwise the tree
+      if (lastFix) {
+        v.lat = (c[1] + lastFix.lat) / 2; v.lon = (c[0] + lastFix.lon) / 2;
+        const box2 = $('mapBox');
+        for (v.z = MAPZ.max; v.z > MAPZ.min; v.z--) {
+          const dx = Math.abs(lon2px(c[0], v.z) - lon2px(lastFix.lon, v.z));
+          const dy = Math.abs(lat2px(c[1], v.z) - lat2px(lastFix.lat, v.z));
+          if (dx < box2.clientWidth * 0.8 && dy < box2.clientHeight * 0.7) break;
+        }
+      } else { v.lat = c[1]; v.lon = c[0]; v.z = 19; }
+      mapMode = 'both';
+      drawMap(); syncMapSel(); renderNav(); buildNavList(); mapModeLine();
+      toast('Walking to ' + tid(x.i) + '.');
+    };
+    box.appendChild(b);
+  });
+}
+function nearestByGps() {
+  if (!lastFix) return null;
+  let best = null, bd = 1e9;
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    const d = distBear(c[1], c[0], lastFix.lat, lastFix.lon).d;
+    if (d < bd) { bd = d; best = i; }
+  });
+  return best;
+}
+
+/* ====================== THE PLOT AND ITS FRAME ======================
+   The mistake this replaces: every tree carried its own GPS fix. Two stems
+   recorded ten minutes apart inherit two different biases, so their distance
+   apart is wrong by metres before anything is displayed - and no amount of
+   smoothing the drawing can recover geometry that was never measured.
+
+   What the phone is actually good at is the opposite: within one AR session
+   the relative geometry is centimetres. So a stand is recorded as a local
+   survey - metres east and north within a plot frame - and the plot carries
+   ONE georeference for all of it. Improving that georeference later rotates
+   and shifts the whole stand as a rigid body and never disturbs a single
+   distance between two trees.
+
+   GPS is then an attribute of the plot, averaged over a whole survey, not a
+   per-tree measurement. And it never places a marker: markers come from the
+   local survey, and if the session cannot be tied to the plot, no markers are
+   drawn at all. A marker that cannot be placed is worse than none. */
+let PLOT = null;
+function loadPlot() {
+  try { PLOT = JSON.parse(lsGet(K_PLOT)) || null; } catch (e) { PLOT = null; }
+  if (!PLOT) PLOT = { id: 'plot1', name: '', lat: null, lon: null, yaw: 0, acc: null, n: 0 };
+}
+function savePlot() { lsSet(K_PLOT, JSON.stringify(PLOT)); }
+function plotGeoreferenced() { return !!(PLOT && PLOT.lat != null); }
+
+/* local (east, north) in the plot frame -> WGS84, and back */
+function plotToWgs(lx, ly) {
+  if (!plotGeoreferenced() && !ensurePlotOrigin()) return null;
+  const a = THREE.MathUtils.degToRad(PLOT.yaw || 0);
+  const e = lx * Math.cos(a) + ly * Math.sin(a);
+  const n = -lx * Math.sin(a) + ly * Math.cos(a);
+  return { lat: PLOT.lat + n / mLat(PLOT.lat), lon: PLOT.lon + e / mLon(PLOT.lat) };
+}
+function wgsToPlot(lat, lon) {
+  if (!plotGeoreferenced() && !ensurePlotOrigin()) return null;
+  const d = enu(lat, lon, PLOT.lat, PLOT.lon);
+  const a = -THREE.MathUtils.degToRad(PLOT.yaw || 0);
+  return { lx: d.e * Math.cos(a) + d.n * Math.sin(a),
+           ly: -d.e * Math.sin(a) + d.n * Math.cos(a) };
+}
+/* A register that arrives with nothing but coordinates - an import, or trees
+   recorded before there was a plot - still has to be usable. Give the plot a
+   provisional origin at the first tree: its absolute position is then exactly
+   as good as that tree's coordinate, which is all anyone has, and control
+   points or a survey can straighten it later without touching the geometry. */
+function ensurePlotOrigin() {
+  if (plotGeoreferenced()) return true;
+  /* No trees yet and no fix - in a wood, at the start of a day, the normal
+     case. A survey does not need GPS: it needs an origin, and this spot is
+     one. The plot gets a placeholder position and is marked as not located,
+     the trees are recorded with their local coordinates, which are the
+     measurement that matters, and the first decent fix puts the whole stand
+     on the earth without disturbing a single distance between two trees.
+     Refusing to record a tree because a satellite is behind a hill was the
+     worst thing this app did. */
+  if (!CAT.features.length) {
+    if (lastFix) {
+      PLOT.lat = lastFix.lat; PLOT.lon = lastFix.lon; PLOT.yaw = 0; PLOT.n = 1;
+      PLOT.acc = lastFix.acc; PLOT.provisional = true;
+    } else {
+      PLOT.lat = 0; PLOT.lon = 0; PLOT.yaw = 0; PLOT.n = 0; PLOT.acc = null;
+      PLOT.provisional = true; PLOT.unlocated = true;
+    }
+    savePlot();
+    return true;
+  }
+  /* The first tree in the file is the wrong one to borrow from when the file
+     also holds a city register from another country: the plot would sit in
+     Berlin and every tree here would be fifteen hundred kilometres from its
+     own origin. Take the nearest tree to where the phone is instead. */
+  let f = null;
+  if (lastFix) {
+    let bd = 1e12;
+    CAT.features.forEach(x => {
+      if (!x.geometry || x.geometry.type !== 'Point') return;
+      const d = distBear(x.geometry.coordinates[1], x.geometry.coordinates[0],
+                         lastFix.lat, lastFix.lon).d;
+      if (d < bd) { bd = d; f = x; }
+    });
+  }
+  if (!f) f = CAT.features.find(x => x.geometry && x.geometry.type === 'Point');
+  if (!f) return false;
+  PLOT.lat = f.geometry.coordinates[1];
+  PLOT.lon = f.geometry.coordinates[0];
+  PLOT.yaw = 0; PLOT.n = 0;
+  PLOT.acc = num((f.properties || {}).position_accuracy_m);
+  PLOT.provisional = true;        // borrowed from a tree, not measured for the plot
+  delete PLOT.unlocated;
+  savePlot();
+  return true;
+}
+/* The first usable fix of a stand that was surveyed without one puts it on
+   the earth. Rigid: the survey is untouched, only where it is said to be. */
+function plotLocate(fix, l) {
+  if (!PLOT || !PLOT.unlocated || !fix || fix.acc > 25 || !l) return false;
+  delete PLOT.unlocated;
+  PLOT.provisional = true;
+  PLOT.acc = fix.acc; PLOT.n = 1;
+  plotAnchorAt(l, fix.lat, fix.lon);
+  toast('The survey is on the map now – ' + CAT.features.length + ' trees, every distance ' +
+        'between them unchanged.');
+  return true;
+}
+function hasLocal(p) { return p && p.lx != null && p.ly != null; }
+function localOf(i) {
+  const p = props(i);
+  if (hasLocal(p)) return { lx: +p.lx, ly: +p.ly };
+  const c = CAT.features[i].geometry.coordinates;
+  return wgsToPlot(c[1], c[0]);          // a GPS-placed tree, best effort
+}
+
+/* Writing the georeference back out. The survey does not change - only where
+   on the earth it is said to be. */
+function refreshPlotGeo() {
+  if (!plotGeoreferenced()) return 0;
+  let n = 0;
+  CAT.features.forEach((f, i) => {
+    const p = props(i);
+    if (!hasLocal(p)) return;
+    const g = plotToWgs(+p.lx, +p.ly);
+    if (!g) return;
+    f.geometry.coordinates = [+g.lon.toFixed(7), +g.lat.toFixed(7)];
+    n++;
+  });
+  if (n) { saveCat(); placeMarkers(); renderList(); }
+  return n;
+}
+
+/* The plot's own position, averaged over every fix of every survey rather than
+   taken from one. Each sample is the fix minus where the phone was standing in
+   the plot frame, so walking about improves it instead of confusing it. */
+/* Local (east, north) of the plot frame as metres of true east and north.
+   plotToWgs turns a local point into a position with this; anything that goes
+   the other way has to use the same rotation or it places the origin on the
+   wrong side of the stand - twice its distance out, growing with every metre
+   from the origin. */
+function plotVecEN(lx, ly) {
+  const a = THREE.MathUtils.degToRad((PLOT && PLOT.yaw) || 0);
+  return { e: lx * Math.cos(a) + ly * Math.sin(a), n: -lx * Math.sin(a) + ly * Math.cos(a) };
+}
+function plotAbsorbFix(fix, lx, ly) {
+  if (!(fix.acc <= 20)) return;
+  const was = plotGeoreferenced() ? { lat: PLOT.lat, lon: PLOT.lon } : null;
+  const v = plotVecEN(lx, ly);
+  const back = { lat: fix.lat - v.n / mLat(fix.lat), lon: fix.lon - v.e / mLon(fix.lat) };
+  /* A single fix cannot honestly say the plot's origin is hundreds of metres
+     from where every fix so far has said. When it does, the session's own
+     idea of where the phone stands is wrong - a lock on the wrong tree, say -
+     and absorbing it would drag the whole register there. It is dropped, and
+     the reason is on the report. */
+  if (was) {
+    const jump = distBear(was.lat, was.lon, back.lat, back.lon).d;
+    if (jump > Math.max(40, fix.acc * 6)) {
+      diag.absorb = 'a fix that would have moved the stand ' + jump.toFixed(0) + ' m was ignored';
+      return;
+    }
+  }
+  if (!plotGeoreferenced() || PLOT.provisional) {
+    PLOT.lat = back.lat; PLOT.lon = back.lon; PLOT.n = 1; PLOT.acc = fix.acc;
+    delete PLOT.provisional;
+  } else {
+    const w = 1 / Math.max(1, PLOT.n + 1);
+    PLOT.lat += (back.lat - PLOT.lat) * w;
+    PLOT.lon += (back.lon - PLOT.lon) * w;
+    PLOT.n++;
+    PLOT.acc = Math.max(1, (PLOT.acc || fix.acc) * (1 - w) + fix.acc * w);
+  }
+  savePlot();
+  /* Moving the origin moves where every tree is on the earth, and the trees
+     carry a written-out position as well as their local one. Leaving that
+     behind is how the register came to disagree with its own survey by nine
+     metres after an hour of walking - and how a tree could no longer be
+     recognised by standing next to it. */
+  if (was && distBear(was.lat, was.lon, PLOT.lat, PLOT.lon).d > 0.05) refreshPlotGeo();
+}
+
+/* Putting the whole stand back on the earth without touching its shape.
+   Every tree keeps its local coordinates; only the plot's own origin moves, so
+   the distance between any two trees is exactly what it was. One good fix, or
+   one tree whose true position is known, is enough - which is what makes a
+   georeference that has gone wrong a five-second repair instead of a survey. */
+function plotAnchorAt(l, lat, lon) {
+  if (!PLOT) return false;
+  const v = plotVecEN(l.lx, l.ly);
+  PLOT.lat = lat - v.n / mLat(lat);
+  PLOT.lon = lon - v.e / mLon(lat);
+  delete PLOT.provisional;
+  savePlot();
+  refreshPlotGeo();
+  return true;
+}
+/* How far the register has drifted from where the phone says it is: the
+   distance between a tree's stored position and the position its own survey
+   coordinates give. Zero unless something has gone wrong. */
+function plotDrift() {
+  let worst = 0, id = null;
+  CAT.features.forEach((f, i) => {
+    const p = props(i);
+    if (!hasLocal(p)) return;
+    const g = plotToWgs(+p.lx, +p.ly);
+    if (!g) return;
+    const c = f.geometry.coordinates;
+    const d = distBear(c[1], c[0], g.lat, g.lon).d;
+    if (d > worst) { worst = d; id = tid(i); }
+  });
+  return { worst: worst, id: id };
+}
+
+/* When the stored positions and the survey disagree by more than a stand is
+   wide, the georeference has moved out from under the register - and then
+   nothing can be drawn, because the phone's own position in the plot frame is
+   hundreds of metres from the trees. The shape is not in doubt: the local
+   coordinates are what the session measured. Only the origin is wrong, so the
+   origin is put back where the stored positions say it was, and the register
+   is consistent again. GPS then corrects the absolute position the moment a
+   tree is recorded, which is the only truly independent measurement there is. */
+function plotHeal(tol) {
+  if (!plotGeoreferenced()) return 0;
+  const d = plotDrift();
+  if (!(d.worst > (tol == null ? 50 : tol))) return 0;
+  let sLat = 0, sLon = 0, n = 0;
+  CAT.features.forEach((f, i) => {
+    const p = props(i);
+    if (!hasLocal(p)) return;
+    const g = plotToWgs(+p.lx, +p.ly);
+    if (!g) return;
+    const c = f.geometry.coordinates;
+    sLat += c[1] - g.lat; sLon += c[0] - g.lon; n++;
+  });
+  if (!n) return 0;
+  PLOT.lat += sLat / n; PLOT.lon += sLon / n;
+  savePlot();
+  refreshPlotGeo();
+  return Math.round(d.worst);
+}
+
+/* The plot's rotation comes from the compass at the moment the survey starts,
+   which is the one weak number left in the chain: it is out by however much
+   the compass is out, and it turns the whole stand together. Two points whose
+   true coordinates are known settle it - and because the correction is applied
+   to the plot rather than to the trees, the survey itself is untouched. */
+function correctPlotFrom(pairs) {          // [{ lat, lon, l:{lx,ly} }]
+  if (!pairs || pairs.length < 2) return null;
+  const lat0 = pairs.reduce((a, p) => a + p.lat, 0) / pairs.length;
+  const lon0 = pairs.reduce((a, p) => a + p.lon, 0) / pairs.length;
+  // fit local -> true ENU: same solver, the other way round
+  const f = fitRigid(pairs.map((p, k) => {
+    const d = enu(p.lat, p.lon, lat0, lon0);
+    return { id: 'p' + k, u: { e: d.e, n: d.n }, s: { x: p.l.lx, z: -p.l.ly } };
+  }));
+  if (!f) return null;
+  /* fitRigid solves conj(W) = e^(-i.phi)(conj(U) - conj(U0)) with W the local
+     point and U the true ENU one, so W = e^(+i.phi)(U - U0) - and plotToWgs is
+     written as U = e^(-i.yaw)W, i.e. W = e^(+i.yaw)U. The yaw is therefore
+     +phi, not -phi. It was -phi, which turned a stand the wrong way by twice
+     its error; the test that passed used a true rotation of zero and could not
+     tell the two apart. */
+  const yaw = ((f.phi * 180 / Math.PI) % 360 + 360) % 360;
+  const e0 = f.e0, n0 = f.n0;
+  PLOT.yaw = yaw;
+  PLOT.lat = lat0 + n0 / mLat(lat0);
+  PLOT.lon = lon0 + e0 / mLon(lat0);
+  PLOT.acc = f.rms;
+  savePlot();
+  const n = refreshPlotGeo();
+  return { rms: f.rms, n: pairs.length, rewritten: n, yaw: yaw };
+}
+
+/* ---- finding a tree by the number on its trunk ----
+   The plates are small, they hang high, and the same number is used again in
+   the next district - so a number alone identifies nothing. Where you are
+   standing settles it: the same number twenty metres away and the same number
+   four kilometres away are not a hard choice. Candidates are therefore ranked
+   by distance, and the district is shown so a wrong pick is visible.
+
+   Reading the number off the photograph would be better than typing it. The
+   browser offers no reliable text recognition to do it with - Chrome on
+   Android ships BarcodeDetector but not TextDetector - so barcodes are read
+   where the platform can, text where it can, and otherwise the number is
+   typed, which is four digits and no worse than what a clipboard needs. */
+/* Nobody says "zero zero zero five one". They say fifty-one, and they write
+   51. A plate reading 00051 is the number fifty-one with the register's
+   padding in front of it, so a query that is nothing but digits is compared as
+   a number as well as as text, and a numeric hit counts as exact. */
+function numEq(a, b) {
+  if (!/^\d+$/.test(a) || !/^\d+$/.test(b)) return false;
+  return a.replace(/^0+/, '') === b.replace(/^0+/, '');
+}
+function findByNumber(numStr, emptyLists) {
+  const q = String(numStr || '').trim().toLowerCase();
+  if (!q && !emptyLists) return [];
+  const here = lastFix;
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const p = props(i);
+    const tag = String(p.tag_no == null ? '' : p.tag_no).trim().toLowerCase();
+    const id = String(p.tree_id || '').toLowerCase();
+    const exact = !!q && (tag === q || id === q || numEq(q, tag) || numEq(q, id));
+    if (q && !exact && tag.indexOf(q) < 0 && id.indexOf(q) < 0) return;
+    const c = f.geometry.coordinates;
+    const d = here ? distBear(c[1], c[0], here.lat, here.lon).d : null;
+    out.push({ i: i, p: p, exact: exact, d: d });
+  });
+  out.sort((a, b) => (b.exact - a.exact) ||
+                     ((a.d == null ? 1e9 : a.d) - (b.d == null ? 1e9 : b.d)));
+  return out;
+}
+/* ---- reading the number off the plate ----
+   Tesseract, vendored into the app rather than fetched: the whole point is a
+   wood with no signal. It is nine megabytes, so nothing loads until the first
+   plate is photographed, and the service worker keeps what it fetched. The
+   engine is told it is looking at one line of digits and nothing else, which
+   is most of what makes four digits on a plastic tag readable at all. */
+/* The OCR engine is 23 MB and is already published under /vta/. This copy
+   points at it rather than doubling it in the build. */
+const OCR_DIR = '/vta/vendor/tesseract/';
+let ocrWorker = null, ocrLoading = null, ocrBroken = false;
+function loadScriptOnce(src) {
+  return new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = () => res(true);
+    el.onerror = () => rej(new Error('not vendored'));
+    document.head.appendChild(el);
+  });
+}
+async function ocrGetWorker() {
+  if (ocrWorker) return ocrWorker;
+  if (ocrBroken) throw new Error('the OCR files are not in this build');
+  if (!ocrLoading) ocrLoading = (async () => {
+    try {
+      if (typeof Tesseract === 'undefined') await loadScriptOnce(OCR_DIR + 'tesseract.min.js');
+      const w = await Tesseract.createWorker('eng', 1, {
+        workerPath: OCR_DIR + 'worker.min.js',
+        corePath: OCR_DIR,
+        langPath: OCR_DIR,
+        gzip: true
+      });
+      await w.setParameters({
+        tessedit_char_whitelist: '0123456789',
+        tessedit_pageseg_mode: '7'                 // one line of text, not a page
+      });
+      ocrWorker = w;
+      return w;
+    } catch (e) { ocrBroken = true; ocrLoading = null; throw e; }
+  })();
+  return ocrLoading;
+}
+async function ocrDigits(blob) {
+  const w = await ocrGetWorker();
+  const r = await w.recognize(blob);
+  const txt = (r && r.data && r.data.text) || '';
+  const runs = txt.match(/\d{2,8}/g);
+  if (!runs) return null;
+  runs.sort((a, b) => b.length - a.length);
+  const conf = r.data.confidence == null ? null : Math.round(r.data.confidence);
+  // A plate read at four percent is the engine telling you it guessed. Pass it
+  // on with the number rather than dropping it, and let the caller decide
+  // whether to fill a field with it.
+  return { text: runs[0], how: 'ocr', conf: conf, sure: conf == null || conf >= 60 };
+}
+
+async function readNumberFromImage(blob) {
+  // whatever the platform happens to offer, and nothing if it offers nothing
+  try {
+    if (typeof BarcodeDetector !== 'undefined') {
+      const det = new BarcodeDetector();
+      const bmp = await createImageBitmap(blob);
+      const codes = await det.detect(bmp);
+      if (codes && codes.length) return { text: codes[0].rawValue, how: 'barcode' };
+    }
+  } catch (e) {}
+  try {
+    if (typeof TextDetector !== 'undefined') {
+      const det = new TextDetector();
+      const bmp = await createImageBitmap(blob);
+      const blocks = await det.detect(bmp);
+      const digits = (blocks || []).map(b => b.rawValue)
+        .join(' ').match(/\d{2,8}/g);
+      if (digits && digits.length) return { text: digits[0], how: 'text' };
+    }
+  } catch (e) {}
+  try {
+    const r = await ocrDigits(blob);
+    if (r) return r;
+  } catch (e) {}
+  return null;
+}
+
+/* ---- recognising the stand by its own pattern ----
+   The scene has to be told where it is, and GPS is the weakest way to tell it.
+   But a stand carries its own signature: the spacing of its stems. Point at
+   three or four trunks and the constellation of what is in front of you can be
+   matched against the constellation in the register - without being told which
+   tree is which, because the distances between them are enough to work it out.
+
+   This is point-set registration, done the blunt way that suits the numbers
+   here: take two observed stems as a baseline, find every pair of register
+   trees the same distance apart, and for each such pair take the transform it
+   implies and count how many of the other stems then land on a register tree.
+   The assignment with the most agreement wins. Ten trees and four stems is a
+   few thousand cheap tests.
+
+   A regular planting is genuinely ambiguous - an avenue at eight-metre spacing
+   fits itself shifted by one tree just as well - so a second solution that is
+   as good as the best is reported as ambiguous rather than guessed at. */
+const STEM_TOL = 1.6;              // metres a stem may sit from where it is filed
+function candidateTrees(limit) {
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const l = localOf(i);
+    if (!l) return;
+    out.push({ i: i, e: l.lx, n: l.ly });
+  });
+  if (out.length <= limit || !lastFix) return out.slice(0, limit);
+  const me = wgsToPlot(lastFix.lat, lastFix.lon);      // only to choose candidates
+  if (me) { out.forEach(c => { c.d = Math.hypot(c.e - me.lx, c.n - me.ly); });
+            out.sort((a, b) => a.d - b.d); }
+  return out.slice(0, limit);
+}
+function matchStems(obs) {
+  if (obs.length < 3) return { error: 'at least three stems' };
+  const cands = candidateTrees(120);
+  if (cands.length < obs.length) return { error: 'the register holds fewer surveyed trees than that' };
+  const dObs = (a, b) => Math.hypot(obs[a].x - obs[b].x, obs[a].z - obs[b].z);
+  const dCand = (a, b) => Math.hypot(cands[a].e - cands[b].e, cands[a].n - cands[b].n);
+
+  let best = null, second = null;
+  for (let a = 0; a < obs.length; a++) for (let b = 0; b < obs.length; b++) {
+    if (a === b) continue;
+    const dab = dObs(a, b);
+    if (dab < 3) continue;                       // too short a baseline to orient on
+    for (let i = 0; i < cands.length; i++) for (let j = 0; j < cands.length; j++) {
+      if (i === j) continue;
+      if (Math.abs(dCand(i, j) - dab) > STEM_TOL) continue;
+      const f0 = fitRigid([{ u: { e: cands[i].e, n: cands[i].n }, s: obs[a] },
+                           { u: { e: cands[j].e, n: cands[j].n }, s: obs[b] }]);
+      if (!f0) continue;
+      // where every register tree would sit in the scene under this guess
+      const cp = Math.cos(f0.phi), sp = Math.sin(f0.phi);
+      const put = c => { const ur = c.e - f0.e0, ui = -(c.n - f0.n0);
+                         return { x: cp * ur + sp * ui, z: -sp * ur + cp * ui }; };
+      const pairs = []; let err = 0;
+      for (let k = 0; k < obs.length; k++) {
+        let bi = -1, bd = STEM_TOL;
+        for (let c = 0; c < cands.length; c++) {
+          const q = put(cands[c]);
+          const d = Math.hypot(q.x - obs[k].x, q.z - obs[k].z);
+          if (d < bd) { bd = d; bi = c; }
+        }
+        if (bi >= 0) { pairs.push({ k: k, c: bi }); err += bd * bd; }
+      }
+      const used = {}; let dup = false;
+      pairs.forEach(pp => { if (used[pp.c]) dup = true; used[pp.c] = 1; });
+      if (dup || pairs.length < 3) continue;      // one tree cannot be two stems
+      const sol = { pairs: pairs, err: err, n: pairs.length,
+                    key: pairs.map(pp => pp.k + '>' + cands[pp.c].i).sort().join(',') };
+      if (!best || sol.n > best.n || (sol.n === best.n && sol.err < best.err)) {
+        if (best && best.key !== sol.key) second = best;
+        best = sol;
+      } else if ((!second || sol.n > second.n) && sol.key !== best.key) second = sol;
+    }
+  }
+  if (!best) return { error: 'no arrangement of the register matches those stems' };
+  const ambiguous = !!(second && second.n === best.n &&
+                       second.err < best.err * 2.5 && second.key !== best.key);
+  return { pairs: best.pairs.map(pp => ({ obs: pp.k, tree: cands[pp.c].i,
+             l: { lx: cands[pp.c].e, ly: cands[pp.c].n }, s: obs[pp.k] })),
+           ambiguous: ambiguous, n: best.n,
+           err: best.err, alt: second ? { n: second.n, err: second.err, key: second.key } : null,
+           key: best.key };
+}
+
+/* ---- the walk as its own control survey ----
+   Measuring points by hand is the accurate way and costs a walk every session.
+   But a walk is already happening: every GPS fix taken during a session pairs
+   a WGS84 position with the camera's position in session coordinates, which is
+   exactly the pair the fit consumes. One such pair is a bad control point -
+   metres of noise - but thirty of them spread over fifty metres average down
+   to about a metre of position and a degree of heading, which beats the
+   compass by more than an order of magnitude and asks nothing of the user.
+   Hand-measured points still win: as soon as two exist, this stops. */
+let track = [];
+const T_ACC = 15,      // ignore a fix worse than this
+      T_STEP = 2,      // and one taken without having moved
+      T_MIN = 8,       // samples before a first fit
+      T_SPAN = 12,     // metres of baseline before a first fit
+      T_SETTLE = 40;   // after this many, hold still rather than keep nudging
+function trackFix(fix) {
+  if (mode !== 'WebXR' || !world) return;
+  if (!(fix.acc <= T_ACC)) return;
+  const p = camPos();
+  const last = track[track.length - 1];
+  if (last && Math.hypot(p.x - last.x, p.z - last.z) < T_STEP) return;
+  track.push({ lat: fix.lat, lon: fix.lon, acc: fix.acc, x: p.x, z: p.z });
+  if (track.length > 200) track.shift();
+  // A fix taken while the session knows where it is improves the PLOT's
+  // position - it never touches the markers, which is the whole point.
+  // Only while the session's own lock is measured: if the lock came from GPS
+  // in the first place the fix is not new evidence, it is the same evidence
+  // going round a second time, and it drags the plot out from under the
+  // walking fit that is being computed from it.
+  if (S2P && !s2pAuto) {
+    const l = s2pInvert(p.x, p.z);
+    if (!plotLocate(fix, l)) plotAbsorbFix(fix, l.lx, l.ly);
+  }
+}
+function trackSpan() {
+  let mx = 0;
+  for (let i = 0; i < track.length; i++)
+    for (let j = i + 1; j < track.length; j++)
+      mx = Math.max(mx, Math.hypot(track[i].x - track[j].x, track[i].z - track[j].z));
+  return mx;
+}
+let sceneLocked = false;
+function autoFit() {
+  if (sceneLocked) return;
+  if (S2P && !s2pAuto) return;              // measured, or recorded into: leave it
+  if (!plotGeoreferenced()) return;
+  if (controlList().filter(r => refFix.has(r.key)).length >= 2) return;   // hand-measured wins
+  if (track.length < T_MIN || trackSpan() < T_SPAN) return;
+  if (track.length > T_SETTLE && autoState) return;                       // converged, hold
+  const pairs = [];
+  track.forEach((r, n) => {
+    const l = wgsToPlot(r.lat, r.lon);
+    if (l) pairs.push({ id: 'fix' + n, l: l, s: { x: r.x, z: r.z } });
+  });
+  if (pairs.length < T_MIN) return;
+  /* Re-fitting on every fix is why the markers kept creeping: each new fix
+     shifts the answer a little and the whole scene moves with it. A fit is
+     only replaced when it rests on substantially more evidence - half as many
+     fixes again, or half as long a baseline - so the scene settles in a few
+     visible steps instead of drifting continuously. */
+  if (autoState && track.length < autoState.n * 1.5 && trackSpan() < autoState.span * 1.5) return;
+  autoState = { n: track.length, span: trackSpan() };
+  const f = fitS2P(pairs, 'walking with GPS', true);
+  if (f) { f.auto = true; f.n = pairs.length; lastFit = f; }
+}
+let autoState = null;
+
+/* ====================== SENSORS: GPS / COMPASS ====================== */
+
+let lastFix = null, gpsAcc = null, watchId = null;
+/* Everything a new fix sets off, in one place with a name. It used to be an
+   anonymous block inside the geolocation callback, and when the walking fit
+   was rewritten to work on the session transform the one line that called it
+   was left behind: autoFit existed, was correct, and was never once run. The
+   automatic correction has been dead since. A named function can be tested;
+   a closure inside a callback cannot. */
+/* One step of the fix handler, walled off from the next. A fix does half a
+   dozen unrelated jobs - the track, the alignment, the map, the lists - and
+   when one of them threw, every job after it in the line stopped happening,
+   silently, for the rest of the session. That is how the nearest-tree list
+   came to be drawn once and never again. */
+function fixStep(what, fn) {
+  try { fn(); } catch (e) {
+    fixErr = fixErrLast = what + ': ' + ((e && e.message) || e);
+    if (window.console) console.warn('fix step "' + what + '" failed:', e);
+  }
+}
+let fixErr = null, fixErrLast = null, fixCount = 0;
+
+function onFix(fix) {
+  lastFix = fix; gpsAcc = fix.acc; fixCount++; fixErr = null;   // this fix's failures, not last week's
+  if ($('hAcc')) $('hAcc').textContent = fix.acc.toFixed(0);
+  if ($('gpsBadge')) $('gpsBadge').textContent = 'GPS ±' + fix.acc.toFixed(0) + ' m';
+  /* The lists first. Everything below this line is a job that can fail on some
+     phone somewhere; how far away the trees are is the one thing the inspector
+     is looking at while walking, so it is not queued behind any of it. */
+  fixStep('distances', () => refreshDistances(false));
+  // The first fix of a session is the cold-start fix and usually the worst
+  // of the day, yet everything on screen is drawn relative to the origin.
+  // Keep taking the better fix until a session pins the scene down.
+  fixStep('track', () => trackFix(fix));
+  fixStep('standard', () => { if (fix.acc <= 200) proposeNormFor(fix.lat, fix.lon, null); });
+  fixStep('align', autoAlign);       // a first fix is also a first chance
+  fixStep('fit', autoFit);                           // and every fix is a chance to do better
+  fixStep('map', () => {
+    if (!mapOn()) return;
+    if (mapMode === 'me') mapToMe(!mapView);
+    else if (mapMode === 'both' && navTarget != null) mapFit(navTarget);
+    else drawMap();
+    renderNav(); mapModeLine();
+  });
+  fixStep('origin', () => {
+    if (!origin || (!mode && !originPinned && originAcc != null && fix.acc < originAcc - 1)) {
+      origin = { lat: fix.lat, lon: fix.lon };
+      if (!originPinned) originAcc = fix.acc;
+      placeMarkers();
+    }
+  });
+}
+function startGPS() {
+  if (!navigator.geolocation || watchId !== null) return;
+  watchId = navigator.geolocation.watchPosition(p => {
+    onFix({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy });
+  }, e => {
+    $('gpsBadge').textContent = 'GPS off';
+    msg('GPS: ' + e.message);
+  }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+}
+
+let devQuat = new THREE.Quaternion(), haveOrient = false, heading = null;
+let hSin = 0, hCos = 0;                                  // smoothed heading
+const _e = new THREE.Euler(),
+      _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)),
+      _zAx = new THREE.Vector3(0, 0, 1), _q0 = new THREE.Quaternion(),
+      _yAx = new THREE.Vector3(0, 1, 0);
+function orientQuat(q, a, b, g, o) {
+  _e.set(b, a, -g, 'YXZ');
+  q.setFromEuler(_e);
+  q.multiply(_q1);
+  q.multiply(_q0.setFromAxisAngle(_zAx, -o));
+}
+/* Held sideways while the screen is locked upright, ARCore builds the camera
+   image for a portrait display it no longer has: the passthrough comes out
+   rotated against everything drawn on top of it, and no marker can sit on its
+   tree. Nothing in the page can correct that, so say so. Detected by taking
+   the phone's own top edge from the raw sensor quaternion - the screen
+   compensation is exactly what is broken here, so it is left out - and
+   comparing it against the orientation the screen claims. */
+const _upDev = new THREE.Vector3(), _rawQ = new THREE.Quaternion();
+let warnOff = false;
+function checkOrientLock(a, b, g) {
+  const el = $('hwarn'); if (!el) return;
+  if (!el.dataset.wired) {
+    el.dataset.wired = '1';
+    $('hwarnX').onclick = () => { warnOff = true; el.classList.remove('on'); };
+  }
+  const ang = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
+  orientQuat(_rawQ, a, b, g, 0);
+  _upDev.set(0, 1, 0).applyQuaternion(_rawQ);
+  const sideways = Math.abs(_upDev.y) < 0.5;
+  const bad = mode === 'WebXR' && sideways && (ang % 180 === 0) && !warnOff;
+  $('hwarnT').textContent = bad ? 'View 90° out – auto-rotate is off. Hold the phone upright.' : '';
+  el.classList.toggle('on', bad);
+}
+function onOrient(ev) {
+  if (ev.alpha == null) return;
+  haveOrient = true;
+  const o = THREE.MathUtils.degToRad(screen.orientation ? screen.orientation.angle : (window.orientation || 0));
+  checkOrientLock(THREE.MathUtils.degToRad(ev.alpha), THREE.MathUtils.degToRad(ev.beta),
+                  THREE.MathUtils.degToRad(ev.gamma));
+  orientQuat(devQuat, THREE.MathUtils.degToRad(ev.alpha), THREE.MathUtils.degToRad(ev.beta),
+             THREE.MathUtils.degToRad(ev.gamma), o);
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(devQuat);
+  const raw = (Math.atan2(f.x, -f.z) * 180 / Math.PI + 360) % 360;
+  const r = raw * Math.PI / 180, k = 0.25;
+  hSin = hSin + (Math.sin(r) - hSin) * k;
+  hCos = hCos + (Math.cos(r) - hCos) * k;
+  heading = (Math.atan2(hSin, hCos) * 180 / Math.PI + 360) % 360;
+  $('hHead').textContent = heading.toFixed(0);
+}
+async function startOrient() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+    try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
+  }
+  addEventListener('deviceorientationabsolute', onOrient, true);
+  addEventListener('deviceorientation', onOrient, true);
+}
+
+/* ============================ SCENE ============================ */
+
+let renderer, scene, camera, world, sprites = [], ray = new THREE.Raycaster();
+let origin = null, originAcc = null, originPinned = false, headOff = 0, worldYaw = 0, mode = null, xrSession = null, xrRef = null, lastFrame = null;
+let camGps = new THREE.Vector3(0, 1.55, 0);
+/* AR tools */
+let hitOk = false, hitSource = null, hitPt = null, reticle = null;
+let xrBlurred = false;
+let anchorsOk = false, anchorMap = new Map(), anchorsWanted = false;
+let camAccessOk = false, shotFor = null, shotKind = null;
+let selIdx = null, measure = null, mGroup = null;
+let edgeEls = {}, edgeTick = 0;
+
+function buildScene() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 500);
+  // worldComp holds the difference between where the markers are drawn and
+  // where the current best transform says they belong, and decays it to
+  // nothing over a couple of seconds. See glideFrom().
+  worldComp = new THREE.Group(); scene.add(worldComp);
+  world = new THREE.Group(); worldComp.add(world);
+  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  // a few sprites over a camera image do not need a 3x display's full
+  // resolution, and the passthrough compositor pays for every pixel
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.domElement.className = 'ar';
+  renderer.domElement.style.display = 'none';   // three writes inline display:block, which beats the class
+  document.body.appendChild(renderer.domElement);
+
+  // hit-test reticle and the container for measurement lines, both in session space
+  reticle = new THREE.Mesh(new THREE.RingGeometry(0.09, 0.13, 32),
+    new THREE.MeshBasicMaterial({ color: 0x8fd6a8, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false }));
+  reticle.rotation.x = -Math.PI / 2; reticle.renderOrder = 12; reticle.visible = false;
+  scene.add(reticle);
+  // Inside world, not in the session frame: a measurement drawn in session
+  // coordinates stays where the phone happened to be standing, while the trees
+  // move with every fit, yaw re-sync and anchor correction - so the line walks
+  // away from the tree it measured.
+  mGroup = new THREE.Group(); world.add(mGroup);
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function labelTexture(i) {
+  const p = props(i), a = assess(p), col = LVLCOL[a.lvl];
+  /* 512x256 instead of 640x320: a quarter less memory per label, and with
+     forty-five of them on the GPU that is the difference between a session
+     that runs and a tab the browser kills. The drawing below is laid out in
+     the old size and scaled into the new one. */
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const g = c.getContext('2d');
+  g.scale(512 / 640, 256 / 320);
+  g.fillStyle = 'rgba(10,16,13,.88)'; roundRect(g, 4, 4, 632, 312, 26); g.fill();
+  g.lineWidth = 8; g.strokeStyle = col; roundRect(g, 4, 4, 632, 312, 26); g.stroke();
+  g.fillStyle = col; g.beginPath(); g.arc(62, 74, 26, 0, 7); g.fill();
+  g.fillStyle = '#fff'; g.font = 'bold 46px system-ui,sans-serif';
+  g.fillText(p.tag_no ? ('№ ' + p.tag_no) : (p.tree_id || '?'), 104, 90);
+  // the species is what you actually look for on a marker, so it gets weight,
+  // and its absence gets said rather than left as a blank line
+  const sp = (p.species || '').trim(), cn = (p.name_en || '').trim();
+  if (sp || cn) {
+    g.fillStyle = '#eaf3ee'; g.font = 'italic bold 40px system-ui,sans-serif';
+    g.fillText(sp || cn, 32, 154);
+    if (sp && cn) {
+      const w = g.measureText(sp).width;
+      g.fillStyle = '#9fb3a6'; g.font = '30px system-ui,sans-serif';
+      g.fillText(' · ' + cn, 32 + w, 154);
+    }
+  } else {
+    g.fillStyle = '#e0a94a'; g.font = 'italic 36px system-ui,sans-serif';
+    g.fillText('species not recorded', 32, 154);
+  }
+  g.fillStyle = '#9fb3a6'; g.font = '32px system-ui,sans-serif';
+  g.fillText('DBH ' + (p.dbh_cm == null ? '–' : p.dbh_cm) + ' cm · H ' + (p.height_m == null ? '–' : p.height_m) + ' m', 32, 204);
+  g.fillText('Vitality ' + (p.vitality_roloff == null ? '–' : p.vitality_roloff) + ' · ' + (p.damage_class || '–'), 32, 250);
+  g.fillStyle = col; g.font = '28px system-ui,sans-serif';
+  g.fillText('▸ ' + LVLTXT[a.lvl], 32, 296);
+  const t = new THREE.CanvasTexture(c);
+  // no mipmap chain: a third again of the memory, for a label always read
+  // face-on at a couple of metres
+  t.generateMipmaps = false; t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+/* Everything a marker owns, given back. A removed group is not freed by the
+   garbage collector: the canvas behind its label lives on the GPU until it is
+   disposed by hand. Forty-five labels at 640x320 are some thirty-seven
+   megabytes, and buildMarkers runs on every recorded tree, every save, every
+   import - so the renderer filled up and the browser killed the tab. That is a
+   crash with no error message anywhere, which is exactly what it looked like. */
+function disposeObj(o) {
+  o.traverse(c => {
+    if (c.geometry) c.geometry.dispose();
+    const m = c.material;
+    if (m) {
+      (Array.isArray(m) ? m : [m]).forEach(x => {
+        if (x.map) x.map.dispose();
+        x.dispose();
+      });
+    }
+  });
+}
+/* And a marker for a tree four hundred kilometres away is a label nobody can
+   see, holding a megabyte. Only what could be on screen is built. */
+const MARK_R = 600;
+function markerWanted(i) {
+  const f = CAT.features[i];
+  if (!f || !f.geometry || f.geometry.type !== 'Point') return false;
+  if (!lastFix) return hasLocal(props(i));
+  const c = f.geometry.coordinates;
+  // by where it says it is, and - for a surveyed tree - by where its survey
+  // puts it, because either being far away means it cannot be on screen
+  if (distBear(c[1], c[0], lastFix.lat, lastFix.lon).d <= MARK_R) return true;
+  const p = props(i), me = hasLocal(p) ? wgsToPlot(lastFix.lat, lastFix.lon) : null;
+  return !!(me && Math.hypot(+p.lx - me.lx, +p.ly - me.ly) <= MARK_R);
+}
+/* Tree index to its marker group. treeInView and treeCandidates asked
+   world.children.find() once per tree, inside a loop over every tree, twenty
+   times a second: quadratic in the size of the stand, and a Berlin district
+   is thousands of trees. One map, rebuilt with the markers. */
+let markerOf = new Map();
+function buildMarkers() {
+  // only the marker groups: mGroup hangs here too and must survive
+  world.children.filter(o => o.userData.idx != null).forEach(o => {
+    world.remove(o); disposeObj(o);
+  });
+  sprites = []; markerOf = new Map();
+  CAT.features.forEach((f, i) => {
+    if (!markerWanted(i)) return;
+    const p = props(i), col = LVLCOL[assess(p).lvl];
+    const g = new THREE.Group();
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(i), depthTest: false, transparent: true }));
+    sp.scale.set(1.7, 0.85, 1); sp.position.y = 1.30; sp.renderOrder = 10;   // breast height
+    sp.userData.idx = i; g.add(sp); sprites.push(sp);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1.30, 0)]),
+      new THREE.LineBasicMaterial({ color: col, depthTest: false }));
+    line.renderOrder = 9; g.add(line);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 40),
+      new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthTest: false }));
+    ring.rotation.x = -Math.PI / 2; ring.renderOrder = 9; g.add(ring);
+    ring.userData.ring = 1;
+    g.userData.idx = i; world.add(g); markerOf.set(i, g);
+  });
+  placeMarkers();
+  updateFallZones();
+  if (mode) { buildEdge(); buildChooser(); }     // both are keyed by index
+}
+/* The session-to-plot transform: where the plot frame sits inside this AR
+   session. Set by recording (the first tree of a session defines it), by a
+   stem match, or by control points - never by GPS. Null means the app does not
+   know where it is, and then it draws nothing rather than something wrong. */
+let S2P = null;               // { phi (rad), tx, tz } : scene = R(phi)*local + t
+let s2pFrom = '', s2pRms = null;
+
+/* One way in for every kind of evidence: pairs of (plot local, scene point).
+   Stems, control points and, if asked for explicitly, GPS all end up here. */
+/* A better transform puts the markers in a better place, but neither the tree
+   nor you have moved, so nothing on screen may jump. The change is applied to
+   the transform at once - every coordinate comes from it - and cancelled out
+   of the drawing by the equal and opposite offset, which then decays away.
+   The rotation and the offset are read off two probe points rather than
+   derived: two transforms, two points each, and the rigid motion between them
+   is arithmetic that cannot get a sign wrong. */
+function s2pAt(S, lx, ly) {
+  const c = Math.cos(S.phi), sn = Math.sin(S.phi);
+  return { x: lx * c + (-ly) * sn + S.tx, z: -lx * sn + (-ly) * c + S.tz };
+}
+function glideFrom(prev) {
+  if (!prev || !worldComp || !mode || !S2P) return;
+  const a1 = s2pAt(prev, 0, 0), a2 = s2pAt(prev, 1, 0);
+  const b1 = s2pAt(S2P, 0, 0), b2 = s2pAt(S2P, 1, 0);
+  const bx = b2.x - b1.x, bz = b2.z - b1.z, ax = a2.x - a1.x, az = a2.z - a1.z;
+  const n2 = bx * bx + bz * bz;
+  if (!n2) return;
+  const th = Math.atan2((ax * bz - az * bx) / n2, (ax * bx + az * bz) / n2);
+  const rb = rotY(new THREE.Vector3(b1.x, 0, b1.z), th);
+  compPos.add(rotY(new THREE.Vector3(a1.x - rb.x, 0, a1.z - rb.z), compRot));
+  compRot += th;
+  while (compRot > Math.PI) compRot -= 2 * Math.PI;
+  while (compRot < -Math.PI) compRot += 2 * Math.PI;
+  if (compPos.length() > 60) settleComp(); else applyComp();
+  compAt = performance.now();
+}
+
+function fitS2P(pairs, source, auto) {
+  if (!pairs || pairs.length < 2) return null;
+  const f = fitRigid(pairs.map(pp => ({ id: pp.id, u: { e: pp.l.lx, n: pp.l.ly }, s: pp.s })));
+  if (!f) return null;
+  // fitRigid solves s = R(-phi)(u - u0) with u = e - i*n; s2pApply wants the
+  // same mapping written as scene = R(phi)*local + t
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
+  S2P = { phi: f.phi, tx: 0, tz: 0 };
+  const at0 = s2pApply(f.e0, f.n0);
+  S2P.tx = -at0.x; S2P.tz = -at0.z;
+  s2pFrom = source || ''; s2pRms = f.rms; s2pAuto = !!auto;
+  if (!sceneLocked) glideFrom(prev);
+  rebaseSession();
+  placeMarkers(); requestAnchors(); showFit();
+  return f;
+}
+/* ---- what a session recorded, in the session's own coordinates ----
+   A tree recorded in a session is measured by the session's tracking, which is
+   the accurate part: where it stands relative to the camera is centimetres,
+   and stays that way whatever anyone later decides about where the camera is.
+   Its plot coordinates are that measurement seen through the transform, so
+   they are only ever as good as the transform was at the moment of recording.
+
+   So the measurement is kept, and the plot coordinates are recomputed from it
+   every time the transform improves. Record first and lock later, in any
+   order: three stems tapped at the end of an hour put every tree recorded in
+   that hour where it belongs, instead of leaving them where a compass reading
+   from an hour ago said. Within one session the trees keep exact geometry
+   against each other throughout - the same transform moves all of them. */
+let sessScene = new Map();
+function rebaseSession() {
+  if (!S2P || !sessScene.size) return 0;
+  let n = 0;
+  sessScene.forEach((p, i) => {
+    const f = CAT.features[i];
+    if (!f) return;
+    const l = s2pInvert(p.x, p.z);
+    setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+    const g = plotToWgs(l.lx, l.ly);
+    // written straight in: this is the same measurement in better coordinates,
+    // not somebody moving a tree, so it is not a change to be undone
+    if (g) f.geometry.coordinates = [+g.lon.toFixed(7), +g.lat.toFixed(7)];
+    n++;
+  });
+  if (n) { saveCat(); renderList(); }
+  return n;
+}
+
+/* Whether the current alignment is the app's own guess (GPS, compass, walking)
+   or something measured. A measured one is never overwritten, and neither is
+   a frame that has trees recorded into it - two stems recorded either side of
+   a shifted frame would no longer be the right distance apart. */
+let s2pAuto = false;
+
+/* ---- aligning itself ----
+   The session's own frame is arbitrary: it starts where the phone starts. The
+   register is not, so at every start the app places itself with what it has -
+   the GPS fix says where you are in the plot, the compass says which way the
+   phone is pointing - and the markers are on screen from the first second,
+   with the accuracy said out loud. Walking then corrects it without being
+   asked, and a stem match or a control point replaces it outright. */
+const AUTO_ACC = 20;          // metres of GPS accuracy worth aligning on
+let autoSaid = false;
+function autoAlign(force) {
+  if (!world || !mode || sceneLocked) return false;
+  if (S2P && !force) return false;
+  if (!lastFix || !plotGeoreferenced()) return false;
+  // A ±30 m fix would put the whole stand thirty metres from where it is, and
+  // a marker that far out is worse than no marker: wait for a better one.
+  if (!(lastFix.acc <= AUTO_ACC)) return false;
+  if (!CAT.features.some((f, i) => hasLocal(props(i)))) return false;
+  // the rotation: compass if there is one, the walk if there is not
+  let phi, from;
+  if (heading != null) { phi = phiFromHeading(heading); from = 'GPS and the compass'; }
+  else {
+    const w = phiFromTrack();
+    if (!w) return false;
+    phi = w.phi; from = 'GPS and ' + w.span.toFixed(0) + ' m walked';
+  }
+  const l = wgsToPlot(lastFix.lat, lastFix.lon);
+  if (!l) return false;
+  const c = camPos();
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
+  S2P = { phi: phi, tx: 0, tz: 0 };
+  const at = s2pApply(l.lx, l.ly);
+  S2P.tx = c.x - at.x; S2P.tz = c.z - at.z;
+  s2pFrom = from; s2pRms = lastFix.acc; s2pAuto = true;
+  glideFrom(prev);
+  rebaseSession();
+  placeMarkers(); requestAnchors(); showFit();
+  if (!autoSaid) {
+    autoSaid = true;
+    toast('Markers placed from ' + from + ', ±' + lastFix.acc.toFixed(0) +
+          ' m. Walk a few steps and it corrects itself.');
+  }
+  return true;
+}
+function s2pApply(lx, ly) {
+  if (!S2P) return null;
+  const c = Math.cos(S2P.phi), sn = Math.sin(S2P.phi);
+  // local (east, north) enters the scene as (x, z) = (e, -n)
+  const x = lx * c + (-ly) * sn, z = -lx * sn + (-ly) * c;
+  return { x: x + S2P.tx, z: z + S2P.tz };
+}
+function s2pInvert(x, z) {
+  if (!S2P) return null;
+  const c = Math.cos(-S2P.phi), sn = Math.sin(-S2P.phi);
+  const dx = x - S2P.tx, dz = z - S2P.tz;
+  const e = dx * c + dz * sn, mn = -dx * sn + dz * c;
+  return { lx: e, ly: -mn };
+}
+/* Where true north points inside the session, in degrees. Plot local +y is
+   north turned by PLOT.yaw; the session turns that again by S2P.phi. */
+function sceneNorthDeg() {
+  if (!S2P) return null;
+  return ((-(S2P.phi * 180 / Math.PI) - (PLOT ? PLOT.yaw : 0)) % 360 + 360) % 360;
+}
+/* You cannot see a tree three hundred metres away through a phone, and one
+   thirty kilometres away is a coordinate that has gone wrong somewhere. Draw
+   neither. This is not cosmetic: a marker that far out is what the edge
+   arrows point at, what "in view" counts, and what the nearest-tree logic
+   picks up - one bad coordinate reached into everything. */
+const DRAW_R = 250;
+function placeMarkers() {
+  if (!world) return;
+  const c = mode ? camPos() : null;
+  world.children.forEach(g => {
+    const i = g.userData.idx;
+    if (i == null || !CAT.features[i]) return;
+    const l = localOf(i);
+    const q = (S2P && l) ? s2pApply(l.lx, l.ly) : null;
+    const near = q && (!c || Math.hypot(q.x - c.x, q.z - c.z) <= DRAW_R);
+    if (q && near) { g.position.set(q.x, 0, q.z); g.visible = true; }
+    else g.visible = false;                    // nothing known or nothing near
+  });
+  requestAnchors();       // old anchors would drag the markers back
+  if (typeof layoutMarks === 'function') layoutMarks();
+}
+function refreshMarker(i) {
+  const sp = sprites.find(s => s.userData.idx === i);
+  if (!sp) return;
+  const col = LVLCOL[assess(props(i)).lvl];
+  sp.material.map.dispose();
+  sp.material.map = labelTexture(i);
+  sp.material.needsUpdate = true;
+  const g = markerOf.get(i);
+  if (g) g.children.forEach(ch => { if (ch.material && ch.material.color) ch.material.color.set(col); });
+}
+
+/* ---- fall zone ----
+   Height and distance to the target are already recorded and compared in the
+   assessment, but a number in a form convinces nobody standing on the spot.
+   The circle of radius = tree height, drawn on the ground, shows what is
+   actually inside it - which is the argument an owner who does not want the
+   work will actually look at. */
+let fallZone = false;
+function updateFallZones() {
+  if (!world) return;
+  world.children.forEach(g => {
+    const old = g.children.filter(o => o.userData.fz);
+    old.forEach(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); g.remove(o); });
+    if (!fallZone || g.userData.idx == null) return;
+    const p = props(g.userData.idx), h = num(p.height_m);
+    if (!(h > 0)) return;
+    const tgt = num(p.target_distance_m);
+    const hit = tgt != null && p.target_type && p.target_type !== 'none' && tgt <= h;
+    const pts = [];
+    for (let k = 0; k <= 72; k++) {
+      const a = k / 72 * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a) * h, 0.02, Math.sin(a) * h));
+    }
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: hit ? 0xff8f7a : 0x8fd6a8, transparent: true,
+                                    opacity: 0.85, depthTest: false }));
+    line.renderOrder = 8; line.userData.fz = 1; g.add(line);
+    const lab = valueSprite('fall zone ' + h.toFixed(0) + ' m');
+    lab.position.set(0, 0.5, -h); lab.userData.fz = 1; g.add(lab);
+  });
+}
+
+/* ---- north alignment ----
+   world.rotation.y = phi maps a bearing beta onto beta - phi. What we need is
+   phi = compass heading - view direction in the XR world frame. At session
+   start the latter is 0; the same expression lets the user re-sync later when
+   the ARCore yaw has drifted. */
+function camYawDeg() {
+  const cam = (renderer.xr && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  cam.updateMatrixWorld(true);
+  const f = new THREE.Vector3(0, 0, -1).transformDirection(cam.matrixWorld);
+  return (Math.atan2(f.x, -f.z) * 180 / Math.PI + 360) % 360;
+}
+/* The rotation of the plot inside the session, from a compass reading.
+   S2P.phi is the bearing of the session's own -z axis - where the phone
+   pointed when the session began. The compass says where it points NOW, and
+   the two differ by however far the phone has turned since, which the session
+   knows exactly. Three places set phi straight from the heading and forgot
+   that; every test held the camera on identity, so nobody saw a lock taken
+   after a quarter turn land a quarter turn out. */
+function phiFromHeading(h) {
+  // and the plot is itself turned by PLOT.yaw against north: sceneNorthDeg()
+  // has always assumed phi carries that, and now it does
+  const yaw = (PLOT && PLOT.yaw) || 0;
+  return THREE.MathUtils.degToRad(((h - camYawDeg() - yaw) % 360 + 360) % 360);
+}
+/* And without a compass at all: two fixes far enough apart give the bearing
+   walked, and the session gives the same walk in its own frame. The angle
+   between them is phi outright, no heading needed. Cruder than the rigid fit
+   over many fixes that follows, but available after eight metres instead of
+   twelve, and on the phones that report no absolute heading at all. */
+function phiFromTrack() {
+  if (track.length < 2) return null;
+  let a = null, b = null, best = 0;
+  for (let i = 0; i < track.length; i++)
+    for (let j = i + 1; j < track.length; j++) {
+      const d = Math.hypot(track[i].x - track[j].x, track[i].z - track[j].z);
+      if (d > best) { best = d; a = track[i]; b = track[j]; }
+    }
+  if (!a || best < 8) return null;
+  const gpsB = distBear(b.lat, b.lon, a.lat, a.lon).b;               // bearing walked a -> b, true
+  const scB = (Math.atan2(b.x - a.x, -(b.z - a.z)) * 180 / Math.PI + 360) % 360;   // same walk, session
+  // scene bearing = true bearing - phi  ->  phi = true - scene ; and the plot
+  // is itself turned by PLOT.yaw against north
+  return { phi: THREE.MathUtils.degToRad(((gpsB - scB - (PLOT ? PLOT.yaw : 0)) % 360 + 360) % 360),
+           span: best, acc: Math.max(a.acc, b.acc) };
+}
+/* placeMarkers() writes session coordinates straight into each marker, so the
+   group they hang in must not turn as well - a rotation here would be applied
+   twice. worldYaw survives only for the camera-mode fallback and the compass
+   read-out. */
+function applyYaw() {
+  if (world) world.rotation.y = 0;
+  $('hOff').textContent = Math.round(headOff);
+}
+function syncNorth(quiet) {
+  if (heading == null) { if (!quiet) toast('No compass heading yet – move the phone in a figure of eight.'); return false; }
+  worldYaw = ((heading - camYawDeg()) % 360 + 360) % 360;
+  applyYaw();
+  requestAnchors();       // the markers just turned, their anchors have not
+  if (!quiet) toast('North taken from compass (heading ' + heading.toFixed(0) + '°).');
+  return true;
+}
+
+/* ============================= MODES ============================= */
+
+/* Chrome hands an AR session the camera image only if the page already holds
+   the camera permission. Asking for it inside the session is too late, and a
+   session started before the permission exists is a session that can never
+   photograph anything - which is exactly what "the photo does not work"
+   looked like. So it is asked for first, plainly, by opening the camera for a
+   moment and closing it again. It cannot be done in the same tap that starts
+   AR: awaiting it spends the tap, and requestSession then refuses. */
+let camPrimed = false;
+async function primeCamera() {
+  if (camPrimed) return true;
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+    st.getTracks().forEach(t => t.stop());
+    camPrimed = true;
+    return true;
+  } catch (e) {
+    toast('The camera was refused: ' + e.name + '. Allow it for this site in the address bar.');
+    return false;
+  }
+}
+async function cameraAllowed() {
+  if (camPrimed) return true;
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const st = await navigator.permissions.query({ name: 'camera' });
+      if (st.state === 'granted') { camPrimed = true; return true; }
+      return false;
+    }
+  } catch (e) {}
+  return false;
+}
+
+async function startXR() {
+  if (!navigator.xr) throw new Error('navigator.xr missing');
+  const ok = await navigator.xr.isSessionSupported('immersive-ar');
+  if (!ok) throw new Error('immersive-ar not supported (is Google Play Services for AR installed?)');
+  $('xrui').classList.add('on');            // the overlay root has to be visible or Chrome rejects it
+  let s;
+  try {
+    s = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['local-floor'],
+      optionalFeatures: depthWanted()
+        ? ['dom-overlay', 'hit-test', 'anchors', 'camera-access', 'depth-sensing']
+        : ['dom-overlay', 'hit-test', 'anchors', 'camera-access'],
+      domOverlay: { root: $('xrui') },
+      /* ARCore's own depth measures the stem instead of assuming it, and it
+         is off unless it is asked for. Enabling depth-sensing starts a second
+         pipeline inside ARCore, and on a phone that does not carry it well
+         that is a dead tab a few seconds into a session - with no error,
+         because the process is gone. The app must work on every phone first
+         and measure trunks second. */
+      depthSensing: {
+        usagePreference: ['cpu-optimized'],
+        dataFormatPreference: ['luminance-alpha', 'float32']
+      }
+    });
+  } catch (err) {
+    $('xrui').classList.remove('on');
+    throw err;
+  }
+  xrSession = s; mode = 'WebXR';
+  if (depthWanted()) depthTrialStart();
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType('local-floor');
+  await renderer.xr.setSession(s);
+  xrRef = renderer.xr.getReferenceSpace();
+  s.addEventListener('select', onXRSelect);
+  s.addEventListener('end', endAR);
+  /* A call comes in, or the app switcher opens: the session is still alive
+     but the view is frozen and nothing measured off it is worth having. */
+  xrBlurred = false;
+  s.addEventListener('visibilitychange', () => {
+    xrBlurred = s.visibilityState !== 'visible';
+    if (xrBlurred) { stillAt = null; stillSince = 0; }   // do not count a pause as standing still
+  });
+
+  // Optional features are granted per session, so ask the session, not the device.
+  const has = f => (s.enabledFeatures ? s.enabledFeatures.indexOf(f) >= 0 : true);
+  anchorsOk = has('anchors') && typeof XRFrame !== 'undefined' && 'createAnchor' in XRFrame.prototype;
+  camAccessOk = has('camera-access') && typeof XRWebGLBinding !== 'undefined' &&
+                'getCameraImage' in XRWebGLBinding.prototype;
+  hitOk = has('hit-test') && typeof s.requestHitTestSource === 'function';
+  if (hitOk) {
+    try {
+      const viewerSpace = await s.requestReferenceSpace('viewer');
+      hitSource = await s.requestHitTestSource({ space: viewerSpace });
+    } catch (e) { hitOk = false; hitSource = null; }
+  }
+
+  enterAR();
+  // the compass used to be re-applied to the scene here; it no longer places
+  // anything, and a heading is read passively for the plot bootstrap alone
+  /* One throw inside the animation loop ends the XR session - the frame never
+     returns, the browser tears the session down, and from the outside the app
+     has crashed. Nothing in here is allowed to do that: every part runs on its
+     own, a failure is recorded and shown in the report, and a part that fails
+     three times is switched off for the rest of the session rather than
+     taking the session with it. */
+  renderer.setAnimationLoop(xrFrame);
+}
+
+/* One frame of the session. A named function rather than a closure so the
+   loop can be driven by hand - one frame, one fake XRFrame - and every branch
+   in it tested without a phone. */
+function xrFrame(t, frame) {
+  lastFrame = frame;
+  frameLive = !!frame;
+  if (frame) {
+    // whatever asked for a stem while no frame was in flight, answered here
+    if (stemAsk) { const q = stemAsk; stemAsk = null; guard('stem request', () => q(findStem())); }
+    guard('hit test', () => updateHitTest(frame));
+    guard('anchors', () => updateAnchors(frame));
+    if (panchWanted) guard('keep anchors', () => makeStemAnchors(frame));
+    if (!panchDone && panchRestored.size >= 2) guard('remembered anchors', () => fitFromRestored(frame));
+    // depth is asked about once, on the first frame, and then only when
+    // something actually wants a stem: no pipeline running on a timer
+    if (depthOk === null && depthWanted()) guard('depth', () => probeDepth(frame));
+    if (cal) { guard('caliper', calFeed); if (edgeTick % 6 === 0) guard('caliper bar', calPaint); }
+    /* The stem match is the fourth stage of aligning itself, and it was
+       only ever run from a button in the diagnostics - so "aligns itself
+       on the stems it sees" was true of nothing. Looked for on a timer
+       now, only while depth is on and the session is in front. */
+    if (depthOk && depthWanted() && !cal && !xrBlurred &&
+        t - stemScanAt >= STEM_EVERY) { stemScanAt = t; guard('stem scan', stemScan); }
+    if (!xrBlurred) guard('standing', autoStand);
+    if (edgeTick % 60 === 11) guard('far from stand', checkFarFromStand);
+    if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
+    if (ghost && edgeTick % 3 === 0) guard('ghost', ghostTick);
+  }
+  guard('draw', tick);
+  try { renderer.render(scene, camera); } catch (e) { note('render', e); }
+  frameLive = false;
+}
+
+/* An immersive session keeps the screen on by itself; the plain camera view
+   does not, and a phone that dims in the middle of a stand is a survey that
+   stops. Asked for here, given back when the view ends, and re-asked when the
+   tab comes back - the browser drops it on every switch away. */
+let wakeLock = null;
+async function keepAwake() {
+  if (!navigator.wakeLock || wakeLock) return;
+  try { wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+  catch (e) { wakeLock = null; }
+}
+function letSleep() { if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; } }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && mode === 'Camera') keepAwake();
+});
+
+async function startCam() {
+  const v = $('video');
+  const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+  v.srcObject = st; await v.play(); v.style.display = 'block';
+  mode = 'Camera'; enterAR(); keepAwake();
+  renderer.domElement.addEventListener('pointerdown', onCamTap);
+  renderer.setAnimationLoop(() => {
+    if (haveOrient) camera.quaternion.copy(devQuat);
+    // own position from GPS, rotated the same way as the markers
+    if (origin && lastFix && lastFix.acc < 25) {
+      const d = enu(lastFix.lat, lastFix.lon, origin.lat, origin.lon);
+      const v2 = new THREE.Vector3(d.e, 0, -d.n).applyAxisAngle(_yAx, THREE.MathUtils.degToRad(worldYaw + headOff));
+      const tgt = new THREE.Vector3(v2.x, 1.55, v2.z);
+      // GPS noise is metres wide, and moving the camera moves the whole scene
+      // past you: follow a fix only once it has left the accuracy circle, then
+      // ease over rather than jump.
+      if (camGps.distanceTo(tgt) > Math.max(1.5, lastFix.acc * 0.5)) camGps.lerp(tgt, 0.02);
+    }
+    camera.position.copy(camGps);
+    tick(); renderer.render(scene, camera);
+  });
+}
+
+function enterAR() {
+  $('app').classList.add('hidden');
+  $('xrui').classList.add('on');
+  renderer.domElement.style.display = 'block';
+  $('hMode').textContent = mode;
+  applyYaw();
+  selectTree(null);
+  buildChooser();
+  buildRefMenu();
+  refFix.clear(); lastFit = null; track = []; autoState = null;   // new session, new frame
+  sceneLocked = false; settleComp();
+  S2P = null; s2pFrom = ''; s2pRms = null; s2pAuto = false; autoSaid = false; navTarget = null;
+  setArMode();
+  showFit();
+  buildEdge();
+  $('bshot').disabled = false;
+  requestAnchors();
+  sessScene.clear(); standPts = [];
+  stillAt = null; stillSince = 0; autoStood = 0; farSaid = false;
+  stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false; stemScanAt = 0;
+  panchDone = false; panchWanted = null;
+  if (typeof ghostStop === 'function') ghostStop();
+  if (typeof ghostResume === 'function') setTimeout(ghostResume, 400);
+  const healed = plotHeal();
+  if (healed) toast('The stand was ' + healed + ' m out of step with its own survey – ' +
+                    'put back together. Record a tree to fix it on the earth.');
+  loadStandMemo();
+  standAsked = null;
+  if (standMemo.length >= 2)
+    toast('Last time this went exact at ' + standMemo.map(m => m.id).join(' and ') +
+          ' – stop at either and it will again.');
+  autoAlign();                  // aligning is not a thing the user should have to ask for
+  restoreStemAnchors();         // and if the phone itself remembers the stems, better still
+}
+function endAR() {
+  renderer.setAnimationLoop(null);
+  lsDel(K_DTRIAL);                 // ended on purpose: not a death
+  letSleep();
+  if (typeof ghostStop === 'function') ghostStop();
+  clearMeasure();
+  dropAnchors();
+  if (hitSource) { try { hitSource.cancel(); } catch (e) {} hitSource = null; }
+  hitOk = anchorsOk = camAccessOk = false; shotFor = null; barkFor = null; shotKind = null;
+  if (xrSession) { try { xrSession.end(); } catch (e) {} xrSession = null; }
+  renderer.xr.enabled = false;
+  const v = $('video');
+  if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; v.style.display = 'none'; }
+  renderer.domElement.removeEventListener('pointerdown', onCamTap);
+  renderer.domElement.style.display = 'none';
+  $('xrui').classList.remove('on');
+  $('panelXR').classList.remove('on');
+  $('chooser').style.display = 'none';
+  $('mmenu').style.display = 'none';
+  $('refmenu').style.display = 'none';
+  $('nummenu').style.display = 'none';
+  $('edge').innerHTML = ''; edgeEls = {};
+  $('hwarnT').textContent = ''; $('hwarn').classList.remove('on'); warnOff = false;
+  depthOk = null; if ($('hDepth')) $('hDepth').textContent = '';
+  $('hud').classList.remove('open');
+  $('hFit').textContent = '';
+  $('app').classList.remove('hidden');
+  mode = null;
+  renderList();
+}
+
+const _cp = new THREE.Vector3(), _sp = new THREE.Vector3();
+const LBL_W = 1.7, LBL_H = 0.85;          // label size in metres at scale 1
+const LBL_MAXW = 0.55, LBL_MAXH = 0.34;   // and never more than this share of the screen
+const LBL_MAX = 6;                        // labels on screen at once; the rest show a ring
+
+/* Sprites are sized in metres, so a label that reads well at 10 m swallows the
+   whole display once you walk up to the stem. Cap the scale by what the label
+   is allowed to cover on screen: at distance d the viewport is 2*d*tanHalf
+   metres wide, so the cap follows the screen, not a guessed minimum. */
+function frustumTan(cam) {
+  const pc = (cam.cameras && cam.cameras.length) ? cam.cameras[0] : cam;
+  const e = pc.projectionMatrix.elements;
+  return { x: e[0] ? Math.abs(1 / e[0]) : 1, y: e[5] ? Math.abs(1 / e[5]) : 1 };
+}
+function fitScale(k, d, t, w, h) {
+  return Math.min(k, LBL_MAXW * 2 * d * t.x / w, LBL_MAXH * 2 * d * t.y / h);
+}
+
+let arCardAt = null;
+function tick() {
+  const cam = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  _cp.setFromMatrixPosition(cam.matrixWorld);
+  const t = frustumTan(cam);
+  let best = null, bd = 1e9;
+  /* Forty trees in view is forty labels over each other, and the label always
+     wins over the tree behind it. The nearest few get a label; the rest keep
+     their ring on the ground, which is what says "there is a tree here". */
+  const dists = [];
+  sprites.forEach(sp => {
+    if (!sp.parent || !sp.parent.visible) return;
+    sp.getWorldPosition(_sp);
+    const d = _cp.distanceTo(_sp);
+    dists.push(d);
+    const k = THREE.MathUtils.clamp(d / 7, 0.7, 3.4);      // keep the label readable at distance
+    const s = fitScale(k, d, t, LBL_W, LBL_H);
+    sp.scale.set(LBL_W * s, LBL_H * s, 1);
+    sp.userData.d = d;
+    if (d < bd) { bd = d; best = sp; }
+  });
+  let cut = Infinity;
+  if (dists.length > LBL_MAX) { dists.sort((a, b) => a - b); cut = dists[LBL_MAX - 1]; }
+  sprites.forEach(sp => {
+    const keep = sp.userData.d <= cut || sp.userData.idx === selIdx;
+    if (sp.visible !== keep) sp.visible = keep;
+  });
+  // measurement read-outs sit wherever you tapped, sometimes at arm's length
+  mObjs.forEach(o => {
+    const b = o.userData.base; if (!b) return;
+    o.getWorldPosition(_sp);
+    const s = fitScale(1, _cp.distanceTo(_sp), t, b[0], b[1]);
+    o.scale.set(b[0] * s, b[1] * s, 1);
+  });
+  /* Which tree is nearest, said even when the scene is drawing nothing. A
+     marker is only as good as the alignment; GPS is metres out but it is out
+     by metres, and "89, six metres north-east" is the difference between an
+     inspector believing the register is empty and finding the tree. */
+  if (best) {
+    $('hNear').textContent = props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m';
+    $('hNear').className = '';
+  } else if (edgeTick % 20 === 7) {
+    const g = lastFix == null ? null : nearestByGps();
+    if (g == null) { $('hNear').textContent = ''; $('hNear').className = ''; }
+    else {
+      const c = CAT.features[g].geometry.coordinates;
+      const db = distBear(c[1], c[0], lastFix.lat, lastFix.lon);   // from me to the tree
+      $('hNear').textContent = 'nearest by GPS: ' + (props(g).tag_no || tid(g)) + ' · ' +
+                               db.d.toFixed(0) + ' m ' + bearWord(db.b);
+      $('hNear').className = 'warn';
+    }
+  }
+  if (edgeTick % 20 === 3) {
+    const v = treeInView();
+    if ($('hDepth') && mode === 'WebXR' && !camAccessOk && !$('hDepth').textContent)
+      { $('hDepth').textContent = 'photos leave AR briefly on this phone';
+        $('hDepth').className = 'warn'; }
+    const el = $('hView');
+    if (el) {
+      el.textContent = !v ? '' : (v.sure ? 'this is ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m'
+        : 'probably ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m · from ' + v.why +
+          (v.gap < 3 ? ', and it could be its neighbour' : ''));
+      el.className = v && v.sure ? 'ok' : 'warn';
+    }
+    /* The camera is pointing at a tree the register knows. Everything worth
+       knowing before touching it belongs on the glass, not three taps away
+       behind the camera: the sizes to compare against, what the level rests
+       on, and how many marks are waiting to be checked. */
+    const who = (v && v.i != null) ? v.i : (selIdx != null ? selIdx : null);
+    if (who !== arCardAt) { arCardAt = who; paintArCard(who); }
+    /* One ring per tree, and it says two things at once: its colour is the
+       hazard level, which never changes, and how solid and how wide it is
+       says whether the camera is pointing at it - solid and a little larger
+       for the best fit, fainter for the ones behind it. */
+    const cands = treeCandidates(null, 6);
+    const byIdx = {};
+    cands.forEach((x, k) => { byIdx[x.i] = { p: x.p, k: k }; });
+    world.children.forEach(g => {
+      const idx = g.userData.idx;
+      if (idx == null) return;
+      const hit = byIdx[idx];
+      g.children.forEach(ch => {
+        if (!ch.userData.ring || !ch.material) return;
+        ch.material.opacity = hit ? 0.55 + 0.45 * hit.p : 0.42;
+        const sc = hit ? 1 + 0.35 * hit.p : 1;
+        ch.scale.set(sc, sc, 1);
+      });
+    });
+    if ($('hView') && cands.length > 1 && $('hView').textContent)
+      $('hView').textContent += ' · ' + cands.length + ' in view';
+  }
+  const nowMs = performance.now();
+  decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
+  compAt = nowMs;
+  if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
+  if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
+}
+
+/* Ask for a stem and be told next frame. Outside a running session the answer
+   comes at once and says there is none, so no caller ever waits for ever. */
+let stemAsk = null;
+function askStem(cb) {
+  if (mode !== 'WebXR' || !depthOk || !depthWanted() || stemScanOff) return cb({ error: 'no depth' });
+  if (stemAsk) return cb({ error: 'already looking' });
+  stemAsk = cb;
+  // if no frame arrives - session gone, loop stopped - answer anyway
+  setTimeout(() => { if (stemAsk === cb) { stemAsk = null; cb({ error: 'no frame came' }); } }, 700);
+}
+
+/* ---- keeping the session alive ----
+   A part that throws is a part that stops, not a session that dies. */
+const guardFails = {};
+let stemScanOff = false;
+function note(where, e) {
+  lastErr = where + ': ' + ((e && e.message) || String(e));
+  guardFails[where] = (guardFails[where] || 0) + 1;
+  if (guardFails[where] === 3) {
+    if (where === 'stem scan' || where === 'depth') {
+      stemScanOff = true; depthOk = false;
+      toast('Reading depth keeps failing on this phone – switched off. ' +
+            'Recording still works, it just records where you stand.');
+    } else {
+      toast(where + ' keeps failing – see Data · Alignment for the message.');
+    }
+  }
+}
+function guard(where, fn) {
+  if (guardFails[where] >= 3 && where !== 'draw' && where !== 'render') return;
+  try { fn(); } catch (e) { note(where, e); }
+}
+
+/* ---- tapping ---- */
+function pickFromRay(o, d) {
+  ray.set(o, d);
+  /* A sprite is raycast against the camera it faces, and three.js reads that
+     off the raycaster. Set from a bare ray it is null, and every tap in AR
+     threw before it could reach a tree - which is why tapping a marker in the
+     camera view did nothing at all. */
+  ray.camera = xrCam();
+  let hit = [];
+  try { hit = ray.intersectObjects(sprites, false); } catch (e) { hit = []; }
+  if (hit.length) return hit[0].object.userData.idx;
+  let best = null, ba = Infinity;                          // tolerance: nearest sprite within 12 degrees
+  sprites.forEach(sp => {
+    sp.getWorldPosition(_sp);
+    const v = _sp.clone().sub(o).normalize();
+    const a = Math.acos(Math.min(1, Math.max(-1, v.dot(d)))) * 180 / Math.PI;
+    if (a < ba) { ba = a; best = sp; }
+  });
+  return (best && ba < 12) ? best.userData.idx : null;
+}
+/* A select event carries its own frame, alive for the length of the handler.
+   This asked lastFrame instead - the frame from the loop, already expired by
+   the time a finger has landed - and getPose on an expired frame throws. The
+   tap died there, every time, before it could reach a tree: tapping a marker
+   in AR has never worked. It uses the event's frame now, and if there is no
+   pose to be had it falls back to where the camera is looking rather than
+   losing the tap. */
+function onXRSelect(e) {
+  const frame = (e && e.frame) || null;
+  const wasLive = frameLive;
+  if (frame) { lastFrame = frame; frameLive = true; }
+  try {
+    if (measure) { measureTap(); return; }        // a tap belongs to the tool that is running
+    let o = null, d = null;
+    if (frame && xrRef && e.inputSource && e.inputSource.targetRaySpace) {
+      try {
+        const pose = frame.getPose(e.inputSource.targetRaySpace, xrRef);
+        if (pose) {
+          const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
+          o = new THREE.Vector3().setFromMatrixPosition(m);
+          d = new THREE.Vector3(0, 0, -1).transformDirection(m);
+        }
+      } catch (err) { note('tap pose', err); }
+    }
+    if (!o) { o = camPos(); d = camDir(); }       // the phone itself is the pointer
+    /* Tapping is how a tree is chosen: it is the one gesture that says which
+       one you mean, and it needs no button on the bar. A clear answer opens
+       the tree's page; a huddle of stems is listed instead of guessed. */
+    const i = pickFromRay(o, d);
+    const v = treeInView();
+    if (i !== null) { selectTree(i); selPinned = performance.now(); toTable(i); return; }
+    if (v && v.sure) return toTable(v.i);
+    if (treeCandidates(null, 6).length) return openPicker();
+  } catch (err) {
+    note('tap', err);
+  } finally {
+    frameLive = wasLive;
+  }
+}
+function onCamTap(ev) {
+  const nx = (ev.clientX / innerWidth) * 2 - 1, ny = -(ev.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera({ x: nx, y: ny }, camera);
+  const i = pickFromRay(ray.ray.origin.clone(), ray.ray.direction.clone());
+  if (i !== null) toTable(i);
+}
+
+/* ======================= AR TOOLS (WebXR only) =======================
+   Hit-test gives a point on a real surface, which is what turns the app from
+   a viewer into a measuring device. Everything here degrades quietly: without
+   the feature the buttons stay disabled rather than misbehaving. */
+
+function xrCam() {
+  const c = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+  return (c.cameras && c.cameras.length) ? c.cameras[0] : c;
+}
+function camPos() { return new THREE.Vector3().setFromMatrixPosition(xrCam().matrixWorld); }
+function camDir() { return new THREE.Vector3(0, 0, -1).transformDirection(xrCam().matrixWorld); }
+
+function updateHitTest(frame) {
+  if (!hitSource) { hitPt = null; reticle.visible = false; return; }
+  const res = frame.getHitTestResults(hitSource);
+  if (res.length) {
+    const p = res[0].getPose(xrRef);
+    if (p) {
+      hitPt = new THREE.Vector3(p.transform.position.x, p.transform.position.y, p.transform.position.z);
+      reticle.position.copy(hitPt);
+      // always visible in the survey: it is where + Tree will put the tree
+      reticle.visible = !!(measure ? measure.wantsHit
+        : (mode === 'WebXR' && !$('panelXR').classList.contains('on')));
+      return;
+    }
+  }
+  hitPt = null; reticle.visible = false;
+}
+
+/* ---- anchors that outlive the session ----
+   ARCore can remember a place: an anchor given a persistent handle comes back
+   in a later session at the same spot on the earth, found again from what the
+   camera sees. Two of them, at two stems whose plot coordinates are known,
+   are a rigid fit the moment the phone recognises the place - before anyone
+   has walked anywhere or stood anywhere. Chrome for Android only, eight at
+   most per site, gone with the site data; everything here checks first and
+   does nothing on a phone that cannot. */
+const K_PANCH = 'vta_panchor_v1';
+let panchWanted = null, panchRestored = new Map();
+function persistentAnchorsOk() {
+  return !!(xrSession && typeof XRAnchor !== 'undefined' &&
+            'requestPersistentHandle' in XRAnchor.prototype &&
+            typeof xrSession.restorePersistentAnchor === 'function');
+}
+function persistStemAnchors(pts) {
+  if (!persistentAnchorsOk() || !anchorsOk) return;
+  // created on the next frame, where an XRFrame exists to create them in
+  panchWanted = pts.map(p => ({ i: p.i, id: tid(p.i), l: p.l, x: p.x, z: p.z }));
+}
+function makeStemAnchors(frame) {
+  const want = panchWanted; panchWanted = null;
+  if (!want || !frame || !xrRef) return;
+  const out = [];
+  // forget the old ones first: eight is the ceiling and each session leaves two
+  let old = [];
+  try { old = JSON.parse(lsGet(K_PANCH)) || []; } catch (e) { old = []; }
+  old.forEach(o => { try { xrSession.deletePersistentAnchor && xrSession.deletePersistentAnchor(o.h); } catch (e) {} });
+  want.forEach(p => {
+    let pr;
+    try { pr = frame.createAnchor(new XRRigidTransform({ x: p.x, y: 0, z: p.z }), xrRef); }
+    catch (e) { return; }
+    if (!pr || !pr.then) return;
+    pr.then(a => a.requestPersistentHandle()).then(h => {
+      out.push({ h: h, i: p.i, id: p.id, l: p.l, plot: PLOT && PLOT.id });
+      lsSet(K_PANCH, JSON.stringify(out));
+      diag.panch = out.length + ' stem' + (out.length === 1 ? '' : 's') + ' remembered by the phone';
+    }).catch(e => { diag.panch = 'could not keep an anchor: ' + ((e && e.message) || e); });
+  });
+}
+function restoreStemAnchors() {
+  panchRestored = new Map();
+  if (!persistentAnchorsOk()) { diag.panch = 'this browser keeps no anchors between sessions'; return; }
+  let kept = [];
+  try { kept = JSON.parse(lsGet(K_PANCH)) || []; } catch (e) { kept = []; }
+  kept = kept.filter(k => k.plot === (PLOT && PLOT.id) && CAT.features[k.i] && tid(k.i) === k.id);
+  if (kept.length < 2) { diag.panch = 'nothing remembered for this stand'; return; }
+  const have = xrSession.persistentAnchors || [];
+  kept.forEach(k => {
+    if (have.length && have.indexOf(k.h) < 0) return;
+    xrSession.restorePersistentAnchor(k.h)
+      .then(a => { panchRestored.set(k.i, { a: a, l: k.l }); diag.panch = panchRestored.size + ' remembered stems found again'; })
+      .catch(() => {});
+  });
+}
+/* Once two remembered anchors have a pose, the session is on the stand
+   exactly - the phone recognised the place. Checked from the frame loop until
+   it happens, then never again. */
+let panchDone = false;
+function fitFromRestored(frame) {
+  if (panchDone || panchRestored.size < 2 || !frame || !xrRef) return;
+  if (lockStems >= 2 && !s2pAuto) { panchDone = true; return; }    // already exact by other means
+  const pairs = [];
+  panchRestored.forEach((r, i) => {
+    let pose = null;
+    try { pose = frame.getPose(r.a.anchorSpace, xrRef); } catch (e) { pose = null; }
+    if (!pose) return;
+    pairs.push({ id: tid(i), i: i, l: r.l, s: { x: pose.transform.position.x, z: pose.transform.position.z } });
+  });
+  if (pairs.length < 2) return;
+  const d = Math.hypot(pairs[0].s.x - pairs[1].s.x, pairs[0].s.z - pairs[1].s.z);
+  const dl = Math.hypot(pairs[0].l.lx - pairs[1].l.lx, pairs[0].l.ly - pairs[1].l.ly);
+  if (d < 3 || Math.abs(d - dl) > 1.5) { panchDone = true; diag.panch = 'remembered stems do not fit the register any more'; return; }
+  const f = fitS2P(pairs, 'the stems the phone remembered');
+  if (!f) return;
+  panchDone = true; lockStems = 2;
+  standPts = pairs.map(pp => ({ i: pp.i, x: pp.s.x, z: pp.s.z, l: pp.l, auto: true }));
+  diag.match = 'the phone recognised the place – exact on ' + pairs.map(pp => pp.id).join(' and ');
+  toast('The phone recognised the place · exact on ' + pairs.map(pp => pp.id).join(' and ') +
+        ' · ±' + f.rms.toFixed(2) + ' m');
+}
+
+/* ---- anchors: let ARCore hold the markers in place ----
+   Without them the markers sit at fixed session coordinates and inherit every
+   bit of tracking drift; anchored, ARCore re-localises them as you walk. */
+const ANCH_DEAD = 0.30;    // ignore anchor offsets below this - jitter, not drift
+const ANCH_RATE = 0.10;    // and correct the rest at most this fast (m/s)
+const ANCH_MAX = 12;       // anchors kept at once: enough to average, few enough to track
+let anchTime = 0;
+function requestAnchors() { if (anchorsOk) { anchorsWanted = true; anchTime = 0; } }
+function dropAnchors() {
+  anchorMap.forEach(a => { try { a.delete(); } catch (e) {} });
+  anchorMap.clear();
+}
+/* Anchors used to be pulled straight onto the markers, one anchor moving one
+   marker. That is two owners for the same number: the survey said where a
+   marker belongs, the anchor pulled it somewhere else, and the next thing
+   that called placeMarkers - a fix, a new tree, a mode switch - put it back
+   in one frame. That snap is the jump, and no amount of dead-banding the pull
+   could remove it, because the two sources never agreed.
+
+   So the anchors keep their real job and lose the other one. They are
+   evidence about one thing only: how far the session's own frame has drifted
+   since they were made. That is a property of the frame, not of any single
+   tree, so the answer they give is averaged over all of them and applied to
+   the transform. Every marker then moves together, by the same centimetres,
+   the geometry between them never changes, and placeMarkers has nothing to
+   snap back - it computes exactly what is already on screen. */
+function updateAnchors(frame) {
+  if (!anchorsOk || !S2P || !world) return;
+  world.updateMatrixWorld(true);
+  if (anchorsWanted) {
+    anchorsWanted = false;
+    dropAnchors();
+    if (compActive()) { anchorsWanted = true; return; }   // wait out the glide, then pin
+    const cp = camPos();
+    /* ARCore keeps every anchor alive and re-solves it each frame. A dozen
+       is plenty to average a drift from; a hundred in a dense stand is a
+       tracking pipeline spending itself on bookkeeping. The nearest ones,
+       and no more than that. */
+    const cand = [];
+    world.children.forEach(g => {
+      const i = g.userData.idx;
+      const l = i == null ? null : localOf(i);
+      const q = l && s2pApply(l.lx, l.ly);
+      if (!q) return;
+      const d = Math.hypot(q.x - cp.x, q.z - cp.z);
+      if (d > 60) return;                                    // distant anchors buy nothing
+      cand.push({ g: g, i: i, q: q, d: d });
+    });
+    cand.sort((a, b) => a.d - b.d);
+    cand.slice(0, ANCH_MAX).forEach(o => {
+      const g = o.g, i = o.i, q = o.q;
+      // pinned where the survey says the tree is, never where a glide has it
+      let pr;
+      try {
+        pr = frame.createAnchor(new XRRigidTransform({ x: q.x, y: g.position.y, z: q.z }), xrRef);
+      } catch (e) { anchorsOk = false; return; }
+      if (pr && pr.then) pr.then(a => anchorMap.set(i, a)).catch(() => {});
+    });
+    return;
+  }
+  if (compActive()) return;            // let the glide finish before nudging anything
+  const now = performance.now();
+  const dt = anchTime ? Math.min(0.1, (now - anchTime) / 1000) : 0;
+  anchTime = now;
+  if (!dt) return;
+  let sx = 0, sz = 0, n = 0;
+  anchorMap.forEach((a, idx) => {
+    const pose = frame.getPose(a.anchorSpace, xrRef);
+    if (!pose) return;
+    const l = localOf(idx);
+    const q = l && s2pApply(l.lx, l.ly);
+    if (!q) return;
+    sx += pose.transform.position.x - q.x;
+    sz += pose.transform.position.z - q.z;
+    n++;
+  });
+  if (n < 2) return;                   // one anchor is an opinion, not a measurement
+  const dx = sx / n, dz = sz / n, len = Math.hypot(dx, dz);
+  if (len < ANCH_DEAD) return;         // jitter, not drift
+  const k = Math.min(len - ANCH_DEAD, ANCH_RATE * dt) / len;
+  S2P.tx += dx * k; S2P.tz += dz * k;
+  placeMarkers();
+}
+
+/* ================== FINDING THE STEM ITSELF ==================
+   Standing at a tree and pressing the button records where the phone is,
+   which is a metre in front of the stem - so the ring lands on the grass
+   between you and the trunk. The trunk is not a guess though: ARCore already
+   solves the scene's geometry to place anything at all, and Chrome hands that
+   out as a depth image. A horizontal slice of it at breast height, in front
+   of the camera, is the front arc of the trunk in plan view. A circle through
+   that arc gives the centre - which is where the tree is - and the diameter,
+   which is the DBH nobody wants to measure with a tape.
+
+   Only the arc facing the phone is visible, so the fit is only as good as the
+   arc is wide: a narrow one determines a centre but not a radius, and the
+   diameter is then left alone rather than invented. */
+
+const STEM_H = 1.30,        // the height the diameter is defined at
+      STEM_BAND = 0.16,     // and the slice taken around it
+      STEM_MAXD = 5.0;      // no trunk further away than this is being pointed at
+
+/* Kasa's algebraic circle fit: minimise the algebraic distance, which is one
+   linear system and no iteration. Two rounds, the second without the points
+   the first found to be nowhere near the circle. */
+function median(v) {
+  const a = v.slice().sort((x, y) => x - y);
+  return a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2;
+}
+function fitCircle(pts) {
+  if (pts.length < 5) return null;
+  /* An algebraic fit is fast and needs no starting guess, and one stray point
+     three metres away drags it into a circle of its own. The median position
+     cannot be dragged, so anything more than a trunk's width from it is
+     dropped before the first fit rather than after it. */
+  const mx = median(pts.map(p => p.x)), my = median(pts.map(p => p.y));
+  let use = pts.filter(p => Math.hypot(p.x - mx, p.y - my) < 1.2);
+  if (use.length < 5) use = pts;
+  let out = null;
+  for (let pass = 0; pass < 3; pass++) {
+    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, sz = 0, sxz = 0, syz = 0;
+    const m = use.length;
+    if (m < 5) break;
+    use.forEach(p => {
+      const z = p.x * p.x + p.y * p.y;
+      sx += p.x; sy += p.y; sxx += p.x * p.x; syy += p.y * p.y; sxy += p.x * p.y;
+      sz += z; sxz += p.x * z; syz += p.y * z;
+    });
+    // normal equations for x^2+y^2 + D x + E y + F = 0
+    const a = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, m]];
+    const b = [-sxz, -syz, -sz];
+    const sol = solve3(a, b);
+    if (!sol) break;
+    const cx = -sol[0] / 2, cy = -sol[1] / 2;
+    const rr = cx * cx + cy * cy - sol[2];
+    if (!(rr > 0)) break;
+    const r = Math.sqrt(rr);
+    let e2 = 0;
+    use.forEach(p => { const d = Math.hypot(p.x - cx, p.y - cy) - r; e2 += d * d; });
+    const rms = Math.sqrt(e2 / use.length);
+    out = { cx: cx, cy: cy, r: r, rms: rms, n: use.length };
+    if (pass < 2) {
+      // trimmed on the median residual: one wild point cannot widen the gate
+      const res = use.map(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r));
+      const lim = Math.max(0.02, median(res) * 3);
+      const keep = use.filter(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r) <= lim);
+      if (keep.length < 5 || keep.length === use.length) break;
+      use = keep;
+    }
+  }
+  return out;
+}
+function solve3(a, b) {
+  const m = [[a[0][0], a[0][1], a[0][2], b[0]],
+             [a[1][0], a[1][1], a[1][2], b[1]],
+             [a[2][0], a[2][1], a[2][2], b[2]]];
+  for (let c = 0; c < 3; c++) {
+    let piv = c;
+    for (let r = c + 1; r < 3; r++) if (Math.abs(m[r][c]) > Math.abs(m[piv][c])) piv = r;
+    if (Math.abs(m[piv][c]) < 1e-12) return null;
+    const t = m[c]; m[c] = m[piv]; m[piv] = t;
+    for (let r = 0; r < 3; r++) {
+      if (r === c) continue;
+      const f = m[r][c] / m[c][c];
+      for (let k = c; k < 4; k++) m[r][k] -= f * m[c][k];
+    }
+  }
+  return [m[0][3] / m[0][0], m[1][3] / m[1][1], m[2][3] / m[2][2]];
+}
+
+/* Points are world (x, z) at breast height; cam is where the phone is and dir
+   which way it looks. Take the nearest thing in front, keep what belongs to
+   the same trunk, fit the circle, and say how much of it was actually seen. */
+function stemFromPoints(pts, cam, dir) {
+  const fwd = Math.hypot(dir.x, dir.z) < 1e-6 ? { x: 0, z: -1 }
+            : { x: dir.x / Math.hypot(dir.x, dir.z), z: dir.z / Math.hypot(dir.x, dir.z) };
+  const inFront = [];
+  pts.forEach(p => {
+    const vx = p.x - cam.x, vz = p.z - cam.z;
+    const d = Math.hypot(vx, vz);
+    if (d < 0.25 || d > STEM_MAXD) return;
+    const cos = (vx * fwd.x + vz * fwd.z) / d;
+    if (cos < 0.62) return;                       // roughly the middle 100 degrees
+    inFront.push({ x: p.x, y: p.z, d: d });       // plan view: y here is world z
+  });
+  if (inFront.length < 8) return { error: 'nothing in front' };
+  inFront.sort((a, b) => a.d - b.d);
+  // the nearest surface is the trunk you are standing at; a trunk is under a
+  // metre across, so anything more than that away from it is the wood behind
+  const seed = inFront[0];
+  const cl = inFront.filter(p => Math.hypot(p.x - seed.x, p.y - seed.y) < 1.0);
+  if (cl.length < 8) return { error: 'too few points on it' };
+  const f = fitCircle(cl);
+  if (!f) return { error: 'no circle in it' };
+  if (!(f.r > 0.02 && f.r < 1.6)) return { error: 'that is not a trunk' };
+  if (f.rms > 0.05) return { error: 'the surface is not round' };
+  // how much of the circle was seen: a narrow arc places the centre badly
+  let a0 = Infinity, a1 = -Infinity;
+  const base = Math.atan2(cl[0].y - f.cy, cl[0].x - f.cx);
+  cl.forEach(p => {
+    let a = Math.atan2(p.y - f.cy, p.x - f.cx) - base;
+    while (a > Math.PI) a -= 2 * Math.PI;
+    while (a < -Math.PI) a += 2 * Math.PI;
+    a0 = Math.min(a0, a); a1 = Math.max(a1, a);
+  });
+  const span = (a1 - a0) * 180 / Math.PI;
+  /* A trunk at arm's length shows well over half of itself - 2.acos(r/d) is
+     158 degrees for a 50 cm stem at 1.35 m - so anything under a right angle
+     is a glancing look and a radius read off it is a guess. The centre from
+     such an arc is still worth having; the diameter is not. */
+  return { x: f.cx, z: f.cy, r: f.r, rms: f.rms, n: f.n, span: span,
+           firm: span > 90 && f.rms < 0.03 };
+}
+
+/* ================= DIGITAL CROSS-CALIPERING =========================
+   A caliper is held twice, at right angles, and the two readings averaged,
+   because a stem is not round and one reading across it is a lie of a few
+   centimetres either way. The phone can do better than two readings: walked
+   round the stem it sees the whole outline, and a circle fitted to all of it
+   is the mean diameter the caliper pair was trying to approximate.
+
+   What the literature says, and what this follows:
+
+   · The depth sensor on a phone works from about 0.2 m to 5 m. Under half a
+     metre the trunk fills the frame and the fit has no context; past two and
+     a half the sampling is too coarse for a bark surface. One metre from the
+     bark is the working distance, and it happens to be the step an inspector
+     already stands back to look at a stem.
+   · The diameter is defined at 1.3 m above ground, uphill side on a slope.
+     The slice taken here is 1.30 m ± 0.16 m in the session's own frame.
+   · One standing view already shows more than half the stem - 2·acos(r/d) is
+     about 158 degrees for a 50 cm stem at 1.35 m - but the far side is
+     inferred, not seen, and an out-of-round stem is then read wrong. Walking
+     an arc of at least 270 degrees leaves under a quarter to inference and
+     is the point at which the fit stops improving materially.
+   · Reported accuracy for phone LiDAR against a caliper is an RMSE of roughly
+     1.5 to 2.3 cm on regular stems, worse on forked or buttressed ones. That
+     is good enough for a register and not good enough for a dispute: it is
+     recorded as a measurement by phone, never as a caliper reading.
+   · Forks, buttresses, ivy, deep fluting and stem sprouts break the circle
+     assumption. The fit reports how far the points sit off the circle, and
+     refuses rather than guessing when the surface is not round.
+
+   The scan accumulates points in the session frame, so viewpoints from all
+   round the tree land in one cloud. Coverage is counted in ten-degree bins
+   about the running centre, which is what makes "270 degrees" a number on
+   screen instead of a hope. */
+const CAL_BINS = 36, CAL_WANT = 27;      // 10 degrees each; 27 of them is 270
+let cal = null;
+
+function calStart(tree) {
+  if (!depthWanted() || !depthOk) {
+    toast('This needs depth. Switch it on under Data → App, on a phone that has it.');
+    return false;
+  }
+  cal = { tree: tree, pts: [], bins: new Array(CAL_BINS).fill(0), fit: null,
+          t0: Date.now(), cx: null, cz: null, frames: 0 };
+  return true;
+}
+function calStop() { const c = cal; cal = null; return c; }
+
+/* One frame's worth. Cheap: it runs inside the render loop. */
+function calFeed() {
+  if (!cal || !frameLive) return;
+  const pts = depthSlice(lastFrame);
+  if (!pts) return;
+  cal.frames++;
+  const c = camPos();
+  const band = pts.filter(p => Math.abs(p.y - STEM_H) < STEM_BAND);
+  if (band.length < 8) return;
+  /* The first look sets the centre; after that only points near the stem
+     already found are taken, so the wall behind never joins the cloud. */
+  if (cal.cx == null) {
+    const d = camDir();
+    const st = stemFromPoints(band, c, { x: d.x, z: d.z });
+    if (st.error) return;
+    cal.cx = st.x; cal.cz = st.z;
+  }
+  band.forEach(p => {
+    const dx = p.x - cal.cx, dz = p.z - cal.cz;
+    const rr = Math.hypot(dx, dz);
+    if (rr > 1.1) return;                       // not this stem
+    if (Math.hypot(p.x - c.x, p.z - c.z) > 2.5) return;   // too far to sample well
+    cal.pts.push({ x: p.x, y: p.z });
+    const a = Math.atan2(dz, dx);
+    cal.bins[Math.floor(((a + Math.PI) / (2 * Math.PI)) * CAL_BINS) % CAL_BINS]++;
+  });
+  if (cal.pts.length > 6000) cal.pts = cal.pts.filter((_, i) => i % 2 === 0);
+  if (cal.frames % 8 === 0) calFit();
+}
+
+function calFit() {
+  if (!cal || cal.pts.length < 30) return;
+  const f = fitCircle(cal.pts);
+  if (!f || !(f.r > 0.02 && f.r < 1.6)) return;
+  cal.cx = f.cx; cal.cz = f.cy;                 // re-centre: the bins follow the fit
+  cal.fit = f;
+}
+function calCover() {
+  if (!cal) return 0;
+  return cal.bins.filter(b => b >= 3).length;
+}
+/* What the scan is worth, in the words the record will carry. */
+function calResult() {
+  if (!cal || !cal.fit) return { error: 'nothing measured' };
+  const bins = calCover(), deg = bins * 10;
+  const f = cal.fit;
+  const dbh = +(f.r * 200).toFixed(1);
+  /* RMS alone lets a shape through that is wrong in one place and right
+     everywhere else - an L-shaped corner of a wall fits a big circle with a
+     respectable average. What gives it away is the worst part of it, so the
+     95th percentile of the residuals has to behave as well as their mean. */
+  const dev = cal.pts.map(p => Math.abs(Math.hypot(p.x - f.cx, p.y - f.cy) - f.r))
+                     .sort((a, b) => a - b);
+  const p95 = dev.length ? dev[Math.min(dev.length - 1, Math.floor(dev.length * 0.95))] : 0;
+  if (f.rms > 0.045 || p95 > 0.055)
+    return { error: 'the surface is not round enough to read a diameter from (' +
+                    Math.round(Math.max(f.rms, p95 / 2) * 1000) + ' mm off the circle). ' +
+                    'Fork, buttress, ivy or something that is not a trunk?' };
+  return {
+    dbh_cm: dbh, arc: deg, rms_mm: Math.round(f.rms * 1000),
+    worst_mm: Math.round(p95 * 1000), n: f.n,
+    firm: deg >= CAL_WANT * 10,
+    note: 'phone depth, ' + deg + '° of the circumference, ' +
+          Math.round(f.rms * 1000) + ' mm residual'
+  };
+}
+
+/* ---- the guided scan, as the inspector sees it ------------------------
+   One instruction at a time, because reading a paragraph with a phone held at
+   chest height in the rain does not happen. */
+const CAL_STEPS = [
+  'Stand about one metre from the bark.',
+  'Hold the phone at 1.30 m, level, pointed at the stem.',
+  'Now walk slowly round the tree, keeping that distance.',
+  'Keep going until the ring closes — 270° is enough.'
+];
+let calTree = null;
+
+function startCaliper(tree) {
+  calTree = tree;
+  if (!calStart(tree)) { calTree = null; return; }
+  $('mbar').classList.add('on');
+  calPaint();
+  $('mbtn').innerHTML = '';
+  const fin = document.createElement('button'); fin.className = 'p'; fin.textContent = 'Take it';
+  fin.onclick = finishCaliper;
+  const off = document.createElement('button'); off.className = 'x'; off.textContent = 'Stop';
+  off.onclick = () => { calStop(); calTree = null; $('mbar').classList.remove('on'); };
+  $('mbtn').appendChild(fin); $('mbtn').appendChild(off);
+}
+
+/* Drawn every frame from the loop that already repaints the bar. */
+function calPaint() {
+  if (!cal) return;
+  const bins = calCover(), deg = bins * 10;
+  const r = cal.fit ? (cal.fit.r * 200).toFixed(0) + ' cm' : '–';
+  const step = cal.cx == null ? CAL_STEPS[0]
+             : deg < 60 ? CAL_STEPS[2]
+             : deg < CAL_WANT * 10 ? CAL_STEPS[3]
+             : 'Enough. Take it.';
+  $('mtxt').innerHTML = '<b>' + deg + '°</b> of the stem seen · Ø ' + r +
+    (cal.fit ? ' · ' + Math.round(cal.fit.rms * 1000) + ' mm off round' : '') +
+    '<br><span class="small">' + step + '</span>';
+}
+
+function finishCaliper() {
+  const t = calTree;
+  const r = calResult();
+  const calDone = calStop(); calTree = null;
+  $('mbar').classList.remove('on');
+  if (r.error) return toast(r.error);
+  if (t == null) return toast('Ø ' + r.dbh_cm + ' cm, but no tree to write it on.');
+  if (!r.firm && !confirm('Only ' + r.arc + '° of the stem was seen, so the far side is ' +
+      'inferred. Diameter ' + r.dbh_cm + ' cm. Record it anyway?')) return;
+  setEdit(t, { dbh_cm: r.dbh_cm, dbh_source: r.note });
+  resScanAdd(t, calDone, r);            // kept only if research collecting is on
+  renderList();
+  if (openIdx === t && panelEl) openPanel(t, panelTab);
+  toast('DBH ' + r.dbh_cm + ' cm on ' + tid(t) + ' · ' + r.arc + '° scanned.');
+}
+
+/* Off unless switched on: see the session request above. */
+/* On unless this phone has shown it cannot take it. The first session with
+   depth writes a flag before it starts and clears it after twenty seconds of
+   running; if the tab dies in between there is nobody left to clear it, and
+   the next start finds the flag, switches depth off for this phone and says
+   so. Nobody has to know there is a switch. */
+const K_DTRIAL = 'vta_depth_trial_v1';
+function depthWanted() {
+  const d = prefs().depth;
+  if (d === true || d === false) return d;          // set by hand: obeyed
+  return prefs().depthBanned !== true;              // otherwise: try, unless it died once
+}
+function depthTrialStart() {
+  if (prefs().depth === true || prefs().depth === false || prefs().depthBanned) return;
+  lsSet(K_DTRIAL, String(Date.now()));
+  setTimeout(() => { if (mode === 'WebXR') { lsDel(K_DTRIAL); setPref('depthProven', true); } }, 20000);
+}
+function depthTrialCheck() {
+  const t = lsGet(K_DTRIAL);
+  if (!t) return false;
+  lsDel(K_DTRIAL);
+  if (prefs().depth === true || prefs().depth === false) return false;
+  setPref('depthBanned', true);
+  return true;
+}
+
+/* Whether this phone gives depth at all, said on the header rather than found
+   out when a tree lands in the grass. */
+let depthOk = null;
+function probeDepth(frame) {
+  let d = null;
+  if (!depthWanted()) { depthOk = false; return; }
+  if (frame && xrRef && frame.getDepthInformation) {
+    const pose = frame.getViewerPose(xrRef);
+    if (pose && pose.views.length) {
+      try { d = frame.getDepthInformation(pose.views[0]); } catch (e) { d = null; }
+    }
+  }
+  const was = depthOk;
+  depthOk = !!(d && d.getDepthInMeters);
+  if (was !== depthOk && $('hDepth')) {
+    $('hDepth').textContent = depthOk ? 'stem from depth' : 'no depth – records where you stand';
+    $('hDepth').className = depthOk ? '' : 'warn';
+  }
+}
+
+/* The WebXR half: pull a slice of the depth image into world points. */
+/* An XRFrame is alive only for the length of the callback it arrives in. Read
+   its depth image from a button handler - a frame or two later - and the
+   buffer behind it has been handed back: not an exception, a dead renderer.
+   That is the crash on + Tree, and no message could ever have appeared for
+   it. So the door is barred: depth is read inside the frame callback or not
+   at all, and anything that wants a stem asks for one and is answered on the
+   next frame. */
+let frameLive = false;
+let sliceFor = null, sliceOut = null, sliceAt = null;
+function depthSlice(frame) {
+  if (!frameLive) return null;
+  // once per frame, not once per caller - and never a slice taken from
+  // somewhere else: if the phone has moved since, it is read again
+  const c = camPos();
+  if (frame && frame === sliceFor && sliceAt && c.distanceTo(sliceAt) < 0.05) return sliceOut;
+  sliceFor = frame; sliceOut = null; sliceAt = c.clone();
+  if (!frame || !xrRef || !frame.getDepthInformation) return null;
+  const pose = frame.getViewerPose(xrRef);
+  if (!pose || !pose.views.length) return null;
+  const view = pose.views[0];
+  let dep = null;
+  try { dep = frame.getDepthInformation(view); } catch (e) { return null; }
+  if (!dep || !dep.getDepthInMeters) return null;
+  const inv = new THREE.Matrix4().fromArray(view.projectionMatrix).invert();
+  const m = new THREE.Matrix4().fromArray(view.transform.matrix);
+  const pts = [];
+  const v = new THREE.Vector3();
+  const NX = 32, NY = 24;         // 768 samples: enough for a trunk, cheap enough for a phone
+  for (let iy = 0; iy < NY; iy++) {
+    const ny = 0.12 + 0.76 * (iy / (NY - 1));
+    for (let ix = 0; ix < NX; ix++) {
+      const nx = 0.15 + 0.70 * (ix / (NX - 1));
+      let d;
+      try { d = dep.getDepthInMeters(nx, ny); } catch (e) { continue; }
+      if (!(d > 0.2 && d < STEM_MAXD + 1)) continue;
+      // normalised view coords -> a ray in view space, scaled to that depth
+      v.set(nx * 2 - 1, 1 - ny * 2, -1).applyMatrix4(inv);
+      if (v.z === 0) continue;
+      v.multiplyScalar(d / -v.z);
+      v.applyMatrix4(m);
+      pts.push({ x: v.x, y: v.y, z: v.z });
+    }
+  }
+  sliceOut = pts;
+  return pts;
+}
+
+/* Everything together: the stem in front of the phone, or why not. */
+function findStem() {
+  if (!frameLive) return { error: 'depth can only be read while a frame is being drawn' };
+  const pts = depthSlice(lastFrame);
+  if (!pts) return { error: 'this phone gives no depth' };
+  const c = camPos();
+  const band = pts.filter(p => Math.abs(p.y - STEM_H) < STEM_BAND);
+  if (band.length < 8) return { error: 'no trunk at breast height in view' };
+  const d = new THREE.Vector3(0, 0, -1).applyQuaternion(
+    (renderer.xr.isPresenting ? renderer.xr.getCamera(camera) : camera).quaternion);
+  return stemFromPoints(band, c, { x: d.x, z: d.z });
+}
+
+/* ---- selection ---- */
+function selectTree(i) {
+  selIdx = i;
+  $('hSel').textContent = i == null ? '' : ('sel ' + props(i).tree_id);
+}
+/* ================= WHICH TREE IS THAT =================
+   Three things answer it, and none of them is recognising a tree by how it
+   looks - two pines of an age are the same picture, which is measured and
+   settled: bark tells the species, never the individual.
+
+   What does answer it is geometry. The register is a map of the stand,
+   accurate to centimetres inside a survey. The session knows where the phone
+   is in that map, once it is aligned - which now happens by itself, by
+   stopping at trees. Put the two together and the tree in front of the
+   camera is simply the register entry that lies along the view: no picture
+   is needed, and the answer is as good as the alignment.
+
+   So the identification is only ever claimed as firmly as the alignment
+   deserves. A rough alignment from GPS and the compass names a candidate and
+   says it is a guess; an alignment measured on two known trees names the
+   tree. If a second candidate is nearly as good - a row seen end-on - it
+   says so instead of choosing. Depth, when the phone gives it, sharpens the
+   answer to the trunk actually in front rather than the direction of it, and
+   the number on the plate settles it outright when it can be read. */
+const VIEW_R = 30,          // metres of interest ahead
+      VIEW_COS = 0.80;      // and how far off the centre a tree may be
+function treeInView(fromStem) {
+  if (!S2P || !world) return null;
+  const c = camPos(), d = camDir();
+  const fl = Math.hypot(d.x, d.z) || 1;
+  const fx = d.x / fl, fz = d.z / fl;
+  // if depth has found the trunk in front, ask about that point instead of
+  // the direction: it is a position, not a bearing
+  const st = fromStem || null;
+  let best = null, bd = 1e9, second = 1e9, bestOff = 0;
+  CAT.features.forEach((f, i) => {
+    const g = markerOf.get(i);
+    if (!g || !g.visible) return;              // not drawn, not a candidate
+    const l = localOf(i);
+    if (!l) return;
+    const q = s2pApply(l.lx, l.ly);
+    if (!q) return;
+    let score, dist, off;
+    if (st) {
+      dist = Math.hypot(q.x - c.x, q.z - c.z);
+      off = Math.hypot(q.x - st.x, q.z - st.z);
+      score = off;                              // straight distance to the trunk seen
+      if (off > 3) return;
+    } else {
+      const vx = q.x - c.x, vz = q.z - c.z;
+      dist = Math.hypot(vx, vz);
+      if (dist > VIEW_R || dist < 0.05) return;
+      const cos = (vx * fx + vz * fz) / dist;
+      if (cos < VIEW_COS) return;
+      off = dist * Math.sqrt(Math.max(0, 1 - cos * cos));   // how far off the centre line
+      if (off > 4) return;                       // that is not what the camera is pointing at
+      // centred counts for much more than near: a tree five metres to the
+      // side is not the one you are looking at, however close it is
+      score = off * 3 + dist * 0.4;
+    }
+    if (score < bd) { second = bd; bd = score; bestOff = off; best = { i: i, d: dist, off: off }; }
+    else if (score < second) second = score;
+  });
+  if (!best) return null;
+  best.gap = second - bd;
+  /* Firm when the alignment is measured, the runner-up is clearly behind, and
+     the tree is where the camera is actually pointing. */
+  best.sure = !s2pAuto && best.gap > 3 && bestOff < 2.5;
+  best.why = st ? 'the trunk in front' : (s2pAuto ? 'GPS and the compass' : 'the survey');
+  return best;
+}
+/* Every tree that could be the one in view, best first, with how well each
+   fits as a share of the whole. In a group of stems standing close together
+   there is no right answer to be had from geometry alone - so they are all
+   offered, in order, and the choice is one tap. */
+function treeCandidates(fromStem, max) {
+  if (!S2P || !world) return [];
+  const c = camPos(), d = camDir();
+  const fl = Math.hypot(d.x, d.z) || 1;
+  const fx = d.x / fl, fz = d.z / fl;
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const g = markerOf.get(i);
+    if (!g || !g.visible) return;              // not drawn, not a candidate
+    const l = localOf(i);
+    if (!l) return;
+    const q = s2pApply(l.lx, l.ly);
+    if (!q) return;
+    let score, dist, off;
+    if (fromStem) {
+      dist = Math.hypot(q.x - c.x, q.z - c.z);
+      off = Math.hypot(q.x - fromStem.x, q.z - fromStem.z);
+      if (off > 6) return;
+      score = off;
+    } else {
+      const vx = q.x - c.x, vz = q.z - c.z;
+      dist = Math.hypot(vx, vz);
+      if (dist > VIEW_R || dist < 0.05) return;
+      const cos = (vx * fx + vz * fz) / dist;
+      if (cos < VIEW_COS) return;
+      off = dist * Math.sqrt(Math.max(0, 1 - cos * cos));
+      if (off > 4) return;
+      score = off * 3 + dist * 0.4;
+    }
+    out.push({ i: i, d: dist, off: off, score: score });
+  });
+  out.sort((a, b) => a.score - b.score);
+  const keep = out.slice(0, max || 6);
+  // a share, from how much better each fit is than the others. Not a
+  // probability of anything in the world - a reading of the geometry, which
+  // is all there is to go on.
+  const s0 = keep.length ? keep[0].score : 0;
+  let sum = 0;
+  keep.forEach(k => { k.w = Math.exp(-(k.score - s0) / 2); sum += k.w; });
+  keep.forEach(k => { k.p = sum ? k.w / sum : 0; });
+  return keep;
+}
+
+/* A tree picked by hand wins over anything worked out, for as long as it is
+   plausibly still the tree in hand. */
+let selPinned = -1e12;          // never pinned until something is picked by hand
+function targetTree() {
+  if (selIdx != null && performance.now() - selPinned < 120000) return selIdx;
+  const v = treeInView();
+  if (v && v.sure) return v.i;
+  if (selIdx != null) return selIdx;
+  if (v) return v.i;
+  return nearestTree();
+}
+
+/* The list, when geometry cannot decide - and on demand when it decided
+   wrongly. */
+function buildPicker() {
+  const el = $('pickmenu');
+  el.innerHTML = '';
+  const list = treeCandidates(null, 6);
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Which tree is it?</b> <span class="small">· best fit first</span>';
+  el.appendChild(h);
+  if (!list.length) {
+    el.innerHTML += '<p class="small">Nothing in the register lies in front of the camera. ' +
+      'If the session is not aligned yet, stop at a tree you know.</p>';
+  }
+  list.forEach(x => {
+    const p = props(x.i);
+    const b = document.createElement('button'); b.className = 'numrow';
+    b.innerHTML = '<span><b>' + esc(p.tag_no || p.tree_id) + '</b> ' +
+      '<span class="small">' + esc(p.species || 'no species') + '</span>' +
+      '<div class="small dim">' + x.d.toFixed(1) + ' m · ' + x.off.toFixed(1) + ' m off the line</div></span>' +
+      '<span class="small"><b>' + Math.round(x.p * 100) + '%</b></span>';
+    b.onclick = () => {
+      selectTree(x.i); selPinned = performance.now();
+      el.style.display = 'none';
+      toast(tid(x.i) + ' it is – buttons act on it now.');
+    };
+    el.appendChild(b);
+    const open = document.createElement('button'); open.className = 'sm';
+    open.textContent = 'Open ' + (p.tag_no || p.tree_id);
+    open.style.cssText = 'margin:4px 0 8px';
+    open.onclick = () => { selectTree(x.i); selPinned = performance.now();
+                           el.style.display = 'none'; toTable(x.i); };
+    el.appendChild(open);
+  });
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl);
+  el.appendChild(act);
+}
+function openPicker() {
+  buildPicker();
+  closePopups('pickmenu');
+  $('pickmenu').style.display = 'block';
+}
+
+function nearestTree() {
+  const c = camPos();
+  let best = null, bd = DRAW_R;
+  sprites.forEach(sp => {
+    if (!sp.parent || !sp.parent.visible) return;
+    const d = c.distanceTo(sp.getWorldPosition(_wp));
+    if (d < bd) { bd = d; best = sp.userData.idx; }
+  });
+  return best;
+}
+
+/* ---- measurement ---- */
+const MEAS = {
+  height:    { label: 'Tree height',      field: 'height_m',          hits: 1, aim: true },
+  crownbase: { label: 'Crown base',       field: 'crown_base_m',      hits: 1, aim: true },
+  crown:     { label: 'Crown diameter',   field: 'crown_d_m',         hits: 2, aim: false },
+  target:    { label: 'Distance to target', field: 'target_distance_m', hits: 1, aim: false },
+  stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false },
+  newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false },
+  ref:       { label: 'Reference point',  field: null,                hits: 1, aim: false },
+  stems:     { label: 'Match stems',      field: null,                hits: 9, aim: false },
+  tape:      { label: 'Tape',             field: null,                hits: 2, aim: false },
+  mark:      { label: 'Mark a defect',    field: null,                hits: 1, aim: false }
+};
+/* One panel at a time. Two of them open is two panels of reading before the
+   button you wanted, and on a phone that is the whole screen. */
+function closePopups(keep) {
+  ['chooser', 'mmenu', 'refmenu', 'nummenu', 'pickmenu', 'toolmenu'].forEach(id => {
+    if (id !== keep) $(id).style.display = 'none';
+  });
+}
+
+function mbar(txt, buttons) {
+  $('mtxt').innerHTML = txt;
+  const box = $('mbtn'); box.innerHTML = '';
+  (buttons || []).forEach(b => {
+    const el = document.createElement('button');
+    el.textContent = b[0]; if (b[2]) el.className = b[2];
+    el.onclick = b[1]; box.appendChild(el);
+  });
+  $('mbar').classList.add('on');
+}
+let mObjs = [];                    // what was drawn, and where it was hung
+function clearMeasure() {
+  measure = null;
+  reticle.visible = false;
+  $('mbar').classList.remove('on');
+  mObjs.forEach(c => {
+    if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); }
+    if (c.geometry) c.geometry.dispose();
+    if (c.parent) c.parent.remove(c);
+  });
+  mObjs = [];
+}
+/* A measurement of a tree hangs on that tree, so an anchor correction moves
+   both together; a free tape hangs on the world, which is still georeferenced.
+   Points come in as session coordinates and are converted to the parent's. */
+function mParent(tree) {
+  const g = (tree != null && world) ? markerOf.get(tree) : null;
+  return g || mGroup;
+}
+function valueSprite(text) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(10,16,13,.9)'; roundRect(g, 2, 2, 508, 124, 20); g.fill();
+  g.lineWidth = 5; g.strokeStyle = '#8fd6a8'; roundRect(g, 2, 2, 508, 124, 20); g.stroke();
+  g.fillStyle = '#dff0e6'; g.font = 'bold 58px system-ui,sans-serif'; g.textAlign = 'center';
+  g.fillText(text, 256, 86);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+  sp.scale.set(1.2, 0.3, 1); sp.renderOrder = 13;
+  sp.userData.base = [1.2, 0.3];            // tick() caps this against the screen
+  return sp;
+}
+function drawSegment(a, b, text, tree) {
+  const parent = mParent(tree);
+  parent.updateMatrixWorld(true);
+  const la = parent.worldToLocal(a.clone()), lb = parent.worldToLocal(b.clone());
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([la, lb]),
+    new THREE.LineBasicMaterial({ color: 0x8fd6a8, depthTest: false }));
+  line.renderOrder = 12;
+  parent.add(line); mObjs.push(line);
+  const sp = valueSprite(text);
+  sp.position.copy(la.clone().add(lb).multiplyScalar(0.5));
+  parent.add(sp); mObjs.push(sp);
+}
+
+function startMeasure(kind, refArg) {
+  if (mode !== 'WebXR') return toast('Measuring needs the WebXR mode.');
+  if (!hitOk) return toast('Hit-test unavailable in this session.');
+  $('mmenu').style.display = 'none';
+  $('refmenu').style.display = 'none';
+  clearMeasure();
+  const cfg = MEAS[kind];
+  let tree = selIdx;
+  if (cfg.field || kind === 'stem') {
+    if (tree == null) { tree = nearestTree(); selectTree(tree); }
+    if (tree == null) return toast('No tree to measure.');
+  }
+  measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
+              markKind: kind === 'mark' ? refArg : null };
+  const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
+            : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
+  const ask = kind === 'mark' ? 'Aim at the defect on the tree and tap'
+            : cfg.aim ? 'Aim at the stem base and tap'
+            : kind === 'target' ? 'Aim at the target on the ground and tap'
+            : kind === 'stems' ? 'Aim at the base of a stem you can see and tap. Three or four, well spread'
+            : kind === 'ref' ? 'Aim at the point itself and tap – or cancel and stand on it instead'
+            : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base and tap'
+            : 'Aim at the first point and tap';
+  mbar('<b>' + cfg.label + who + '</b><br>' + ask, [['Cancel', clearMeasure]]);
+}
+
+/* The hit test needs ARCore to have found a plane along the screen's centre
+   ray, and at the foot of a tree on rough grass it often has not - which is
+   why marking a stem took tap after tap before a ring appeared. The depth
+   image needs no plane: it has a distance for almost every pixel. So a stem
+   tap asks for the trunk first, falls back to the raw depth straight ahead,
+   and only then to the hit test. */
+function depthAhead() {
+  const pts = depthSlice(lastFrame);
+  if (!pts || !pts.length) return null;
+  const c = camPos(), d = camDir();
+  const fl = Math.hypot(d.x, d.z) || 1;
+  const fx = d.x / fl, fz = d.z / fl;
+  let best = null, bd = 1e9;
+  pts.forEach(p => {
+    const vx = p.x - c.x, vz = p.z - c.z, dist = Math.hypot(vx, vz);
+    if (dist < 0.25 || dist > STEM_MAXD) return;
+    const cos = (vx * fx + vz * fz) / dist;
+    if (cos < 0.985) return;                       // within ten degrees of the middle
+    if (dist < bd) { bd = dist; best = p; }
+  });
+  return best ? new THREE.Vector3(best.x, 0, best.z) : null;
+}
+function tapPoint(wantStem) {
+  if (wantStem) {
+    const st = findStem();
+    if (st && !st.error) return new THREE.Vector3(st.x, 0, st.z);
+  }
+  const d = depthAhead();
+  if (d) return d;
+  return hitPt ? hitPt.clone() : null;
+}
+
+function measureTap() {
+  const m = measure, cfg = m.cfg;
+  const tp = m.wantsHit ? tapPoint(m.kind === 'stems' || m.kind === 'stem' || m.kind === 'newtree') : null;
+  if (m.wantsHit && !tp) {
+    toast('Nothing measurable straight ahead – point at the trunk, or a little lower.');
+    return;
+  }
+  if (tp) hitPt = tp;
+
+  if (cfg.aim) {
+    if (m.step === 0) {                                   // remember the base, then aim high
+      m.pts[0] = hitPt.clone();
+      m.step = 1; m.wantsHit = false; reticle.visible = false;
+      mbar('<b>' + cfg.label + '</b><br>Now aim at the ' +
+           (m.kind === 'height' ? 'treetop' : 'lowest live branch') + ' and tap',
+           [['Cancel', clearMeasure]]);
+      return;
+    }
+    const base = m.pts[0], c = camPos(), d = camDir();
+    const horiz = Math.hypot(c.x - base.x, c.z - base.z);
+    const el = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
+    if (horiz < 1.5) return mbar('<b>Too close</b><br>Step back – at least a few metres from the stem.',
+                                 [['Again', () => startMeasure(m.kind)], ['Cancel', clearMeasure]]);
+    if (el < 0.09) return mbar('<b>Aim higher</b><br>The sightline is almost level, the result would be meaningless.',
+                               [['Again', () => startMeasure(m.kind)], ['Cancel', clearMeasure]]);
+    const top = c.y + horiz * Math.tan(el);
+    const h = top - base.y;
+    drawSegment(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m', m.tree);
+    finishMeasure(h, cfg.label + ' ' + h.toFixed(1) + ' m<br><span class="small">' +
+      horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '° up</span>');
+    return;
+  }
+
+  if (m.kind === 'stem') {
+    const g = sceneToWgs(hitPt);
+    if (!g) { toast('The session is not tied to the stand yet.'); return clearMeasure(); }
+    setCoords(m.tree, g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null);
+    if (S2P) { const l = s2pInvert(hitPt.x, hitPt.z);
+               setEdit(m.tree, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) }); }
+    toast('Stem position of ' + props(m.tree).tree_id + ' set.');
+    requestAnchors();
+    clearMeasure();
+    return;
+  }
+
+  if (m.kind === 'mark') {
+    const t = m.tree;
+    if (t == null) { toast('No tree to mark on.'); return clearMeasure(); }
+    const g = markerOf.get(t);
+    if (!g) { toast('That tree is not drawn in this session.'); return clearMeasure(); }
+    const base = g.getWorldPosition(new THREE.Vector3());
+    const dx = hitPt.x - base.x, dz = hitPt.z - base.z;
+    const az = headingOfDir({ x: dx, y: 0, z: dz });
+    const rec = { kind: m.markKind || 'other', h: +Math.max(0, hitPt.y).toFixed(2),
+                  az: +az.toFixed(0), r: +Math.hypot(dx, dz).toFixed(2), note: '' };
+    markAdd(t, rec);
+    layoutMarks();
+    clearMeasure();
+    toast(markKind(rec.kind)[1] + ' marked on ' + tid(t) + ' · ' + markWhere(rec) + '.');
+    return;
+  }
+
+  if (m.kind === 'stems') {
+    m.pts.push({ x: hitPt.x, z: hitPt.z });
+    const mark = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24),
+      new THREE.MeshBasicMaterial({ color: 0xffd27a, side: THREE.DoubleSide, depthTest: false }));
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.set(hitPt.x, 0.02, hitPt.z);
+    mark.renderOrder = 12; scene.add(mark); mObjs.push(mark);
+    const n = m.pts.length;
+    mbar('<b>Match stems</b><br>' + n + ' stem' + (n === 1 ? '' : 's') + ' marked' +
+         (n < 3 ? ' · ' + (3 - n) + ' more' : ' · ready'),
+         (n >= 3 ? [['Match', () => runStemMatch(m.pts), 'p']] : []).concat([['Cancel', clearMeasure]]));
+    return;
+  }
+
+  if (m.kind === 'ref') {
+    // stored in session coordinates, not as a lat/lon: the fit is about to
+    // move the world under this point, and the measurement must not move with
+    // it. Height is dropped - the fit is a two-dimensional one.
+    refFix.set(m.refId, { x: hitPt.x, z: hitPt.z });
+    clearMeasure();
+    const c = controlByKey(m.refId);
+    const done = controlList().filter(r => refFix.has(r.key)).length;
+    if (done < 2) toast((c ? c.name : 'Point') + ' measured – one more and it fits.');
+    else fitFromControls(false);
+    showFit(); buildRefMenu();
+    $('refmenu').style.display = 'block';       // stay open: the next point is one tap away
+    return;
+  }
+
+  if (m.kind === 'newtree') {
+    const g = sceneToWgs(hitPt);
+    if (!g) { toast('The session is not tied to the stand yet.'); return clearMeasure(); }
+    const la = S2P ? s2pInvert(hitPt.x, hitPt.z) : null;
+    const i = addTree(g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null, la);
+    if (la) setEdit(i, { lx: +la.lx.toFixed(3), ly: +la.ly.toFixed(3) });
+    selectTree(i);
+    clearMeasure();
+    toast('New tree ' + props(i).tree_id + ' placed where you aimed.');
+    openPanel(i);
+    return;
+  }
+
+  if (m.kind === 'target') {
+    const g = markerOf.get(m.tree);
+    if (!g) return clearMeasure();
+    const stem = g.getWorldPosition(new THREE.Vector3());
+    const d = Math.hypot(hitPt.x - stem.x, hitPt.z - stem.z);
+    drawSegment(new THREE.Vector3(stem.x, hitPt.y, stem.z), hitPt.clone(), d.toFixed(1) + ' m', m.tree);
+    const h = num(props(m.tree).height_m);
+    const zone = (h && d <= h) ? '<br><span class="small">inside the fall zone (' + h.toFixed(0) + ' m tree)</span>' : '';
+    finishMeasure(d, 'Distance to target ' + d.toFixed(1) + ' m' + zone);
+    return;
+  }
+
+  // two free points: crown diameter or plain tape
+  if (m.step === 0) {
+    m.pts[0] = hitPt.clone(); m.step = 1;
+    mbar('<b>' + cfg.label + '</b><br>Aim at the second point and tap', [['Cancel', clearMeasure]]);
+    return;
+  }
+  const a = m.pts[0], b = hitPt.clone();
+  const d = Math.hypot(b.x - a.x, b.z - a.z);
+  drawSegment(a, b, d.toFixed(1) + ' m', m.kind === 'crown' ? m.tree : null);
+  finishMeasure(d, cfg.label + ' ' + d.toFixed(1) + ' m');
+}
+
+function finishMeasure(value, html) {
+  const m = measure;
+  m.value = value; m.wantsHit = false;
+  reticle.visible = false;
+  const btns = [];
+  if (m.cfg.field) {
+    html = props(m.tree).tree_id + ' · ' + html;
+    btns.push(['Apply', () => {
+      const patch = {};
+      patch[m.cfg.field] = Math.round(value * 10) / 10;
+      setEdit(m.tree, patch);
+      toast(m.cfg.label + ' saved to ' + props(m.tree).tree_id + '.');
+      clearMeasure();
+    }, 'p']);
+  }
+  btns.push(['Again', () => startMeasure(m.kind)]);
+  btns.push(['Close', clearMeasure]);
+  mbar(html, btns);
+}
+
+/* Measuring by camera used to sit on the bar between + Tree and Photo, which
+   is a lot of prominence for numbers that are not trustworthy. A height from
+   a phone is a tangent of two tap angles and a hit-test on sloping ground:
+   the geometry is right and the inputs are not, and the result is out by
+   metres. It stays in the app because a rough height is better than an empty
+   field, and it moves to the tree's own page, where the field it fills is,
+   marked for what it is.
+
+   Two of them are not estimates and keep working from the AR bar's menu: a
+   stem position and a tape measure are the hit-test alone, no angles. */
+function measureBlock(i) {
+  const wrap = document.createElement('div');
+  const h = document.createElement('h3'); h.textContent = 'Measure with the camera';
+  wrap.appendChild(h);
+  const ready = (mode === 'WebXR' && hitOk && $('xrui').classList.contains('on'));
+  const note = document.createElement('div'); note.className = 'small';
+  note.style.margin = '0 0 8px';
+  note.textContent = ready
+    ? 'Rough estimates. Heights and crowns from a phone are out by metres on '
+      + 'uneven ground – type a measured value over them where it matters.'
+    : 'Open the AR view to measure. The values are rough estimates in any case.';
+  wrap.appendChild(note);
+  const row = document.createElement('div'); row.className = 'btnrow';
+  const snap = document.createElement('button'); snap.className = 'sm p';
+  snap.textContent = 'Snap to the stem';
+  snap.title = 'Stand at the tree, point at the trunk, press this';
+  snap.disabled = !ready;
+  snap.onclick = () => {
+    const st = findStem();
+    if (!st || st.error) return toast('No trunk found: ' + ((st && st.error) || 'no depth') + '.');
+    const l = s2pInvert(st.x, st.z);
+    const g = l && plotToWgs(l.lx, l.ly);
+    if (!g) return toast('The session is not locked onto the stand yet.');
+    setCoords(i, g.lon, g.lat, 'stem from depth', 0.1);
+    setEdit(i, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) });
+    sessScene.set(i, { x: st.x, z: st.z });
+    if (st.firm) setEdit(i, { dbh_cm: Math.round(st.r * 200) });
+    placeMarkers(); requestAnchors(); syncGeo(i);
+    toast(tid(i) + ' put on the trunk' + (st.firm ? ', Ø ' + Math.round(st.r * 200) + ' cm' : '') +
+          ' · ±' + st.rms.toFixed(2) + ' m over ' + st.span.toFixed(0) + '° of it.');
+  };
+  row.appendChild(snap);
+  [['stem', 'Stem position', true], ['height', 'Height', false],
+   ['crownbase', 'Crown base', false], ['crown', 'Crown Ø', false],
+   ['target', 'Target dist.', false], ['tape', 'Tape', true]].forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'sm';
+    b.textContent = k[1] + (k[2] ? '' : ' ~');
+    b.disabled = !ready;
+    if (!k[2]) b.style.opacity = '.62';
+    b.onclick = () => { const t = openIdx; closePanel(); selectTree(t); startMeasure(k[0]); };
+    row.appendChild(b);
+  });
+  wrap.appendChild(row);
+  return wrap;
+}
+
+/* ---- bark as a fingerprint ----
+   Re-identification, not determination: the question is never "what species is
+   this" but "is this the same trunk as last year", and the candidates are the
+   handful of trees standing near you, not a flora. That makes it tractable
+   without a trained model.
+
+   The signature has to survive a year of weather and a different day's light,
+   so nothing is taken from brightness. The crop is contrast-normalised against
+   its own local mean, which removes wet-versus-dry and sun-versus-shade, then
+   described by gradient orientation - the direction the bark runs, which is
+   what a fissure pattern actually is. To that is added the spacing of the
+   fissures, read as the autocorrelation of the vertical-edge profile across
+   the trunk: two pines differ in how wide their plates are long before they
+   differ in anything a histogram sees.
+
+   It only works because the frame repeats. That is what the 1.30 m protocol is
+   for, and why a signature is only compared against photographs taken from the
+   same side.
+
+   Species in Finland are few and their barks are unlike - a pine plate, a
+   birch lenticel, a spruce scale, an aspen diamond - so the recorded species
+   is used as a sanity check on a match, never as the match itself. */
+const SIG_N = 96, SIG_CELL = 8, SIG_BINS = 9, SIG_LAGS = 28;
+
+function barkSignature(img, dx, dy, zoom) {
+  const c = document.createElement('canvas'); c.width = c.height = SIG_N;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  const w = img.width || img.videoWidth, h = img.height || img.videoHeight;
+  if (!w || !h) return null;
+  const side = Math.min(w, h) * (zoom || 1);         // centre square, so framing wobble matters less
+  const ox = (w - side) / 2 + (dx || 0) * side, oy = (h - side) / 2 + (dy || 0) * side;
+  g.drawImage(img, ox, oy, side, side, 0, 0, SIG_N, SIG_N);
+  const px = g.getImageData(0, 0, SIG_N, SIG_N).data;
+  const gray = new Float32Array(SIG_N * SIG_N);
+  for (let k = 0, n = 0; k < px.length; k += 4, n++)
+    gray[n] = 0.299 * px[k] + 0.587 * px[k + 1] + 0.114 * px[k + 2];
+
+  // local contrast normalisation via integral images: (v - mean) / (sd + eps)
+  const S1 = new Float64Array((SIG_N + 1) * (SIG_N + 1)), S2 = new Float64Array(S1.length);
+  for (let y = 0; y < SIG_N; y++) for (let x = 0; x < SIG_N; x++) {
+    const v = gray[y * SIG_N + x], i1 = (y + 1) * (SIG_N + 1) + (x + 1);
+    S1[i1] = v + S1[i1 - 1] + S1[i1 - SIG_N - 1] - S1[i1 - SIG_N - 2];
+    S2[i1] = v * v + S2[i1 - 1] + S2[i1 - SIG_N - 1] - S2[i1 - SIG_N - 2];
+  }
+  const R = 8, norm = new Float32Array(SIG_N * SIG_N);
+  const box = (S, x0, y0, x1, y1) => S[(y1 + 1) * (SIG_N + 1) + (x1 + 1)] -
+    S[(y0) * (SIG_N + 1) + (x1 + 1)] - S[(y1 + 1) * (SIG_N + 1) + (x0)] +
+    S[(y0) * (SIG_N + 1) + (x0)];
+  for (let y = 0; y < SIG_N; y++) for (let x = 0; x < SIG_N; x++) {
+    const x0 = Math.max(0, x - R), x1 = Math.min(SIG_N - 1, x + R);
+    const y0 = Math.max(0, y - R), y1 = Math.min(SIG_N - 1, y + R);
+    const cnt = (x1 - x0 + 1) * (y1 - y0 + 1);
+    const m = box(S1, x0, y0, x1, y1) / cnt;
+    const sd = Math.sqrt(Math.max(1, box(S2, x0, y0, x1, y1) / cnt - m * m));
+    norm[y * SIG_N + x] = (gray[y * SIG_N + x] - m) / sd;
+  }
+
+  // gradients, then an unsigned orientation histogram per cell
+  const cells = SIG_N / SIG_CELL;
+  const hist = new Float32Array(cells * cells * SIG_BINS);
+  const colEdge = new Float32Array(SIG_N);
+  for (let y = 1; y < SIG_N - 1; y++) for (let x = 1; x < SIG_N - 1; x++) {
+    const gx = norm[y * SIG_N + x + 1] - norm[y * SIG_N + x - 1];
+    const gy = norm[(y + 1) * SIG_N + x] - norm[(y - 1) * SIG_N + x];
+    const mag = Math.hypot(gx, gy);
+    if (mag < 1e-6) continue;
+    let ang = Math.atan2(gy, gx); if (ang < 0) ang += Math.PI;   // unsigned
+    const bin = Math.min(SIG_BINS - 1, Math.floor(ang / Math.PI * SIG_BINS));
+    const cy = Math.floor(y / SIG_CELL), cx = Math.floor(x / SIG_CELL);
+    hist[(cy * cells + cx) * SIG_BINS + bin] += mag;
+    colEdge[x] += Math.abs(gx);                                  // fissures run up the trunk
+  }
+  for (let k = 0; k < cells * cells; k++) {                      // each cell on its own
+    let sum = 0;
+    for (let bnum = 0; bnum < SIG_BINS; bnum++) sum += hist[k * SIG_BINS + bnum] ** 2;
+    const inv = 1 / Math.sqrt(sum + 1e-6);
+    for (let bnum = 0; bnum < SIG_BINS; bnum++) hist[k * SIG_BINS + bnum] *= inv;
+  }
+
+  // how far apart the fissures sit, as the autocorrelation of that profile
+  let cm = 0; for (let x = 0; x < SIG_N; x++) cm += colEdge[x]; cm /= SIG_N;
+  for (let x = 0; x < SIG_N; x++) colEdge[x] -= cm;
+  const ac = new Float32Array(SIG_LAGS);
+  let a0 = 0; for (let x = 0; x < SIG_N; x++) a0 += colEdge[x] * colEdge[x];
+  for (let lag = 1; lag <= SIG_LAGS; lag++) {
+    let a = 0;
+    for (let x = 0; x + lag < SIG_N; x++) a += colEdge[x] * colEdge[x + lag];
+    ac[lag - 1] = a0 > 0 ? a / a0 : 0;
+  }
+
+  const out = new Float32Array(hist.length + SIG_LAGS);
+  out.set(hist, 0); out.set(ac, hist.length);
+  let ss = 0; for (let k = 0; k < out.length; k++) ss += out[k] * out[k];
+  const inv = 1 / Math.sqrt(ss + 1e-9);
+  for (let k = 0; k < out.length; k++) out[k] *= inv;
+  return out;
+}
+
+/* Stored as bytes, not as six hundred JSON numbers. */
+function sigPack(v) {
+  const b = new Uint8Array(v.length);
+  for (let k = 0; k < v.length; k++)
+    b[k] = Math.max(0, Math.min(255, Math.round(v[k] * 500 + 128)));
+  let s2 = ''; for (let k = 0; k < b.length; k++) s2 += String.fromCharCode(b[k]);
+  return btoa(s2);
+}
+function sigUnpack(str) {
+  if (!str) return null;
+  const raw = atob(str), v = new Float32Array(raw.length);
+  for (let k = 0; k < raw.length; k++) v[k] = (raw.charCodeAt(k) - 128) / 500;
+  let ss = 0; for (let k = 0; k < v.length; k++) ss += v[k] * v[k];
+  const inv = 1 / Math.sqrt(ss + 1e-9);
+  for (let k = 0; k < v.length; k++) v[k] *= inv;
+  return v;
+}
+function sigSim(a, b) {
+  if (!a || !b || a.length !== b.length) return -1;
+  let d = 0; for (let k = 0; k < a.length; k++) d += a[k] * b[k];
+  return d;
+}
+function sigFromDataUrl(url) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { try { res(barkSignature(im)); } catch (e) { res(null); } };
+    im.onerror = () => res(null);
+    im.src = url;
+  });
+}
+
+/* A cell grid is not shift-invariant, and a year later the frame will not be
+   the same to the pixel however well the protocol is followed. So the query is
+   described several times over - shifted a little each way and at two scales -
+   and a comparison takes the best of them. The stored signature stays one
+   vector; only the asking side pays. */
+const SIG_SHIFTS = [];
+[-0.10, -0.05, 0, 0.05, 0.10].forEach(dx =>
+  [-0.10, -0.05, 0, 0.05, 0.10].forEach(dy => SIG_SHIFTS.push([dx, dy, 1])));
+[0.85, 1.18].forEach(z => [-0.06, 0, 0.06].forEach(dx =>
+  [-0.06, 0, 0.06].forEach(dy => SIG_SHIFTS.push([dx, dy, z]))));
+function sigVariants(img) {
+  const out = [];
+  SIG_SHIFTS.forEach(v => { const q = barkSignature(img, v[0], v[1], v[2]); if (q) out.push(q); });
+  return out;
+}
+function sigVariantsFromDataUrl(url) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { try { res(sigVariants(im)); } catch (e) { res([]); } };
+    im.onerror = () => res([]);
+    im.src = url;
+  });
+}
+function sigSimBest(variants, ref) {
+  let best = -1;
+  for (let k = 0; k < variants.length; k++) {
+    const d = sigSim(variants[k], ref);
+    if (d > best) best = d;
+  }
+  return best;
+}
+
+/* Bark types by species, coarse and Finnish: a pine plate is not a birch
+   lenticel, and a match that crosses them is worth doubting out loud. */
+const BARK_TYPE = {
+  'Pinus sylvestris': 'plated', 'Larix sibirica': 'plated', 'Larix decidua': 'plated',
+  'Picea abies': 'scaly', 'Pseudotsuga menziesii': 'furrowed',
+  'Betula pendula': 'papery', 'Betula pubescens': 'papery',
+  'Populus tremula': 'smooth', 'Fagus sylvatica': 'smooth', 'Sorbus aucuparia': 'smooth',
+  'Prunus padus': 'smooth', 'Alnus incana': 'smooth', 'Salix caprea': 'smooth',
+  'Quercus robur': 'furrowed', 'Fraxinus excelsior': 'furrowed', 'Ulmus glabra': 'furrowed',
+  'Tilia cordata': 'furrowed', 'Acer platanoides': 'furrowed', 'Alnus glutinosa': 'furrowed',
+  'Salix alba': 'furrowed', 'Populus nigra': 'furrowed'
+};
+function barkType(sp) { return BARK_TYPE[(sp || '').trim()] || null; }
+
+/* ---- what the bark says ----
+   Two questions off one photograph, and they are answered the same way.
+
+   Which species? The species of the nearest signatures, weighted by how near
+   they are - so "Betula pendula 80 %, Betula pubescens 20 %" means four of the
+   five closest barks in your own register were pendula. This learns from the
+   register as it grows and is honest when the register is thin: with three
+   reference photographs it says three, and with none it says none.
+
+   Which individual trunk? It does not answer that, and the code says so on
+   screen. Tested against synthetic bark - three pines, two birches, two
+   spruces, then one of the pines photographed again brighter and shifted - the
+   species vote came out at 95 % correct while the true trunk came SECOND to a
+   different pine, by a margin that a search over shifts and scales did not
+   close. That is not a tuning failure: an orientation histogram describes
+   texture, and two pines of an age have the same texture. Identifying an
+   individual needs keypoint correspondences with geometric verification -
+   which fissure crosses which - and that is a different instrument.
+
+   No model is trained and none is shipped. It is nearest-neighbour over
+   photographs you took, which is why it can be trusted about the difference
+   between a sand birch and a bog birch in Finland and would be useless about
+   a species nobody here has photographed. */
+const BARK_K = 7, BARK_FLOOR = 0.30;
+async function barkLibrary() {
+  let all = [];
+  try { all = await photoAll(); } catch (e) { return []; }
+  const out = [];
+  all.forEach(f => {
+    if (f.kind !== 'bark' || !f.sig) return;
+    const i = CAT.features.findIndex((x, n) => tid(n) === f.tree);
+    if (i < 0) return;
+    const p = props(i);
+    out.push({ tree: i, id: f.tree, sig: sigUnpack(f.sig), sp: (p.species || '').trim(),
+               bearing: f.bearing, ts: f.ts });
+  });
+  return out;
+}
+async function barkMatch(sig, exceptTree) {
+  const lib = await barkLibrary();
+  if (!lib.length) return { empty: true, refs: 0 };
+  const vars = Array.isArray(sig) ? sig : [sig];
+  const scored = lib.map(r => ({ r: r, s: sigSimBest(vars, r.sig) }))
+                    .filter(x => x.s > -1)
+                    .sort((a, b) => b.s - a.s);
+  // which trunk: best per tree, the tree itself excluded when re-checking
+  const perTree = {};
+  scored.forEach(x => {
+    if (exceptTree != null && x.r.tree === exceptTree) return;
+    if (!perTree[x.r.id] || x.s > perTree[x.r.id].s) perTree[x.r.id] = x;
+  });
+  const trees = Object.keys(perTree).map(k => perTree[k])
+                      .sort((a, b) => b.s - a.s).slice(0, 5);
+  // which species: the near neighbours, weighted by how near
+  const near = scored.slice(0, BARK_K).filter(x => x.s > BARK_FLOOR);
+  const bySp = {}; let tot = 0;
+  near.forEach(x => {
+    const sp = x.r.sp || 'unrecorded';
+    const w = (x.s - BARK_FLOOR) * (x.s - BARK_FLOOR);
+    bySp[sp] = (bySp[sp] || 0) + w; tot += w;
+  });
+  const species = Object.keys(bySp).map(k => ({ sp: k, p: tot ? bySp[k] / tot : 0 }))
+                        .sort((a, b) => b.p - a.p);
+  return { refs: lib.length, used: near.length, trees: trees, species: species,
+           margin: trees.length > 1 ? trees[0].s - trees[1].s : null };
+}
+
+/* ---- bark photograph at breast height ----
+   The field rule: photograph the bark at 1.30 m on the side the number tag
+   hangs, so next year's photograph shows the same patch of the same trunk and
+   the two can be compared. Bark is individual, but only if the frame is
+   repeatable, so the three things that decide the frame are gated here rather
+   than left to the eye: how high the camera is, whether it is level, and which
+   way it faces. WebXR gives all three - local-floor makes the camera's y a
+   height above the ground, and the world is north-aligned once fitted.
+
+   The first bark photograph of a tree defines its side; later ones are held to
+   it. */
+const BARK_H = 1.30, BARK_H_TOL = 0.12, BARK_PITCH_TOL = 8, BARK_BEAR_TOL = 22;
+let barkFor = null, barkRef = null;
+
+function camPitchDeg() {
+  const d = camDir();
+  return Math.asin(THREE.MathUtils.clamp(d.y, -1, 1)) * 180 / Math.PI;
+}
+function barkState() {
+  const h = camPos().y, pitch = camPitchDeg();
+  const nd = sceneNorthDeg();
+  const bear = nd == null ? camYawDeg() : ((camYawDeg() - nd) % 360 + 360) % 360;
+  const dh = h - BARK_H;
+  let db = null;
+  if (barkRef != null) {
+    db = ((bear - barkRef + 540) % 360) - 180;
+  }
+  return {
+    h: h, dh: dh, pitch: pitch, bearing: bear, dBear: db,
+    okH: Math.abs(dh) <= BARK_H_TOL,
+    okP: Math.abs(pitch) <= BARK_PITCH_TOL,
+    okB: db == null || Math.abs(db) <= BARK_BEAR_TOL
+  };
+}
+function barkHint() {
+  if (barkFor == null) return;
+  const st = barkState();
+  const arrow = v => v > 0 ? '↓ lower' : '↑ raise';
+  const parts = [
+    (st.okH ? '✓ ' : '') + st.h.toFixed(2) + ' m' + (st.okH ? '' : ' – ' + arrow(st.dh)),
+    (st.okP ? '✓ level' : (st.pitch > 0 ? 'tilt down' : 'tilt up') + ' ' + Math.abs(st.pitch).toFixed(0) + '°')
+  ];
+  if (st.dBear != null)
+    parts.push(st.okB ? '✓ right side'
+      : 'go ' + (st.dBear > 0 ? 'left' : 'right') + ' ' + Math.abs(st.dBear).toFixed(0) + '° round the stem');
+  else parts.push('side: where the number hangs');
+  const ready = st.okH && st.okP && st.okB;
+  mbar('<b>Bark at 1.30 m · ' + (props(barkFor).tag_no || props(barkFor).tree_id) + '</b><br>' +
+       parts.join(' · '),
+       [[ready ? 'Take it' : 'Not yet', ready ? () => { shotFor = barkFor; shotKind = 'bark';
+            barkFor = null; clearMeasure(); toast('Bark photo …'); } : () => {}, ready ? 'p' : ''],
+        ['Cancel', () => { barkFor = null; clearMeasure(); }]]);
+}
+function startBark(tree) {
+  // in camera mode there is no height to measure, but the picture is worth
+  // more than the protocol: take it and say what is missing
+  if (mode === 'Camera') {
+    shotKind = 'bark';
+    toast('Bark photo – hold the phone at 1.30 m, on the side the plate hangs.');
+    return takeVideoPhoto(tree);
+  }
+  if (mode !== 'WebXR') return toast('Start the camera first.');
+  if (!camAccessOk) return takePhotoOf(tree, 'bark');
+  clearMeasure();
+  barkFor = tree; barkRef = null;
+  photoList(props(tree).tree_id).then(ps => {
+    const b = ps.filter(x => x.kind === 'bark' && x.bearing != null)
+               .sort((x, y) => (x.ts < y.ts ? 1 : -1))[0];
+    barkRef = b ? b.bearing : null;
+    if (b) toast('Earlier bark photo from ' + b.bearing + '° – line up with it.');
+  }).catch(() => {});
+}
+
+/* ---- photo from inside the session ----
+   Without camera-access the file dialog is the only route, and Chrome blocks
+   that during an immersive session. */
+function takeARPhoto(frame) {
+  const tree = shotFor; shotFor = null;
+  try {
+    const pose = frame.getViewerPose(xrRef);
+    if (!pose || !pose.views.length) throw new Error('no viewer pose');
+    const view = pose.views[0];
+    if (!view.camera) throw new Error('no camera image in this frame');
+    const gl = renderer.getContext();
+    const tex = new XRWebGLBinding(xrSession, gl).getCameraImage(view.camera);
+    const w = view.camera.width, h = view.camera.height;
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    const px = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(fb);
+    if (renderer.resetState) renderer.resetState();
+    else if (renderer.state && renderer.state.reset) renderer.state.reset();
+
+    const src = document.createElement('canvas'); src.width = w; src.height = h;
+    const ctx = src.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {                       // GL reads bottom-up
+      const s = (h - 1 - y) * w * 4, t = y * w * 4;
+      img.data.set(px.subarray(s, s + w * 4), t);
+    }
+    ctx.putImageData(img, 0, 0);
+    const k = Math.min(1, 1440 / Math.max(w, h));
+    const out = document.createElement('canvas');
+    out.width = Math.round(w * k); out.height = Math.round(h * k);
+    out.getContext('2d').drawImage(src, 0, 0, out.width, out.height);
+
+    storePhoto(tree, out, 'AR');
+  } catch (e) {
+    toast('Camera capture failed: ' + e.message);
+  }
+}
+
+/* The camera in plain camera mode is a video element, and a video element can
+   be drawn into a canvas on any phone there is. No WebXR feature to be
+   granted, no binding, no GL readback - which is why this is the path that
+   always works, and why the AR one falls back to it. */
+/* One way in for a photograph, whatever the session can do. In AR with the
+   camera granted it comes off the XR camera image; in camera mode off the
+   video; and in AR without the grant it says so and offers the one step that
+   does work, rather than being a button that does nothing. */
+function takePhotoOf(tree, kind) {
+  /* A photograph belongs to a tree, but "no tree in view" must not mean "no
+     photograph": the register may be empty, the session may not be aligned,
+     you may be standing at something not recorded yet. Take what there is,
+     and only give up when there is no tree at all. */
+  if (tree == null) tree = selIdx;
+  if (tree == null) tree = nearestTree();
+  if (tree == null && lastFix) {
+    let bd = 1e12;
+    CAT.features.forEach((f, i) => {
+      if (!f.geometry) return;
+      const c = f.geometry.coordinates;
+      const d = distBear(c[1], c[0], lastFix.lat, lastFix.lon).d;
+      if (d < bd) { bd = d; tree = i; }
+    });
+  }
+  if (tree == null) return toast('Record a tree first – a photograph is filed under one.');
+  selectTree(tree);
+  if (mode === 'Camera') { shotKind = kind; return takeVideoPhoto(tree); }
+  if (mode === 'WebXR' && camAccessOk) {
+    shotFor = tree; shotKind = kind;
+    toast('Photographing ' + tid(tree) + ' …');
+    return;
+  }
+  /* The phone's own camera, through a file field. No WebXR feature to be
+     granted, no getUserMedia, no permission dance: the button opens the
+     camera app every Android has, and the picture comes back as a file. It
+     is the path that cannot fail, so it is the one that runs whenever the
+     clever ones are unavailable. Opening it may suspend the AR session; the
+     photograph is stored either way and the way back is one press. */
+  if (mode === 'WebXR') {
+    /* A file picker opened from inside an immersive session is at the mercy
+       of the browser: Chrome may swallow the click, or open the camera app
+       behind the session. Leaving AR first makes it deterministic - the
+       picker opens on the ordinary page, every time - and the way back is
+       one press once the picture is stored. */
+    endAR();
+    setTimeout(() => filePhoto(tree, kind, true), 120);
+    return;
+  }
+  filePhoto(tree, kind, false);
+}
+
+/* The phone's own camera through a file field: no WebXR feature to be
+   granted, no getUserMedia, no permission dance. The button opens the camera
+   app every Android has and the picture comes back as a file. It is the path
+   that cannot fail, so it is the one that runs whenever the clever ones are
+   not available. Opening it may suspend the AR session - that is what phones
+   do - and the photograph is stored either way, the way back one press. */
+let filePend = null;
+function filePhoto(tree, kind, wasAR) {
+  const inp = $('camFile');
+  if (!inp) return toast('No way to take a picture on this device.');
+  filePend = { tree: tree, kind: kind, wasAR: !!wasAR,
+               pos: mode ? camPos().clone() : null,
+               bearing: (mode === 'WebXR') ? camYawDeg() : heading };
+  inp.value = '';
+  inp.click();
+  toast('Take the picture of ' + tid(tree) + ' …');
+}
+function wireFilePhoto() {
+  const inp = $('camFile');
+  if (!inp) return;
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    const job = filePend; filePend = null;
+    inp.value = '';
+    if (!f || !job) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const k = Math.min(1, 1440 / Math.max(im.width, im.height));
+        const out = document.createElement('canvas');
+        out.width = Math.max(1, Math.round(im.width * k));
+        out.height = Math.max(1, Math.round(im.height * k));
+        out.getContext('2d').drawImage(im, 0, 0, out.width, out.height);
+        shotKind = job.kind;
+        storePhoto(job.tree, out, 'Phone camera', job);
+        if (job.wasAR && !mode)
+          mbar('<b>Photograph stored</b><br>The AR session stopped while the camera app was ' +
+               'open, which is what phones do.',
+               [['Back to AR', () => { $('mbar').classList.remove('on'); toAR(job.tree); }, 'p'],
+                ['Stay here', () => $('mbar').classList.remove('on')]]);
+      };
+      im.onerror = () => toast('That picture could not be read.');
+      im.src = fr.result;
+    };
+    fr.onerror = () => toast('That picture could not be read.');
+    fr.readAsDataURL(f);
+  };
+}
+
+function takeVideoPhoto(tree) {
+  const v = $('video');
+  if (!v || !v.videoWidth) return toast('The camera is not running.');
+  const w = v.videoWidth, h = v.videoHeight;
+  const k = Math.min(1, 1440 / Math.max(w, h));
+  const out = document.createElement('canvas');
+  out.width = Math.round(w * k); out.height = Math.round(h * k);
+  out.getContext('2d').drawImage(v, 0, 0, out.width, out.height);
+  storePhoto(tree, out, 'Camera');
+}
+
+function storePhoto(tree, out, modeName, job) {
+  try {
+    const meta = { mode: modeName || 'AR' };
+    // the session may have ended while the camera app was open: what it knew
+    // at the moment the button was pressed is carried along
+    const c = (job && job.pos) ? job.pos : (mode ? camPos() : null);
+    const gp = (c && mode) ? sceneToWgs(c) : null;
+    if (gp) { meta.lat = +gp.lat.toFixed(7); meta.lon = +gp.lon.toFixed(7); }
+    else if (lastFix) { meta.lat = +lastFix.lat.toFixed(7); meta.lon = +lastFix.lon.toFixed(7); }
+    const nd = mode ? sceneNorthDeg() : null;
+    meta.bearing = (nd == null)
+      ? ((job && job.bearing != null) ? Math.round(job.bearing)
+         : (heading == null ? null : Math.round(heading)))
+      : Math.round((camYawDeg() - nd + 360) % 360);
+    if (c) meta.h = +c.y.toFixed(2);
+    if (mode) meta.pitch = Math.round(camPitchDeg());
+    /* The lens, so a tap on the picture can be turned back into a direction:
+       without the angle of view a point in an image is only a point in an
+       image. Taken from the session's own projection where there is one. */
+    /* Only for a picture this app took itself. One that came back from the
+       phone's camera app was shot through a different lens at a different
+       zoom, and stamping the session's angle of view on it would turn a
+       guess into a figure somebody trusts. */
+    if (!job) try {
+      const pc = (renderer.xr && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
+      const cam0 = (pc.cameras && pc.cameras.length) ? pc.cameras[0] : pc;
+      const e = cam0.projectionMatrix.elements;
+      if (e && e[5]) meta.fovY = +(2 * Math.atan(1 / Math.abs(e[5])) * 180 / Math.PI).toFixed(1);
+      if (e && e[0]) meta.fovX = +(2 * Math.atan(1 / Math.abs(e[0])) * 180 / Math.PI).toFixed(1);
+    } catch (e2) {}
+    const kindNow = shotKind; shotKind = null;
+    if (kindNow) meta.kind = kindNow;
+    if (kindNow === 'bark') {
+      const url = out.toDataURL('image/jpeg', 0.72);
+      sigFromDataUrl(url).then(sig => {
+        if (!sig) return;
+        meta.sig = sigPack(sig);
+        barkMatch(sig, tree).then(m => {
+          if (!m || m.empty || !m.species || !m.species.length) return;
+          const top = m.species[0];
+          if (top.p >= 0.5 && top.sp !== 'unrecorded')
+            toast('Bark looks like ' + top.sp + ' (' + Math.round(top.p * 100) + ' %) – see Photos.');
+        }).catch(() => {});
+      });
+    }
+    if (kindNow === 'tag') {
+      out.toBlob(bl => { if (!bl) return;
+        readNumberFromImage(bl).then(r => {
+          if (!r) return;
+          meta.read = r.text; meta.readBy = r.how; meta.readConf = r.conf;
+          const sure = r.sure !== false;
+          toast(sure ? 'Plate read as ' + r.text + (r.conf != null ? ' (' + r.conf + ' %)' : '')
+                     : 'Plate unreadable – it looked like ' + r.text +
+                       (r.conf != null ? ' at only ' + r.conf + ' %' : '') + '. Type it.');
+          $('nummenu').style.display = 'block';
+          buildNumMenu(sure ? r.text : '');
+        }).catch(() => {});
+      }, 'image/jpeg', 0.8);
+    }
+    const g = markerOf.get(tree);
+    if (g && c) {
+      const gp2 = g.getWorldPosition(new THREE.Vector3());
+      meta.dist = +c.distanceTo(gp2).toFixed(1);
+      /* Which side of the tree the camera stood on, as a true bearing from the
+         tree outwards. With the distance, the height and the direction of
+         view it is the whole pose, expressed in the tree's own terms - so it
+         still means something next year, in a session that has never heard of
+         this one's coordinates. */
+      meta.from = Math.round(headingOfDir({ x: c.x - gp2.x, y: 0, z: c.z - gp2.z }));
+    }
+
+    const url = out.toDataURL('image/jpeg', 0.72);
+    photoAdd(props(tree).tree_id, url, meta)
+      .then(key => photoGet(key))
+      .then(rec => {
+        if (!rec) throw new Error('the record was not there afterwards');
+        shotOk(tree, rec);
+        if (openIdx === tree && panelEl)
+          renderPhotos(props(tree).tree_id, panelEl.querySelector('.photos'));
+      })
+      .catch(e => shotFail(tree, (e && e.message) || e));
+  } catch (e) {
+    toast('Storing the photo failed: ' + ((e && e.message) || e));
+  }
+}
+
+/* ---- the receipt ----------------------------------------------------------
+   A toast that fades after two seconds is no proof: with a glove on, in the
+   sun, half a second of looking away and the inspector cannot tell whether the
+   picture exists. So the confirmation is the picture itself, read back out of
+   the database, and it stays until it is dismissed. */
+function shotBox() {
+  let el = $('shotok');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'shotok';
+    document.body.appendChild(el);
+  }
+  // in an immersive session only the overlay root is on screen
+  const want = (mode === 'WebXR' && $('xrui').classList.contains('on')) ? $('xrbot') : document.body;
+  if (el.parentNode !== want) want.appendChild(el);
+  return el;
+}
+function shotOk(tree, rec) {
+  const el = shotBox(); el.innerHTML = '';
+  el.className = 'ok';
+  const im = document.createElement('img'); im.src = rec.url; im.alt = '';
+  im.onclick = () => { if (typeof openPhoto === 'function') openPhoto(tree, rec);
+                       else { $('lbImg').src = rec.url; $('lightbox').style.display = 'flex'; } };
+  el.appendChild(im);
+  const tx = document.createElement('div'); tx.className = 'tx';
+  const h = document.createElement('b');
+  h.textContent = '✓ Stored · ' + rec.tree + (rec.kind ? ' · ' + rec.kind : '');
+  tx.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'small';
+  const bits = [];
+  bits.push(rec.mode || 'AR');
+  if (rec.dist != null) bits.push(rec.dist.toFixed ? rec.dist.toFixed(1) + ' m' : rec.dist + ' m');
+  if (rec.lat != null) bits.push(rec.lat.toFixed(5) + ', ' + rec.lon.toFixed(5));
+  if (rec.bearing != null) bits.push(rec.bearing + '°');
+  sub.textContent = bits.join(' · ');
+  tx.appendChild(sub);
+  el.appendChild(tx);
+  const bs = document.createElement('div'); bs.className = 'bs';
+  const bShow = document.createElement('button');
+  bShow.textContent = 'Photos';
+  bShow.onclick = () => { shotHide(); if (mode) endAR(); openPanel(tree, 'photo'); };
+  bs.appendChild(bShow);
+  const bx = document.createElement('button'); bx.className = 'x'; bx.textContent = 'OK';
+  bx.onclick = shotHide; bs.appendChild(bx);
+  el.appendChild(bs);
+  el.style.display = 'flex';
+  try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
+}
+function shotFail(tree, why) {
+  const el = shotBox(); el.innerHTML = '';
+  el.className = 'bad';
+  const tx = document.createElement('div'); tx.className = 'tx';
+  const h = document.createElement('b'); h.textContent = '✗ NOT stored';
+  tx.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'small';
+  sub.textContent = 'The photo of ' + (props(tree) || {}).tree_id + ' did not reach the database: ' +
+    why + '. Take it again.';
+  tx.appendChild(sub);
+  el.appendChild(tx);
+  const bs = document.createElement('div'); bs.className = 'bs';
+  const bx = document.createElement('button'); bx.className = 'x'; bx.textContent = 'OK';
+  bx.onclick = shotHide; bs.appendChild(bx);
+  el.appendChild(bs);
+  el.style.display = 'flex';
+}
+function shotHide() { const el = $('shotok'); if (el) el.style.display = 'none'; }
+
+/* ---- direction arrows for markers outside the view ---- */
+/* One arrow per marker that exists, not per tree in the register: after a
+   city import the register is thousands of rows, and thousands of DOM nodes
+   for arrows that can never show is a slow overlay for nothing. */
+function buildEdge() {
+  const box = $('edge'); box.innerHTML = ''; edgeEls = {};
+  sprites.forEach(sp => {
+    const i = sp.userData.idx;
+    const d = document.createElement('div'); d.className = 'ea';
+    d.innerHTML = '<span class="g">➤</span><span class="l"></span>';
+    box.appendChild(d); edgeEls[i] = d;
+  });
+}
+const _wp = new THREE.Vector3(), _eye = new THREE.Vector3(), _ndc = new THREE.Vector3();
+function updateEdge() {
+  const cam = xrCam(), cw = innerWidth, ch = innerHeight;
+  const c = camPos();
+  // own inverse: matrixWorldInverse is only refreshed inside render(), which
+  // runs after this, so using it would lag a frame and be wrong on the first
+  const inv = new THREE.Matrix4().copy(cam.matrixWorld).invert();
+  const off = [];
+  sprites.forEach(sp => {
+    const el = edgeEls[sp.userData.idx];
+    if (!el) return;
+    if (!sp.parent || !sp.parent.visible) { el.classList.remove('on'); return; }
+    sp.getWorldPosition(_wp);
+    const dist = c.distanceTo(_wp);
+    if (dist < 2 || dist > DRAW_R) { el.classList.remove('on'); return; }
+    const eye = _eye.copy(_wp).applyMatrix4(inv);
+    let x, y, on = false;
+    if (eye.z < -0.05) {                                   // in front: project normally
+      const ndc = _ndc.copy(eye).applyMatrix4(cam.projectionMatrix);
+      x = ndc.x; y = ndc.y;
+      on = Math.abs(x) <= 1 && Math.abs(y) <= 1;
+    } else {
+      // on the camera plane the projection divides by zero, and behind it the
+      // sign flips - take the direction straight from eye space instead
+      const len = Math.hypot(eye.x, eye.y) || 1;
+      x = eye.x / len * 2; y = eye.y / len * 2;
+    }
+    if (on) { el.classList.remove('on'); return; }
+    off.push({ el: el, x: x, y: y, d: dist, idx: sp.userData.idx });
+  });
+  off.sort((a, b) => a.d - b.d);
+  const placed = [];
+  off.forEach((o, n) => {
+    if (n > 2) { o.el.classList.remove('on'); return; }   // three at most, or it is a mess
+    const m = Math.max(Math.abs(o.x), Math.abs(o.y)) || 1;
+    const x = o.x / m, y = o.y / m;
+    const mg = 54;
+    const left = Math.min(cw - mg, Math.max(mg, (x * 0.5 + 0.5) * cw));
+    let top = Math.min(ch - mg, Math.max(mg, (-y * 0.5 + 0.5) * ch));
+    // trees in the same direction land on the same spot - stack them instead
+    while (placed.some(p => Math.abs(p.left - left) < 60 && Math.abs(p.top - top) < 34)) {
+      top += 34;
+      if (top > ch - mg) { top = mg; break; }
+    }
+    placed.push({ left: left, top: top });
+    o.el.style.left = left + 'px'; o.el.style.top = top + 'px';
+    o.el.querySelector('.g').style.transform = 'rotate(' + (Math.atan2(-y, x) * 180 / Math.PI) + 'deg)';
+    o.el.querySelector('.l').textContent = props(o.idx).tree_id + ' ' + o.d.toFixed(0) + ' m';
+    o.el.classList.add('on');
+  });
+}
+
+/* Markers drawn from GPS and a compass are metres out, and that is the state
+   every session starts in. Three taps fix it exactly, so the session asks for
+   them rather than waiting to be found in a menu - once, at the start, only
+   where there is something to match against, and with a Cancel for anyone who
+   is only passing through. */
+/* ---- alignment without being asked ----
+   Every trunk the phone looks at is a measurement of where that trunk is in
+   the session. Collect them while walking - no tapping, no menu - and as soon
+   as three distinct ones have been seen twice each, their spacing says which
+   trees of the register they are, and the session locks itself onto the stand
+   to the centimetre. It keeps watching: a match on more stems replaces one on
+   fewer, and nothing else is ever asked of anyone. */
+const STEM_EVERY = 2500;        // ms between looks for a trunk
+let stemObs = [], stemMatchN = 0, stemScanAt = 0, lockStems = 0, ambigSaid = false;
+/* Why it is or is not aligned, in the app's own words. Every refusal above
+   writes here, so the answer to "why has nothing happened" is on the screen
+   instead of in my head. */
+let diag = { look: 'not looked yet', match: 'not tried yet', scans: 0 };
+function stemScan() {
+  diag.scans++;
+  if (!depthWanted()) { diag.look = 'depth is switched off (Data · App)'; return; }
+  if (lockStems >= 4) { diag.look = 'locked on ' + lockStems + ' stems – not looking any more'; return; }
+  if (mode !== 'WebXR') { diag.look = 'not in AR'; return; }
+  if (measure) { diag.look = 'a measurement is running'; return; }
+  if (sceneLocked) { diag.look = 'the scene is locked by hand'; return; }
+  if (!depthOk) { diag.look = 'this phone gives no depth – nothing can be found automatically'; return; }
+  if (!plotGeoreferenced()) { diag.look = 'no plot yet – record a tree first'; return; }
+  const near = candidateTrees(60).length;
+  if (near < 3) { diag.look = 'only ' + near + ' surveyed trees to match against'; return; }
+  const s = findStem();
+  if (!s || s.error) { diag.look = 'no trunk in view: ' + ((s && s.error) || 'no depth'); return; }
+  if (s.rms > 0.03) { diag.look = 'the surface in view is not round enough (±' + s.rms.toFixed(2) + ' m)'; return; }
+  diag.look = 'trunk seen, Ø ' + Math.round(s.r * 200) + ' cm over ' + s.span.toFixed(0) + '°';
+  const hit = stemObs.find(o => Math.hypot(o.x - s.x, o.z - s.z) < 0.6);
+  if (hit) {
+    hit.x += (s.x - hit.x) / (hit.n + 1);
+    hit.z += (s.z - hit.z) / (hit.n + 1);
+    hit.n++;
+  } else if (stemObs.length < 24) {
+    stemObs.push({ x: s.x, z: s.z, n: 1 });
+  }
+  tryAutoMatch();
+}
+function tryAutoMatch() {
+  // seen twice from two moments: a glimpse of a passing leg is not a stem
+  const good = stemObs.filter(o => o.n >= 2);
+  diag.seen = stemObs.length; diag.twice = good.length;
+  if (good.length < 3) {
+    diag.match = good.length + ' of the 3 stems needed have been seen twice';
+    return;
+  }
+  // Retry while the lock rests on fewer stems than have been seen: three
+  // stems out of a regular planting often fit two sets of trees equally well
+  // and are refused, and the fourth is what settles it.
+  if (lockStems >= good.length) return;
+  stemMatchN = good.length;
+  const r = matchStems(good.map(o => ({ x: o.x, z: o.z })));
+  if (r.error) { diag.match = r.error; return; }
+  if (r.n < 3) { diag.match = 'only ' + r.n + ' of them could be placed'; return; }
+  if (r.ambiguous) {
+    diag.match = 'those ' + good.length + ' stems fit two different groups of trees – one more settles it';
+    // a regular planting looks the same shifted along, and a stand can be
+    // symmetric by accident: one more stem breaks the tie
+    if (!ambigSaid) {
+      ambigSaid = true;
+      toast('Those stems fit more than one group of trees – look at one more and it settles.');
+    }
+    return;
+  }
+  // a lock already resting on at least as many stems is not replaced
+  if (!s2pAuto && lockStems >= r.n) return;
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
+  const pFrom = s2pFrom, pRms = s2pRms, pAuto = s2pAuto;
+  const f = fitS2P(r.pairs.map(pp => ({ id: tid(pp.tree), l: pp.l, s: pp.s })),
+                   r.n + ' stems it recognised');
+  if (!f) return;
+  if (f.rms > 0.4) {                    // not those trees: put it back
+    S2P = prev; s2pFrom = pFrom; s2pRms = pRms; s2pAuto = pAuto;
+    placeMarkers(); showFit();
+    diag.match = 'a match on ' + r.n + ' stems was ±' + f.rms.toFixed(1) +
+                 ' m out – refused, the old alignment kept';
+    return;
+  }
+  lockStems = r.n;
+  diag.match = 'locked on ' + r.n + ' stems, ±' + f.rms.toFixed(2) + ' m';
+  toast('Aligned itself on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m · ' +
+        r.pairs.map(pp => tid(pp.tree)).join(', '));
+}
+
+/* Anything that throws inside the AR overlay is invisible - no console, no
+   line, nothing on screen, and the tap that caused it simply does nothing.
+   The last one is kept and shown, because "tapping a marker does nothing" and
+   "tapping a marker throws" look exactly the same in the field. */
+let lastErr = null;
+addEventListener('error', e => {
+  lastErr = (e.message || 'error') + ' · ' + String(e.filename || '').split('/').pop() + ':' + e.lineno;
+});
+addEventListener('unhandledrejection', e => {
+  lastErr = 'promise: ' + ((e.reason && e.reason.message) || String(e.reason));
+});
+
+function alignReport() {
+  const good = stemObs.filter(o => o.n >= 2).length;
+  const L = [];
+  L.push(['Depth from the phone', depthOk == null ? 'not asked yet' :
+          depthOk ? 'yes – stems can be found automatically'
+                  : 'NO – this phone cannot find stems by itself']);
+  L.push(['Alignment now', S2P ? (s2pAuto ? 'rough, from ' + s2pFrom : 'locked on ' + s2pFrom) +
+          (s2pRms == null ? '' : ' ±' + s2pRms.toFixed(2) + ' m') : 'none – nothing is drawn']);
+  L.push(['Surveyed trees around you', String(candidateTrees(60).length)]);
+  L.push(['Stems seen this session', stemObs.length + ' · ' + good + ' of them twice']);
+  L.push(['Known trees stood at', standPts.length + (autoStood ? ' (' + autoStood + ' noticed by itself)' : '')]);
+  L.push(['Last look', diag.look]);
+  L.push(['Last match attempt', diag.match]);
+  L.push(['Looks taken', String(diag.scans)]);
+  L.push(['GPS', lastFix ? '±' + lastFix.acc.toFixed(0) + ' m' : 'no fix']);
+  L.push(['Compass', heading == null ? 'none' : heading.toFixed(0) + '°']);
+  L.push(['Plot', plotGeoreferenced() ? (PLOT.provisional ? 'provisional' : 'set') +
+          ', drift ' + plotDrift().worst.toFixed(1) + ' m' : 'none']);
+  if (diag.absorb) L.push(['Georeference', diag.absorb]);
+  L.push(['Remembered stops', standMemo.length ? standMemo.map(m => m.id).join(', ') : 'none']);
+  L.push(['Anchors kept', diag.panch || 'not tried']);
+  L.push(['Depth', prefs().depth === true ? 'on by hand' : prefs().depth === false ? 'off by hand'
+                 : prefs().depthBanned ? 'off – died once' : prefs().depthProven ? 'on – proven' : 'on trial']);
+  L.push(['Last error', lastErr || 'none']);
+  L.push(['Fixes taken', fixCount + (fixErrLast ? ' · last failure: ' + fixErrLast : '')]);
+  L.push(['Distances drawn', distDrawnT ? Math.round((Date.now() - distDrawnT) / 1000) + ' s ago' : 'not yet']);
+  L.push(['Version', APP_VERSION]);
+  return L;
+}
+
+
+/* ---- "I am standing at ..." (prompt() is blocked inside the AR overlay) ---- */
+function runStemMatch(pts) {
+  const r = matchStems(pts.slice());
+  if (r.error) { toast('No match: ' + r.error + '.'); return; }
+  const names = r.pairs.map(pp => tid(pp.tree)).join(', ');
+  if (r.ambiguous) {
+    mbar('<b>Ambiguous</b><br>The spacing fits more than one set of trees – a regular ' +
+         'planting looks the same shifted along. Mark another stem, or one further out.',
+         [['Cancel', clearMeasure]]);
+    return;
+  }
+  const prev = S2P ? { phi: S2P.phi, tx: S2P.tx, tz: S2P.tz } : null;
+  const pFrom = s2pFrom, pRms = s2pRms, pAuto = s2pAuto;
+  const f = fitS2P(r.pairs.map(pp => ({ id: tid(pp.tree), l: pp.l, s: pp.s })), 'stems');
+  if (!f) { toast('The stems are too close together to orient on.'); return; }
+  // A metre of residual means the stems were not the trees the register
+  // thinks: say so and leave the old lock alone rather than taking it.
+  if (f.rms > 1.0) {
+    S2P = prev; s2pFrom = pFrom; s2pRms = pRms; s2pAuto = pAuto;
+    placeMarkers(); showFit();
+    mbar('<b>That does not fit</b><br>The spacing of those stems is ' + f.rms.toFixed(1) +
+         ' m away from any set of trees in the register. Mark them again, further apart, ' +
+         'or a different three.', [['Cancel', clearMeasure]]);
+    return;
+  }
+  clearMeasure();
+  lockStems = r.n;
+  const n = rebaseSession();
+  toast('Locked on ' + r.n + ' stems · ±' + f.rms.toFixed(2) + ' m · ' + names +
+        (n ? ' · ' + n + ' tree' + (n === 1 ? '' : 's') + ' recorded today moved onto it' : ''));
+}
+
+/* Picked a tree, standing at it: everything from here is the survey. The form
+   opens on the quick page, which is the handful of fields most trees need, and
+   the microphone starts unless it has been switched off - with a glove on, at
+   a trunk, in the rain, the keyboard is not an input device. */
+function startSurvey(i) {
+  selectTree(i); navTarget = i;
+  openPanel(i, 'quick');
+  if (!autoVoice()) return;
+  if (typeof speechOk === 'function' && !speechOk()) return;
+  setTimeout(() => { try { speechStart(i); } catch (e) {} }, 350);
+}
+
+/* The two or three nearest other trees, with how far and which way. Standing
+   at one tree, the next one is almost always one of these, and hunting for it
+   in a list of two hundred is how an inspector ends up walking the stand
+   twice. */
+function neighboursOf(i, n) {
+  const f = CAT.features[i]; if (!f || !f.geometry) return [];
+  const c = f.geometry.coordinates, out = [];
+  CAT.features.forEach((g, k) => {
+    if (k === i || !g.geometry) return;
+    const cc = g.geometry.coordinates;
+    const db = distBear(cc[1], cc[0], c[1], c[0]);      // from this tree to that one
+    if (db.d > 60) return;                              // further off is not a neighbour
+    out.push({ i: k, d: db.d, b: db.b });
+  });
+  out.sort((a, b) => a.d - b.d);
+  return out.slice(0, n || 3);
+}
+/* The row of them, under the header of a tree's page. */
+function neighbourRow(i) {
+  const wrap = document.createElement('div'); wrap.className = 'nbrow';
+  const near = neighboursOf(i, 3);
+  if (!near.length) { wrap.className = 'nbrow small'; wrap.textContent = 'No other tree within 60 m.'; return wrap; }
+  const lab = document.createElement('span'); lab.className = 'small'; lab.textContent = 'Next:';
+  wrap.appendChild(lab);
+  near.forEach(x => {
+    const p = props(x.i);
+    const b = document.createElement('button'); b.className = 'sm';
+    b.innerHTML = '<b>' + esc(p.tag_no || tid(x.i)) + '</b> · ' +
+                  x.d.toFixed(x.d < 10 ? 1 : 0) + ' m ' + bearWord(x.b);
+    b.title = p.species || '';
+    b.onclick = () => { savePanel(true); selectTree(x.i); navTarget = x.i; openPanel(x.i, panelTab); };
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
+/* The list, inside AR.
+
+   Everything else in here finds the tree for you: the markers, the stem
+   matching, the ring round the trunk in view. All of it depends on the scene
+   being aligned, and while it is not, the man standing at the trunk with the
+   number on it in front of his nose cannot do the one thing that would settle
+   it - say which tree this is. So: the register, nearest first by GPS, with
+   the number searchable, and on every row the sentence that fixes the whole
+   session in one tap. */
+function bearWord(deg) {
+  const w = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return w[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+}
+function buildNumMenu(prefill) {
+  const el = $('nummenu');
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Which tree is this?</b> <span class="small">· nearest first</span>';
+  el.appendChild(h);
+  const st = document.createElement('div'); st.className = 'small';
+  st.style.margin = '2px 0 6px';
+  st.innerHTML = !CAT.features.length
+    ? 'Nothing in the register yet.'
+    : (lastFit ? 'Markers are aligned – the one in front of you is the one on the screen.'
+               : '<b class="wa">Markers are rough</b>, so what is drawn can be metres out. ' +
+                 'Find the tree you are standing at and press <b>I am here</b>: the whole stand ' +
+                 'snaps onto it.') +
+      (lastFix ? ' · GPS ±' + lastFix.acc.toFixed(0) + ' m' : ' · no GPS fix');
+  el.appendChild(st);
+  const row = document.createElement('div'); row.className = 'row';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.inputMode = 'numeric'; inp.id = 'numIn';
+  inp.placeholder = 'number on the plate'; inp.value = prefill || '';
+  const lab = document.createElement('label'); lab.textContent = 'Number';
+  row.appendChild(lab); row.appendChild(inp); el.appendChild(row);
+  const list = document.createElement('div'); el.appendChild(list);
+  const draw = () => {
+    list.innerHTML = '';
+    const hits = findByNumber(inp.value, true).slice(0, 8);
+    if (!hits.length) {
+      list.innerHTML = '<p class="small">' + (inp.value.trim()
+        ? 'No tree with that number in the register.' : 'No trees in the register yet.') + '</p>';
+      return;
+    }
+    hits.forEach(x => {
+      const line = document.createElement('div'); line.className = 'numline';
+      const b = document.createElement('button'); b.className = 'numrow' + (x.exact ? ' ex' : '');
+      const c = CAT.features[x.i].geometry.coordinates;
+      const brg = (lastFix && x.d != null)
+        ? bearWord(distBear(c[1], c[0], lastFix.lat, lastFix.lon).b) : '';
+      b.innerHTML = '<span><b>' + esc(x.p.tag_no || x.p.tree_id) + '</b> ' +
+        '<span class="small">' + esc(x.p.species || '') + '</span>' +
+        (x.p.tag_no ? '<div class="small dim">' + esc(x.p.tree_id) + '</div>' : '') +
+        (x.p.area ? '<div class="small dim">' + esc(x.p.area) + '</div>' : '') + '</span>' +
+        '<span class="small">' + (x.d == null ? '' : x.d.toFixed(x.d < 100 ? 1 : 0) + ' m' +
+          (brg ? ' ' + brg : '')) + '</span>';
+      b.onclick = () => {
+        selectTree(x.i); navTarget = x.i;
+        el.style.display = 'none';
+        openPanel(x.i);
+      };
+      const here = document.createElement('button');
+      here.className = 'sm p here'; here.textContent = 'I am here';
+      here.title = 'Hang the whole scene on this tree';
+      here.disabled = mode !== 'WebXR';
+      here.onclick = () => {
+        el.style.display = 'none';
+        selectTree(x.i); navTarget = x.i;
+        /* Standing at the tree is not the job. The job is the inspection, and
+           the inspector is at the trunk with both hands busy: the form opens
+           on the spot and the microphone is already listening. */
+        if (standAtTree(x.i)) startSurvey(x.i);
+      };
+      line.appendChild(b); line.appendChild(here);
+      list.appendChild(line);
+    });
+  };
+  inp.oninput = draw; draw();
+  const act = document.createElement('div'); act.className = 'btnrow'; act.style.marginTop = '8px';
+  const ph = document.createElement('button'); ph.className = 'sm p'; ph.textContent = 'Photograph the plate';
+  ph.disabled = !mode;
+  ph.onclick = () => {
+    const t = targetTree();
+    if (t == null) return toast('Select a tree first, or record one.');
+    el.style.display = 'none';
+    takePhotoOf(t, 'tag');
+  };
+  act.appendChild(ph);
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl);
+  el.appendChild(act);
+  // No autofocus. The keyboard would cover the list before it can be read;
+  // tapping the field is one touch and leaves the choice with the user.
+}
+
+/* Which kind of defect is being pinned, asked once, before the aiming - so
+   the tap itself is one tap and not a tap and a menu. */
+function markMenu(tree) {
+  const el = $('mmenu');
+  el.innerHTML = '<div><b>Mark a defect on ' + esc(tid(tree)) + '</b> ' +
+                 '<span class="small">· aim at it afterwards and tap</span></div>';
+  const row = document.createElement('div'); row.className = 'btnrow';
+  MARK_KINDS.forEach(k => {
+    const b = document.createElement('button'); b.className = 'sm';
+    b.style.borderColor = k[2];
+    b.textContent = k[1];
+    b.onclick = () => { el.style.display = 'none'; startMeasure('mark', k[0]); };
+    row.appendChild(b);
+  });
+  el.appendChild(row);
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const cl = document.createElement('button'); cl.textContent = 'Cancel';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl); el.appendChild(act);
+  closePopups('mmenu');
+  el.style.display = 'block';
+}
+
+/* Bark, the tape, the rough dendrometry: used on some trees, not on every
+   tree, and never in a hurry. One button, a list, gone again. */
+function buildToolMenu() {
+  const el = $('toolmenu');
+  el.innerHTML = '<div><b>Tools</b> <span class="small">· on the tree in view</span></div>';
+  const t = targetTree();
+  const who = t == null ? '' : ' · ' + tid(t);
+  const sub = document.createElement('div'); sub.className = 'small';
+  sub.style.margin = '2px 0 8px';
+  sub.textContent = t == null ? 'No tree in view – point at one first.'
+    : 'On ' + tid(t) + (props(t).species ? ' · ' + props(t).species : '');
+  el.appendChild(sub);
+  const row = document.createElement('div'); row.className = 'btnrow';
+  const add = (label, fn, cls) => {
+    const b = document.createElement('button');
+    b.className = 'sm' + (cls ? ' ' + cls : '');
+    b.textContent = label;
+    b.onclick = () => { el.style.display = 'none'; fn(); };
+    row.appendChild(b);
+  };
+  add('Bark at 1.30 m', () => {
+    if (t == null) return toast('No tree in view.');
+    if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(t, 'bark');
+    selectTree(t); startBark(t);
+  }, 'p');
+  [['leaf', 'Leaf'], ['flower', 'Flower'], ['fruit', 'Fruit'], ['habit', 'Whole tree']].forEach(o =>
+    add(o[1] + ' photo', () => { if (t == null) return toast('No tree in view.'); selectTree(t); takePhotoOf(t, o[0]); }));
+  add('🎤 Voice', () => { if (t != null) selectTree(t); speechStart(t); });
+  add('DBH — walk the stem', () => {
+    if (t == null) return toast('No tree in view.');
+    selectTree(t); startCaliper(t);
+  }, 'p');
+  add('Stem position', () => { if (t != null) selectTree(t); startMeasure('stem'); });
+  add('Tape', () => startMeasure('tape'));
+  add('Height ~', () => { if (t != null) selectTree(t); startMeasure('height'); });
+  add('Crown base ~', () => { if (t != null) selectTree(t); startMeasure('crownbase'); });
+  add('Crown Ø ~', () => { if (t != null) selectTree(t); startMeasure('crown'); });
+  add('Target dist. ~', () => { if (t != null) selectTree(t); startMeasure('target'); });
+  add('Tree out of reach', () => startMeasure('newtree'));
+  add('Mark a defect', () => { if (t == null) return toast('No tree in view.'); selectTree(t); markMenu(t); }, 'p');
+  el.appendChild(row);
+  const note = document.createElement('p'); note.className = 'small';
+  note.textContent = 'The four marked ~ are rough: a height from a phone is out by metres on ' +
+    'uneven ground. Bark and the stem position are not estimates.';
+  el.appendChild(note);
+  const act = document.createElement('div'); act.className = 'btnrow';
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(cl); el.appendChild(act);
+}
+
+function buildRefMenu() {
+  const el = $('refmenu');
+  el.innerHTML = '';
+  const list = controlList();
+  const done = list.filter(r => refFix.has(r.key)).length;
+
+  const head = document.createElement('div');
+  head.innerHTML = '<b>Georeference</b>';
+  el.appendChild(head);
+  const st = document.createElement('div'); st.className = 'small'; st.style.margin = '2px 0 8px';
+  st.innerHTML = lastFit
+    ? (lastFit.auto
+        ? '<b style="color:#8fd6a8">Markers aligned by walking</b> · from ' + lastFit.n +
+          ' GPS fixes · direction good, position within a few metres'
+        : '<b style="color:#8fd6a8">Markers aligned</b> · ' + lastFit.n + ' points · ±' +
+          lastFit.rms.toFixed(2) + ' m · worst ' + lastFit.worst + ' ' + lastFit.max.toFixed(2) + ' m')
+    : done === 1 ? '<b>1 point</b> · markers sit on it, direction still from the compass'
+    : done ? '<b>' + done + ' points</b> · press Apply'
+    : 'Markers not aligned · walk a bit, or stand on a point and press below';
+  el.appendChild(st);
+
+  const rows = document.createElement('div');
+  list.forEach(r => {
+    const has = refFix.has(r.key);
+    const line = document.createElement('div'); line.className = 'refrow' + (has ? ' has' : '');
+    const nm = document.createElement('span'); nm.className = 'nm';
+    nm.textContent = (has ? '✓ ' : '') + r.name + (r.ref ? '' : ' ⌇');
+    const here = document.createElement('button'); here.className = 'sm p';
+    here.textContent = has ? 'Again' : 'I stand here';
+    here.onclick = () => markControlHere(r.key);
+    const aim = document.createElement('button'); aim.className = 'sm';
+    aim.textContent = 'Aim'; aim.title = 'for a point you cannot stand on';
+    aim.disabled = !hitOk;
+    aim.onclick = () => startMeasure('ref', r.key);
+    line.appendChild(nm); line.appendChild(here); line.appendChild(aim);
+    rows.appendChild(line);
+  });
+  if (!list.length) {
+    const e = document.createElement('div'); e.className = 'small';
+    e.textContent = 'No points yet – set them on the map tab.';
+    rows.appendChild(e);
+  }
+  el.appendChild(rows);
+
+  if (done >= 2 && S2P) {
+    const pc = document.createElement('div'); pc.className = 'btnrow'; pc.style.marginTop = '8px';
+    const pb = document.createElement('button'); pb.className = 'sm';
+    pb.textContent = 'Straighten the plot on these points';
+    pb.title = 'Fix the whole stand on the earth from the measured points';
+    pb.onclick = () => {
+      const pairs = list.filter(r => refFix.has(r.key)).map(r => {
+        const sp = refFix.get(r.key);
+        return { lat: r.lat, lon: r.lon, l: s2pInvert(sp.x, sp.z) };
+      }).filter(x => x.l);
+      const res = correctPlotFrom(pairs);
+      if (!res) return toast('Those points cannot settle it – they are too close together.');
+      toast('Plot straightened on ' + res.n + ' points · ±' + res.rms.toFixed(2) +
+            ' m · ' + res.rewritten + ' trees rewritten');
+      buildRefMenu();
+    };
+    pc.appendChild(pb); el.appendChild(pc);
+  }
+
+  const sm = document.createElement('div'); sm.className = 'btnrow'; sm.style.marginTop = '8px';
+  const smb = document.createElement('button'); smb.className = 'sm';
+  smb.textContent = 'Match stems instead';
+  smb.title = 'Aim at three or four trunks; the spacing says which trees they are';
+  smb.disabled = !hitOk || CAT.features.length < 3;
+  smb.onclick = () => { el.style.display = 'none'; startMeasure('stems'); };
+  sm.appendChild(smb);
+  el.appendChild(sm);
+
+  const act = document.createElement('div'); act.className = 'btnrow'; act.style.marginTop = '8px';
+  const ap = document.createElement('button');
+  ap.className = done >= 2 ? 'p' : ''; ap.disabled = done < 2;
+  ap.textContent = done >= 2 ? 'Apply and close' : 'Apply (needs 2)';
+  ap.onclick = () => {
+    if (!fitFromControls(false)) return;
+    el.style.display = 'none';
+  };
+  act.appendChild(ap);
+  if (done) {
+    const c = document.createElement('button'); c.className = 'x'; c.textContent = 'Start over';
+    c.onclick = () => {
+      refFix.clear(); lastFit = null; track = []; showFit(); buildRefMenu();
+      toast('Measurements cleared – walking will fit the scene again.');
+    };
+    act.appendChild(c);
+  }
+  const x = document.createElement('button'); x.textContent = 'Close';
+  x.onclick = () => { el.style.display = 'none'; };
+  act.appendChild(x);
+  el.appendChild(act);
+
+  /* The rest of what moves or freezes the scene. It is used once at the start
+     of a session and then never again, which is exactly why it does not
+     deserve a permanent button beside "+ Tree". */
+  /* Why it is not aligned, on the screen, at the moment it is not. */
+  const dg = document.createElement('div'); dg.className = 'small';
+  dg.style.cssText = 'margin-top:8px;border-top:1px solid #223027;padding-top:6px';
+  const paint = () => {
+    dg.innerHTML = alignReport().map(r =>
+      '<div class="kv"><span>' + r[0] + '</span><span>' + esc(String(r[1])) + '</span></div>').join('');
+  };
+  paint();
+  el.appendChild(dg);
+  const dgr = document.createElement('div'); dgr.className = 'btnrow';
+  const look = document.createElement('button'); look.className = 'sm p';
+  look.textContent = 'Look for stems now';
+  look.onclick = () => {
+    for (let k = 0; k < 3; k++) stemScan();
+    paint();
+    toast(diag.look);
+  };
+  dgr.appendChild(look);
+  const fgt = document.createElement('button'); fgt.className = 'sm';
+  fgt.textContent = 'Forget the stems seen';
+  fgt.onclick = () => { stemObs = []; stemMatchN = 0; lockStems = 0; ambigSaid = false; paint(); };
+  dgr.appendChild(fgt);
+  el.appendChild(dgr);
+
+  const more = document.createElement('div'); more.className = 'btnrow'; more.style.marginTop = '4px';
+  const sb = document.createElement('button'); sb.className = 'sm p';
+  sb.textContent = 'I am standing at a tree I know';
+  sb.title = 'Takes the nearest tree in the register as a fixed point';
+  sb.onclick = () => { el.style.display = 'none'; standAtTree(); };
+  more.appendChild(sb);
+  const sc = document.createElement('button'); sc.className = 'sm';
+  sc.textContent = 'Pick which one';
+  sc.onclick = () => { buildChooser(); closePopups('chooser'); $('chooser').style.display = 'block'; };
+  more.appendChild(sc);
+  const lk = document.createElement('button'); lk.className = 'sm' + (sceneLocked ? ' p' : '');
+  lk.textContent = sceneLocked ? 'Scene locked' : 'Lock the scene';
+  lk.onclick = () => {
+    sceneLocked = !sceneLocked;
+    if (sceneLocked) settleComp();
+    toast(sceneLocked ? 'Scene locked – nothing will move it until you unlock.'
+                      : 'Scene unlocked – it will correct itself again.');
+    showFit(); buildRefMenu();
+  };
+  more.appendChild(lk);
+  const fz = document.createElement('button'); fz.className = 'sm' + (fallZone ? ' p' : '');
+  fz.textContent = fallZone ? 'Fall zones on' : 'Fall zones';
+  fz.onclick = () => {
+    fallZone = !fallZone; updateFallZones();
+    toast(fallZone ? 'Fall zones shown – radius is the tree height.' : 'Fall zones hidden.');
+    buildRefMenu();
+  };
+  more.appendChild(fz);
+  const nt = document.createElement('button'); nt.className = 'sm';
+  nt.textContent = 'Record a tree by aiming';
+  nt.title = 'For a stem you cannot walk to';
+  nt.disabled = !hitOk;
+  nt.onclick = () => { el.style.display = 'none'; startMeasure('newtree'); };
+  more.appendChild(nt);
+  el.appendChild(more);
+}
+
+function buildChooser() {
+  const c = $('chooser');
+  c.innerHTML = '';
+  const row = document.createElement('div'); row.className = 'btnrow';
+  const order = CAT.features.map((f, i) => i)
+    .filter(i => localOf(i))
+    .sort((a, bIdx) => {
+      if (!lastFix) return 0;
+      const ca = CAT.features[a].geometry.coordinates, cb = CAT.features[bIdx].geometry.coordinates;
+      return distBear(ca[1], ca[0], lastFix.lat, lastFix.lon).d -
+             distBear(cb[1], cb[0], lastFix.lat, lastFix.lon).d;
+    }).slice(0, 12);
+  order.forEach(i => {
+    const f = CAT.features[i];
+    const b = document.createElement('button');
+    b.className = 'sm';
+    b.textContent = (props(i).tag_no ? '№ ' + props(i).tag_no : props(i).tree_id) +
+      (lastFix ? ' · ' + distBear(f.geometry.coordinates[1], f.geometry.coordinates[0],
+                                  lastFix.lat, lastFix.lon).d.toFixed(0) + ' m' : '');
+    b.onclick = () => {
+      if (!lockOnTree(i)) { toast('That tree has no surveyed position.'); return; }
+      c.style.display = 'none';
+      selectTree(i);
+      toast('Locked on ' + tid(i) + ' – heading from the compass. Match stems for better.');
+    };
+    row.appendChild(b);
+  });
+  if (!order.length) {
+    const e = document.createElement('span'); e.className = 'small';
+    e.textContent = 'No surveyed trees to stand at. ';
+    row.appendChild(e);
+  }
+  const ab = document.createElement('button');
+  ab.className = 'sm'; ab.textContent = 'Cancel';
+  ab.onclick = () => { c.style.display = 'none'; };
+  row.appendChild(ab);
+  c.appendChild(row);
+}
+
+
+/* ===================== NATIONAL COORDINATES =====================
+   Everything in the app is WGS84 because that is what a phone produces. The
+   points worth standing on - cadastral boundary marks, building corners,
+   trig points - are published in a national plane system, and so are the city
+   tree registers. Two conversions stand between them:
+
+   1. The projection. Berlin publishes in ETRS89 / UTM zone 33N (EPSG:25833),
+      metres east and north on a Transverse Mercator. The series below is the
+      Krueger expansion to n^4, which is sub-millimetre inside a zone - far
+      beyond anything that matters here, and short enough to read.
+
+   2. The datum epoch, which is the one that actually bites. ETRS89 is nailed
+      to the Eurasian plate as it stood in 1989. A phone's WGS84 is an ITRF
+      realisation, and the plate has carried Berlin about 25 mm a year to the
+      east-north-east ever since - by now some nine decimetres. Enter a
+      cadastral point as if it were WGS84 and the whole stand sits three
+      quarters of a metre north-east of where it belongs: with a boundary mark
+      good to two centimetres, that shift is the entire error budget. */
+
+const GRS80_A = 6378137.0, GRS80_F = 1 / 298.257222101;
+const ETRS_EPOCH = 1989.0;
+/* Eurasia's motion in ITRF at Berlin, metres per year. From the plate's Euler
+   pole; at 52.5 N it comes out as 25 mm/yr towards ENE. */
+const ETRS_V = { e: 0.0205, n: 0.0145 };
+
+function utmToLatLon(E, N, zone) {
+  const a = GRS80_A, f = GRS80_F, k0 = 0.9996;
+  const n = f / (2 - f), n2 = n * n, n3 = n2 * n, n4 = n3 * n;
+  const A = a / (1 + n) * (1 + n2 / 4 + n4 / 64);
+  const b1 = n / 2 - 2 * n2 / 3 + 37 * n3 / 96 - n4 / 360;
+  const b2 = n2 / 48 + n3 / 15 - 437 * n4 / 1440;
+  const b3 = 17 * n3 / 480 - 37 * n4 / 840;
+  const b4 = 4397 * n4 / 161280;
+  const d1 = 2 * n - 2 * n2 / 3 - 2 * n3;
+  const d2 = 7 * n2 / 3 - 8 * n3 / 5;
+  const d3 = 56 * n3 / 15, d4 = 4279 * n4 / 630;
+  const xi = (N) / (k0 * A), eta = (E - 500000) / (k0 * A);
+  let xi1 = xi, eta1 = eta;
+  [[b1, 1], [b2, 2], [b3, 3], [b4, 4]].forEach(([b, j]) => {
+    xi1 -= b * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta);
+    eta1 -= b * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta);
+  });
+  const chi = Math.asin(Math.sin(xi1) / Math.cosh(eta1));
+  let lat = chi;
+  [[d1, 1], [d2, 2], [d3, 3], [d4, 4]].forEach(([d, j]) => { lat += d * Math.sin(2 * j * chi); });
+  const lon0 = (zone * 6 - 183) * Math.PI / 180;
+  const lon = lon0 + Math.atan2(Math.sinh(eta1), Math.cos(xi1));
+  return { lat: lat * 180 / Math.PI, lon: lon * 180 / Math.PI };
+}
+
+function latLonToUtm(lat, lon, zone) {
+  const a = GRS80_A, f = GRS80_F, k0 = 0.9996;
+  const n = f / (2 - f), n2 = n * n, n3 = n2 * n, n4 = n3 * n;
+  const A = a / (1 + n) * (1 + n2 / 4 + n4 / 64);
+  const al1 = n / 2 - 2 * n2 / 3 + 5 * n3 / 16 + 41 * n4 / 180;
+  const al2 = 13 * n2 / 48 - 3 * n3 / 5 + 557 * n4 / 1440;
+  const al3 = 61 * n3 / 240 - 103 * n4 / 140;
+  const al4 = 49561 * n4 / 161280;
+  const p = lat * Math.PI / 180, l = lon * Math.PI / 180;
+  const lon0 = (zone * 6 - 183) * Math.PI / 180;
+  const t = Math.sinh(Math.atanh(Math.sin(p)) -
+            2 * Math.sqrt(n) / (1 + n) * Math.atanh(2 * Math.sqrt(n) / (1 + n) * Math.sin(p)));
+  const xi0 = Math.atan(t / Math.cos(l - lon0));
+  const eta0 = Math.atanh(Math.sin(l - lon0) / Math.sqrt(1 + t * t));
+  let xi = xi0, eta = eta0;
+  [[al1, 1], [al2, 2], [al3, 3], [al4, 4]].forEach(([al, j]) => {
+    xi += al * Math.sin(2 * j * xi0) * Math.cosh(2 * j * eta0);
+    eta += al * Math.cos(2 * j * xi0) * Math.sinh(2 * j * eta0);
+  });
+  return { e: k0 * A * eta + 500000, n: k0 * A * xi };
+}
+
+function nowEpoch() {
+  const d = new Date();
+  return d.getUTCFullYear() + (d.getUTCMonth() * 30.4 + d.getUTCDate()) / 365.25;
+}
+/* ETRS89 coordinates carried forward to today, which is what the phone reads. */
+function etrsToWgs(lat, lon) {
+  const yr = nowEpoch() - ETRS_EPOCH;
+  return { lat: lat + ETRS_V.n * yr / mLat(lat), lon: lon + ETRS_V.e * yr / mLon(lat) };
+}
+function wgsToEtrs(lat, lon) {
+  const yr = nowEpoch() - ETRS_EPOCH;
+  return { lat: lat - ETRS_V.n * yr / mLat(lat), lon: lon - ETRS_V.e * yr / mLon(lat) };
+}
+/* The two systems the app speaks, and how a point comes in and goes out. */
+const CRS = {
+  'EPSG:25833': {
+    name: 'ETRS89 / UTM 33N · Berlin, Brandenburg',
+    to: (e, n) => { const g = utmToLatLon(e, n, 33); return etrsToWgs(g.lat, g.lon); },
+    from: (lat, lon) => { const g = wgsToEtrs(lat, lon); return latLonToUtm(g.lat, g.lon, 33); }
+  },
+  'EPSG:4326': {
+    name: 'WGS84 · what the phone reads',
+    to: (e, n) => ({ lat: n, lon: e }),
+    from: (lat, lon) => ({ e: lon, n: lat })
+  }
+};
+
+/* ================= THE BERLIN TREE REGISTER =================
+   Berlin publishes its street and park trees as open data - some 880 000 of
+   them, with species, planting year, girth, height and crown - through the
+   city's WFS. It is a register, not a survey: the positions are metre-level
+   and were mapped by the districts, so a tree fetched here is a name and a
+   rough place to start from, and the stem it belongs to is still put on the
+   map properly by standing at it.
+
+   The service's layer names have moved between the old FIS-Broker and the new
+   geoportal, so nothing is guessed: the capabilities document is asked what it
+   serves and every tree layer in it is fetched. Coordinates come back in
+   ETRS89 / UTM 33N and go through the epoch shift like everything else. */
+
+const BERLIN_WFS = 'https://gdi.berlin.de/services/wfs/baumbestand';
+/* Places, as a centre and a radius in metres. Berlin's south-west corner, the
+   two the register is being tried on first. */
+
+function pick(o, keys) {
+  for (let i = 0; i < keys.length; i++) {
+    const k = Object.keys(o).find(x => x.toLowerCase() === keys[i]);
+    if (k != null && o[k] != null && o[k] !== '') return o[k];
+  }
+  return null;
+}
+function numOr(v) { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : null; }
+
+/* One register feature -> one tree of ours. Everything the register knows that
+   we have a field for is carried over; what is left goes into the remarks
+   rather than being thrown away. */
+function berlinTree(f, srsIsLatLon) {
+  const g = f.geometry;
+  if (!g) return null;
+  let c = g.coordinates;
+  if (g.type === 'MultiPoint' && c.length) c = c[0];
+  if (!c || c.length < 2) return null;
+  const wgs = (srsIsLatLon || (Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90))
+    ? { lat: +c[1], lon: +c[0] }
+    : CRS['EPSG:25833'].to(+c[0], +c[1]);
+  const p = f.properties || {};
+  const no = pick(p, ['kennzeich', 'baumnummer', 'baum_nr', 'nummer', 'standortnr', 'standort_nr']);
+  const bot = pick(p, ['art_bot', 'artbot', 'art_botanisch', 'gattung_art']);
+  const de = pick(p, ['art_dtsch', 'art_deutsch', 'artdtsch', 'art']);
+  const street = pick(p, ['strname', 'strasse', 'str_name']);
+  const hnr = pick(p, ['hausnr', 'hausnummer']);
+  const bez = pick(p, ['bezirk', 'bez_name']);
+  const girth = numOr(pick(p, ['stammumfg', 'stammumfang', 'umfang']));
+  const src = String(pick(p, ['gml_id', 'id', 'objectid']) || (no || ''));
+  const extra = [];
+  if (de) extra.push(String(de));
+  if (street) extra.push(String(street) + (hnr ? ' ' + hnr : ''));
+  return {
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [+wgs.lon.toFixed(7), +wgs.lat.toFixed(7)] },
+    properties: {
+      tag_no: no == null ? '' : String(no),
+      species: bot ? String(bot) : '',
+      name_en: de ? String(de) : '',
+      area: [bez, street].filter(Boolean).join(' · '),
+      planted: numOr(pick(p, ['pflanzjahr', 'pflanz_jahr'])),
+      girth_cm: girth,
+      // the register gives the girth at 1.30 m; the diameter follows from it
+      dbh_cm: girth == null ? null : Math.round(girth / Math.PI),
+      height_m: numOr(pick(p, ['baumhoehe', 'hoehe', 'baum_hoehe'])),
+      crown_d_m: numOr(pick(p, ['kronedurch', 'kronendurchmesser', 'krone_durchmesser'])),
+      geometry_source: 'Berlin tree register',
+      source_id: src,
+      remarks: extra.join(' · ')
+    }
+  };
+}
+
+async function wfsLayers(base) {
+  const u = base + (base.indexOf('?') < 0 ? '?' : '&') +
+            'SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities';
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('capabilities: HTTP ' + r.status);
+  const x = new DOMParser().parseFromString(await r.text(), 'application/xml');
+  const out = [];
+  x.querySelectorAll('FeatureType > Name').forEach(n => {
+    const t = (n.textContent || '').trim();
+    if (t) out.push(t);
+  });
+  if (!out.length) throw new Error('the service lists no layers');
+  return out;
+}
+
+async function berlinImport(spot, base, onSay) {
+  const say = onSay || (() => {});
+  const b = base || BERLIN_WFS;
+  const c = CRS['EPSG:25833'].from(spot.lat, spot.lon);
+  const bbox = [c.e - spot.r, c.n - spot.r, c.e + spot.r, c.n + spot.r]
+    .map(v => v.toFixed(1)).join(',');
+  say('Asking the service what it serves …');
+  const layers = (await wfsLayers(b)).filter(n => /baum|tree/i.test(n));
+  if (!layers.length) throw new Error('no tree layer in the service');
+  const feats = [];
+  for (let i = 0; i < layers.length && i < 4; i++) {
+    say('Fetching ' + layers[i] + ' …');
+    const u = b + (b.indexOf('?') < 0 ? '?' : '&') +
+      'SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=' + encodeURIComponent(layers[i]) +
+      '&SRSNAME=EPSG:25833&COUNT=800&OUTPUTFORMAT=' + encodeURIComponent('application/json') +
+      '&BBOX=' + encodeURIComponent(bbox + ',EPSG:25833');
+    let r;
+    try { r = await fetch(u); } catch (e) { throw new Error('the phone could not reach the service: ' + e.message); }
+    if (!r.ok) throw new Error(layers[i] + ': HTTP ' + r.status + ' ' + (await r.text()).slice(0, 160));
+    let j;
+    try { j = JSON.parse(await r.text()); }
+    catch (e) { throw new Error(layers[i] + ': the service did not answer with GeoJSON'); }
+    (j.features || []).forEach(f => feats.push(f));
+  }
+  return feats;
+}
+
+/* Adding them: a register tree already on the phone is left alone, matched on
+   the register's own id, so fetching the same corner twice changes nothing. */
+function addBerlin(feats) {
+  const seen = {};
+  CAT.features.forEach((f, i) => { const s = props(i).source_id; if (s) seen[s] = 1; });
+  let added = 0, dup = 0, bad = 0;
+  feats.forEach(f => {
+    const t = berlinTree(f);
+    if (!t) { bad++; return; }
+    if (t.properties.source_id && seen[t.properties.source_id]) { dup++; return; }
+    seen[t.properties.source_id] = 1;
+    const today = new Date().toISOString().slice(0, 10);
+    t.properties = Object.assign({
+      tree_id: '', inspector: '', vitality_roloff: 0, crown_dieback_pct: 0,
+      damage_class: 'none', cavity: 'no', stability: 'adequate',
+      breakage_resistance: 'adequate', traffic_safety: 'adequate', urgency: 'none',
+      inspection_type: 'Not yet inspected', last_inspection: '', interval_months: 12,
+      symptoms: [], actions: [], history: [], position_accuracy_m: null
+    }, t.properties);
+    t.properties.tree_id = nextTreeId();
+    CAT.features.push(t);
+    added++;
+  });
+  if (added) { saveCat(); buildMarkers(); renderList(); renderStats(); }
+  return { added: added, dup: dup, bad: bad };
+}
+
+/* ============================== MAP ==============================
+   A slippy map is a few lines of Web Mercator and a grid of images, and a
+   library would be a bigger dependency than the whole feature. Tiles come from
+   OpenStreetMap and are cached by the service worker, so an area you have
+   looked at once is there again without a network. */
+
+const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+/* How far out the map goes. It used to stop at twelve, which is a city and no
+   further - fine for one round, useless for "where are these trees at all"
+   when a register has just been imported from the other end of the country.
+   Three is the whole world; the tile grid already wraps and clips, so nothing
+   else had to change. */
+const MAPZ = { min: 3, max: 19 };
+let mapView = null, mapTiles = {}, mapDrag = null, mapPinch = null;
+/* Where the map view came from: a fallback centre is not a place anybody
+   chose, and nothing that matters may be built on one silently. */
+let mapViewFrom = 'fallback';
+/* What the map is doing, which is three things and not two. It follows you;
+   or it holds you and the tree you are walking to on the screen together; or
+   you have dragged it somewhere and it stays put. Picking a tree used to fall
+   into the third - the map stopped following and never started again, which
+   from the outside is "the map is not at my position any more". */
+let mapMode = 'me';                 // 'me' | 'both' | 'free'
+function mapOn() { return $('sc-map') && $('sc-map').classList.contains('on'); }
+function listOn() { return $('sc-list') && $('sc-list').classList.contains('on'); }
+
+/* ---- the distances follow the inspector -------------------------------
+   Every list in this app that says "4 m" says it about where the phone was
+   when the list was drawn. The map's tree list was drawn when the tab was
+   opened and the tree list when a tree changed, so both went stale the moment
+   anybody walked: the nearest tree stayed at the top of the list long after
+   it was behind them. A fix that has moved redraws them - once a metre or
+   once every five seconds, not once a second, because reordering a list under
+   a thumb that is reaching for it is its own kind of wrong. */
+let distDrawnAt = null, distDrawnT = 0;
+function refreshDistances(force) {
+  if (!lastFix) return;
+  const now = Date.now();
+  const moved = distDrawnAt ? distBear(lastFix.lat, lastFix.lon, distDrawnAt.lat, distDrawnAt.lon).d : 1e9;
+  if (!force && moved < 1 && now - distDrawnT < 5000) return;
+  distDrawnAt = { lat: lastFix.lat, lon: lastFix.lon }; distDrawnT = now;
+  if (mapOn()) { buildNavList(); mapModeLine(); paintHome(); }
+  if (listOn()) { renderList(); renderWork(); }
+}
+
+function lon2px(lon, z) { return (lon + 180) / 360 * 256 * Math.pow(2, z); }
+function lat2px(lat, z) {
+  const s = Math.sin(Math.max(-85, Math.min(85, lat)) * Math.PI / 180);
+  return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * Math.pow(2, z);
+}
+function px2lon(x, z) { return x / (256 * Math.pow(2, z)) * 360 - 180; }
+function px2lat(y, z) {
+  const n = Math.PI - 2 * Math.PI * y / (256 * Math.pow(2, z));
+  return 180 / Math.PI * Math.atan(Math.sinh(n));
+}
+function mapCentre() {
+  if (mapView) return mapView;
+  const c = (lastFix && { lat: lastFix.lat, lon: lastFix.lon }) ||
+            (CAT.features[0] && { lat: CAT.features[0].geometry.coordinates[1],
+                                  lon: CAT.features[0].geometry.coordinates[0] }) ||
+            { lat: 51.0, lon: 10.0 };
+  mapView = { lat: c.lat, lon: c.lon, z: (lastFix || CAT.features[0]) ? 18 : 6 };
+  mapViewFrom = lastFix ? 'you' : 'fallback';
+  return mapView;
+}
+/* Put the view on the phone and keep it there. */
+function mapToMe(zoom) {
+  if (!lastFix) return false;
+  const v = mapCentre();
+  v.lat = lastFix.lat; v.lon = lastFix.lon; mapViewFrom = 'you';
+  if (zoom) v.z = Math.max(v.z, 18);
+  mapMode = 'me';
+  drawMap();
+  return true;
+}
+/* You and the tree, both on the screen, at whatever zoom fits the two. */
+function mapFit(i) {
+  if (i == null || !CAT.features[i] || !lastFix) return false;
+  const c = CAT.features[i].geometry.coordinates, v = mapCentre(), box = $('mapBox');
+  v.lat = (c[1] + lastFix.lat) / 2; v.lon = (c[0] + lastFix.lon) / 2;
+  for (v.z = MAPZ.max; v.z > MAPZ.min; v.z--) {
+    const dx = Math.abs(lon2px(c[0], v.z) - lon2px(lastFix.lon, v.z));
+    const dy = Math.abs(lat2px(c[1], v.z) - lat2px(lastFix.lat, v.z));
+    if (dx < box.clientWidth * 0.8 && dy < box.clientHeight * 0.7) break;
+  }
+  drawMap();
+  return true;
+}
+/* Said out loud under the map, because a map that has stopped following you
+   looks exactly like a map that is broken. */
+/* The symbol on the map itself: yellow while the map has been dragged away
+   from you, plain while it is following, faded with no fix to go back to. */
+function paintHome() {
+  const b = $('mHome'); if (!b) return;
+  b.classList.toggle('off', mapMode !== 'me');
+  b.classList.toggle('no', !lastFix);
+}
+function mapModeLine() {
+  const el = $('mapMode'); if (!el) return;
+  const t = navTarget != null && CAT.features[navTarget] ? tid(navTarget) : null;
+  const age = distDrawnT ? Math.round((Date.now() - distDrawnT) / 1000) : null;
+  el.textContent = (mapMode === 'me' ? 'following you'
+    : mapMode === 'both' ? 'holding you and ' + (t || 'the tree') + ' on screen'
+    : 'moved by hand – press “Centre on me” to follow again') +
+    ' · distances ' + (age == null ? 'not worked out yet' : age < 2 ? 'just now' : age + ' s old') +
+    (fixErr ? ' · ' + fixErr : '');
+  el.className = 'small' + (mapMode === 'free' || fixErr || (age != null && age > 30) ? ' wa' : '');
+}
+/* The tile grid for a view, into any container, out of any cache. The big map
+   and the strip in the AR overlay are the same thing at two sizes. */
+function paintTiles(layer, cache, v, w, h) {
+  const sc = Math.pow(2, v.z);
+  const left = lon2px(v.lon, v.z) - w / 2, top = lat2px(v.lat, v.z) - h / 2;
+  const seen = {};
+  for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
+    for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) {
+      if (ty < 0 || ty >= sc) continue;
+      const wx = ((tx % sc) + sc) % sc;                    // wrap around the globe
+      const key = v.z + '/' + wx + '/' + ty;
+      seen[key] = 1;
+      let img = cache[key];
+      if (!img) {
+        img = document.createElement('img');
+        img.src = TILE.replace('{z}', v.z).replace('{x}', wx).replace('{y}', ty);
+        img.alt = ''; img.loading = 'eager'; img.draggable = false;
+        img.onerror = () => { img.style.visibility = 'hidden'; };
+        cache[key] = img; layer.appendChild(img);
+      }
+      img.style.left = (tx * 256 - left) + 'px';
+      img.style.top = (ty * 256 - top) + 'px';
+    }
+  }
+  Object.keys(cache).forEach(k => {
+    if (!seen[k]) { cache[k].remove(); delete cache[k]; }
+  });
+  return { left: left, top: top };
+}
+
+function drawMap() {
+  const box = $('mapBox'); if (!box || !box.offsetWidth) return;
+  const v = mapCentre(), w = box.clientWidth, h = box.clientHeight;
+  const o = paintTiles($('mapTiles'), mapTiles, v, w, h);
+  const left = o.left, top = o.top;
+  drawMapMarks(left, top, v.z);
+  $('mapInfo').textContent = v.lat.toFixed(6) + ', ' + v.lon.toFixed(6) + '  ·  z' + v.z +
+    (lastFix ? '  ·  GPS ±' + lastFix.acc.toFixed(0) + ' m' : '');
+  if (mapSel != null) syncMapSel();
+}
+let mapSel = null;                 // index of the tree picked on the map
+function mapMPP(lat, z) { return 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z); }
+function drawMapMarks(left, top, z) {
+  const layer = $('mapMarks');
+  layer.innerHTML = '';
+  // the phone's own accuracy claim, drawn to scale: a fix is a circle, and
+  // seeing it beside the building says more than a number in the header
+  if (lastFix && lastFix.acc) {
+    const r = lastFix.acc / mapMPP(lastFix.lat, z);
+    const c = document.createElement('div'); c.className = 'acc';
+    c.style.left = (lon2px(lastFix.lon, z) - left) + 'px';
+    c.style.top = (lat2px(lastFix.lat, z) - top) + 'px';
+    c.style.width = c.style.height = (r * 2) + 'px';
+    c.style.margin = (-r) + 'px 0 0 ' + (-r) + 'px';
+    layer.appendChild(c);
+  }
+  const put = (lat, lon, cls, label) => {
+    const d = document.createElement('div'); d.className = 'mk ' + cls;
+    d.style.left = (lon2px(lon, z) - left) + 'px';
+    d.style.top = (lat2px(lat, z) - top) + 'px';
+    if (label) { const t = document.createElement('span'); t.textContent = label; d.appendChild(t); }
+    layer.appendChild(d);
+  };
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    put(c[1], c[0], 'mkT' + (i === mapSel ? ' sel' : ''), (z >= 18 || i === mapSel) ? props(i).tree_id : '');
+  });
+  /* The tree being walked to, and the line to it from where you are: which
+     way and how far, on a map that also shows the path and the building in
+     between. */
+  const t = (navTarget != null && CAT.features[navTarget] && CAT.features[navTarget].geometry)
+    ? CAT.features[navTarget].geometry.coordinates : null;
+  if (t) {
+    if (lastFix) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      ln.setAttribute('x1', lon2px(lastFix.lon, z) - left);
+      ln.setAttribute('y1', lat2px(lastFix.lat, z) - top);
+      ln.setAttribute('x2', lon2px(t[0], z) - left);
+      ln.setAttribute('y2', lat2px(t[1], z) - top);
+      ln.setAttribute('stroke', '#ffe083'); ln.setAttribute('stroke-width', '2');
+      ln.setAttribute('stroke-dasharray', '5 4');
+      layer.appendChild(svg); svg.appendChild(ln);
+    }
+    put(t[1], t[0], 'mkGo', props(navTarget).tag_no || tid(navTarget));
+  }
+  if (lastFix) put(lastFix.lat, lastFix.lon, 'mkMe', '');
+}
+function mapMoveBy(dx, dy) {
+  mapMode = 'free'; mapViewFrom = 'map';        // moved by hand: a place somebody chose
+  const v = mapCentre();
+  const cx = lon2px(v.lon, v.z) - dx, cy = lat2px(v.lat, v.z) - dy;
+  v.lon = px2lon(cx, v.z); v.lat = px2lat(cy, v.z);
+  drawMap(); paintHome();
+}
+function mapZoom(dz) {
+  const v = mapCentre();
+  const z = Math.max(MAPZ.min, Math.min(MAPZ.max, v.z + dz));
+  if (z === v.z) return;
+  v.z = z; drawMap();
+}
+function wireMap() {
+  const box = $('mapBox');
+  box.addEventListener('pointerdown', e => {
+    box.setPointerCapture(e.pointerId);
+    if (mapDrag && mapDrag.id !== e.pointerId) {          // second finger: pinch
+      mapPinch = { a: mapDrag, b: { id: e.pointerId, x: e.clientX, y: e.clientY }, d: 0 };
+      mapPinch.d = Math.hypot(mapPinch.a.x - mapPinch.b.x, mapPinch.a.y - mapPinch.b.y);
+      return;
+    }
+    mapDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
+  });
+  box.addEventListener('pointermove', e => {
+    if (mapPinch) {
+      const p = (e.pointerId === mapPinch.a.id) ? mapPinch.a : (e.pointerId === mapPinch.b.id) ? mapPinch.b : null;
+      if (!p) return;
+      p.x = e.clientX; p.y = e.clientY;
+      const d = Math.hypot(mapPinch.a.x - mapPinch.b.x, mapPinch.a.y - mapPinch.b.y);
+      if (mapPinch.d && d / mapPinch.d > 1.6) { mapZoom(1); mapPinch.d = d; }
+      if (mapPinch.d && d / mapPinch.d < 0.62) { mapZoom(-1); mapPinch.d = d; }
+      return;
+    }
+    if (!mapDrag || e.pointerId !== mapDrag.id) return;
+    mapMoveBy(e.clientX - mapDrag.x, e.clientY - mapDrag.y);
+    mapDrag.x = e.clientX; mapDrag.y = e.clientY;
+  });
+  const up = e => {
+    if (mapPinch && (e.pointerId === mapPinch.a.id || e.pointerId === mapPinch.b.id)) { mapPinch = null; mapDrag = null; return; }
+    if (mapDrag && e.pointerId === mapDrag.id) {
+      if (Math.hypot(e.clientX - mapDrag.x0, e.clientY - mapDrag.y0) < 7) mapPick(e);
+      mapDrag = null;
+    }
+  };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
+  addEventListener('resize', () => { if ($('sc-map').classList.contains('on')) drawMap(); });
+
+  $('mZin').onclick = () => mapZoom(1);
+  $('mZout').onclick = () => mapZoom(-1);
+  /* A boundary mark or a building corner is published in the national plane
+     system, not in degrees. Typed in as it stands in the register, it comes
+     out where the phone will actually find it - projection and plate motion
+     both taken off. */
+  /* Somewhere you have never been has no GPS fix to centre on. The places the
+     register is fetched for are the places you want to look at first. */
+  function mapGo(lat, lon, z) {
+    const v = mapCentre();
+    v.lat = lat; v.lon = lon; v.z = z || 18;
+    mapMode = 'free'; drawMap();
+  }
+
+  $('mNavNo').oninput = buildNavList;
+  $('mNavStop').onclick = () => {
+    navTarget = null; $('mNavNo').value = '';
+    mapToMe(true); buildNavList(); renderNav(); mapModeLine();
+    toast('Back on your own position.');
+  };
+  $('mNavNo').onfocus = buildNavList;
+
+  /* --- the Berlin register --- */
+  const bMsg = t => { $('berlinMsg').textContent = t; };
+  $('berlinUrl').value = prefs().berlinUrl || BERLIN_WFS;
+  $('berlinUrl').onchange = () => setPref('berlinUrl', $('berlinUrl').value.trim());
+  const runBerlin = async (spot) => {
+    const base = ($('berlinUrl').value || '').trim() || BERLIN_WFS;
+    bMsg('Fetching ' + spot.name + ' …');
+    try {
+      const feats = await berlinImport(spot, base, bMsg);
+      if (!feats.length) { bMsg('The service answered, with no trees in that area.'); return; }
+      const r = addBerlin(feats);
+      bMsg(r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + spot.name +
+           (r.dup ? ' · ' + r.dup + ' were already here' : '') +
+           (r.bad ? ' · ' + r.bad + ' without a position' : ''));
+      if (r.added) {
+        toast(r.added + ' trees imported – register positions, so stand at each ' +
+              'stem and record it properly.');
+        showScreen('map');
+        mapCentre(); mapView.lat = spot.lat; mapView.lon = spot.lon; mapView.z = 17; mapViewFrom = 'map';
+        mapMode = 'free'; drawMap();
+      }
+    } catch (e) {
+      bMsg('Failed: ' + e.message);
+    }
+  };
+  $('berlinHere').onclick = () => {
+    const v = mapCentre();
+    runBerlin({ name: 'the area on the map', lat: v.lat, lon: v.lon, r: 500 });
+  };
+
+  const backToMe = () => {
+    if (!mapToMe(true)) return toast('No GPS fix yet – the map centres itself as soon as there is one.');
+    mapModeLine(); paintHome();
+  };
+  $('mMe').onclick = backToMe;
+  $('mHome').onclick = backToMe;
+  $('mCache').onclick = async () => {
+    const v = mapCentre(), box = $('mapBox');
+    const w = box.clientWidth, h = box.clientHeight;
+    const urls = [];
+    for (let z = Math.max(MAPZ.min, v.z - 1); z <= Math.min(MAPZ.max, v.z + 2); z++) {
+      const sc = Math.pow(2, z);
+      const k = Math.pow(2, z - v.z);
+      const cx = lon2px(v.lon, z), cy = lat2px(v.lat, z);
+      const left = cx - w * k / 2, top = cy - h * k / 2;
+      for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w * k) / 256); tx++)
+        for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h * k) / 256); ty++) {
+          if (ty < 0 || ty >= sc) continue;
+          urls.push(TILE.replace('{z}', z).replace('{x}', ((tx % sc) + sc) % sc).replace('{y}', ty));
+        }
+    }
+    if (urls.length > 400) return toast('Zoom in – that would be ' + urls.length + ' tiles.');
+    const b = $('mCache'); b.disabled = true;
+    let done = 0, failed = 0;
+    // one at a time: this is somebody else's tile server, and a field phone on
+    // a thin connection does better with a queue than with a stampede
+    for (const u of urls) {
+      try { const r = await fetch(u, { mode: 'cors' }); if (!r.ok) failed++; } catch (e) { failed++; }
+      done++;
+      if (done % 5 === 0 || done === urls.length)
+        b.textContent = 'Loading ' + done + '/' + urls.length + '…';
+    }
+    b.disabled = false; b.textContent = 'Save this area offline';
+    toast(failed ? (urls.length - failed) + ' of ' + urls.length + ' tiles stored.'
+                 : urls.length + ' tiles stored for offline use.');
+  };
+  $('mMove').onclick = () => {
+    if (mapSel == null) return;
+    const v = mapCentre(), id = tid(mapSel);
+    if (!setCoords(mapSel, v.lon, v.lat, 'moved on the map', null)) return;
+    drawMap(); syncMapSel(); renderMoved();
+    toast(id + ' moved to the crosshair – Undo puts it back.');
+  };
+  /* The whole stand, put where this one tree really is. Rigid: every distance
+     between two trees survives it, which is what makes it safe to use when a
+     georeference has gone wrong by a couple of hundred metres. */
+  $('mStand').onclick = () => {
+    if (mapSel == null) return;
+    const l = localOf(mapSel);
+    if (!l) return toast('That tree has no survey coordinates to hang the stand on.');
+    const v = mapCentre(), id = tid(mapSel);
+    const before = distBear(CAT.features[mapSel].geometry.coordinates[1],
+                            CAT.features[mapSel].geometry.coordinates[0], v.lat, v.lon).d;
+    if (!confirm('Move the whole stand so that ' + id + ' sits at the crosshair?\n\n' +
+                 'That is ' + before.toFixed(0) + ' m. Every other tree moves the same ' +
+                 'amount; the distances between them do not change.')) return;
+    plotAnchorAt(l, v.lat, v.lon);
+    drawMap(); syncMapSel(); renderPlotBox();
+    toast('The stand moved ' + before.toFixed(0) + ' m onto ' + id + '.');
+  };
+  $('mUndo').onclick = () => {
+    if (mapSel == null) return;
+    const id = tid(mapSel);
+    if (!revertCoords(mapSel)) return;
+    drawMap(); syncMapSel(); renderMoved();
+    toast(id + ' put back where it came in.');
+  };
+  $('mAddTree').onclick = () => {
+    const v = mapCentre();
+    const i = addTree(v.lon, v.lat, 'picked on the map', null);
+    drawMap(); openPanel(i, 'base');
+  };
+}
+/* A tap that did not pan is a pick: take the nearest tree within a thumb's
+   width, so a shifted marker can be dragged onto the truth without leaving
+   the map. */
+function mapPick(e) {
+  const box = $('mapBox'), r = box.getBoundingClientRect();
+  const v = mapCentre(), w = box.clientWidth, h = box.clientHeight;
+  const left = lon2px(v.lon, v.z) - w / 2, top = lat2px(v.lat, v.z) - h / 2;
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  let best = null, bd = 26;
+  CAT.features.forEach((f, i) => {
+    if (!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    const d = Math.hypot(lon2px(c[0], v.z) - left - px, lat2px(c[1], v.z) - top - py);
+    if (d < bd) { bd = d; best = i; }
+  });
+  const was = mapSel;
+  mapSel = (best === mapSel) ? null : best;
+  drawMap(); syncMapSel();
+  /* Picking a tree is picking a tree, whichever screen it happens on: the same
+     routine as standing at one in AR - its form, on the quick page, listening.
+     Tapping the one already picked lets it go again and opens nothing. */
+  if (mapSel != null && mapSel !== was) startSurvey(mapSel);
+}
+function syncMapSel() {
+  const b = $('mMove'), info = $('mSel'), u = $('mUndo');
+  if (mapSel == null || !CAT.features[mapSel]) {
+    mapSel = null; b.style.display = 'none'; u.style.display = 'none';
+    info.textContent = 'Tap a tree on the map to pick it.';
+    return;
+  }
+  const f = CAT.features[mapSel], v = mapCentre(), c = f.geometry.coordinates;
+  const d = distBear(c[1], c[0], v.lat, v.lon).d;
+  const mine = ownTree(mapSel);
+  b.style.display = ''; b.disabled = !mine;
+  b.textContent = mine ? 'Move ' + tid(mapSel) + ' here (' + d.toFixed(1) + ' m)'
+                       : tid(mapSel) + ' cannot be moved by hand';
+  b.title = mine ? '' : ownWhy(mapSel);
+  const o = f.properties.orig_coordinates;
+  const st = $('mStand');
+  st.style.display = localOf(mapSel) ? '' : 'none';
+  st.textContent = 'Whole stand → here (' + tid(mapSel) + ')';
+  // undo sits next to the button that did it, not three screens away
+  u.style.display = o ? '' : 'none';
+  if (o) u.textContent = 'Undo – put ' + tid(mapSel) + ' back (' +
+    distBear(c[1], c[0], o[1], o[0]).d.toFixed(1) + ' m)';
+  info.textContent = tid(mapSel) + ' picked · ' + (props(mapSel).species || 'no species') +
+    (o ? ' · moved' : '') + (mine ? '' : ' · ' + ownWhy(mapSel));
+}
+/* The tree on a map of its own, inside its page: which side of the path it is
+   on, which corner of the yard - the thing a coordinate does not tell you. */
+let tmCache = {};
+function drawTreeMap(i) {
+  const box = document.getElementById('tmWrap');
+  if (!box || !CAT.features[i] || !box.offsetWidth) return;
+  const w = box.clientWidth, h = box.clientHeight;
+  const c = CAT.features[i].geometry.coordinates;
+  const v = { lat: c[1], lon: c[0], z: 19 };
+  const o = paintTiles(document.getElementById('tmTiles'), tmCache, v, w, h);
+  const marks = document.getElementById('tmMarks');
+  const X = lon => lon2px(lon, v.z) - o.left, Y = lat => lat2px(lat, v.z) - o.top;
+  marks.innerHTML = '';
+  const put = (lat, lon, cls, label) => {
+    const d = document.createElement('div'); d.className = 'mk ' + cls;
+    d.style.left = X(lon) + 'px'; d.style.top = Y(lat) + 'px';
+    if (label) { const t = document.createElement('span'); t.textContent = label; d.appendChild(t); }
+    marks.appendChild(d);
+  };
+  CAT.features.forEach((f, k) => {
+    if (k === i || !f.geometry || f.geometry.type !== 'Point') return;
+    const q = f.geometry.coordinates;
+    if (Math.abs(q[1] - c[1]) > 0.002 || Math.abs(q[0] - c[0]) > 0.004) return;
+    put(q[1], q[0], 't', props(k).tag_no || props(k).tree_id);
+  });
+  put(c[1], c[0], 'go', props(i).tag_no || tid(i));
+  if (lastFix) put(lastFix.lat, lastFix.lon, 'me', '');
+  const inf = document.getElementById('tmInfo');
+  if (inf) inf.textContent = c[1].toFixed(6) + ', ' + c[0].toFixed(6) +
+    (lastFix ? ' · ' + distBear(c[1], c[0], lastFix.lat, lastFix.lon).d.toFixed(0) + ' m from you' : '') +
+    ' · ' + (props(i).geometry_source || 'unknown source');
+}
+
+/* What the register is standing on, in numbers. When something is hundreds of
+   metres out this is the page that says why, and the two buttons that put it
+   back are next to it. */
+function renderAlignBox() {
+  const box = $('alignBox'); if (!box) return;
+  box.innerHTML = alignReport().map(r =>
+    '<div class="kv"><span>' + r[0] + '</span><span>' + esc(String(r[1])) + '</span></div>').join('');
+}
+function renderPlotBox() {
+  const box = $('plotBox'); if (!box) return;
+  const withL = CAT.features.filter((f, i) => hasLocal(props(i))).length;
+  if (!plotGeoreferenced()) {
+    box.innerHTML = '<p class="small">No plot yet. It is created the first time a tree ' +
+      'is recorded in AR: that spot becomes the origin and everything is measured from it.</p>';
+    return;
+  }
+  const d = plotDrift();
+  const me = lastFix ? distBear(PLOT.lat, PLOT.lon, lastFix.lat, lastFix.lon).d : null;
+  const kv = (a, b) => '<div class="kv"><span>' + a + '</span><span>' + b + '</span></div>';
+  box.innerHTML =
+    kv('Origin', PLOT.lat.toFixed(6) + ', ' + PLOT.lon.toFixed(6)) +
+    kv('Turned', (PLOT.yaw || 0).toFixed(1) + '°') +
+    kv('From', (PLOT.provisional ? 'borrowed from a tree' : (PLOT.n || 0) + ' GPS fixes') +
+       (PLOT.acc == null ? '' : ' · ±' + (+PLOT.acc).toFixed(1) + ' m')) +
+    kv('Trees surveyed into it', withL + ' of ' + CAT.features.length) +
+    kv('Origin from you', me == null ? 'no fix' : me.toFixed(0) + ' m') +
+    (d.worst > 1
+      ? '<div class="plaus">Out of step with its own survey by ' + d.worst.toFixed(0) +
+        ' m (worst: ' + esc(d.id || '') + '). Recording a tree puts it back on your position.</div>'
+      : kv('Agrees with the survey', 'yes'));
+}
+
+/* Two trees moved by accident is two trees you have to find again. They are
+   listed instead. */
+function renderMoved() {
+  const box = $('movedList'); if (!box) return;
+  const list = movedTrees();
+  box.innerHTML = '';
+  if (!list.length) {
+    box.innerHTML = '<p class="small">No position has been changed. ' +
+      'Trees moved on the map or nudged on their own page appear here.</p>';
+    return;
+  }
+  list.forEach(x => {
+    const r = document.createElement('div'); r.className = 'trashrow';
+    const s = document.createElement('span');
+    s.innerHTML = '<b>' + esc(tid(x.i)) + '</b> ' + esc(props(x.i).species || '') +
+      ' <span class="small">' + x.d.toFixed(1) + ' m from ' +
+      esc(CAT.features[x.i].properties.orig_source || 'where it came in') + '</span>';
+    const go = document.createElement('button'); go.className = 'sm'; go.textContent = 'Show';
+    go.onclick = () => {
+      const c = CAT.features[x.i].geometry.coordinates;
+      showScreen('map'); mapSel = x.i;
+      const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free'; mapViewFrom = 'map'; mapViewFrom = 'map';
+      drawMap(); syncMapSel();
+    };
+    const un = document.createElement('button'); un.className = 'sm p'; un.textContent = 'Undo';
+    un.onclick = () => { revertCoords(x.i); drawMap(); syncMapSel(); renderMoved();
+                         toast(tid(x.i) + ' put back.'); };
+    r.appendChild(s); r.appendChild(go); r.appendChild(un);
+    box.appendChild(r);
+  });
+  const all = document.createElement('div'); all.className = 'btnrow';
+  const ab = document.createElement('button'); ab.className = 'sm';
+  ab.textContent = 'Undo all ' + list.length;
+  ab.onclick = () => {
+    if (!confirm('Put all ' + list.length + ' trees back where they came in?')) return;
+    list.forEach(x => revertCoords(x.i));
+    drawMap(); syncMapSel(); renderMoved();
+    toast(list.length + ' positions put back.');
+  };
+  all.appendChild(ab); box.appendChild(all);
+}
+
+/* ============================ PANEL ============================ */
+
+let openIdx = null, panelEl = null, panelTab = 'vta';
+function panelTarget() { return (mode ? $('panelXR') : $('panelHome')); }
+
+function fieldRow(k, lab, typ, opt, p) {
+  const r = document.createElement('div');
+  r.className = 'row' + (typ === 'area' || typ === 'list' ? ' wide' : '');
+  const l = document.createElement('label'); l.textContent = lab; r.appendChild(l);
+  let inp;
+  if (typ === 'select') {
+    inp = document.createElement('select');
+    opt.forEach(o => { const e2 = document.createElement('option'); e2.value = o; e2.textContent = optLabel(k, o); inp.appendChild(e2); });
+    inp.value = p[k];
+  } else if (typ === 'area') {
+    inp = document.createElement('textarea'); inp.value = p[k] == null ? '' : p[k];
+  } else if (typ === 'list') {
+    inp = document.createElement('textarea'); inp.value = (p[k] || []).join('\n');
+    inp.placeholder = 'one entry per line';
+  } else if (typ === 'species') {
+    // a datalist is a suggestion the browser may or may not show - Chrome on
+    // Android often shows nothing at all - so the list is a real select, with
+    // the text field kept beside it for anything the list does not have
+    const box = document.createElement('div'); box.className = 'spbox';
+    const sel = document.createElement('select');
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = 'Pick a species…'; sel.appendChild(none);
+    SPECIES.forEach(x => {
+      const o = document.createElement('option');
+      o.value = x[0]; o.textContent = x[0] + ' · ' + x[1]; sel.appendChild(o);
+    });
+    inp = document.createElement('input'); inp.type = 'text';
+    inp.value = p[k] == null ? '' : p[k];
+    inp.placeholder = 'or type it';
+    inp.setAttribute('autocapitalize', 'words');
+    sel.value = SPECIES.some(x => x[0] === inp.value) ? inp.value : '';
+    sel.onchange = () => {
+      if (!sel.value) return;
+      inp.value = sel.value;
+      const hit = SPECIES.find(x => x[0] === sel.value);
+      const cn = panelEl && panelEl.querySelector('[data-k="name_en"]');
+      if (hit && cn && !cn.value.trim()) cn.value = hit[1];
+    };
+    inp.onchange = () => {
+      sel.value = SPECIES.some(x => x[0] === inp.value.trim()) ? inp.value.trim() : '';
+    };
+    box.appendChild(sel); box.appendChild(inp);
+    inp.dataset.k = k; inp.dataset.t = 'text';
+    r.appendChild(box);
+    return r;
+  } else {
+    inp = document.createElement('input'); inp.type = typ;
+    inp.value = p[k] == null ? '' : p[k];
+    if (typ === 'number') inp.setAttribute('inputmode', 'decimal');
+  }
+  inp.dataset.k = k; inp.dataset.t = typ;
+  r.appendChild(inp);
+  return r;
+}
+
+/* ------------------ position editor (stem base) ------------------
+   The shipped coordinates are crown centres digitised from aerial imagery, so
+   every stem needs correcting once. Three ways in, all writing straight to the
+   catalogue: type the coordinate, average a series of GPS fixes while standing
+   at the stem, or nudge the point in metres. */
+/* ---- whose tree is it -------------------------------------------------
+   A tree this phone recorded is the surveyor's to move, to correct and to
+   delete. A tree out of a city's register is not: its position is the city's
+   measurement and its existence is the city's record, and an inspector who
+   drags one across a path or deletes it has quietly falsified somebody else's
+   register. The same line the licence gate uses, for the same reason. */
+let wipePaint = null;
+function ownTree(i) {
+  const p = props(i);
+  if (p.osm_own === true) return true;
+  if (p.osm_id) return false;                       // came down from OpenStreetMap
+  /* a tree that has been moved carries where it came from originally, and that
+     is what decides - not the fact that somebody moved it once */
+  const src = String(p.orig_source || p.geometry_source || '');
+  return /^AR survey|^GPS in the field|^entered by hand|^picked on the map/.test(src);
+}
+function ownWhy(i) {
+  const p = props(i);
+  const src = String(p.geometry_source || '').trim();
+  return p.osm_id ? 'it came from OpenStreetMap'
+       : src ? 'it came from ' + src
+       : 'it did not come from this phone';
+}
+
+/* Dragging a marker to the crosshair, typing a coordinate, nudging it north:
+   these are somebody deciding where a tree is. Standing at the stem and
+   surveying it in AR, or averaging fixes at its foot, is somebody measuring
+   where it is - which is the whole point of carrying a register into the
+   field, and stays allowed on a city's trees. */
+const MOVE_BY_HAND = /^(moved on the map|entered by hand|adjusted in the field)/;
+function setCoords(i, lon, lat, source, acc) {
+  if (MOVE_BY_HAND.test(String(source || '')) && !ownTree(i)) {
+    toast(tid(i) + ' cannot be moved by hand – ' + ownWhy(i) +
+          '. Stand at the stem and survey it instead.');
+    return false;
+  }
+  const f = CAT.features[i];
+  if (!f.properties.orig_coordinates) {
+    f.properties.orig_coordinates = f.geometry.coordinates.slice();
+    // and what it was, so undoing gives the tree its own history back rather
+    // than a guess: a register tree returns to being a register tree
+    f.properties.orig_source = f.properties.geometry_source || '';
+  }
+  f.geometry.coordinates = [+(+lon).toFixed(7), +(+lat).toFixed(7)];
+  if (source) f.properties.geometry_source = source;
+  if (acc != null) {
+    f.properties.position_accuracy_m = Math.round(acc * 10) / 10;
+    // a stale accuracy in the field record would shadow the new one
+    if (edits[tid(i)] && 'position_accuracy_m' in edits[tid(i)]) {
+      delete edits[tid(i)].position_accuracy_m; saveEdits();
+    }
+  }
+  saveCat(); placeMarkers(); renderList(); syncGeo(i);
+  return true;
+}
+function syncGeo(i) {
+  if (!panelEl || openIdx !== i) return;
+  const f = CAT.features[i], c = f.geometry.coordinates;
+  const lonI = panelEl.querySelector('[data-geo="lon"]'), latI = panelEl.querySelector('[data-geo="lat"]');
+  if (lonI && document.activeElement !== lonI) lonI.value = c[0];
+  if (latI && document.activeElement !== latI) latI.value = c[1];
+  const info = panelEl.querySelector('#geoInfo');
+  if (!info) return;
+  const o = f.properties.orig_coordinates;
+  const moved = o ? distBear(c[1], c[0], o[1], o[0]).d : 0;
+  info.innerHTML =
+    '<div class="kv"><span>Source</span><span>' + (f.properties.geometry_source || '–') + '</span></div>' +
+    '<div class="kv"><span>Accuracy</span><span>±' + (f.properties.position_accuracy_m == null ? '?' : f.properties.position_accuracy_m) + ' m</span></div>' +
+    (o ? '<div class="kv"><span>Moved from catalogue</span><span>' + moved.toFixed(2) + ' m</span></div>' : '');
+}
+/* Putting a position back. One place, so the map, the tree's own page and the
+   list of moved trees all undo the same way and all the way: orig_coordinates
+   is written once, on the first change, so this returns the tree to where it
+   came in - not to the previous of five nudges. */
+function revertCoords(i) {
+  const f = CAT.features[i], o = f.properties.orig_coordinates;
+  if (!o) return false;
+  f.geometry.coordinates = o.slice();
+  f.properties.geometry_source = f.properties.orig_source || 'as recorded';
+  delete f.properties.orig_coordinates;
+  delete f.properties.orig_source;
+  saveCat(); placeMarkers(); renderList(); syncGeo(i);
+  return true;
+}
+function movedTrees() {
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const o = f.properties.orig_coordinates;
+    if (!o) return;
+    out.push({ i: i, d: distBear(f.geometry.coordinates[1], f.geometry.coordinates[0], o[1], o[0]).d });
+  });
+  return out;
+}
+
+/* A new tree is only ever as good as the position it is given, so record where
+   it came from and let the caller pick the source. */
+/* Trees are numbered 00001, 00002, ... The number is the identity the whole
+   app hangs on - the edits, the photographs, the merge - so it has to be
+   unique, which a running number is only within one phone. An optional prefix
+   keeps two surveyors from both producing 00001; the bin is counted too, so
+   restoring a deleted tree cannot land on a number given out since. */
+/* The prefix is a stamp of place, not of the phone: DE-B-00042 was given out
+   in Berlin, EE-TLN-00007 in Tallinn. It is set from the position of the tree
+   being recorded, so a survey that crosses a town line carries the line with
+   it; a surveyor who types a prefix of their own keeps it for good. */
+const PREFIX_AUTO = /^[A-Z]{2}-([A-Z]{1,3}-)?$/;
+function autoPrefix(lat, lon) {
+  const pf = prefs();
+  const have = (pf.idPrefix || '').trim();
+  if (pf.idPrefixManual) return null;
+  if (have && !PREFIX_AUTO.test(have)) return null;
+  const want = placePrefix(lat, lon);
+  if (!want || want === have) return null;
+  setPref('idPrefix', want);
+  if (typeof paintPrefix === 'function') paintPrefix();
+  return want;
+}
+
+/* What is there to give, in the Data screen. */
+function paintRes() {
+  const box = $('resBox'); if (!box) return;
+  resCount().then(c => {
+    if (!$('resBox')) return;
+    box.innerHTML = resOn()
+      ? '<b>' + c.trees + '</b> tree' + (c.trees === 1 ? '' : 's') + ' of your own, <b>' + c.photographs +
+        '</b> photograph' + (c.photographs === 1 ? '' : 's') + ' (<b>' + c.labelled + '</b> labelled), <b>' +
+        c.scans + '</b> stem scan' + (c.scans === 1 ? '' : 's') + '.' +
+        (c.photographs > c.labelled ? ' Say what is on the unlabelled ones under Photos – it is one tap and it is the whole value.' : '')
+      : 'Off. Stem scans are not kept, and the bundle would hold ' + c.trees + ' tree' +
+        (c.trees === 1 ? '' : 's') + ' and ' + c.photographs + ' photograph' + (c.photographs === 1 ? '' : 's') + '.';
+  });
+}
+async function resGo(withPhotos) {
+  const c = resCount ? await resCount() : null;
+  if (c && !c.trees) return toast('Nothing of your own to give – a register you imported is not yours.');
+  try {
+    const b = await resExport(withPhotos, $('resRatings').checked);
+    toast('Bundle saved: ' + b.contains.trees + ' trees, ' + b.contains.photographs +
+          ' photographs, ' + b.contains.stem_scans + ' stem scans.');
+    auditAdd({ what: 'research export', detail: b.contains.trees + ' trees, ' + b.contains.photographs +
+               ' photos, ' + b.contains.stem_scans + ' scans' });
+  } catch (e) { toast('The bundle could not be built: ' + (e.message || e)); }
+}
+
+/* The state of the OSM connection, and what an upload did, in the Data screen. */
+function paintOsm(res) {
+  const box = $('osmBox'); if (!box) return;
+  const c = osmCfg(), n = osmCandidates().length;
+  const bits = [];
+  bits.push(osmSignedIn() ? 'Signed in as <b>' + esc(c.user || 'an OSM account') + '</b>.'
+                          : (c.clientId ? 'Not signed in.' : 'Not set up: paste a client ID below.'));
+  bits.push(n ? '<b>' + n + '</b> tree' + (n === 1 ? ' is' : 's are') + ' yours to upload' +
+                (n > OSM_MAX ? ' – ' + OSM_MAX + ' go per run' : '') + '.'
+              : 'No tree here is yours to upload yet – tick <i>I recorded this tree myself</i> on a tree, or record one in AR.');
+  if (c.host === 'dev') bits.push('Pointing at the sandbox, not the real map.');
+  box.innerHTML = bits.join(' ');
+  const up = $('osmUp'); if (up) up.textContent = 'Upload my own trees' + (n ? ' (' + Math.min(n, OSM_MAX) + ')' : '');
+  const out = $('osmOut2'); if (!out) return;
+  if (!res) { out.textContent = ''; return; }
+  out.innerHTML = (res.uploaded.length ? '<b>' + res.uploaded.length + ' uploaded</b> in changeset ' +
+      '<a href="' + osmHost().web + '/changeset/' + esc(res.changeset) + '" target="_blank" rel="noopener">' +
+      esc(res.changeset) + '</a>.' : 'Nothing was uploaded.') +
+    (res.skipped.length ? '<br>' + res.skipped.map(s => esc(tid(s.i)) + ': ' + esc(s.why)).join('<br>') : '');
+}
+
+/* ---- the language, one tap from anywhere, one setting for everything ----
+   There is one language in this app and this is it. The labels, the
+   drop-downs, the method text, what the phone says and what its recogniser
+   listens for all read prefs().lang. It used to be three separate settings
+   and the third was buried in the settings screen, which is a good way of
+   having a Dutch inspector shout German at an Estonian microphone.
+
+   It sits in the top bar beside the GPS, on the microphone bar in the field,
+   on the sign-in screen, and in the settings - four ways to the same switch,
+   not four switches.
+
+   The register is not touched by it. An Estonian register stays Estonian;
+   only what is written round it moves. */
+const LANG_LIST = [
+  ['auto', 'Follows the phone'], ['en', 'English'], ['de', 'Deutsch'],
+  ['nl', 'Nederlands'], ['et', 'Eesti'], ['fi', 'Suomi']
+];
+/* One name for a language, with the truth about it attached: German and
+   English are read by somebody who speaks them, the other three are not. */
+function langLabel(code) {
+  const nm = LANG_NAMES[code] || code;
+  return nm + (LANG_CHECKED.indexOf(code) < 0 ? ' ·' : '');
+}
+function paintLang() {
+  const b = $('langBtn'); if (!b) return;
+  const set = prefs().lang;
+  b.textContent = uiLang().toUpperCase() + (set ? '' : ' ·');
+  b.title = set ? 'The app in ' + (LANG_NAMES[set] || set) : 'Follows the phone';
+}
+/* Everything that shows words, after the language moved. One function,
+   called from every place that can change it. */
+function langChanged() {
+  if (typeof uiApply === 'function') uiApply();
+  paintLang();
+  const sel = $('prefLang'); if (sel) sel.value = prefs().lang || 'auto';
+  if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+  if (typeof renderList === 'function') renderList();
+  if (typeof renderStats === 'function') renderStats();
+  if (typeof renderGuide === 'function' && $('guideBox')) renderGuide();
+  if (typeof gatePaint === 'function') gatePaint();
+}
+function setLang(code) {
+  const pr = prefs();
+  if (!code || code === 'auto') delete pr.lang; else pr.lang = code;
+  lsSet(K_PREF, JSON.stringify(pr));
+  langChanged();
+}
+function openLang() {
+  const el = $('langdlg');
+  const open = el.style.display !== 'block';
+  el.innerHTML = '';
+  if (!open) { el.style.display = 'none'; return; }
+  const h = document.createElement('div'); h.className = 'small';
+  h.textContent = 'One language for the whole app – labels, method, and what the phone says and hears. ' +
+                  'What is stored does not change.';
+  el.appendChild(h);
+  const cur = prefs().lang || 'auto';
+  LANG_LIST.forEach(l => {
+    const b = document.createElement('button');
+    b.className = (l[0] === cur ? 'p' : '');
+    b.textContent = (l[0] === 'auto' ? l[1] + ' · ' + uiLangAuto().toUpperCase() : langLabel(l[0]));
+    b.onclick = () => {
+      el.style.display = 'none';
+      setLang(l[0]);
+      toast('The app in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
+    };
+    el.appendChild(b);
+  });
+  const n = document.createElement('div'); n.className = 'small'; n.style.marginTop = '8px';
+  n.textContent = '· Nederlands, Eesti and Suomi are translated but have not been read by anyone ' +
+                  'who speaks them, and the method text in them is still English. Say the word and ' +
+                  'they get written properly.';
+  el.appendChild(n);
+  const x = document.createElement('button'); x.textContent = 'Close';
+  x.onclick = () => { el.style.display = 'none'; };
+  el.appendChild(x);
+  el.style.display = 'block';
+}
+
+function paintVoiceCheck(busy) {
+  const el = $('voiceCheck'); if (!el) return;
+  const hear = (typeof speechOk === 'function') && speechOk();
+  const talk = (typeof ttsOk === 'function') && ttsOk();
+  el.innerHTML = (busy ? '<b>' + esc(busy) + '</b> · ' : '') +
+    'Listening: <b class="' + (hear ? 'ok' : 'no') + '">' + (hear ? 'yes' : 'no') + '</b> · ' +
+    'Speaking: <b class="' + (talk ? 'ok' : 'no') + '">' + (talk ? 'yes' : 'no') + '</b> · ' +
+    'Language: <b>' + esc(typeof voiceLang === 'function' ? voiceLang() : '?') + '</b>' +
+    (talk ? '' : '<br>This browser cannot speak. Chrome or Samsung Internet on Android can.') +
+    (hear ? '' : '<br>This browser cannot listen. Chrome on Android can.');
+}
+
+/* What the letters mean, said once, where the field is. */
+function paintPrefix() {
+  const el = $('prefixHint'); if (!el) return;
+  const pf = prefs(), pre = (pf.idPrefix || '').trim();
+  const here = lastFix ? placeOf(lastFix.lat, lastFix.lon) : null;
+  const parts = [];
+  parts.push('Next tree: <b>' + esc(nextTreeId()) + '</b>.');
+  if (pre) {
+    const m = pre.match(/^([A-Z]{2})-([A-Z]{1,3})-$/);
+    const t = m && PLACE_BOX.find(b => b[0] === m[2]);
+    if (m && t) parts.push(esc(m[1]) + ' is the country, ' + esc(m[2]) + ' the town (' + esc(t[1]) + ').');
+    else if (/^([A-Z]{2})-$/.test(pre)) parts.push(esc(pre.slice(0, 2)) + ' is the country; the town is not in the list.');
+    else parts.push('Your own prefix.');
+  } else parts.push('No prefix – plain numbers.');
+  if (pf.idPrefixManual) parts.push('Set by hand, so the app leaves it alone.');
+  else if (here) parts.push('Follows where you stand (now ' + esc(here.label) + ').');
+  else parts.push('Set from the position of the first tree you record.');
+  parts.push('It rides along in exports, so a number still says where it came from when two surveys meet in one file.');
+  el.innerHTML = parts.join(' ');
+}
+
+function nextTreeId() {
+  const pre = (prefs().idPrefix || '').trim();
+  let max = 0;
+  const consider = id => {
+    const m = String(id || '').match(/^(.*?)(\d+)$/);
+    if (!m || m[1] !== pre) return;
+    const n = parseInt(m[2], 10);
+    if (isFinite(n) && n > max) max = n;
+  };
+  CAT.features.forEach(f => consider((f.properties || {}).tree_id));
+  trashList().forEach(t => consider(((t.feature || {}).properties || {}).tree_id));
+  return pre + String(max + 1).padStart(5, '0');
+}
+
+/* quiet: pressing + Tree means record a tree. Whether something is already
+   recorded nearby is worth saying afterwards, never worth a dialog in the way
+   of a man standing in the rain with a phone in one hand. */
+function addTree(lon, lat, source, acc, local, quiet) {
+  if (!quiet) {
+    const near = nearbyTree(lon, lat, 2.5, local);
+    if (near && !confirm(tid(near.i) + ' is already recorded ' + near.d.toFixed(1) +
+        ' m from here. Add another tree anyway?')) return near.i;
+  }
+  autoPrefix(lat, lon);
+  const id = nextTreeId();
+  const today = new Date().toISOString().slice(0, 10);
+  CAT.features.push({
+    type: 'Feature', geometry: { type: 'Point', coordinates: [+(+lon).toFixed(7), +(+lat).toFixed(7)] },
+    properties: {
+      tree_id: id, species: '', name_en: '', inspector: '', geometry_source: source,
+      position_accuracy_m: acc == null ? null : Math.round(acc * 10) / 10, vitality_roloff: 0,
+      crown_dieback_pct: 0, damage_class: 'none', cavity: 'no',
+      stability: 'adequate', breakage_resistance: 'adequate', traffic_safety: 'adequate',
+      urgency: 'none', inspection_type: 'Routine inspection', last_inspection: today,
+      interval_months: 12, symptoms: [], actions: [], remarks: '', history: [],
+      // a surveyed tree carries its local coordinates from the first moment:
+      // without them its marker is drawn from GPS for one redraw and then
+      // moves when the survey value arrives
+      lx: local ? +local.lx.toFixed(3) : undefined,
+      ly: local ? +local.ly.toFixed(3) : undefined
+    }
+  });
+  saveCat(); buildMarkers(); renderList();
+  return CAT.features.length - 1;
+}
+
+/* Removing a tree shifts every index above it, and half the app holds indices:
+   the panel, the selection, a running measurement, the AR overlay lists. Drop
+   all of them rather than trying to renumber. */
+function deleteTree(i) {
+  const id = tid(i);
+  if (!ownTree(i)) { toast(id + ' is not yours to delete – ' + ownWhy(i) + '.'); return null; }
+  trashPush(JSON.parse(JSON.stringify(CAT.features[i])), edits[id] || null);
+  CAT.features.splice(i, 1);
+  if (edits[id]) { delete edits[id]; saveEdits(); }
+  saveCat();
+  closePanel();
+  if (measure) clearMeasure();
+  selectTree(null);
+  buildMarkers(); renderList(); renderStats();
+  return id;
+}
+function emptyRegister() {
+  CAT.features = [];
+  edits = {}; saveEdits(); saveCat();
+  closePanel();
+  if (measure) clearMeasure();
+  selectTree(null);
+  buildMarkers(); renderList(); renderStats();
+}
+
+function gpsAverage(i, btn) {
+  if (!navigator.geolocation) return toast('No geolocation on this device.');
+  const samples = [];
+  const label = btn.textContent;
+  btn.disabled = true;
+  const id = navigator.geolocation.watchPosition(p => {
+    samples.push({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy });
+    btn.textContent = 'averaging … ' + samples.length + ' fixes';
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 25000 });
+  setTimeout(() => {
+    navigator.geolocation.clearWatch(id);
+    btn.disabled = false; btn.textContent = label;
+    if (!samples.length) return toast('No GPS fix while averaging.');
+    let sw = 0, la = 0, lo = 0, am = 0;
+    samples.forEach(s => {                       // weighted by 1/acc^2
+      const w = 1 / Math.max(1, s.acc * s.acc);
+      sw += w; la += s.lat * w; lo += s.lon * w; am += s.acc;
+    });
+    // GNSS errors are correlated between fixes, so the reported accuracy is the
+    // mean of the fixes - averaging does not divide it by sqrt(n).
+    setCoords(i, lo / sw, la / sw, 'GPS averaged, ' + samples.length + ' fixes', am / samples.length);
+    toast('Position set from ' + samples.length + ' fixes (±' + (am / samples.length).toFixed(0) + ' m).');
+  }, 10000);
+}
+/* OpenStreetMap, on the tree itself: whether it may go, and whether it went.
+   The claim of ownership is a deliberate tick, not a guess by the app - it is
+   the surveyor saying this position is their own work and theirs to give. */
+function osmBlock(i) {
+  const wrap = document.createElement('div');
+  const p = props(i);
+  const h = document.createElement('h3'); h.textContent = 'OpenStreetMap'; wrap.appendChild(h);
+  if (p.osm_id) {
+    const d = document.createElement('div'); d.className = 'small';
+    d.innerHTML = 'Uploaded as node <a href="https://www.openstreetmap.org/node/' + esc(p.osm_id) +
+                  '" target="_blank" rel="noopener">' + esc(p.osm_id) + '</a>' +
+                  (p.osm_at ? ' on ' + esc(p.osm_at.slice(0, 10)) : '') + '.';
+    wrap.appendChild(d); return wrap;
+  }
+  const u = osmUploadable(i);
+  const box = document.createElement('div'); box.className = 'sym';
+  const l = document.createElement('label');
+  const cb = document.createElement('input'); cb.type = 'checkbox';
+  cb.checked = p.osm_own === true; cb.dataset.own = '1';
+  cb.onchange = () => { setEdit(i, { osm_own: cb.checked }); openPanel(i, panelTab); };
+  l.appendChild(cb);
+  const sp = document.createElement('span');
+  sp.textContent = 'I recorded this tree myself – it may go to OpenStreetMap';
+  l.appendChild(sp); box.appendChild(l); wrap.appendChild(box);
+  const d = document.createElement('div'); d.className = 'small';
+  d.textContent = u.ok ? 'Will go up with the next upload (' + u.why + ').'
+                       : 'Stays here: ' + u.why + '.';
+  wrap.appendChild(d);
+  return wrap;
+}
+
+function geoEditor(i) {
+  const wrap = document.createElement('div');
+  const f = CAT.features[i], c = f.geometry.coordinates;
+  const h = document.createElement('h3'); h.textContent = 'Position (stem base)';
+  wrap.appendChild(h);
+
+  [['lon', 'Longitude (WGS84)', c[0]], ['lat', 'Latitude (WGS84)', c[1]]].forEach(g => {
+    const r = document.createElement('div'); r.className = 'row';
+    const l = document.createElement('label'); l.textContent = g[1];
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.step = '0.0000001'; inp.value = g[2];
+    inp.setAttribute('inputmode', 'decimal'); inp.dataset.geo = g[0];
+    inp.readOnly = !ownTree(i);
+    inp.onchange = () => {
+      const lon = parseFloat(wrap.querySelector('[data-geo="lon"]').value);
+      const lat = parseFloat(wrap.querySelector('[data-geo="lat"]').value);
+      if (!isFinite(lon) || !isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        toast('Coordinate out of range.'); syncGeo(i); return;
+      }
+      if (setCoords(i, lon, lat, 'entered by hand')) toast('Coordinate applied.');
+      else syncGeo(i);
+    };
+    r.appendChild(l); r.appendChild(inp); wrap.appendChild(r);
+  });
+
+  const info = document.createElement('div'); info.id = 'geoInfo'; info.style.margin = '8px 0';
+  wrap.appendChild(info);
+  if (!ownTree(i)) {
+    const w = document.createElement('p'); w.className = 'small';
+    w.innerHTML = '<b class="wa">This position is not yours to change by hand</b> – ' + esc(ownWhy(i)) +
+      '. Stand at the stem and survey it in AR, or average GPS at its foot: that is a measurement ' +
+      'and it is kept, with the register position underneath it.';
+    wrap.appendChild(w);
+  }
+
+  const row1 = document.createElement('div'); row1.className = 'btnrow';
+  const bnow = document.createElement('button'); bnow.className = 'sm'; bnow.textContent = 'GPS now';
+  bnow.onclick = () => {
+    if (!lastFix) return toast('No GPS fix.');
+    setCoords(i, lastFix.lon, lastFix.lat, 'single GPS fix', lastFix.acc);
+    toast('Position set (±' + lastFix.acc.toFixed(0) + ' m).');
+  };
+  const bavg = document.createElement('button'); bavg.className = 'sm p'; bavg.textContent = 'GPS average (10 s)';
+  bavg.onclick = () => gpsAverage(i, bavg);
+  row1.appendChild(bnow); row1.appendChild(bavg);
+  wrap.appendChild(row1);
+
+  let step = 0.5;
+  const pad = document.createElement('div'); pad.className = 'pad';
+  const mk = (txt, de, dn) => {
+    const b = document.createElement('button'); b.className = 'sm'; b.textContent = txt;
+    if (de === 0 && dn === 0) { b.className = 'sm mid'; }
+    b.onclick = () => {
+      const cc = CAT.features[i].geometry.coordinates;
+      const dLat = (dn * step) / mLat(cc[1]);
+      const dLon = (de * step) / mLon(cc[1]);
+      setCoords(i, cc[0] + dLon, cc[1] + dLat, 'adjusted in the field');
+    };
+    return b;
+  };
+  const spacer = () => { const d = document.createElement('span'); return d; };
+  const stepSel = document.createElement('select');
+  [0.1, 0.25, 0.5, 1, 2, 5].forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s + ' m'; stepSel.appendChild(o);
+  });
+  stepSel.value = '0.5';
+  stepSel.style.cssText = 'width:100%;background:#131b17;border:1px solid #2f4137;color:#e8ece9;border-radius:8px;padding:7px 4px;text-align:center';
+  stepSel.onchange = () => { step = parseFloat(stepSel.value); };
+  pad.appendChild(spacer()); pad.appendChild(mk('N ↑', 0, 1)); pad.appendChild(spacer());
+  pad.appendChild(mk('← W', -1, 0)); pad.appendChild(stepSel); pad.appendChild(mk('E →', 1, 0));
+  pad.appendChild(spacer()); pad.appendChild(mk('S ↓', 0, -1)); pad.appendChild(spacer());
+  wrap.appendChild(pad);
+
+  const row2 = document.createElement('div'); row2.className = 'btnrow';
+  const bres = document.createElement('button'); bres.className = 'sm'; bres.textContent = 'Undo position change';
+  bres.onclick = () => {
+    if (!revertCoords(i)) return toast('Position was never changed.');
+    drawMap(); renderMoved();
+    toast('Position as it came in.');
+  };
+  row2.appendChild(bres);
+  wrap.appendChild(row2);
+
+  setTimeout(() => syncGeo(i), 0);
+  return wrap;
+}
+
+function followForm() { return prefs().follow !== false; }
+function rowToTop(box, row) {
+  const d = row.getBoundingClientRect().top - box.getBoundingClientRect().top;
+  const to = Math.max(0, Math.min(box.scrollHeight - box.clientHeight, box.scrollTop + d));
+  if (Math.abs(to - box.scrollTop) < 4) return;
+  try { box.scrollTo({ top: to, behavior: 'smooth' }); } catch (e) { box.scrollTop = to; }
+}
+
+function openPanel(i, tab) {
+  openIdx = i; panelTab = tab || prefs().tab || 'quick';
+  const p = props(i);
+  const el = panelTarget(); panelEl = el;
+  el.innerHTML = '';
+
+  const ph = document.createElement('div'); ph.className = 'ph';
+  ph.innerHTML = '<div><h2></h2><div class="sub"></div></div>';
+  ph.querySelector('h2').textContent = (p.tree_id || '?') + ' · ' + (p.name_en || '');
+  ph.querySelector('.sub').textContent = (p.species || '') +
+    ' · position ±' + (p.position_accuracy_m == null ? '?' : p.position_accuracy_m) + ' m';
+  if (mode === 'WebXR') {
+    const bw = document.createElement('button'); bw.textContent = 'Not this one?';
+    bw.title = 'List the trees the camera could be pointing at';
+    bw.onclick = () => { closePanel(); openPicker(); };
+    ph.appendChild(bw);
+  }
+  const bAR = document.createElement('button'); bAR.className = 'p'; bAR.textContent = 'AR';
+  bAR.title = 'Show this tree through the camera';
+  bAR.onclick = () => { savePanel(true); toAR(i); };
+  ph.appendChild(bAR);
+  const bMic = document.createElement('button'); bMic.textContent = '🎤';
+  bMic.title = 'Voice: say a field and its value';
+  bMic.onclick = () => voiceToggle(i);
+  ph.appendChild(bMic);
+  const bc = document.createElement('button'); bc.textContent = 'Close';
+  bc.onclick = closePanel; ph.appendChild(bc);
+  el.appendChild(ph);
+  const ro = !userCan('edit');
+  if (ro) {
+    const bn = document.createElement('div'); bn.className = 'rolebanner';
+    bn.textContent = curUser() ? 'Signed in as a viewer – this record is read-only.'
+                               : 'Not signed in – reading only. Tap the name at the top to sign in.';
+    el.appendChild(bn);
+    el.classList.add('readonly');
+  } else el.classList.remove('readonly');
+  if (p.edited_at) {
+    const st = document.createElement('div'); st.className = 'small';
+    st.style.margin = '2px 0 6px';
+    st.textContent = 'Last change ' + p.edited_at.slice(0, 16).replace('T', ' ') +
+                     (p.edited_by ? ' by ' + p.edited_by : '');
+    el.appendChild(st);
+  }
+
+  el.appendChild(neighbourRow(i));
+
+  const tabs = document.createElement('div'); tabs.className = 'ptabs';
+  const body = document.createElement('div'); body.className = 'pb';
+  const secs = {};
+  [['quick', 'Quick'], ['vta', 'VTA'], ['base', 'Base data'], ['map', 'Map'],
+   ['hist', 'History'], ['photo', 'Photos']].forEach(pair => {
+    const k = pair[0], lab = pair[1];
+    const b = document.createElement('button'); b.textContent = lab; b.dataset.tab = k;
+    if (k === panelTab) b.className = 'on';
+    b.onclick = () => {
+      panelTab = k; setPref('tab', k);
+      tabs.querySelectorAll('button').forEach(x => x.className = (x.dataset.tab === k ? 'on' : ''));
+      Object.keys(secs).forEach(x => secs[x].style.display = (x === k ? 'block' : 'none'));
+      body.scrollTop = 0;
+      if (k === 'map') drawTreeMap(i);      // it has a size only once it is shown
+    };
+    tabs.appendChild(b);
+    const s = document.createElement('div'); s.style.display = (k === panelTab ? 'block' : 'none');
+    secs[k] = s; body.appendChild(s);
+  });
+  el.appendChild(tabs); el.appendChild(body);
+
+  /* --- follow the form -----------------------------------------------------
+     An answered line is of no further use on screen. When one is filled in it
+     is scrolled to the top edge, so what is done sits above the fold and the
+     next open questions are where the eyes already are. change fires when a
+     field is left, which is usually the moment the next one is tapped: the
+     answered line goes up, the tapped one is right below it. */
+  body.addEventListener('change', ev => {
+    const t0 = ev.target;
+    /* A line answered with the finger is a line answered: the voice walk
+       moves on with it instead of waiting to be pressed forward. */
+    if (t0 && t0.dataset && t0.dataset.k != null && typeof vFollowEdit === 'function')
+      vFollowEdit(t0.dataset.k);
+    if (!followForm()) return;
+    const t = ev.target;
+    if (!t || !t.dataset || t.dataset.k == null) return;
+    if (t.type === 'checkbox' || t.type === 'radio') return;
+    if (!String(t.value == null ? '' : t.value).trim()) return;   // clearing is not answering
+    const row = t.closest('.row'); if (!row) return;
+    rowToTop(body, row);
+  });
+
+  /* --- quick: the handful of fields most trees actually need --- */
+  const qk = secs.quick;
+  const qv = document.createElement('div'); qv.id = 'verdictQuick'; qk.appendChild(qv);
+  curNorm().quick.map(fieldDef)
+    .forEach(f => qk.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  qk.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', updateVerdict));
+
+  /* --- VTA --- */
+  const v = secs.vta;
+  const vd = document.createElement('div'); vd.id = 'verdictBox'; v.appendChild(vd);
+  const nrm = curNorm();
+  const nh = document.createElement('p'); nh.className = 'small';
+  nh.textContent = nrm.flag + ' ' + nrm.label + ' · ' + nrm.source;
+  v.appendChild(nh);
+  nrm.groups.forEach(g => {
+    const hg = document.createElement('h3'); hg.textContent = g[0]; v.appendChild(hg);
+    g[1].map(fieldDef).forEach(f => v.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  });
+  const h2 = document.createElement('h3'); h2.textContent = 'Symptoms (VTA)'; v.appendChild(h2);
+  const sel = p.symptoms || [];
+  SYMPTOMS.forEach(pair => {
+    const grp = pair[0], list = pair[1];
+    const gh = document.createElement('div');
+    gh.className = 'small'; gh.style.margin = '10px 0 2px'; gh.textContent = grp;
+    v.appendChild(gh);
+    const box = document.createElement('div'); box.className = 'sym';
+    list.forEach(s => {
+      const l = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.dataset.sym = s[0]; cb.checked = sel.indexOf(s[0]) >= 0;
+      cb.onchange = () => updateVerdict();
+      l.appendChild(cb);
+      const sp2 = document.createElement('span'); sp2.textContent = s[1]; l.appendChild(sp2);
+      box.appendChild(l);
+    });
+    v.appendChild(box);
+  });
+  const h2f = document.createElement('h3'); h2f.textContent = 'Wood-decay fungi'; v.appendChild(h2f);
+  const funBox = document.createElement('div'); funBox.id = 'funBox'; v.appendChild(funBox);
+  const funSel = document.createElement('select');
+  const fh = document.createElement('option'); fh.value = ''; fh.textContent = 'Add a fruiting body…';
+  funSel.appendChild(fh);
+  ['root', 'stem', 'crown'].forEach(w => {
+    const gr = document.createElement('optgroup'); gr.label = FUNGI_WHERE[w];
+    FUNGI.filter(f => f[3] === w).forEach(f => {
+      const o = document.createElement('option'); o.value = f[0];
+      o.textContent = f[1] + ' · ' + f[2]; gr.appendChild(o);
+    });
+    funSel.appendChild(gr);
+  });
+  funSel.onchange = () => {
+    if (!funSel.value) return;
+    if (!funList.includes(funSel.value)) funList.push(funSel.value);
+    funSel.value = ''; renderFungi(); updateVerdict();
+  };
+  v.appendChild(funSel);
+  let funList = (p.fungi || []).slice();
+  function renderFungi() {
+    funBox.innerHTML = '';
+    if (!funList.length) {
+      funBox.innerHTML = '<p class="small">None recorded. The species decides whether the tree ' +
+        'uproots or snaps – it is worth naming.</p>';
+      return;
+    }
+    funList.forEach(k => {
+      const f = FUNGI_BY[k]; if (!f) return;
+      const d = document.createElement('div'); d.className = 'funrow';
+      d.innerHTML = '<div><b>' + f[1] + '</b> <span class="small">' + f[2] + '</span>' +
+        '<div class="small">' + FUNGI_WHERE[f[3]] + ' · ' + f[4] + ' · level ' + f[5] + '</div>' +
+        '<div class="small dim">' + f[6] + '</div></div>';
+      const hid = document.createElement('input');
+      hid.type = 'hidden'; hid.dataset.fun = k; d.appendChild(hid);
+      const ref = document.createElement('a');
+      ref.className = 'sm reflink'; ref.textContent = '↗';
+      ref.title = 'Look the species up';
+      ref.href = 'https://www.inaturalist.org/search?q=' + encodeURIComponent(f[1]);
+      ref.target = '_blank'; ref.rel = 'noopener';
+      d.appendChild(ref);
+      const x = document.createElement('button'); x.className = 'sm x'; x.textContent = '×';
+      x.onclick = () => { funList = funList.filter(y => y !== k); renderFungi(); updateVerdict(); };
+      d.appendChild(x);
+      funBox.appendChild(d);
+    });
+  }
+  renderFungi();
+
+  v.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', updateVerdict));
+
+  /* --- base data --- */
+  F_BASE.map(f => fieldDef(f[0])).forEach(f => secs.base.appendChild(fieldRow(f[0], f[1], f[2], f[3], p)));
+  secs.base.appendChild(measureBlock(i));
+  secs.base.appendChild(geoEditor(i));
+  secs.base.appendChild(osmBlock(i));
+  secs.vta.appendChild(markBlock(i));
+
+  /* --- where it stands --- */
+  const mp = secs.map;
+  mp.innerHTML = '<div id="tmWrap"><div id="tmTiles"></div><div id="tmMarks"></div></div>' +
+    '<div class="small" id="tmInfo"></div>';
+  const mrow = document.createElement('div'); mrow.className = 'btnrow';
+  const bBig = document.createElement('button'); bBig.className = 'sm';
+  bBig.textContent = 'Open the big map here';
+  bBig.onclick = () => {
+    const c = CAT.features[i].geometry.coordinates;
+    closePanel(); showScreen('map'); mapSel = i;
+    const v = mapCentre(); v.lat = c[1]; v.lon = c[0]; v.z = 19; mapMode = 'free'; mapViewFrom = 'map';
+    drawMap(); syncMapSel();
+  };
+  mrow.appendChild(bBig);
+  mp.appendChild(mrow);
+  if (panelTab === 'map') setTimeout(() => drawTreeMap(i), 0);
+
+  /* --- history --- */
+  const hs = secs.hist;
+  const tb = document.createElement('table'); tb.className = 'hist';
+  const hv = (r, k) => (r[k] == null || r[k] === '' ? '–' : r[k]);
+  tb.innerHTML = '<tr><th>Inspected</th><th>Lvl</th><th>Vit.</th><th>Dieback</th><th>t/R</th><th>DBH</th></tr>' +
+    (p.history || []).map(r => '<tr><td>' + (r.inspection || r.year) + '</td>' +
+      '<td>' + (r.level == null ? '–' : '<b style="color:' + LVLCOL[r.level] + '">' + r.level + '</b>') + '</td>' +
+      '<td>' + hv(r, 'vitality_roloff') + '</td>' +
+      '<td>' + (r.crown_dieback_pct == null ? '–' : r.crown_dieback_pct + ' %') + '</td>' +
+      '<td>' + hv(r, 't_R') + '</td><td>' + hv(r, 'dbh_cm') + '</td></tr>').join('');
+  const trend = historyTrend(p.history || []);
+  if (trend) { const tp = document.createElement('p'); tp.className = 'small'; tp.innerHTML = trend; hs.appendChild(tp); }
+  hs.appendChild(tb);
+  const badd = document.createElement('button');
+  badd.className = 'sm'; badd.style.marginTop = '10px';
+  badd.textContent = 'Add current inspection to history';
+  badd.onclick = () => {
+    savePanel(true);
+    setEdit(i, { history: pushHistory(props(i)) });
+    toast('Inspection added to the history.');
+    openPanel(i);
+  };
+  hs.appendChild(badd);
+
+  /* --- photos --- */
+  const fs = secs.photo;
+  if (!photosOk) {
+    fs.innerHTML = '<p class="small">Photo storage (IndexedDB) is not available on this device.</p>';
+  } else {
+    const inb = document.createElement('button');
+    inb.className = 'p'; inb.textContent = '📷 Take or choose a photo';
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.accept = 'image/*'; fi.setAttribute('capture', 'environment'); fi.style.display = 'none';
+    fi.onchange = async () => {
+      const f = fi.files && fi.files[0]; if (!f) return;
+      const url = await shrink(f, 1440, 0.72);
+      if (!url) return toast('Could not read the image.');
+      const meta = lastFix ? { lat: +lastFix.lat.toFixed(7), lon: +lastFix.lon.toFixed(7) } : {};
+      try {
+        const rec = await photoGet(await photoAdd(p.tree_id, url, meta));
+        if (!rec) throw new Error('the record was not there afterwards');
+        shotOk(i, rec); renderPhotos(p.tree_id, gal);
+      } catch (e) { shotFail(i, (e && e.message) || e); }
+      fi.value = '';
+    };
+    inb.onclick = () => fi.click();
+    inb.disabled = !!mode;          // the file dialog is blocked inside a session
+    fs.appendChild(inb); fs.appendChild(fi);
+    var gal = document.createElement('div'); gal.className = 'photos';
+    if (recSupported()) {
+      const vb = document.createElement('button'); vb.className = 'sm voice';
+      vb.textContent = '● Voice note';
+      vb.onclick = () => voiceStart(i, vb);
+      fs.appendChild(vb);
+    }
+    fs.appendChild(gal);
+    renderPhotos(p.tree_id, gal);
+  }
+
+  const pf = document.createElement('div'); pf.className = 'pf';
+  const bs = document.createElement('button'); bs.className = 'p'; bs.textContent = 'Save';
+  bs.onclick = () => { savePanel(); closePanel(); };
+  const br2 = document.createElement('button'); br2.textContent = 'Reset';
+  br2.onclick = () => {
+    delete edits[tid(i)]; saveEdits(); refreshMarker(i); renderList(); openPanel(i);
+    toast('Field record reset.');
+  };
+  const bd = document.createElement('button'); bd.className = 'x'; bd.textContent = 'Delete';
+  const mine = ownTree(i);
+  bd.disabled = !userCan('manage') || !mine;
+  bd.title = !userCan('manage') ? 'Only an admin deletes trees'
+           : !mine ? 'Only trees this phone recorded can be deleted – ' + ownWhy(i) : '';
+  bd.onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin deletes trees.');
+    if (!mine) return toast(tid(i) + ' is not yours to delete – ' + ownWhy(i) + '.');
+    if (!confirm('Delete ' + tid(i) + ' from the register? Photos of it are kept.')) return;
+    auditAdd({ what: 'deleted', tree: tid(i) });
+    const gone = deleteTree(i);
+    if (gone) toast(gone + ' deleted.');
+  };
+  const bar = document.createElement('button'); bar.textContent = 'AR';
+  bar.title = 'Show this tree in the camera';
+  bar.onclick = () => { savePanel(true); toAR(i); };
+  pf.appendChild(bs); pf.appendChild(bar); pf.appendChild(br2); pf.appendChild(bd);
+  el.appendChild(pf);
+
+  /* The Quick tab repeats fields that also live under VTA and Base data, and
+     collect() reads every [data-k] in document order - so the untouched twin
+     further down overwrote whatever had just been typed above it, and a DBH
+     entered on Quick was saved as nothing. Keep the twins in step. */
+  const twin = ev => {
+    const t = ev.target, k = t && t.dataset && t.dataset.k;
+    if (!k) return;
+    panelEl.querySelectorAll('[data-k="' + k + '"]').forEach(o => {
+      if (o !== t && o.value !== t.value) o.value = t.value;
+    });
+  };
+  panelEl.addEventListener('input', twin);
+  panelEl.addEventListener('change', twin);
+
+  el.classList.add('on');
+  updateVerdict();
+}
+function closePanel() { if (panelEl) panelEl.classList.remove('on'); openIdx = null; }
+
+function collect() {
+  const o = {};
+  panelEl.querySelectorAll('[data-k]').forEach(inp => {
+    const k = inp.dataset.k, t = inp.dataset.t;
+    o[k] = t === 'list' ? inp.value.split('\n').map(s => s.trim()).filter(Boolean)
+         : t === 'number' ? (inp.value === '' ? null : Number(inp.value))
+         : inp.value;
+  });
+  const sym = [];
+  panelEl.querySelectorAll('[data-sym]').forEach(cb => { if (cb.checked) sym.push(cb.dataset.sym); });
+  o.symptoms = sym;
+  o.symptom_labels = sym.map(k => SYM_LABEL[k]).filter(Boolean);
+  const fun = [];
+  panelEl.querySelectorAll('[data-fun]').forEach(el => fun.push(el.dataset.fun));
+  o.fungi = fun;
+  o.fungi_labels = fun.map(k => FUNGI_BY[k] && FUNGI_BY[k][1]).filter(Boolean);
+  return o;
+}
+function setEdit(i, patch) {
+  if (!userCan('edit')) { toast('Signed in as a viewer – nothing can be changed.'); return; }
+  const before = props(i);
+  const stamp = { edited_at: new Date().toISOString(), edited_by: userName() || undefined };
+  edits[tid(i)] = Object.assign({}, edits[tid(i)] || {}, patch, stamp);
+  saveEdits(); refreshMarker(i); renderList(); renderStats();
+  if (mode === 'WebXR' && arCardAt === i) paintArCard(i);
+  const diff = auditDiff(before, props(i));
+  if (Object.keys(diff).length) auditAdd({ what: 'edited', tree: tid(i), diff: diff });
+}
+function savePanel(silent) {
+  if (openIdx === null) return;
+  const patch = collect();
+  const r = roundGet();
+  if (r) {                                   // the round signs and dates the record
+    if (!patch.inspector) patch.inspector = r.inspector;
+    if (!patch.last_inspection) patch.last_inspection = r.date;
+  }
+  if (!patch.next_inspection) {              // and the level says when to come back
+    const due = proposeNext(Object.assign({}, props(openIdx), patch));
+    if (due) patch.next_inspection = due;
+  }
+  setEdit(openIdx, patch);
+  if (r) roundTouch(openIdx);
+  const warn = plausible(props(openIdx));
+  if (!silent) toast(warn.length ? 'Saved – ' + warn.length + ' value' + (warn.length > 1 ? 's look' : ' looks') +
+                                   ' odd, see the panel.' : 'Saved.');
+}
+
+/* Re-inspection interval from the assessment: a level 3 tree is not left for a
+   year because a form defaulted to twelve months. Only ever a proposal - the
+   field stays editable and an entered date is never overwritten. */
+const LVL_MONTHS = [24, 12, 6, 1];
+function proposeNext(p) {
+  const base = p.last_inspection || new Date().toISOString().slice(0, 10);
+  const d = new Date(base);
+  if (isNaN(d)) return null;
+  // an interval entered by hand narrows the proposal but never stretches it:
+  // a level 3 tree does not get twelve months because a form defaulted to it
+  const m = num(p.interval_months), byLvl = LVL_MONTHS[assess(p).lvl];
+  const months = (m != null && m > 0) ? Math.min(m, byLvl) : byLvl;
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+function updateVerdict() {
+  if (!panelEl || openIdx === null) return;
+  const boxes = [panelEl.querySelector('#verdictBox'), panelEl.querySelector('#verdictQuick')]
+                  .filter(Boolean);
+  if (!boxes.length) return;
+  const p = Object.assign({}, props(openIdx), collect());
+  const a = assess(p), col = LVLCOL[a.lvl];
+  boxes.forEach(b => { b.className = 'verdict';
+    b.style.borderColor = col; b.style.background = col + '18'; });
+  let html = '<b style="color:' + col + '">Level ' + a.lvl + ' · ' + LVLTXT[a.lvl] + '</b>';
+  const warn = plausible(p);
+  if (warn.length) html += '<div class="plaus">⚠ ' + warn.map(esc).join('<br>⚠ ') + '</div>';
+  const kv = [];
+  if (a.tr != null) kv.push('t/R ' + a.tr.toFixed(2));
+  if (a.hd != null) kv.push('h/d ' + a.hd.toFixed(0));
+  if (kv.length) html += '<div class="small">' + kv.join(' · ') + '</div>';
+  html += a.notes.length ? '<ul>' + a.notes.map(n => '<li>' + n + '</li>').join('') + '</ul>'
+                         : '<div class="small">No triggering criteria recorded.</div>';
+  boxes.forEach(b => { b.innerHTML = html; });
+}
+
+function barkPanel(res, treeIdx) {
+  const el = $('niaBox');
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Bark</b> <span class="small">· nearest neighbours among your own photographs</span>';
+  const note = document.createElement('div'); note.className = 'small';
+  note.style.margin = '2px 0 6px';
+  note.textContent = 'Species is what this answers. Which individual trunk it is, it does not.';
+  el.appendChild(note);
+  el.appendChild(h);
+  if (res.empty || !res.refs) {
+    el.innerHTML += '<p class="small">No bark photographs to compare against yet. ' +
+      'Every bark photo you take becomes a reference.</p>';
+  } else {
+    const sp = document.createElement('div');
+    sp.innerHTML = '<div class="small" style="margin:8px 0 4px">Species · from ' + res.used +
+      ' of ' + res.refs + ' reference photographs</div>';
+    if (!res.species.length) sp.innerHTML += '<p class="small">Nothing near enough to say.</p>';
+    res.species.forEach(x => {
+      const row = document.createElement('div'); row.className = 'niarow';
+      row.innerHTML = '<div><b>' + esc(x.sp) + '</b> <span class="small">' +
+        Math.round(x.p * 100) + ' %</span>' +
+        (barkType(x.sp) ? '<div class="small dim">' + barkType(x.sp) + ' bark</div>' : '') + '</div>';
+      const bar = document.createElement('div'); bar.className = 'niabar';
+      const fill = document.createElement('i'); fill.style.width = Math.round(x.p * 100) + '%';
+      bar.appendChild(fill); row.appendChild(bar);
+      if (treeIdx != null && x.sp !== 'unrecorded') {
+        const b = document.createElement('button'); b.className = 'sm p'; b.textContent = 'Use';
+        b.onclick = () => {
+          const cur = props(treeIdx);
+          const hit = SPECIES.find(y => y[0] === x.sp);
+          setEdit(treeIdx, { species: x.sp, name_en: cur.name_en || (hit ? hit[1] : '') });
+          if (openIdx === treeIdx) openPanel(treeIdx);
+          toast(x.sp + ' recorded for ' + tid(treeIdx) + '.');
+          el.style.display = 'none';
+        };
+        row.appendChild(b);
+      }
+      sp.appendChild(row);
+    });
+    el.appendChild(sp);
+    const tr = document.createElement('div');
+    tr.innerHTML = '<div class="small" style="margin:10px 0 4px"><b>Similar bark</b> – ' +
+      'not evidence of the same trunk. This describes texture, and two pines of ' +
+      'an age have the same texture; use it to spot a species that does not fit, ' +
+      'not to identify a stem.</div>';
+    res.trees.forEach(x => {
+      const p2 = props(x.r.tree);
+      const row = document.createElement('button'); row.className = 'numrow';
+      row.innerHTML = '<span><b>' + esc(p2.tag_no ? '№ ' + p2.tag_no : x.r.id) + '</b> ' +
+        '<span class="small">' + esc(p2.species || '') + '</span>' +
+        '<div class="small dim">' + esc((x.r.ts || '').slice(0, 10)) +
+        (x.r.bearing != null ? ' · ' + x.r.bearing + '°' : '') + '</div></span>' +
+        '<span class="small">' + (x.s * 100).toFixed(0) + ' %</span>';
+      row.onclick = () => { el.style.display = 'none'; openPanel(x.r.tree); };
+      tr.appendChild(row);
+    });
+
+    el.appendChild(tr);
+  }
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; };
+  el.appendChild(cl);
+  el.style.display = 'block';
+}
+
+async function renderPhotos(tree, gal) {
+  if (!gal) return;
+  let list = [];
+  try { list = await photoList(tree); } catch (e) { gal.innerHTML = '<p class="small">Photos could not be read.</p>'; return; }
+  gal.innerHTML = '';
+  if (!list.length) { gal.innerHTML = '<p class="small">No photos yet.</p>'; return; }
+  list.sort((a, b) => ((b.kind === 'bark') - (a.kind === 'bark')) || (a.ts < b.ts ? 1 : -1));
+  const idxOf = CAT.features.findIndex((x, n) => tid(n) === tree);
+  if (list.some(f => f.kind !== 'audio') && idxOf >= 0) {
+    const pn = document.createElement('button'); pn.className = 'sm p'; pn.textContent = 'Pl@ntNet';
+    pn.style.cssText = 'grid-column:1/-1;justify-self:start';
+    pn.title = 'Send several pictures of this tree together for a species';
+    pn.onclick = () => pnetForTree(idxOf);
+    gal.appendChild(pn);
+  }
+  list.forEach(f => {
+    const fig = document.createElement('figure');
+    if (f.kind === 'audio') {
+      fig.className = 'audio';
+      const au = document.createElement('audio'); au.controls = true; au.src = f.url;
+      const db3 = document.createElement('button'); db3.className = 'del sm'; db3.textContent = '×';
+      db3.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
+      const cp = document.createElement('figcaption');
+      cp.textContent = 'Voice · ' + (f.secs || '?') + ' s · ' + (f.ts || '').slice(0, 16).replace('T', ' ');
+      fig.appendChild(au); fig.appendChild(db3); fig.appendChild(cp);
+      gal.appendChild(fig);
+      return;
+    }
+    const im = document.createElement('img'); im.src = f.url; im.alt = tree;
+    const idxOfTree = CAT.features.findIndex((x, n) => tid(n) === tree);
+    im.onclick = () => openPhoto(idxOfTree, f);
+    const db2 = document.createElement('button'); db2.className = 'del sm'; db2.textContent = '×';
+    db2.onclick = async () => { await photoDel(f.id); renderPhotos(tree, gal); };
+    const cap = document.createElement('figcaption');
+    if (f.kind === 'bark') fig.className = 'bark';
+    // Hand the picture to whatever identification app is on the phone. No API
+    // key, no terms to agree to, and the inspector picks the tool they trust -
+    // which is the right split, because the answer still has to be judged.
+    if (navigator.share) {
+      const sh = document.createElement('button'); sh.className = 'idbtn sm'; sh.textContent = 'ID…';
+      sh.title = 'Send this photo to an identification app';
+      sh.onclick = async () => {
+        try {
+          const blob = await (await fetch(f.url)).blob();
+          const file = new File([blob], tree + '-' + (f.id || '') + '.jpg',
+                                { type: blob.type || 'image/jpeg' });
+          if (navigator.canShare && !navigator.canShare({ files: [file] }))
+            throw new Error('this phone cannot share a file');
+          await navigator.share({ files: [file], title: tree,
+            text: tree + (f.kind === 'bark' ? ' · bark at 1.30 m' : '') });
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+          toast('Sharing failed: ' + (e.message || e));
+        }
+      };
+      fig.appendChild(sh);
+    }
+    if (f.kind === 'bark') {
+      const bm = document.createElement('button'); bm.className = 'barkbtn sm'; bm.textContent = 'Bark?';
+      bm.title = 'Compare this bark against your own photographs';
+      bm.onclick = async () => {
+        bm.disabled = true; bm.textContent = '…';
+        try {
+          const sig = await sigVariantsFromDataUrl(f.url);
+          if (!sig || !sig.length) throw new Error('the picture could not be read');
+          const idx = CAT.features.findIndex((x, n) => tid(n) === tree);
+          barkPanel(await barkMatch(sig, idx), idx);
+        } catch (e) { toast('Bark: ' + (e.message || e)); }
+        bm.disabled = false; bm.textContent = 'Bark?';
+      };
+      fig.appendChild(bm);
+    }
+    const nia = document.createElement('button'); nia.className = 'niabtn sm'; nia.textContent = 'NIA';
+    nia.title = 'Ask the identification service for candidates';
+    nia.onclick = async () => {
+      const idx = CAT.features.findIndex((x, n) => tid(n) === tree);
+      nia.disabled = true; nia.textContent = '…';
+      try {
+        const blob = await (await fetch(f.url)).blob();
+        niaSheet(idx, await niaIdentify(blob));
+      } catch (e) {
+        toast('Identification: ' + (e.message === 'Failed to fetch'
+          ? 'no answer – no network, or the service does not allow browser requests' : e.message));
+      }
+      nia.disabled = false; nia.textContent = 'NIA';
+    };
+    fig.appendChild(nia);
+    /* Taken from a known spot: the app can walk you back to it and lay this
+       picture over the live camera, which is how last year and this year are
+       actually compared. */
+    if (typeof ghostCan === 'function' && ghostCan(f)) {
+      const rp = document.createElement('button'); rp.className = 'rptbtn sm';
+      rp.textContent = '⟲';
+      rp.title = 'Stand where this was taken and lay it over the camera';
+      rp.onclick = () => {
+        const idx = CAT.features.findIndex((x, n) => tid(n) === tree);
+        if (idx < 0) return toast('That tree is not in the register any more.');
+        ghostRepeat(idx, f);
+      };
+      fig.appendChild(rp);
+    }
+    /* What is on the picture, said once by the person who took it. It is what
+       turns a photograph into training data, and it costs one tap. */
+    const org = document.createElement('select'); org.className = 'organ';
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = '— what is on it? —';
+    org.appendChild(o0);
+    ORGANS.forEach(o => { const op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; org.appendChild(op); });
+    org.value = f.organ || (ORGANS.some(o => o[0] === f.kind) ? f.kind : '');
+    org.onchange = async () => { f.organ = org.value; try { await photoPatch(f.id, { organ: org.value }); } catch (e) {} };
+    fig.appendChild(org);
+    cap.textContent = (f.kind === 'bark' ? 'BARK 1.30 m · ' : f.kind === 'tag' ? 'PLATE · '
+                     : f.kind === 'leaf' ? 'LEAF · ' : f.kind === 'flower' ? 'FLOWER · '
+                     : f.kind === 'fruit' ? 'FRUIT · ' : f.kind === 'habit' ? 'WHOLE TREE · ' : '') +
+      (f.read ? 'read ' + f.read + ' · ' : '') +
+      (f.ts || '').slice(0, 16).replace('T', ' ') +
+      (f.bearing != null ? ' · ' + f.bearing + '°' : '') +
+      (f.h != null ? ' · ' + f.h.toFixed(2) + ' m' : '') +
+      (f.dist != null ? ' · ' + f.dist + ' m' : '');
+    fig.appendChild(im); fig.appendChild(db2); fig.appendChild(cap);
+    const dots = (typeof pinDots === 'function') ? pinDots(f) : null;
+    if (dots) fig.appendChild(dots);
+    gal.appendChild(fig);
+  });
+}
+
+/* ---- voice notes ----
+   Typing a remark with wet gloves is how remarks stop being written. The note
+   is recorded, stored beside the photographs and played back from the same
+   gallery; whoever writes it up later types it out warm and indoors. */
+let recFor = null, recorder = null, recChunks = [], recStart = 0, recTimer = null;
+function recSupported() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+            typeof MediaRecorder !== 'undefined');
+}
+async function voiceStart(tree, btn) {
+  if (!recSupported()) return toast('This browser cannot record audio.');
+  if (recorder) return voiceStop();
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recChunks = []; recFor = tree; recStart = Date.now();
+    recorder = new MediaRecorder(st);
+    recorder.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+    recorder.onstop = async () => {
+      st.getTracks().forEach(t => t.stop());
+      clearInterval(recTimer); recTimer = null;
+      const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/webm' });
+      recorder = null;
+      const secs = Math.round((Date.now() - recStart) / 1000);
+      if (btn) { btn.classList.remove('rec'); btn.textContent = '● Voice note'; }
+      if (secs < 1) return toast('Too short.');
+      const rd = new FileReader();
+      rd.onload = async () => {
+        try {
+          await photoAdd(tid(recFor), rd.result, { kind: 'audio', secs: secs, mime: blob.type });
+          toast('Voice note of ' + secs + ' s stored.');
+          if (openIdx === recFor) openPanel(recFor, 'photo');
+        } catch (e) { toast('Could not store the note: ' + e.message); }
+      };
+      rd.readAsDataURL(blob);
+    };
+    recorder.start();
+    if (btn) {
+      btn.classList.add('rec');
+      recTimer = setInterval(() => {
+        btn.textContent = '■ Stop ' + Math.round((Date.now() - recStart) / 1000) + ' s';
+      }, 250);
+    }
+  } catch (e) { toast('Microphone: ' + e.message); }
+}
+function voiceStop() { if (recorder && recorder.state !== 'inactive') recorder.stop(); }
+
+/* ============================== THE ROUND ==============================
+   A register proves nothing on its own; what a duty of care asks is whether
+   the round was walked, by whom, and which trees were actually seen. That was
+   a free-text inspector field retyped fifty times and no record of coverage at
+   all. A round names itself once, stamps every tree saved while it is open,
+   and can say what it has not reached yet. */
+/* ---- which national standard this survey is worked to -------------------
+   The profile decides the questions, their order and what the verdict is
+   called. It is a preference, not part of the data: the same trees can be
+   handed over as an FLL protocol or a Dutch BVC. */
+function curNorm() { return normById(prefs().norm || 'fll'); }
+function setNorm(id) { setPref('norm', normById(id).id); if (typeof paintLang === 'function') paintLang(); }
+function fieldDef(k) {
+  const b = FIELDS[k] || F_BASE.find(f => f[0] === k) || [k, k, 'text'];
+  return [b[0], fieldLabel(k, b[1]), b[2], b[3]];
+}
+
+function prefs() { try { return JSON.parse(lsGet(K_PREF)) || {}; } catch (e) { return {}; } }
+function setPref(k, v) { const p = prefs(); p[k] = v; lsSet(K_PREF, JSON.stringify(p)); }
+function roundGet() { try { return JSON.parse(lsGet(K_ROUND)) || null; } catch (e) { return null; } }
+function roundSet(r) { if (r) lsSet(K_ROUND, JSON.stringify(r)); else lsDel(K_ROUND); }
+function roundStart(who) {
+  roundSet({ inspector: who, started: new Date().toISOString(),
+             date: new Date().toISOString().slice(0, 10), trees: [] });
+  renderRound(); renderList();
+}
+function roundTouch(i) {
+  const r = roundGet(); if (!r) return null;
+  const id = tid(i);
+  if (r.trees.indexOf(id) < 0) { r.trees.push(id); roundSet(r); renderRound(); }
+  return r;
+}
+function renderTrash() {
+  const box = $('trashBox'); if (!box) return;
+  const t = trashList();
+  box.innerHTML = '';
+  if (!t.length) { box.innerHTML = '<p class="small">Nothing deleted. Trees you delete wait here.</p>'; return; }
+  t.forEach((it, n) => {
+    const row = document.createElement('div'); row.className = 'trashrow';
+    const sp = document.createElement('span');
+    const pr = it.feature.properties || {};
+    sp.innerHTML = '<b>' + esc(pr.tag_no ? '№ ' + pr.tag_no : pr.tree_id) + '</b> <span class="small">' +
+      esc(pr.species || '') + ' · deleted ' + esc((it.ts || '').slice(0, 10)) + '</span>';
+    const b = document.createElement('button'); b.className = 'sm p'; b.textContent = 'Restore';
+    b.onclick = () => {
+      const r = trashRestore(n);
+      toast(r === 'exists' ? 'A tree with that id is back in the register already.'
+                           : r ? r + ' restored – its photos come back with it.' : 'Could not restore.');
+    };
+    row.appendChild(sp); row.appendChild(b);
+    box.appendChild(row);
+  });
+  const c = document.createElement('button'); c.className = 'sm x'; c.id = 'bTrashClear';
+  c.textContent = 'Empty the bin'; c.style.marginTop = '8px';
+  box.appendChild(c);
+  c.onclick = () => {
+    if (!confirm('Empty the bin? The trees in it cannot be brought back afterwards.')) return;
+    lsDel(K_TRASH); renderTrash(); toast('Bin emptied.');
+  };
+}
+
+function renderRound() {
+  const box = $('roundBox'); if (!box) return;
+  const r = roundGet();
+  const n = CAT.features.length;
+  if (!r) {
+    box.innerHTML = '<p class="small">No round open. Start one and every tree you save is ' +
+      'stamped with your name and today\u2019s date, and counted as walked.</p>';
+    $('roundStart').style.display = ''; $('roundEnd').style.display = 'none';
+    $('roundHead').textContent = '';
+    return;
+  }
+  const done = r.trees.length;
+  box.innerHTML = '<div class="kv"><span>Inspector</span><span>' + esc(r.inspector) + '</span></div>' +
+    '<div class="kv"><span>Started</span><span>' + esc(r.date) + '</span></div>' +
+    '<div class="kv"><span>Walked</span><span>' + done + ' of ' + n + '</span></div>' +
+    (done < n ? '<p class="small">Not yet reached: ' +
+      esc(CAT.features.map((f, i) => tid(i)).filter(id => r.trees.indexOf(id) < 0).slice(0, 20).join(', ')) +
+      (n - done > 20 ? ' …' : '') + '</p>' : '<p class="small">Every tree in the register has been walked.</p>');
+  $('roundStart').style.display = 'none'; $('roundEnd').style.display = '';
+  $('roundHead').textContent = done + '/' + n;
+}
+
+/* ============================== REPORT ==============================
+   The app captured a complete inspection and handed back GeoJSON, which is
+   raw data, not the thing an inspector is paid to deliver. This builds the
+   document: a stand summary, the outstanding work, and one record per tree
+   with its findings, its reasoning and its photographs. It opens as a page to
+   print - to paper or to PDF, both of which a client will accept and neither
+   of which needs this app to read back. */
+function esc(x) {
+  return String(x == null ? '' : x).replace(/[&<>"]/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+/* A value the way the paper should show it: units on numbers, lists joined,
+   "none" as nothing, dates as they are. */
+function fmtField(k, v) {
+  if (v == null || v === '' || (Array.isArray(v) && !v.length)) return '';
+  if (Array.isArray(v)) return v;
+  if ((k === 'urgency' || k === 'damage_class') && v === 'none') return '';
+  if (typeof v === 'string' && OPT_L[k]) return optLabel(k, v);
+  if (/_cm$/.test(k)) return v + ' cm';
+  if (/_m$/.test(k)) return v + ' m';
+  if (/_pct$/.test(k)) return v + ' %';
+  if (k === 'interval_months') return v + ' months';
+  return v;
+}
+async function buildReport(withPhotos) {
+  const now = new Date();
+  const nrm = curNorm();
+  const items = CAT.features.map((f, i) => ({ i: i, p: props(i), a: assess(props(i)),
+                                              c: f.geometry.coordinates }));
+  const lv = [0, 0, 0, 0];
+  items.forEach(x => lv[x.a.lvl]++);
+  const work = workItems();
+  let photos = {};
+  if (withPhotos) {
+    try {
+      const all = await photoAll();
+      all.forEach(ph => { (photos[ph.tree] = photos[ph.tree] || []).push(ph); });
+      Object.keys(photos).forEach(k => {
+        photos[k].sort((a, b) => ((b.kind === 'bark') - (a.kind === 'bark')) || (a.ts < b.ts ? 1 : -1));
+        photos[k] = photos[k].slice(0, 3);
+      });
+    } catch (e) { photos = {}; }
+  }
+  const head = (x) => (x.p.tag_no ? 'No. ' + esc(x.p.tag_no) : esc(x.p.tree_id)) +
+    (x.p.tag_no ? ' <span class="q">(' + esc(x.p.tree_id) + ')</span>' : '');
+  const row = (k, v) => v == null || v === '' ? '' :
+    '<tr><th>' + esc(k) + '</th><td>' + (Array.isArray(v) ? v.map(esc).join(' · ') : esc(v)) + '</td></tr>';
+
+  const trees = items.map(x => {
+    const p = x.p, a = x.a;
+    const fung = (p.fungi || []).map(k => FUNGI_BY[k] && (FUNGI_BY[k][1] + ' (' + FUNGI_BY[k][2] + ')')).filter(Boolean);
+    const ph = (photos[p.tree_id] || []).map(f =>
+      '<figure><img src="' + f.url + '"><figcaption>' +
+      (f.kind === 'bark' ? 'Bark 1.30 m · ' : '') + esc((f.ts || '').slice(0, 10)) +
+      (f.bearing != null ? ' · ' + f.bearing + '&deg;' : '') + '</figcaption></figure>').join('');
+    const hist = (p.history || []).map(r =>
+      '<tr><td>' + esc(r.inspection || r.year) + '</td><td>' + (r.level == null ? '' : r.level) +
+      '</td><td>' + (r.vitality_roloff == null ? '' : r.vitality_roloff) + '</td><td>' +
+      (r.crown_dieback_pct == null ? '' : r.crown_dieback_pct + ' %') + '</td><td>' +
+      (r.t_R == null ? '' : r.t_R) + '</td></tr>').join('');
+    const verdict = nrm.verdict && p[nrm.verdict] != null && p[nrm.verdict] !== '' ?
+      '<span class="vd">' + esc(fieldDef(nrm.verdict)[1]) + ': <b>' + esc(optLabel(nrm.verdict, p[nrm.verdict])) + '</b></span>' : '';
+    return '<section class="tree"><h2>' + head(x) + ' <span class="lvl l' + a.lvl + '">' + esc(tr('Level')) + ' ' +
+      a.lvl + ' · ' + esc(LVLTXT[a.lvl]) + '</span></h2>' + verdict +
+      '<table>' +
+      row(tr('Species'), p.species ? p.species + (p.name_en ? ' (' + p.name_en + ')' : '') : '') +
+      row(tr('Position'), x.c[1].toFixed(6) + ', ' + x.c[0].toFixed(6) +
+          (p.position_accuracy_m != null ? '  ±' + p.position_accuracy_m + ' m' : '') +
+          (p.geometry_source ? '  · ' + p.geometry_source : '')) +
+      row(tr('DBH / height'), (p.dbh_cm == null ? '–' : p.dbh_cm + ' cm') + ' / ' +
+          (p.height_m == null ? '–' : p.height_m + ' m')) +
+      row('t / R', a.tr == null ? '' : a.tr.toFixed(2) + (a.tr < 0.30 ? '  (below 0.30)' : '')) +
+      row('h / d', a.hd == null ? '' : a.hd.toFixed(0)) +
+      row(tr('Symptoms'), p.symptom_labels && p.symptom_labels.length ? p.symptom_labels : null) +
+      row(tr('Wood-decay fungi'), fung.length ? fung : null) +
+      /* The findings in the order and under the headings the standard wants
+         them - the same profile that drove the form drives the paper. */
+      nrm.groups.map(g => {
+        const cells = g[1].map(k => row(fieldDef(k)[1], fmtField(k, p[k]))).join('');
+        return cells ? '<tr class="g"><th colspan="2">' + esc(tr(g[0])) + '</th></tr>' + cells : '';
+      }).join('') +
+      (p.edited_by || p.edited_at ? row(tr('Recorded'), (p.edited_at || '').slice(0, 16).replace('T', ' ') +
+          (p.edited_by ? ' by ' + p.edited_by : '')) : '') +
+      '</table>' +
+      (a.notes.length ? '<div class="why"><b>' + esc(tr('Reasoning')) + '</b><ul>' +
+        a.notes.map(n => '<li>' + esc(n) + '</li>').join('') + '</ul></div>' : '') +
+      (hist ? '<table class="hist"><caption>' + esc(tr('History')) + '</caption><tr><th>' + esc(tr('Inspection')) + '</th><th>' + esc(tr('Level')) + '</th>' +
+        '<th>Vit.</th><th>Dieback</th><th>t/R</th></tr>' + hist + '</table>' : '') +
+      (ph ? '<div class="ph">' + ph + '</div>' : '') +
+      '</section>';
+  }).join('');
+
+  const workRows = work.map(x => '<tr><td>' + (x.p.tag_no ? 'No. ' + esc(x.p.tag_no) : esc(x.p.tree_id)) +
+    '</td><td>' + x.lvl + '</td><td>' + esc(x.urg || '') + '</td><td>' +
+    esc((x.acts || []).join(' · ')) + '</td><td>' + esc(x.p.next_inspection || '') +
+    (x.due != null && x.due < 0 ? ' <b>overdue</b>' : '') + '</td></tr>').join('');
+
+  return '<!doctype html><meta charset="utf-8"><title>' + esc(nrm.reportTitle) + ' ' + stamp() + '</title>' +
+    '<style>' +
+    'body{font:13px/1.45 system-ui,sans-serif;color:#111;margin:24px;max-width:900px}' +
+    'h1{font-size:20px;margin:0 0 2px}h2{font-size:15px;margin:0 0 8px;display:flex;' +
+    'justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid #ccc;padding-bottom:4px}' +
+    '.q{color:#777;font-weight:400}.sub{color:#555;margin:0 0 6px}.sub+.sub{margin-bottom:18px}' +
+    'tr.g th{background:#f0f2ef;color:#333;padding:5px 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase}' +
+    '.vd{display:inline-block;margin:0 0 6px;font-size:13px;color:#333}' +
+    'table{border-collapse:collapse;width:100%;margin-bottom:8px}' +
+    'th,td{text-align:left;vertical-align:top;padding:3px 8px 3px 0;border-bottom:1px solid #eee}' +
+    'th{width:150px;color:#555;font-weight:600}' +
+    '.lvl{font-size:12px;padding:2px 8px;border-radius:10px;white-space:nowrap;color:#fff}' +
+    '.l0{background:#3f8f5b}.l1{background:#9a8b22}.l2{background:#c07a1e}.l3{background:#b1382c}' +
+    '.tree{page-break-inside:avoid;margin-bottom:22px}' +
+    '.why{background:#f6f6f4;border-left:3px solid #b1382c;padding:6px 10px;margin:6px 0}' +
+    '.why ul{margin:4px 0 0 16px;padding:0}.why b{font-size:12px}' +
+    'table.hist th{width:auto}table.hist caption{text-align:left;font-weight:600;padding:6px 0 2px}' +
+    '.ph{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}' +
+    '.ph figure{margin:0;width:170px}.ph img{width:100%;border:1px solid #ccc}' +
+    '.ph figcaption{font-size:10px;color:#555}' +
+    '.sum td,.sum th{border:none;padding:2px 14px 2px 0}' +
+    '@media print{body{margin:0}}' +
+    '</style>' +
+    '<h1>' + esc(nrm.reportTitle) + '</h1>' +
+    '<p class="sub">' + esc(nrm.label) + ' · ' + esc(nrm.source) + '</p>' +
+    '<p class="sub">' + esc(now.toLocaleString()) + ' · ' + items.length + ' ' + esc(tr('trees')) +
+    (CAT.name ? ' · ' + esc(CAT.name) : '') +
+    (userName() ? ' · ' + esc(userName()) : '') + '</p>' +
+    '<table class="sum"><tr><th>Level 0 inconspicuous</th><td>' + lv[0] + '</td>' +
+    '<th>Level 1 watch</th><td>' + lv[1] + '</td></tr>' +
+    '<tr><th>Level 2 conspicuous</th><td>' + lv[2] + '</td>' +
+    '<th>Level 3 urgent</th><td>' + lv[3] + '</td></tr></table>' +
+    (workRows ? '<h2>' + esc(tr('Outstanding')) + '</h2><table><tr><th>Tree</th><th>Lvl</th><th>' + esc(fieldDef('urgency')[1]) + '</th>' +
+      '<th>Action</th><th>Next inspection</th></tr>' + workRows + '</table>' : '') +
+    trees;
+}
+/* ---- the register as a map anyone can open ----
+   A GeoJSON is a file for a GIS. This is the same data as a page: one HTML
+   file with the trees inside it, an OpenStreetMap background and a click for
+   each tree. It opens in any browser, it can be mailed, and it can be dropped
+   on a web server as it is - which is what "the trees should appear on a map"
+   actually asks for. */
+function buildMapPage() {
+  const feats = CAT.features.map((f, i) => {
+    const p = props(i), a = assess(p), c = f.geometry.coordinates;
+    return { lat: c[1], lon: c[0], lvl: a.lvl,
+             id: p.tag_no ? 'No. ' + p.tag_no : (p.tree_id || ''),
+             sp: p.species || '', dbh: p.dbh_cm == null ? '' : p.dbh_cm,
+             h: p.height_m == null ? '' : p.height_m,
+             urg: p.urgency && p.urgency !== 'none' ? p.urgency : '',
+             next: p.next_inspection || '', area: p.area || '' };
+  });
+  const data = JSON.stringify({ trees: feats, refs: [], made: new Date().toISOString() });
+  return '<!doctype html><meta charset="utf-8">' +
+  '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+  '<title>Tree register</title><style>' +
+  'html,body{margin:0;height:100%;font:13px/1.4 system-ui,sans-serif;background:#101512;color:#e8ece9}' +
+  '#m{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:grab}' +
+  '#t img{position:absolute;width:256px;height:256px}' +
+  '#k{position:absolute;inset:0;pointer-events:none}' +
+  '.d{position:absolute;width:12px;height:12px;margin:-7px 0 0 -7px;border-radius:50%;' +
+  'border:2px solid #0b110e;pointer-events:auto;cursor:pointer}' +
+  '.r{background:#ffb347;border-radius:2px}' +
+  '#z{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}' +
+  '#z button{width:36px;height:36px;font-size:18px;background:#182019;color:#e8ece9;' +
+  'border:1px solid #34483c;border-radius:9px}' +
+  '#i{position:absolute;left:10px;bottom:26px;max-width:min(340px,80vw);background:rgba(12,18,15,.95);' +
+  'border:1px solid #34483c;border-radius:12px;padding:10px 12px;display:none}' +
+  '#a{position:absolute;right:0;bottom:0;background:rgba(12,18,15,.8);font-size:10px;padding:2px 6px}' +
+  '#a a{color:#8fd6a8}#l{position:absolute;left:10px;top:10px;background:rgba(12,18,15,.9);' +
+  'border:1px solid #34483c;border-radius:10px;padding:8px 10px;font-size:12px}' +
+  '#l i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}' +
+  '</style><div id="m"><div id="t"></div><div id="k"></div></div>' +
+  '<div id="l"></div><div id="z"><button id="zi">+</button><button id="zo">\u2212</button></div>' +
+  '<div id="i"></div>' +
+  '<div id="a">\u00a9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</div>' +
+  '<script>var D=' + data + ';' + MAPPAGE_JS + '<\/script>';
+}
+const MAPPAGE_JS = [
+'var COL=["#54c07a","#c9c24a","#e0a94a","#e0614a"],' +
+'TXT=["inconspicuous","watch","conspicuous","urgent"];',
+'var m=document.getElementById("m"),T=document.getElementById("t"),K=document.getElementById("k"),',
+'I=document.getElementById("i"),tiles={};',
+'function lo2p(l,z){return (l+180)/360*256*Math.pow(2,z);}',
+'function la2p(l,z){var s=Math.sin(Math.max(-85,Math.min(85,l))*Math.PI/180);',
+'return (0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*256*Math.pow(2,z);}',
+'function p2lo(x,z){return x/(256*Math.pow(2,z))*360-180;}',
+'function p2la(y,z){var n=Math.PI-2*Math.PI*y/(256*Math.pow(2,z));',
+'return 180/Math.PI*Math.atan(Math.sinh(n));}',
+'var all=D.trees.concat(D.refs),V={lat:0,lon:0,z:17};',
+'function pct(a,q){a=a.slice().sort(function(x,y){return x-y;});',
+'return a[Math.min(a.length-1,Math.max(0,Math.round(q*(a.length-1))))];}',
+'if(all.length){var La=all.map(function(x){return x.lat;}),Lo=all.map(function(x){return x.lon;});',
+// the middle of the bulk, not the mean: one tree four kilometres away should
+// not decide where the map opens or how far out it starts
+'var la0=pct(La,0.05),la1=pct(La,0.95),lo0=pct(Lo,0.05),lo1=pct(Lo,0.95);',
+'V.lat=(la0+la1)/2;V.lon=(lo0+lo1)/2;',
+'var mLat=111132,mLon=111320*Math.cos(V.lat*Math.PI/180);',
+'var spanM=Math.max((la1-la0)*mLat,(lo1-lo0)*mLon,20);',
+'V.z=Math.max(3,Math.min(19,Math.round(Math.log2(156543.03*Math.cos(V.lat*Math.PI/180)*600/spanM/1))-8));}',
+'function draw(){var w=m.clientWidth,h=m.clientHeight,sc=Math.pow(2,V.z);',
+'var left=lo2p(V.lon,V.z)-w/2,top=la2p(V.lat,V.z)-h/2,seen={};',
+'for(var tx=Math.floor(left/256);tx<=Math.floor((left+w)/256);tx++)',
+'for(var ty=Math.floor(top/256);ty<=Math.floor((top+h)/256);ty++){',
+'if(ty<0||ty>=sc)continue;var wx=((tx%sc)+sc)%sc,k=V.z+"/"+wx+"/"+ty;seen[k]=1;',
+'var im=tiles[k];if(!im){im=new Image();im.src="https://tile.openstreetmap.org/"+V.z+"/"+wx+"/"+ty+".png";',
+'im.alt="";tiles[k]=im;T.appendChild(im);}',
+'im.style.left=(tx*256-left)+"px";im.style.top=(ty*256-top)+"px";}',
+'for(var q in tiles){if(!seen[q]){tiles[q].remove();delete tiles[q];}}',
+'K.innerHTML="";',
+'D.refs.forEach(function(r){var d=document.createElement("div");d.className="d r";',
+'d.style.left=(lo2p(r.lon,V.z)-left)+"px";d.style.top=(la2p(r.lat,V.z)-top)+"px";',
+'d.title=r.id;K.appendChild(d);});',
+'D.trees.forEach(function(t){var d=document.createElement("div");d.className="d";',
+'d.style.background=COL[t.lvl];d.style.left=(lo2p(t.lon,V.z)-left)+"px";',
+'d.style.top=(la2p(t.lat,V.z)-top)+"px";d.onclick=function(e){e.stopPropagation();',
+'I.style.display="block";I.innerHTML="<b>"+t.id+"</b> <span style=\'color:"+COL[t.lvl]+"\'>level "',
+'+t.lvl+" \u00b7 "+TXT[t.lvl]+"</span><br>"+(t.sp?"<i>"+t.sp+"</i><br>":"")',
+'+(t.dbh?"DBH "+t.dbh+" cm ":"")+(t.h?"\u00b7 H "+t.h+" m":"")',
+'+(t.urg?"<br>urgency: "+t.urg:"")+(t.next?"<br>next inspection "+t.next:"")',
+'+(t.area?"<br>"+t.area:"")+"<br><span style=\'opacity:.6\'>"+t.lat.toFixed(6)+", "+t.lon.toFixed(6)+"</span>";};',
+'K.appendChild(d);});',
+'var n=[0,0,0,0];D.trees.forEach(function(t){n[t.lvl]++;});',
+'document.getElementById("l").innerHTML=D.trees.length+" trees<br>"+n.map(function(c,k){',
+'return "<i style=\'background:"+COL[k]+"\'></i>"+k+" "+TXT[k]+" ("+c+")";}).join("<br>");}',
+'var dr=null;m.addEventListener("pointerdown",function(e){dr={x:e.clientX,y:e.clientY};',
+'m.setPointerCapture(e.pointerId);});',
+'m.addEventListener("pointermove",function(e){if(!dr)return;',
+'var cx=lo2p(V.lon,V.z)-(e.clientX-dr.x),cy=la2p(V.lat,V.z)-(e.clientY-dr.y);',
+'V.lon=p2lo(cx,V.z);V.lat=p2la(cy,V.z);dr={x:e.clientX,y:e.clientY};draw();});',
+'m.addEventListener("pointerup",function(){dr=null;});',
+'m.addEventListener("click",function(){I.style.display="none";});',
+'document.getElementById("zi").onclick=function(){V.z=Math.min(19,V.z+1);draw();};',
+'document.getElementById("zo").onclick=function(){V.z=Math.max(3,V.z-1);draw();};',
+'addEventListener("resize",draw);draw();'
+].join('\n');
+
+function openMapPage() {
+  try {
+    const blob = new Blob([buildMapPage()], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) { dl('tree_map_' + stamp() + '.html', blob); toast('Map saved as a file.'); }
+    else toast('Map opened – save the page to keep or publish it.');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast('Map failed: ' + e.message); }
+}
+
+async function openReport(withPhotos) {
+  toast('Building the report …');
+  try {
+    const html = await buildReport(withPhotos);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) { dl('inspection_report_' + stamp() + '.html', blob); toast('Report saved as a file.'); }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast('Report failed: ' + e.message); }
+}
+
+/* ============================ WORK LIST ============================
+   Urgency, actions and the next inspection date were recorded and then buried
+   one tree deep, which is no use to the crew that has to cut and no use to the
+   inspector who has to prove the round was walked. Here they are as a list:
+   what is overdue, and what is outstanding, worst first. */
+const URG_RANK = { 'immediate': 0, '1 month': 1, '3 months': 2, 'next growing season': 3, 'none': 9 };
+function dueDays(p) {
+  if (!p.next_inspection) return null;
+  const d = new Date(p.next_inspection);
+  if (isNaN(d)) return null;
+  return Math.floor((d.getTime() - Date.now()) / 86400000);
+}
+/* A snapshot has to carry what the assessment was made of, or a later reading
+   cannot tell whether the tree changed or the inspector did. */
+/* What changed between the first and the last record, which is the only
+   question a history is asked. */
+function historyTrend(h) {
+  if (h.length < 2) return '';
+  const a = h[0], b = h[h.length - 1], out = [];
+  const d = (k, lab, unit) => {
+    if (a[k] == null || b[k] == null) return;
+    const v = b[k] - a[k];
+    if (!v) return;
+    out.push(lab + ' ' + a[k] + ' → ' + b[k] + (unit || '') +
+             ' (' + (v > 0 ? '+' : '') + (+v.toFixed(2)) + ')');
+  };
+  d('level', 'level'); d('vitality_roloff', 'vitality');
+  d('crown_dieback_pct', 'dieback', ' %'); d('t_R', 't/R'); d('dbh_cm', 'DBH', ' cm');
+  if (!out.length) return '';
+  return 'Since ' + (a.inspection || a.year) + ': ' + out.join(' · ');
+}
+
+function pushHistory(q) {
+  const a = assess(q);
+  const hist = (q.history || []).slice();
+  const rec = {
+    year: new Date().getFullYear(),
+    inspection: q.last_inspection || new Date().toISOString().slice(0, 10),
+    level: a.lvl,
+    girth_cm: num(q.girth_cm),
+    dbh_cm: num(q.dbh_cm),
+    vitality_roloff: num(q.vitality_roloff),
+    crown_dieback_pct: num(q.crown_dieback_pct),
+    t_R: a.tr == null ? null : +a.tr.toFixed(3),
+    damage_class: q.damage_class || null,
+    symptoms: (q.symptoms || []).slice(),
+    fungi: (q.fungi || []).slice(),
+    urgency: q.urgency || null,
+    inspector: q.inspector || null,
+    finding: (q.inspection_type || 'Inspection') + (q.remarks ? ': ' + q.remarks : '')
+  };
+  const same = hist.findIndex(r => r.inspection === rec.inspection);
+  if (same >= 0) hist[same] = rec; else hist.push(rec);
+  hist.sort((x, y) => String(x.inspection).localeCompare(String(y.inspection)));
+  return hist;
+}
+
+function workItems() {
+  const out = [];
+  CAT.features.forEach((f, i) => {
+    const p = props(i), a = assess(p);
+    const acts = (p.actions || []).filter(Boolean);
+    const urg = p.urgency && p.urgency !== 'none' ? p.urgency : null;
+    const dd = dueDays(p);
+    if (!urg && !acts.length && !(dd != null && dd <= 30)) return;
+    out.push({ i: i, p: p, lvl: a.lvl, urg: urg, acts: acts, due: dd,
+               rank: urg ? URG_RANK[urg] : (dd != null && dd < 0 ? 1.5 : 4) });
+  });
+  out.sort((a, b) => a.rank - b.rank || b.lvl - a.lvl ||
+                     ((a.due == null ? 1e9 : a.due) - (b.due == null ? 1e9 : b.due)));
+  return out;
+}
+function renderWork() {
+  const box = $('workBox'); if (!box) return;
+  const items = workItems();
+  const head = $('workHead');
+  const overdue = items.filter(x => x.due != null && x.due < 0).length;
+  head.textContent = items.length
+    ? items.length + ' open' + (overdue ? ' · ' + overdue + ' overdue' : '')
+    : 'nothing outstanding';
+  box.innerHTML = '';
+  if (!items.length) return;
+  items.forEach(x => {
+    const b = document.createElement('button'); b.className = 'work';
+    const dueTxt = x.due == null ? '' :
+      x.due < 0 ? '<b class="od">' + (-x.due) + ' d overdue</b>' :
+      x.due <= 30 ? 'due in ' + x.due + ' d' : '';
+    b.innerHTML =
+      '<span class="dot" style="background:' + LVLCOL[x.lvl] + '"></span>' +
+      '<span class="m"><span class="t1">' + (x.p.tag_no ? '№ ' + x.p.tag_no : (x.p.tree_id || '?')) +
+        (x.urg ? ' · <b class="urg">' + x.urg + '</b>' : '') + '</span>' +
+      '<span class="t2">' + (x.acts.length ? x.acts.join(' · ') : 'no action recorded') + '</span>' +
+      '<span class="t3">' + (x.p.species || '') + (dueTxt ? ' · ' + dueTxt : '') + '</span></span>';
+    b.onclick = () => { showScreen('list'); openPanel(x.i); };
+    box.appendChild(b);
+  });
+}
+
+/* ========================= LIST / SCREENS ========================= */
+
+let sortByDist = true;
+function renderList() {
+  const box = $('listBox'); if (!box) return;
+  const rows = CAT.features.map((f, i) => {
+    const c = f.geometry.coordinates;
+    const db3 = lastFix ? distBear(c[1], c[0], lastFix.lat, lastFix.lon) : null;
+    return { i: i, d: db3 ? db3.d : null, b: db3 ? db3.b : null };
+  });
+  if (sortByDist && lastFix) rows.sort((a, b) => a.d - b.d);
+  box.innerHTML = '';
+  rows.forEach(o => {
+    const p = props(o.i), a = assess(p);
+    const b = document.createElement('button'); b.className = 'tree';
+    b.innerHTML =
+      '<span class="dot" style="background:' + LVLCOL[a.lvl] + '"></span>' +
+      '<span class="m"><span class="t1">' + (p.tree_id || '?') + (isEdited(o.i) ? ' ·' : '') + '</span>' +
+      '<span class="t2">' + (p.species || '') + '</span>' +
+      '<span class="t3">DBH ' + (p.dbh_cm == null ? '–' : p.dbh_cm) + ' cm · H ' + (p.height_m == null ? '–' : p.height_m) +
+      ' m · vit ' + (p.vitality_roloff == null ? '–' : p.vitality_roloff) + '</span></span>' +
+      '<span class="nav"><span class="arr" data-b="' + (o.b == null ? '' : o.b) + '">' + (o.b == null ? '·' : '↑') + '</span>' +
+      '<span class="dist">' + (o.d == null ? '– m' : o.d.toFixed(o.d < 100 ? 1 : 0) + ' m') + '</span></span>';
+    b.onclick = () => openPanel(o.i);
+    const row = document.createElement('div'); row.className = 'treerow';
+    const ar = document.createElement('button');
+    ar.className = 'arbtn'; ar.textContent = 'AR';
+    ar.title = 'Show this tree in the camera';
+    ar.onclick = ev => { ev.stopPropagation(); toAR(o.i); };
+    row.appendChild(b); row.appendChild(ar);
+    box.appendChild(row);
+  });
+  $('listCount').textContent = '(' + CAT.features.length + ')';
+  updateArrows();
+}
+function updateArrows() {
+  if (heading == null) return;
+  document.querySelectorAll('#listBox .arr[data-b]').forEach(el => {
+    const b = parseFloat(el.dataset.b);
+    if (!isFinite(b)) return;
+    el.style.transform = 'rotate(' + (((b - heading) % 360 + 360) % 360) + 'deg)';
+  });
+}
+setInterval(() => { if ($('sc-list').classList.contains('on') && !mode) updateArrows(); }, 250);
+setInterval(() => { if ($('sc-list').classList.contains('on') && !mode && lastFix) renderList(); }, 5000);
+
+function showScreen(k) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + k));
+  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.sc === k));
+  if (k === 'list') { startGPS(); startOrient(); renderList(); renderWork(); distDrawnT = 0; }   // sensors only on a user action
+  if (k === 'guide') renderGuide();
+  if (k === 'rep') { if (typeof repPaint === 'function') repPaint();
+                     if (typeof sheetPaint === 'function') sheetPaint(); }
+  if (k === 'data') { paintLang(); paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null);
+    if (typeof wipePaint === 'function') wipePaint(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
+  if (k === 'map') {
+    startGPS(); startOrient();
+    mapMode = 'me'; if (!mapToMe(true)) drawMap();
+    syncMapSel(); buildNavList(); renderNav(); mapModeLine(); paintHome();
+  }
+}
+function renderStats() {
+  const n = CAT.features.length;
+  let ed = 0; const lv = [0, 0, 0, 0];
+  CAT.features.forEach((f, i) => { if (isEdited(i)) ed++; lv[assess(props(i)).lvl]++; });
+  const base = '<div class="kv"><span>App version</span><span>' + APP_VERSION + '</span></div>' +
+               '<div class="kv"><span>Trees in catalogue</span><span>' + n + '</span></div>' +
+               '<div class="kv"><span>Edited in the field</span><span>' + ed + '</span></div>' +
+               '<div class="kv"><span>Levels 0 / 1 / 2 / 3</span><span>' + lv.join(' / ') + '</span></div>';
+  const d = daysSinceExport();
+  const exp = '<div class="kv"><span>Last export</span><span>' +
+    (d == null ? 'never' : d < 1 ? 'today' : Math.floor(d) + ' days ago') + '</span></div>';
+  photoAll().then(ps => {
+    $('stats').innerHTML = base + exp + '<div class="kv"><span>Photos stored</span><span>' + ps.length + '</span></div>';
+    storageCheck(false).then(si => {
+      if (!si.ok) return;
+      $('stats').innerHTML += '<div class="kv"><span>Storage used</span><span>' + mb(si.used) +
+        (si.quota ? ' of ' + mb(si.quota) : '') + (si.persisted ? ' · kept' : ' · evictable') + '</span></div>';
+      const el = $('storeWarn'); if (!el) return;
+      const tight = si.quota && si.used / si.quota > 0.8;
+      const msg = tight ? 'Storage is ' + Math.round(si.used / si.quota * 100) + ' % full. Export and clear photos.'
+        : (!si.persisted && ps.length) ? 'The browser has not promised to keep this data and may clear it when the phone runs short. Export regularly.'
+        : '';
+      el.textContent = msg; el.style.display = msg ? 'block' : 'none';
+    });
+    backupWarning();
+  }).catch(() => { $('stats').innerHTML = base + exp; backupWarning(); });
+  renderTrash(); renderRound();
+}
+
+/* A dark interface is unreadable on a phone in autumn sun, which is exactly
+   where this one is used. */
+function applyDay() {
+  const on = prefs().day;
+  document.documentElement.classList.toggle('day', !!on);
+  const b = $('bDay'); if (b) b.textContent = on ? 'Daylight: on' : 'Daylight: off';
+}
+
+/* AR, GPS and a bright screen empty a battery in about an hour, and the
+   session dies in the middle of a stand without a word. */
+let batt = null;
+function watchBattery() {
+  if (!navigator.getBattery) return;
+  navigator.getBattery().then(b => {
+    batt = b;
+    const upd = () => {
+      const el = $('hBatt'); if (!el) return;
+      const pc = Math.round(b.level * 100);
+      const low = pc <= 25 && !b.charging;
+      el.textContent = low ? ' · ' + pc + ' %' : '';
+      el.className = pc <= 15 ? 'warn' : '';
+    };
+    b.addEventListener('levelchange', upd); b.addEventListener('chargingchange', upd); upd();
+  }).catch(() => {});
+}
+function batteryOkForAR() {
+  if (!batt || batt.charging) return true;
+  const pc = Math.round(batt.level * 100);
+  if (pc > 20) return true;
+  return confirm('Battery at ' + pc + ' %. An AR session drains it fast and ends without warning. Start anyway?');
+}
+
+function toast(t) {
+  const el = $('toast'); el.textContent = t; el.style.display = 'block';
+  // Never over the controls: in AR the bar wraps to two rows and its height is
+  // not a constant, so the toast is put directly above whatever it is now.
+  const bar = $('xrui').classList.contains('on') ? $('ctl').getBoundingClientRect() : null;
+  el.style.bottom = bar ? (innerHeight - bar.top + 8) + 'px' : '';
+  clearTimeout(toast._t); toast._t = setTimeout(() => { el.style.display = 'none'; }, 2600);
+}
+function msg(t) { $('msg').textContent = t; }
+
+/* ================= IDENTIFICATION SERVICE (NIA) =================
+   Observation.org / Naturalis run a recognition model over some forty thousand
+   European taxa, fungi among them. It answers with candidates and
+   probabilities, and that is all it is used for here: a suggestion, ranked,
+   that the inspector accepts or ignores. Nothing it says reaches the
+   assessment on its own - the species drives the hazard rating, and a model
+   that has never seen a Kretzschmaria crust in situ has no business setting
+   that on its own.
+
+   The public endpoint allows ten identifications a day; a token raises it.
+   Both are settings, so neither is baked in. */
+const NIA_DEFAULT = 'https://multi-source.identify.biodiversityanalysis.eu/v2/observation/identify';
+function niaCfg() {
+  try { return JSON.parse(lsGet(K_NIA)) || {}; } catch (e) { return {}; }
+}
+function niaSave(c) { lsSet(K_NIA, JSON.stringify(c)); }
+
+/* The response schema is the service's to change, and this app cannot be
+   redeployed from a wood, so read it by shape rather than by field name:
+   anything carrying a name and a number between zero and one is a candidate. */
+function niaParse(j) {
+  const out = [];
+  const nameOf = o => o.scientific_name || o.scientificName || o.name || o.species ||
+                      (o.taxon && (o.taxon.scientific_name || o.taxon.name));
+  const probOf = o => [o.probability, o.score, o.confidence, o.certainty, o.p]
+                        .find(v => typeof v === 'number');
+  (function walk(o, depth) {
+    if (!o || typeof o !== 'object' || depth > 8) return;
+    if (Array.isArray(o)) { o.forEach(x => walk(x, depth + 1)); return; }
+    const n = nameOf(o), p = probOf(o);
+    if (typeof n === 'string' && n.trim() && typeof p === 'number') out.push({ name: n.trim(), p: p });
+    Object.keys(o).forEach(k => walk(o[k], depth + 1));
+  })(j, 0);
+  const seen = {};
+  const uniq = out.filter(x => { const k = x.name.toLowerCase();
+    if (seen[k]) return false; seen[k] = 1; return true; });
+  const mx = uniq.reduce((a, x) => Math.max(a, x.p), 0);
+  if (mx > 1) uniq.forEach(x => { x.p = x.p / 100; });          // percentages
+  return uniq.sort((a, b) => b.p - a.p).slice(0, 8);
+}
+
+/* Map a suggested name onto the fungi this app knows how to assess. An exact
+   binomial wins; failing that a genus match, because "Armillaria spp." is how
+   the table carries a group that is not separable in the field anyway. */
+const FUNGI_SYN = {
+  'ustulina deusta': 'kdeu', 'hypoxylon deustum': 'kdeu', 'ustulina maxima': 'kdeu',
+  'ganoderma lipsiense': 'gapp', 'ganoderma australe': 'gads',
+  'armillaria mellea': 'arme', 'armillaria ostoyae': 'arme', 'armillaria gallica': 'arme',
+  'armillaria borealis': 'arme', 'heterobasidion parviporum': 'hann',
+  'phaeolus spadiceus': 'pschw', 'polyporus sulphureus': 'lsul',
+  'cerrena unicolor': 'tver', 'coriolus versicolor': 'tver',
+  'stereum purpureum': 'cpur', 'fomes annosus': 'hann'
+};
+function niaMatch(name) {
+  const n = name.toLowerCase().trim();
+  const hit = FUNGI.find(f => f[1].toLowerCase() === n);
+  if (hit) return { key: hit[0], exact: true };
+  if (FUNGI_SYN[n]) return { key: FUNGI_SYN[n], exact: true };
+  // a genus alone leaves the species open, and within Ganoderma or Inonotus the
+  // species is the difference between watching and acting - so take the worst
+  // of the genus and say plainly that this is what happened
+  const gen = n.split(/\s+/)[0];
+  const same = FUNGI.filter(f => f[1].toLowerCase().split(/\s+/)[0] === gen);
+  if (!same.length) return null;
+  const worst = same.reduce((a, f) => (f[5] > a[5] ? f : a), same[0]);
+  return { key: worst[0], exact: false, ambiguous: same.length > 1 };
+}
+
+async function niaIdentify(blob) {
+  const c = niaCfg();
+  const url = (c.url || NIA_DEFAULT).trim();
+  const fd = new FormData();
+  fd.append('image', blob, 'photo.jpg');
+  const headers = {};
+  if (c.token) headers['Authorization'] = 'Token ' + c.token.trim();
+  const r = await fetch(url, { method: 'POST', body: fd, headers: headers });
+  if (r.status === 401 || r.status === 403)
+    throw new Error('the service refused the request – check the token (' + r.status + ')');
+  if (r.status === 429)
+    throw new Error('daily limit reached – the public endpoint allows ten a day, a token raises it');
+  if (!r.ok) throw new Error('the service answered ' + r.status);
+  const j = await r.json();
+  const list = niaParse(j);
+  if (!list.length) throw new Error('the answer held no recognisable candidates');
+  return list;
+}
+
+/* The suggestions are shown, never applied. Adding one is a separate tap, and
+   a genus-only match says so rather than pretending to a species. */
+function niaSheet(tree, list) {
+  const el = $('niaBox');
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>Suggestions</b> <span class="small">· model, not a determination · ' +
+                'confirm before recording</span>';
+  el.appendChild(h);
+  list.forEach(c => {
+    const m = niaMatch(c.name);
+    const row = document.createElement('div'); row.className = 'niarow';
+    const pct = (c.p * 100).toFixed(c.p >= 0.1 ? 0 : 1) + ' %';
+    row.innerHTML = '<div><b>' + c.name + '</b> <span class="small">' + pct + '</span>' +
+      (m ? '<div class="small dim">' + FUNGI_BY[m.key][2] + ' · ' + FUNGI_BY[m.key][4] +
+           ' · level ' + FUNGI_BY[m.key][5] +
+           (m.exact ? '' : m.ambiguous ? ' · genus only – the worst of the genus is assumed'
+                                       : ' · genus match') + '</div>'
+         : '<div class="small dim">not one of the decay fungi this app assesses</div>') + '</div>';
+    const bar = document.createElement('div'); bar.className = 'niabar';
+    const fill = document.createElement('i'); fill.style.width = Math.round(c.p * 100) + '%';
+    bar.appendChild(fill); row.appendChild(bar);
+    if (m) {
+      const add = document.createElement('button'); add.className = 'sm p'; add.textContent = 'Record';
+      add.onclick = () => {
+        const id = tid(tree);
+        const cur = (props(tree).fungi || []).slice();
+        if (!cur.includes(m.key)) cur.push(m.key);
+        edits[id] = Object.assign({}, edits[id], { fungi: cur,
+          fungi_labels: cur.map(k => FUNGI_BY[k] && FUNGI_BY[k][1]).filter(Boolean) });
+        saveEdits(); refreshMarker(tree); renderList();
+        if (openIdx === tree) openPanel(tree);
+        toast(FUNGI_BY[m.key][1] + ' recorded for ' + id + '.');
+        el.style.display = 'none';
+      };
+      row.appendChild(add);
+    }
+    el.appendChild(row);
+  });
+  const close = document.createElement('button'); close.textContent = 'Close';
+  close.onclick = () => { el.style.display = 'none'; };
+  el.appendChild(close);
+  el.style.display = 'block';
+}
+
+/* ========================= IMPORT / EXPORT =========================
+   An import used to replace the register outright, which is a fine way to lose
+   a morning's work the moment two people survey the same stand and one opens
+   the other's file. It merges now: a tree the phone does not have is added, a
+   tree it has keeps everything it already knows and only takes what it is
+   missing, and a value that differs is reported rather than silently picked.
+   Nothing is ever deleted by an import. */
+let importReplace = false;
+const MERGE_SKIP = { tree_id: 1, orig_coordinates: 1, history: 1 };
+function mergeCatalogue(feats, replace) {
+  if (replace) {
+    CAT = { type: 'FeatureCollection', name: CAT.name, features: feats };
+    saveCat();
+    return { added: feats.length, filled: 0, kept: 0, conflicts: [] };
+  }
+  const byId = {};
+  CAT.features.forEach((f, i) => { byId[tid(i)] = i; });
+  const rep = { added: 0, filled: 0, kept: 0, conflicts: [] };
+  feats.forEach(x => {
+    const id = x.properties.tree_id;
+    if (byId[id] == null) { CAT.features.push(x); byId[id] = CAT.features.length - 1; rep.added++; return; }
+    const mine = CAT.features[byId[id]];
+    let filled = false;
+    Object.keys(x.properties).forEach(k => {
+      if (MERGE_SKIP[k]) return;
+      const a = mine.properties[k], b = x.properties[k];
+      const empty = a == null || a === '' || (Array.isArray(a) && !a.length);
+      const has = b != null && b !== '' && !(Array.isArray(b) && !b.length);
+      if (!has) return;
+      if (empty) { mine.properties[k] = b; filled = true; return; }
+      if (JSON.stringify(a) !== JSON.stringify(b)) rep.conflicts.push(id + ' · ' + k);
+    });
+    // history is additive: entries the phone does not have are taken on
+    const hb = x.properties.history || [];
+    if (hb.length) {
+      const ha = mine.properties.history || [];
+      const key = r => r.inspection + '|' + r.year;
+      const seen = {}; ha.forEach(r => { seen[key(r)] = 1; });
+      hb.forEach(r => { if (!seen[key(r)]) { ha.push(r); filled = true; } });
+      ha.sort((a, b) => String(a.inspection || a.year).localeCompare(String(b.inspection || b.year)));
+      mine.properties.history = ha;
+    }
+    if (filled) rep.filled++; else rep.kept++;
+  });
+  saveCat();
+  return rep;
+}
+
+/* Everything lives on one phone. Say how long it has been since any of it left. */
+function markExported() { lsSet(K_EXP, new Date().toISOString()); renderStats(); }
+function daysSinceExport() {
+  const t = lsGet(K_EXP);
+  if (!t) return null;
+  return (Date.now() - new Date(t).getTime()) / 86400000;
+}
+function backupWarning() {
+  const el = $('backupWarn'); if (!el) return;
+  const d = daysSinceExport(), n = CAT.features.length;
+  let msg = '';
+  if (!n) msg = '';
+  else if (d == null) msg = n + ' trees recorded and never exported. This phone is the only copy.';
+  else if (d >= 1) msg = 'Last export was ' + (d < 2 ? 'yesterday' : Math.floor(d) + ' days ago') +
+                         '. This phone is the only copy of anything since.';
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+/* ========================= IMPORT / EXPORT ========================= */
+
+function merged() {
+  const out = JSON.parse(JSON.stringify(CAT));
+  out.features.forEach((f, i) => { Object.assign(f.properties, edits[tid(i)] || {}); });
+  return out;
+}
+function dl(name, content, mime) {
+  const blob = (content instanceof Blob) ? content : new Blob([content], { type: mime || 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+const CSVCOLS = ['tree_id', 'lon', 'lat', 'species', 'name_en', 'planted', 'girth_cm', 'dbh_cm',
+  'height_m', 'crown_d_m', 'vitality_roloff', 'crown_dieback_pct', 'damage_class', 'cavity',
+  'wall_t_cm', 'radius_r_cm', 't_R', 'h_d', 'level', 'target_type', 'target_distance_m', 'stability', 'breakage_resistance',
+  'traffic_safety', 'target_occupancy', 'urgency', 'symptoms', 'fungi_labels', 'actions', 'inspection_type', 'last_inspection',
+  'next_inspection', 'interval_months', 'inspector', 'dbh_source', 'remarks'];
+/* The header is the historic order first, then anything a national profile
+   adds, so a file opened in a spreadsheet looks the same as it always did and
+   the extra columns follow at the end instead of shuffling the familiar ones. */
+function csvCols() {
+  const out = CSVCOLS.slice();
+  allNormKeys().forEach(k => { if (out.indexOf(k) < 0) out.push(k); });
+  return out;
+}
+function csv() {
+  const q = v => {
+    if (v == null) return '';
+    const s = Array.isArray(v) ? v.join(' | ') : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const COLS = csvCols();
+  const rows = [COLS.join(',')];
+  CAT.features.forEach((f, i) => {
+    const p = props(i), a = assess(p), c = f.geometry.coordinates;
+    const r = COLS.map(k => {
+      if (k === 'lon') return c[0];
+      if (k === 'lat') return c[1];
+      if (k === 't_R') return a.tr == null ? '' : a.tr.toFixed(3);
+      if (k === 'h_d') return a.hd == null ? '' : a.hd.toFixed(1);
+      if (k === 'level') return a.lvl;
+      if (k === 'symptoms') return (p.symptoms || []).map(s => SYM_LABEL[s] || s);
+      return p[k];
+    });
+    rows.push(r.map(q).join(','));
+  });
+  return rows.join('\r\n');
+}
+function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
+
+function voiceToggle(i) { speechStart(i); }
+
+/* ======================= WHO IS HOLDING THE PHONE ======================= */
+function paintWho() {
+  const b = $('whoBtn'); if (!b) return;
+  if (!usersExist()) { b.style.display = 'none'; return; }
+  const u = curUser();
+  b.style.display = '';
+  b.textContent = u ? (u.name + ' · ' + ROLES[u.role]) : 'Sign in';
+  b.classList.toggle('p', !!u);
+}
+function openWho(force) {
+  if (!usersExist()) return;
+  const list = usersAll();
+  const box = $('whoList'); box.innerHTML = '';
+  $('whoSub').textContent = curUser() ? 'Signed in as ' + curUser().name : 'Every change is stamped with the name';
+  list.forEach(u => {
+    const b = document.createElement('button'); b.className = 'numrow';
+    b.innerHTML = '<span><b>' + esc(u.name) + '</b> <span class="small">' + esc(ROLES[u.role]) +
+                  (u.pin ? ' · PIN' : '') + '</span></span><span class="small">' +
+                  (curUser() && curUser().id === u.id ? 'you' : '') + '</span>';
+    b.onclick = async () => {
+      let pin = '';
+      if (u.pin) {
+        pin = prompt('PIN for ' + u.name + ':') || '';
+        if (!pin) return;
+      }
+      if (!(await signIn(u.id, pin))) return toast('That PIN is wrong.');
+      $('whodlg').style.display = 'none';
+      paintWho(); renderList(); renderUsers(); renderAudit();
+      if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+      toast('Signed in as ' + u.name + '.');
+    };
+    box.appendChild(b);
+  });
+  const row = document.createElement('div'); row.className = 'btnrow'; row.style.marginTop = '12px';
+  if (curUser()) {
+    const out = document.createElement('button'); out.className = 'x'; out.textContent = 'Sign out';
+    out.onclick = () => { signOut(); $('whodlg').style.display = 'none'; paintWho(); renderList(); renderUsers();
+                          if (openIdx != null && panelEl) openPanel(openIdx, panelTab); };
+    row.appendChild(out);
+  }
+  if (curUser() || !force) {
+    const cl = document.createElement('button'); cl.textContent = curUser() ? 'Close' : 'Read only';
+    cl.onclick = () => { $('whodlg').style.display = 'none'; };
+    row.appendChild(cl);
+  }
+  box.appendChild(row);
+  $('whodlg').style.display = 'block';
+}
+function renderUsers() {
+  const box = $('usersBox'); if (!box) return;
+  const list = usersAll();
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<p class="small">No users – this phone is one person\'s.</p>'; return; }
+  const admin = userCan('manage');
+  list.forEach(u => {
+    const r = document.createElement('div'); r.className = 'urow';
+    const sp = document.createElement('span');
+    sp.innerHTML = '<b>' + esc(u.name) + '</b> · ' + esc(ROLES[u.role]) + (u.pin ? ' · PIN' : '') +
+                   '<div class="small">' + esc(ROLE_NOTE[u.role]) + '</div>';
+    r.appendChild(sp);
+    if (admin) {
+      const act = document.createElement('span');
+      const role = document.createElement('select');
+      Object.keys(ROLES).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = ROLES[k]; role.appendChild(o); });
+      role.value = u.role; role.className = 'sm';
+      role.onchange = () => { try { userSetRole(u.id, role.value); renderUsers(); paintWho(); } catch (e) { toast(e.message); } };
+      const pin = document.createElement('button'); pin.className = 'sm'; pin.textContent = 'PIN';
+      pin.onclick = async () => { const v = prompt('New PIN for ' + u.name + ' (empty removes it):'); if (v === null) return;
+                                  await userSetPin(u.id, v); renderUsers(); toast(v ? 'PIN set.' : 'PIN removed.'); };
+      const del = document.createElement('button'); del.className = 'sm x'; del.textContent = '×';
+      del.onclick = () => { if (!confirm('Remove ' + u.name + '?')) return;
+                            try { userRemove(u.id); } catch (e) { return toast(e.message); }
+                            renderUsers(); paintWho(); };
+      act.appendChild(role); act.appendChild(pin); act.appendChild(del);
+      r.appendChild(act);
+    }
+    box.appendChild(r);
+  });
+}
+function renderAudit() {
+  const box = $('auditBox'); if (!box) return;
+  const list = auditList().slice(-60).reverse();
+  box.innerHTML = list.length ? '' : '<div>Nothing yet.</div>';
+  list.forEach(r => {
+    const d = document.createElement('div');
+    const detail = r.detail || (r.diff ? Object.keys(r.diff).map(k => k + ' ' +
+      (r.diff[k][0] == null ? '–' : String(r.diff[k][0]).slice(0, 18)) + ' → ' +
+      (r.diff[k][1] == null ? '–' : String(r.diff[k][1]).slice(0, 18))).join(', ') : '');
+    d.innerHTML = '<span>' + esc(r.ts.slice(0, 16).replace('T', ' ')) + ' · ' + esc(r.user) + '</span> ' +
+                  esc(r.what) + (r.tree ? ' <b>' + esc(r.tree) + '</b>' : '') +
+                  (detail ? ' <span>' + esc(detail) + '</span>' : '');
+    box.appendChild(d);
+  });
+}
+function wireUsers() {
+  $('whoBtn').onclick = () => openWho(false);
+  $('uAdd').onclick = async () => {
+    if (usersExist() && !userCan('manage')) return toast('Only an admin adds users.');
+    try {
+      const u = await userAdd($('uName').value, $('uRole').value, $('uPin').value);
+      $('uName').value = ''; $('uPin').value = '';
+      // the first user made is the person making it, and an admin: otherwise
+      // the phone has a user it cannot sign in as and nobody who can manage
+      if (usersAll().length === 1) { const l = usersAll(); l[0].role = 'admin'; usersSave(l); await signIn(u.id, $('uPin').value); }
+      renderUsers(); paintWho(); renderAudit();
+      toast(usersAll().length === 1 ? 'You are ' + u.name + ', admin. Add the others.' : u.name + ' added.');
+    } catch (e) { toast(e.message); }
+  };
+  $('bAuditCsv').onclick = () => dl('trail_' + stamp() + '.csv', auditCsv(), 'text/csv');
+  $('bAuditClear').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin clears the trail.');
+    if (!confirm('Clear the trail? The clearing itself is logged.')) return;
+    lsDel(K_AUDIT); auditAdd({ what: 'trail cleared' }); renderAudit();
+  };
+  paintWho(); renderUsers(); renderAudit();
+  // users exist and nobody is signed in: ask, once, at start
+  if (usersExist() && !curUser()) openWho(true);
+}
+
+
+/* ================== READING A STRANGER'S REGISTER ==================
+   The column reader lives in mapper.js; this is the part the inspector sees.
+   Nothing is written to the register until the table has been looked at and
+   the Import button pressed. */
+let mapState = null;
+
+function looksOurs(txt) {
+  const t = String(txt).trim();
+  if (t[0] !== '{' && t[0] !== '[') return false;       // CSV is never ours
+  try {
+    const j = JSON.parse(t);
+    const f = (j.features || [])[0];
+    return !!(f && f.properties && (f.properties.tree_id != null || f.properties.is_reference));
+  } catch (e) { return false; }
+}
+
+function openMapper(text, name, url) {
+  /* A web page read as a register gives one column called "<html lang=en>" and
+     a hundred rows of markup. It is never worth showing that table. */
+  if (looksLikeHtml(text))
+    throw new Error('that is a web page, not a register – no columns to read in it');
+  const parsed = parseRegisterFile(text);
+  const plan = planMapping(parsed.cols, parsed.rows);
+  mapState = { parsed: parsed, plan: plan, name: name || 'file', url: url || null };
+  $('mapSub').textContent = (name ? name + ' · ' : '') + parsed.rows.length + ' row' +
+    (parsed.rows.length === 1 ? '' : 's') + ' · ' + parsed.cols.length + ' columns' +
+    (parsed.sep ? ' · separator "' + (parsed.sep === '\t' ? 'tab' : parsed.sep) + '"' : '');
+  buildMapTable();
+  $('mapdlg').style.display = 'block';
+}
+
+function mapTargets() {
+  const keys = Object.keys(COLSYN);
+  return keys.map(k => [k, (fieldDef(k) || [k, k])[1] || k])
+             .sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+function buildMapTable() {
+  const t = $('mapTab'); t.innerHTML = '';
+  const hd = document.createElement('tr');
+  hd.innerHTML = '<th>Column in your file</th><th>Read as</th><th>Sure</th>';
+  t.appendChild(hd);
+  const targets = mapTargets();
+  mapState.plan.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.className = 'src';
+    td1.innerHTML = '<b>' + esc(r.col) + '</b>';
+    if (r.sample.length) {
+      const ex = document.createElement('div'); ex.className = 'ex';
+      ex.textContent = r.sample.map(x => x.length > 22 ? x.slice(0, 22) + '…' : x).join(' · ');
+      td1.appendChild(ex);
+    }
+    tr.appendChild(td1);
+
+    const td2 = document.createElement('td');
+    const sel = document.createElement('select');
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = '— keep as your own column —';
+    sel.appendChild(none);
+    targets.forEach(pair => {
+      const o = document.createElement('option');
+      o.value = pair[0]; o.textContent = pair[1]; sel.appendChild(o);
+    });
+    sel.value = r.key || '';
+    sel.onchange = () => {
+      const v = sel.value;
+      if (v) mapState.plan.forEach((o, j) => {      // a field can only be filled once
+        if (j !== i && o.key === v) { o.key = ''; o.conf = 0; }
+      });
+      r.key = v; r.conf = v ? (r.conf || 100) : 0; r.manual = true;
+      buildMapTable();
+    };
+    td2.appendChild(sel);
+    tr.appendChild(td2);
+
+    const td3 = document.createElement('td');
+    const cf = document.createElement('span');
+    cf.className = 'cf ' + (r.manual ? 'hi' : r.conf >= 80 ? 'hi' : r.conf >= 60 ? 'mid' : 'lo');
+    cf.textContent = r.manual ? 'you' : r.key ? r.conf + ' %' : (r.dup ? 'dup.' : '–');
+    if (r.guessed && !r.manual) cf.title = 'guessed from the values, not from the column name';
+    td3.appendChild(cf);
+    if (r.rival && !r.manual && r.key) {
+      const w = document.createElement('div'); w.className = 'ex';
+      w.textContent = r.guessed ? 'from values' : 'check';
+      td3.appendChild(w);
+    }
+    tr.appendChild(td3);
+    t.appendChild(tr);
+  });
+  paintMapWarn();
+}
+
+function paintMapWarn() {
+  const box = $('mapWarn'); box.innerHTML = '';
+  const have = {}; mapState.plan.forEach(r => { if (r.key) have[r.key] = r.col; });
+  const geo = mapState.parsed.geo;
+  const say = (cls, txt) => {
+    const d = document.createElement('div'); if (cls) d.className = cls;
+    d.textContent = txt; box.appendChild(d);
+  };
+  const pos = geo || (have.lat && have.lon);
+  if (!pos) say('', 'No position. Pick the columns holding latitude and longitude, or the ' +
+                    'trees cannot go on the map. Metric grid coordinates are not read here.');
+  if (!have.tree_id && !have.tag_no)
+    say('', 'No tree number. Numbers will be made up as IMP-00001 and onwards, and a later ' +
+            'delivery from the same source will not find its way back to these trees.');
+  const unsure = mapState.plan.filter(r => r.key && !r.manual && (r.conf < 70 || r.rival));
+  if (unsure.length)
+    say('', unsure.length + ' column' + (unsure.length === 1 ? '' : 's') +
+            ' read with little confidence: ' + unsure.map(r => r.col).join(', ') +
+            '. Look at these before importing.');
+  const kept = mapState.plan.filter(r => !r.key).length;
+  if (pos && !unsure.length)
+    say('ok', 'The reading looks clean.' + (kept ? ' ' + kept + ' column' + (kept === 1 ? '' : 's') +
+        ' will be carried along unchanged under src_.' : ''));
+  $('mapGo').disabled = !pos;
+}
+
+function closeMapper() { $('mapdlg').style.display = 'none'; mapState = null; }
+
+/* ---- the standard that applies here -----------------------------------
+   A fix in Tallinn while the form is set to the German guideline is a
+   mistake waiting to happen. The country is read off the position - the
+   phone's, or the register's on import - and the matching standard is
+   offered once. Offered, not imposed: the inspector may be working to a
+   client's rule that is not the local one. Declined, it is not asked again
+   for that standard until the app is restarted. */
+let normOffered = null;
+function proposeNormFor(lat, lon, why) {
+  const cc = countryOf(lat, lon);
+  const id = cc && normForCountry(cc);
+  if (!id || id === curNorm().id || normOffered === id || prefs().normPinned) return false;
+  normOffered = id;
+  const n = normById(id);
+  const html = '<b>' + esc(n.flag + ' ' + n.label) + '</b><br>' +
+    esc(why || 'You appear to be in ' + cc) + '. Work to this standard? The form and the report change; the trees do not.';
+  const yes = () => { setNorm(id); if (openIdx != null && panelEl) openPanel(openIdx, panelTab); renderList();
+                      const sel = $('normSel'); if (sel) sel.value = id;
+                      const nn = $('normNote'); if (nn) nn.textContent = n.note + ' — ' + n.source;
+                      toast('Form set to ' + n.label + ' · ' + (LANG_NAMES[uiLang()] || '')); };
+  if (mode === 'WebXR') mbar(html, [['Yes', () => { $('mbar').classList.remove('on'); yes(); }, 'p'],
+                                     ['Keep ' + curNorm().flag, () => { $('mbar').classList.remove('on'); }]]);
+  else askSheet(html, [['Yes', yes, 'p'], ['Keep ' + curNorm().flag + ' ' + curNorm().cc, null]]);
+  return true;
+}
+/* A question with buttons, outside AR: the same box the identification
+   suggestions use. */
+function askSheet(html, buttons) {
+  const el = $('niaBox'); el.innerHTML = '';
+  const h = document.createElement('div'); h.innerHTML = html; el.appendChild(h);
+  const row = document.createElement('div'); row.className = 'btnrow'; row.style.marginTop = '10px';
+  buttons.forEach(b => {
+    const bt = document.createElement('button'); if (b[2]) bt.className = b[2]; bt.textContent = b[0];
+    bt.onclick = () => { el.style.display = 'none'; if (b[1]) b[1](); };
+    row.appendChild(bt);
+  });
+  el.appendChild(row); el.style.display = 'block';
+}
+
+
+/* ---- straight from the server -------------------------------------------
+   Nobody should have to know what curl is to get their city's trees. An
+   ArcGIS layer address is turned into the query that returns GeoJSON in WGS84,
+   and read page by page until the server has no more; anything else is
+   fetched as it is and handed to the column reader. */
+/* The rectangle the map is showing, as ArcGIS wants it: west, south, east,
+   north in plain degrees, with inSR saying they are degrees. Without it a city
+   layer answers with every tree in the city - a hundred thousand of them, on a
+   phone, to inspect the forty in one park. */
+function mapEnvelope() {
+  const v = mapCentre(), box = $('mapBox');
+  /* mapCentre falls back to a reference point or the first tree when the map
+     has never been opened and there is no fix, and a reference point left over
+     from another survey is five hundred kilometres from the park you are
+     standing in. The rectangle therefore says where it came from, and the
+     screen says it out loud before anybody presses fetch. */
+  const from = mapViewFrom;
+  const mPerPx = 156543.03392 * Math.cos(v.lat * Math.PI / 180) / Math.pow(2, v.z);
+  const dLat = ((box && box.clientHeight) || 300) / 2 * mPerPx / mLat(v.lat);
+  const dLon = ((box && box.clientWidth) || 360) / 2 * mPerPx / mLon(v.lat);
+  return { w: v.lon - dLon, s: v.lat - dLat, e: v.lon + dLon, n: v.lat + dLat,
+           lat: v.lat, lon: v.lon, across: Math.round(2 * dLon * mLon(v.lat)), from: from };
+}
+/* What the rectangle is, in words, under the tick box. */
+function paintImpBox() {
+  const el = $('impBoxWhere'); if (!el) return;
+  if (!$('impBbox') || !$('impBbox').checked) { el.textContent = 'The whole layer will be asked for.'; return; }
+  const b = mapEnvelope();
+  el.innerHTML = 'Rectangle round <b>' + b.lat.toFixed(5) + ', ' + b.lon.toFixed(5) + '</b>, about ' +
+    (b.across >= 1000 ? (b.across / 1000).toFixed(1) + ' km' : b.across + ' m') + ' across · ' +
+    (b.from === 'map' ? 'the map view' : b.from === 'you' ? 'your position' :
+     '<b class="wa">no map view and no GPS – this is a leftover point, open the Map tab first</b>');
+}
+function arcgisQueryUrl(u, offset, box) {
+  const base = u.replace(/\/query.*$/, '').replace(/\/$/, '');
+  let q = base + '/query?where=1%3D1&outFields=*&outSR=4326&f=geojson&resultOffset=' + (offset || 0);
+  if (box) q += '&geometry=' + [box.w, box.s, box.e, box.n].map(x => x.toFixed(6)).join(',') +
+                '&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects';
+  return q;
+}
+/* ---- addresses that are known to answer -------------------------------
+   Two kinds, and the difference is stated rather than blurred: sources this
+   app has actually loaded in the field, and sources found in a catalogue and
+   never tried from here. Beside them sit the addresses this phone has itself
+   imported from, which are working by definition - they worked here. */
+const K_URLS = 'vta_urls_v1';
+const IMPORT_SOURCES = [
+  { label: 'Tallinn · HHHIS puud (all city trees)',
+    url: 'https://gis.tallinn.ee/arcgis/rest/services/HHHIS/HHHIS_puud/MapServer/0',
+    note: 'Loaded in the field and read correctly. Whole city: leave "only the area shown on the ' +
+          'map" ticked. No species column – the layer carries the district, the address and remarks.',
+    tried: true }
+];
+function urlHist() { try { return JSON.parse(lsGet(K_URLS)) || []; } catch (e) { return []; } }
+function urlRemember(u, n) {
+  const url = String(u || '').trim(); if (!url) return;
+  const h = urlHist().filter(x => x.url !== url);
+  h.unshift({ url: url, n: n || 0, at: new Date().toISOString() });
+  lsSet(K_URLS, JSON.stringify(h.slice(0, 8)));
+}
+function paintImpPick() {
+  const sel = $('impPick'); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— pick one, or paste below —</option>';
+  const add = (group, items) => {
+    if (!items.length) return;
+    const g = document.createElement('optgroup'); g.label = group;
+    items.forEach(it => {
+      const o = document.createElement('option');
+      o.value = it.url; o.textContent = it.label; g.appendChild(o);
+    });
+    sel.appendChild(g);
+  };
+  add('Worked on this phone', urlHist().map(h => ({
+    url: h.url, label: (h.n ? h.n + ' trees · ' : '') + h.url.replace(/^https?:\/\//, '').slice(0, 52) })));
+  add('Tried in the field', IMPORT_SOURCES.filter(x => x.tried).map(x => ({ url: x.url, label: x.label })));
+  sel.value = cur;
+}
+function paintImpNote(url) {
+  const el = $('impNote'); if (!el) return;
+  const known = IMPORT_SOURCES.find(x => x.url === url);
+  const mine = urlHist().find(h => h.url === url);
+  el.innerHTML = known ? (known.tried ? '' : '<b class="wa">Not tried from here.</b> ') + esc(known.note)
+    : mine ? 'Imported from this address before' + (mine.n ? ', ' + mine.n + ' trees' : '') +
+             ', on ' + esc(mine.at.slice(0, 10)) + '.'
+    : '';
+}
+
+/* An ArcGIS service address without a layer number on the end is the service,
+   not the data: fetching it gives the directory page, which is a web page and
+   not a register. The address bar of that page is what anybody copies, so the
+   app asks the service what layers it has and takes it from there rather than
+   handing HTML to the column reader. */
+async function arcgisLayers(base) {
+  const r = await fetch(base.replace(/\/$/, '') + '?f=json');
+  if (!r.ok) throw new Error('the server answered ' + r.status);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message || 'the service refused to describe itself');
+  return (j.layers || []).filter(l => l.subLayerIds == null || !l.subLayerIds.length);
+}
+function looksLikeHtml(t) { return /^\s*(<!doctype html|<html[\s>])/i.test(String(t || '').slice(0, 400)); }
+
+async function fetchRegister(url, onlyBox) {
+  let u = String(url || '').trim();
+  if (!/^https?:\/\//i.test(u)) throw new Error('that is not a web address');
+  /* .../MapServer or .../FeatureServer, with no layer after it */
+  if (/\/(FeatureServer|MapServer)\/?$/i.test(u)) {
+    const base = u.replace(/\/$/, '');
+    const ls = await arcgisLayers(base);
+    if (!ls.length) throw new Error('that service publishes no layers to read');
+    if (ls.length > 1)
+      throw new Error('that address is the whole service, which holds ' + ls.length +
+        ' layers. Put the number of the one you want on the end:\n\n' +
+        ls.slice(0, 12).map(l => '  ' + base + '/' + l.id + '   (' + l.name + ')').join('\n'));
+    u = base + '/' + ls[0].id;                     // one layer: no question to ask
+  }
+  const isArc = /\/(FeatureServer|MapServer)\/\d+/.test(u);
+  if (!isArc) {
+    const r = await fetch(u);
+    if (!r.ok) throw new Error('the server answered ' + r.status);
+    const text = await r.text();
+    if (looksLikeHtml(text))
+      throw new Error('that address gives a web page, not data. If it is an ArcGIS layer, its ' +
+                      'address ends in /FeatureServer/0 or /MapServer/0; if it is a download ' +
+                      'page, open it and copy the link to the file itself.');
+    return { text: text, name: u.split('/').pop().split('?')[0] || 'download' };
+  }
+  const feats = [];
+  const box = (typeof onlyBox !== 'undefined' && onlyBox) ? onlyBox : null;
+  let offset = 0, more = true, pages = 0;
+  while (more && pages++ < 50) {
+    const r = await fetch(arcgisQueryUrl(u, offset, box));
+    if (!r.ok) throw new Error('the server answered ' + r.status);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error.message || 'the server refused the query');
+    const got = j.features || [];
+    feats.push.apply(feats, got);
+    more = !!(j.exceededTransferLimit || (j.properties && j.properties.exceededTransferLimit)) && got.length > 0;
+    offset += got.length;
+    if (!got.length) break;
+  }
+  if (!feats.length) throw new Error(box
+    ? 'the layer has nothing in the part of the map you are looking at'
+    : 'the layer returned no features');
+  const capped = pages >= 50 && more;
+  return { text: JSON.stringify({ type: 'FeatureCollection', features: feats }),
+           capped: capped,
+           name: 'arcgis layer (' + feats.length + ' features' +
+                 (box ? ', the map view' : '') + (capped ? ', cut off' : '') + ')' };
+}
+async function importFromUrl(url) {
+  const only = $('impBbox') && $('impBbox').checked ? mapEnvelope() : null;
+  toast('Fetching …' + (only ? ' the map view' : ''));
+  try {
+    const r = await fetchRegister(url, only);
+    if (looksOurs(r.text)) return toast('That is one of our own registers – use Merge a register… for it.');
+    if (r.capped && !confirm('That layer is bigger than one download: ' +
+        '100 000 rows came back and there are more.\n\nRead these anyway?\n\n' +
+        'Better: tick "Only the area shown on the map", move the map to the park you are ' +
+        'working in, and fetch again.')) return;
+    openMapper(r.text, r.name, url);
+  } catch (e) {
+    const m = (e && e.message) || String(e);
+    if (only && /nothing in the part of the map/.test(m)) {
+      if (confirm('Nothing in the rectangle the map is showing.\n\nIt is centred on ' +
+          only.lat.toFixed(5) + ', ' + only.lon.toFixed(5) + ' (' +
+          (only.from === 'map' ? 'the map view' : only.from === 'you' ? 'your position' :
+           'a leftover reference point – the map has never been opened and there is no fix') +
+          ').\n\nMove the map onto the place you want and fetch again, or press OK to ask for ' +
+          'the whole layer.')) {
+        try {
+          const r2 = await fetchRegister(url, null);
+          if (r2.capped && !confirm('The whole layer is bigger than one download: 100 000 rows ' +
+              'came back and there are more. Read these anyway?')) return;
+          openMapper(r2.text, r2.name, url);
+        } catch (e2) { alert('Could not read it: ' + ((e2 && e2.message) || e2)); }
+      }
+      return;
+    }
+    alert(m === 'Failed to fetch'
+      ? 'The server does not allow requests from a web page (no CORS), or there is no signal.\n\n' +
+        'Open the address in the browser instead, save the file (Ctrl+S / Share → Save), ' +
+        'then Data → Merge a register… and pick that file.'
+      : 'Could not read it: ' + m);
+  }
+}
+
+
+function runMapper() {
+  if (!mapState) return;
+  let r;
+  try { r = applyMapping(mapState.parsed, mapState.plan); }
+  catch (e) { return alert('Import failed: ' + ((e && e.message) || e)); }
+  if (!r.features.length) return alert('Nothing usable in the file: every row lacked a position.');
+  const rep = mergeCatalogue(r.features, false);
+  if (mapState.url) urlRemember(mapState.url, r.features.length);
+  closeMapper();
+  buildMarkers(); renderList(); renderStats();
+  const c0 = r.features[0].geometry.coordinates;
+  setTimeout(() => proposeNormFor(c0[1], c0[0], 'The register you loaded lies in ' + (countryOf(c0[1], c0[0]) || '?')), 400);
+  alert('Register read.\n\n' + rep.added + ' new tree' + (rep.added === 1 ? '' : 's') +
+        '\n' + rep.filled + ' existing filled in' +
+        '\n' + rep.kept + ' left as they were' +
+        (r.skipped.length ? '\n' + r.skipped.length + ' row' +
+          (r.skipped.length === 1 ? '' : 's') + ' without a usable position' : '') +
+        '\n\nThese are register positions. Stand at each stem and record it to get a survey.');
+}
+
+/* ============================ START ============================ */
+
+function chk(state, txt) {
+  const d = document.createElement('div'); d.className = 'chk';
+  d.innerHTML = '<span class="i ' + state + '">' + (state === 'ok' ? '✔' : state === 'no' ? '✘' : '!') + '</span><span>' + txt + '</span>';
+  $('checks').appendChild(d);
+}
+async function checks() {
+  $('checks').innerHTML = '';
+  chk(isSecureContext ? 'ok' : 'no', 'Secure connection' + (isSecureContext ? '' : ' – AR, camera and GPS need HTTPS'));
+  chk(navigator.geolocation ? 'ok' : 'no', 'Location');
+  chk(navigator.mediaDevices ? 'ok' : 'no', 'Camera');
+  chk(('ondeviceorientationabsolute' in window) ? 'ok' : 'wa', 'Compass');
+  let xrOk = false;
+  if (navigator.xr) {
+    try { xrOk = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) {}
+  }
+  chk(xrOk ? 'ok' : 'wa', 'AR tracking' + (xrOk ? '' : ' – unavailable, use camera mode'));
+  $('bxr').disabled = !xrOk;
+  $('bcam').disabled = !navigator.mediaDevices;
+  chk(photosOk ? 'ok' : 'wa', 'Photo storage');
+  chk('serviceWorker' in navigator ? 'ok' : 'wa', 'Offline use');
+}
+
+/* AR and the register are two views of the same tree, not two places. Going
+   from one to the other is one press either way, and the session is never
+   torn down to do it: the panel is drawn inside the AR overlay, so closing it
+   drops straight back into the camera with the survey still locked. */
+async function toAR(i) {
+  if (i != null) { selectTree(i); navTarget = i; }
+  if (mode) {                       // a session is already running
+    closePanel();
+    $('app').classList.add('hidden');
+    $('xrui').classList.add('on');
+    if (i != null) placeMarkers();
+    return true;
+  }
+  if (!batteryOkForAR()) return false;
+  if (!(await cameraAllowed())) {
+    // one press to allow it, the next starts AR with photographs working
+    const got = await primeCamera();
+    toast(got ? 'Camera allowed – press AR again and photographs will work in it.'
+              : 'AR will run without photographs; camera mode can still take them.');
+    if (got) return false;
+  }
+  try {
+    /* requestSession needs the user's tap to still count, and awaiting
+       anything first can spend it. The session is asked for first; the
+       compass and GPS follow, and neither is gated. */
+    await startXR();
+    startGPS(); startOrient();
+    if (i != null) { selectTree(i); navTarget = i; }
+    return true;
+  } catch (e) {
+    msg('WebXR: ' + e.message + ' → try camera mode');
+    toast('AR did not start: ' + e.message);
+    return false;
+  }
+}
+/* And back: the tree's page, over the camera if AR is running, on the list
+   screen if it is not. */
+function toTable(i) {
+  if (i == null) return;
+  selectTree(i);
+  if (!mode) { showScreen('list'); }
+  openPanel(i);
+}
+
+function wire() {
+  document.querySelectorAll('#tabbar button').forEach(b => b.onclick = () => showScreen(b.dataset.sc));
+
+  $('bxr').onclick = async () => {
+    if (!batteryOkForAR()) return;
+    /* If the page does not hold the camera permission the session will start
+       without a camera image and no photograph can be taken in it. Get the
+       permission first - it costs one extra press, once, ever. */
+    if (!(await cameraAllowed())) {
+      msg('asking for the camera …');
+      const got = await primeCamera();
+      msg(got ? 'Camera allowed – press AR again to start with photographs.'
+              : 'Without the camera, AR still runs; photographs will need camera mode.');
+      if (got) return;
+    }
+    msg('starting …');
+    try { await startXR(); startGPS(); startOrient(); msg(''); }
+    catch (e) { msg('WebXR: ' + e.message + ' → try camera mode'); }
+  };
+  $('blidar').onclick = () => {
+    msg('LiDAR mode is not built yet.');
+    toast('LiDAR mode is not built yet.');
+  };
+  $('bcam').onclick = async () => {
+    msg('starting …');
+    try { await startOrient(); startGPS(); await startCam(); msg(''); }
+    catch (e) { msg('Camera: ' + e.message); }
+  };
+
+  $('bnew').onclick = addTreeHere;
+  /* The way from the camera to a tree's page, as a button. Tapping the marker
+     works too, but a button cannot be missed. */
+  $('btools').onclick = () => {
+    buildToolMenu();
+    closePopups('toolmenu');
+    const el = $('toolmenu');
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  };
+  // standing at a known tree happens by itself; the hand version lives in
+  // the align menu, where the rest of the alignment is
+
+  const alignMenu = () => {
+    const el = $('refmenu');
+    const open = el.style.display !== 'block';
+    if (open) buildRefMenu();
+    closePopups('refmenu');
+    el.style.display = open ? 'block' : 'none';
+  };
+  $('bwhich').onclick = () => {
+    const el = $('nummenu');
+    const open = el.style.display !== 'block';
+    if (open) buildNumMenu('');
+    closePopups('nummenu');
+    el.style.display = open ? 'block' : 'none';
+  };
+  $('balign').onclick = alignMenu;
+  $('bshot').onclick = () => takePhotoOf(targetTree(), null);
+  $('bq').onclick = () => {
+    // the control measurements only exist inside this session's frame - leaving
+    // throws them away, and there is no getting them back
+    const done = controlList().filter(r => refFix.has(r.key)).length;
+    if (done && !confirm('Leave AR?\n\n' + done + ' control point' + (done > 1 ? 's' : '') +
+        ' measured in this session' + (lastFit ? ' (fit ±' + lastFit.rms.toFixed(2) + ' m)' : '') +
+        '. They are tied to this session and cannot be carried into the next one – ' +
+        'you would measure them again.')) return;
+    endAR();
+  };
+
+  $('bSort').onclick = () => {
+    sortByDist = !sortByDist;
+    $('bSort').textContent = sortByDist ? 'by distance' : 'by catalogue';
+    renderList();
+  };
+  $('bNew').onclick = () => {
+    if (!lastFix) return toast('No GPS fix – a new tree needs a position.');
+    const i = addTree(lastFix.lon, lastFix.lat, 'GPS in the field', lastFix.acc);
+    toast('Recorded at your own position (±' + lastFix.acc.toFixed(0) +
+          ' m) – average it at the stem, or place it in AR.');
+    /* Your own position is where you stand, and a tree is rarely underfoot.
+       The compass says which way the phone is pointing; hold it at the tree
+       and say how far. */
+    if (!distanceSheet(i, {
+          from: { lat: lastFix.lat, lon: lastFix.lon },
+          dir: (haveOrient && heading != null) ? heading : 0, scene: null, was: 0,
+          note: haveOrient ? 'Recorded where you stand'
+                           : 'Recorded where you stand · no compass, so due north is assumed',
+          after: () => openPanel(i, 'base')   // straight to the position, it needs fixing
+        }))
+      openPanel(i, 'base');
+  };
+
+  $('bNewXY').onclick = () => {
+    const box = $('newXY');
+    const open = box.style.display !== 'block';
+    box.style.display = open ? 'block' : 'none';
+    if (open && lastFix) {                       // a starting point to correct, not a proposal
+      $('nxLon').placeholder = lastFix.lon.toFixed(7);
+      $('nxLat').placeholder = lastFix.lat.toFixed(7);
+    }
+  };
+  $('nxCancel').onclick = () => { $('newXY').style.display = 'none'; };
+  $('nxOk').onclick = () => {
+    const lon = parseFloat($('nxLon').value), lat = parseFloat($('nxLat').value);
+    if (!isFinite(lon) || !isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lon) > 180)
+      return toast('Enter longitude and latitude in decimal degrees.');
+    const i = addTree(lon, lat, 'entered by hand', null);
+    $('nxLon').value = ''; $('nxLat').value = ''; $('newXY').style.display = 'none';
+    openPanel(i, 'base');
+    toast('Tree ' + tid(i) + ' created at the coordinate you entered.');
+  };
+
+  $('bMapPage').onclick = openMapPage;
+  $('bRepPlain').onclick = () => openReport(false);
+  $('bRepPhoto').onclick = () => openReport(true);
+  /* --- research -------------------------------------------------------- */
+  const rc = resCfg();
+  $('resOn').checked = rc.on === true;
+  $('resRatings').checked = rc.ratings === true;
+  $('resWho').value = rc.contributor || '';
+  $('resOn').onchange = () => {
+    const c = resCfg();
+    if ($('resOn').checked) {
+      if (!confirm(RES_CONSENT + '\n\nFrom now on the stem scans are kept as well. ' +
+                   'Nothing leaves this phone until you save the file yourself.')) { $('resOn').checked = false; return; }
+      c.on = true; c.consent_at = new Date().toISOString();
+    } else { c.on = false; }
+    resSave(c); paintRes();
+    auditAdd({ what: 'research collecting', detail: c.on ? 'on' : 'off' });
+  };
+  $('resRatings').onchange = () => { const c = resCfg(); c.ratings = $('resRatings').checked; resSave(c); };
+  $('resWho').onchange = () => { const c = resCfg(); c.contributor = $('resWho').value.trim(); resSave(c); };
+  $('bResExp').onclick = () => resGo(false);
+  $('bResPhotos').onclick = () => resGo(true);
+  paintRes();
+
+  /* --- OpenStreetMap: bringing real trees in ------------------------------ */
+  const osmGet = async (b, what) => {
+    const box = $('osmGetBox');
+    box.textContent = 'Asking OpenStreetMap…';
+    try {
+      const r = await osmImportTrees(b);
+      buildMarkers(); renderList(); renderStats(); drawMap();
+      box.innerHTML = r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + what +
+        (r.already ? ', ' + r.already + ' were already here' : '') +
+        (r.found ? '' : ' – nothing is mapped there yet') +
+        (r.capped ? '. The download was capped – zoom in and do it in pieces.' : '.') +
+        ' <span class="q">© OpenStreetMap contributors, ODbL 1.0</span>';
+      if (r.added) toast(r.added + ' trees from OpenStreetMap.');
+    } catch (e) {
+      box.textContent = 'OpenStreetMap could not be reached: ' +
+        (e.message === 'Failed to fetch' ? 'no signal, or the service is busy' : e.message);
+    }
+  };
+  $('osmGetHere').onclick = () => {
+    if (!lastFix) return toast('No GPS fix yet – open the map so the phone locates you.');
+    const dLat = 300 / mLat(lastFix.lat), dLon = 300 / mLon(lastFix.lat);
+    osmGet({ s: +(lastFix.lat - dLat).toFixed(6), n: +(lastFix.lat + dLat).toFixed(6),
+             w: +(lastFix.lon - dLon).toFixed(6), e: +(lastFix.lon + dLon).toFixed(6) },
+           '300 m around you');
+  };
+  $('osmGetMap').onclick = () => {
+    const v = mapCentre();
+    const box = $('mapBox');
+    const halfW = (box.clientWidth || 360) / 2, halfH = (box.clientHeight || 300) / 2;
+    const mPerPx = 156543.03392 * Math.cos(v.lat * Math.PI / 180) / Math.pow(2, v.z);
+    const dLat = halfH * mPerPx / mLat(v.lat), dLon = halfW * mPerPx / mLon(v.lat);
+    osmGet({ s: +(v.lat - dLat).toFixed(6), n: +(v.lat + dLat).toFixed(6),
+             w: +(v.lon - dLon).toFixed(6), e: +(v.lon + dLon).toFixed(6) },
+           'the map view');
+  };
+
+  /* --- OpenStreetMap: giving your own away -------------------------------- */
+  $('osmClient').value = osmCfg().clientId || '';
+  $('osmClient').onchange = () => { const c = osmCfg(); c.clientId = $('osmClient').value.trim(); osmSave(c); paintOsm(); };
+  $('osmHost').value = osmCfg().host === 'dev' ? 'dev' : 'live';
+  $('osmHost').onchange = () => { const c = osmCfg(); c.host = $('osmHost').value; delete c.token; delete c.user; osmSave(c); paintOsm(); };
+  $('osmConnect').onclick = () => { osmConnect().catch(e => toast(e.message)); };
+  $('osmOut').onclick = () => { osmSignOut(); paintOsm(); toast('Signed out of OpenStreetMap.'); };
+  $('osmUp').onclick = async () => {
+    if (!userCan('edit')) return toast('A viewer does not upload.');
+    const c = osmCandidates();
+    if (!c.length) return toast('No tree here is yours to give away yet.');
+    if (!confirm('Upload ' + Math.min(c.length, OSM_MAX) + ' tree' + (c.length === 1 ? '' : 's') +
+                 ' to ' + (osmCfg().host === 'dev' ? 'the OSM sandbox' : 'OpenStreetMap') +
+                 '?\n\nThe tree goes up – species, girth, height, crown, year. The inspection does not.' +
+                 '\nYour OSM account is named publicly as the author, for good.')) return;
+    $('osmUp').disabled = true; $('osmOut2').textContent = 'Uploading…';
+    try {
+      const r = await osmUpload(c);
+      paintOsm(r);
+      toast(r.uploaded.length + ' tree' + (r.uploaded.length === 1 ? '' : 's') + ' on the map.');
+      renderList();
+    } catch (e) { $('osmOut2').textContent = ''; toast(e.message); }
+    $('osmUp').disabled = false;
+  };
+  paintOsm();
+
+  $('bGuide').onclick = () => showScreen('guide');
+  paintLang();
+  $('langBtn').onclick = openLang;
+
+  /* Does this phone hear, and does it speak? Two different permissions and two
+     different engines, and the field is the wrong place to find out. */
+  $('bSayTest').onclick = () => {
+    const de = voiceLang().startsWith('de');
+    paintVoiceCheck('speaking…');
+    speechSay(de ? 'Sprachsteuerung. Wenn Sie das hören, spricht das Telefon.'
+                 : 'Voice control. If you hear this, the phone speaks.',
+              () => paintVoiceCheck(null));
+  };
+  paintVoiceCheck(null);
+
+  $('bExpGeo').onclick = () => {
+    dl('tree_register_' + stamp() + '.geojson', JSON.stringify(merged(), null, 1), 'application/geo+json');
+    markExported();
+  };
+  $('bExpCsv').onclick = () => {
+    dl('tree_register_' + stamp() + '.csv', csv(), 'text/csv');
+    markExported();
+  };
+  $('bExpPhotos').onclick = async () => {
+    let ps = [];
+    try { ps = await photoAll(); } catch (e) {}
+    if (!ps.length) return toast('No photos stored.');
+    toast('Saving ' + ps.length + ' photos …');
+    for (let n = 0; n < ps.length; n++) {
+      const b = await (await fetch(ps[n].url)).blob();
+      dl(ps[n].tree + '_' + (n + 1) + '.jpg', b, 'image/jpeg');
+      await new Promise(r => setTimeout(r, 350));
+    }
+  };
+  $('bImp').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importReplace = false; $('fileImp').click(); };
+  $('bImpRep').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin replaces the register.');
+    if (!confirm('Replace the whole register with the file, losing everything on this phone that is not in it?')) return;
+    importReplace = true; $('fileImp').click();
+  };
+  $('fileImp').onchange = () => {
+    const f = $('fileImp').files && $('fileImp').files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      /* A register of ours round-trips without questions. Anything else is a
+         stranger's file and goes through the column reader first. */
+      const txt = String(rd.result);
+      if (!looksOurs(txt)) {
+        $('fileImp').value = '';
+        try { openMapper(txt, f.name); }
+        catch (e) { alert('That file could not be read: ' + ((e && e.message) || e)); }
+        return;
+      }
+      try {
+        const j = JSON.parse(txt);
+        const all = (j.features || []).filter(x => x.geometry &&
+          (x.geometry.type === 'Point' || x.geometry.type === 'MultiPoint'));
+        if (!all.length) throw new Error('no point features found');
+        /* A file straight from the Berlin portal is not one of ours: no
+           tree_id, but art_bot and kennzeich. Take it through the register
+           reader instead of pretending it is a register of ours. */
+        const looksBerlin = all.length && !all[0].properties.tree_id &&
+          Object.keys(all[0].properties || {}).some(k =>
+            /^(art_bot|art_dtsch|kennzeich|standortnr|stammumfg|baumhoehe)$/i.test(k));
+        if (looksBerlin) {
+          const r = addBerlin(all);
+          $('fileImp').value = ''; importReplace = false;
+          alert('Berlin tree register loaded.\n\n' + r.added + ' new tree' +
+                (r.added === 1 ? '' : 's') +
+                (r.dup ? '\n' + r.dup + ' already here' : '') +
+                (r.bad ? '\n' + r.bad + ' without a usable position' : '') +
+                '\n\nThese are register positions, metre-level. Stand at each stem ' +
+                'and record it to get a survey.');
+          return;
+        }
+        /* older exports of this app carried reference points in the same file.
+           They are not trees, and there is nowhere to put them any more. */
+        const feats = all.filter(x => !(x.properties && x.properties.is_reference));
+        feats.forEach((x, n) => {
+          if (!x.properties) x.properties = {};
+          if (!x.properties.tree_id) x.properties.tree_id = x.properties.baum_id || ('IMP-' + (n + 1));
+        });
+        const rep = mergeCatalogue(feats, importReplace);
+        importReplace = false;
+        buildMarkers(); renderList(); renderStats();
+        alert('Register loaded.\n\n' + rep.added + ' new tree' + (rep.added === 1 ? '' : 's') +
+              '\n' + rep.filled + ' existing filled in' +
+              '\n' + rep.kept + ' left as they were' +
+              (rep.conflicts.length ? '\n\nDiffering values kept as yours:\n· ' +
+                 rep.conflicts.slice(0, 12).join('\n· ') +
+                 (rep.conflicts.length > 12 ? '\n· … and ' + (rep.conflicts.length - 12) + ' more' : '') : '') +
+              (refs.length ? '\n\n' + refs.length + ' reference points' : ''));
+      } catch (e) { toast('Import failed: ' + e.message); }
+      $('fileImp').value = '';
+    };
+    rd.readAsText(f);
+  };
+  $('mapX').onclick = closeMapper;
+  $('impBbox').onchange = paintImpBox;
+  $('impPick').onchange = () => {
+    const u = $('impPick').value;
+    if (u) { $('impUrl').value = u; paintImpNote(u); } else paintImpNote('');
+  };
+  $('impUrl').oninput = () => paintImpNote($('impUrl').value.trim());
+  $('bImpCheck').onclick = async () => {
+    const u = ($('impUrl').value || '').trim();
+    if (!u) return toast('Paste an address first, or pick one above.');
+    const el = $('impNote'); el.textContent = 'Asking …';
+    try {
+      const probe = /\/(FeatureServer|MapServer)(\/\d+)?\/?$/i.test(u)
+        ? u.replace(/\/$/, '') + '?f=json'
+        : u + (u.indexOf('?') < 0 ? '?' : '&') + 'SERVICE=WFS&REQUEST=GetCapabilities';
+      const r = await fetch(probe);
+      const t = (await r.text()).slice(0, 4000);
+      if (!r.ok) { el.innerHTML = '<b class="wa">The server answered ' + r.status + '.</b>'; return; }
+      let name = null, count = null;
+      try { const j = JSON.parse(t); name = j.name || j.mapName || (j.layers && j.layers.length + ' layers'); } catch (e) {}
+      if (!name && /<(wfs:)?WFS_Capabilities/i.test(t)) name = 'a WFS service';
+      el.innerHTML = '<b class="ok">It answers.</b> ' + (name ? esc(String(name)) + '. ' : '') +
+        (/\/(FeatureServer|MapServer)\/\d+/.test(u) ? 'Press “Fetch and read”.'
+          : 'Put a layer number on the end, or press “Fetch and read” and the app will ask which layer.');
+    } catch (e) {
+      el.innerHTML = '<b class="wa">No answer.</b> ' + (e.message === 'Failed to fetch'
+        ? 'Either no signal, or this server does not allow requests from a web page. Open the address ' +
+          'in the browser, save the file, then Import → Merge a register…'
+        : esc(e.message));
+    }
+  };
+  paintImpPick();
+  $('bImpUrl').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importFromUrl($('impUrl').value); };
+  $('mapGo').onclick = runMapper;
+  const normSel = $('normSel');
+  NORMS.forEach(n => { const o = document.createElement('option');
+    o.value = n.id; o.textContent = n.flag + ' ' + n.label; normSel.appendChild(o); });
+  const paintNorm = () => {
+    const n = curNorm();
+    normSel.value = n.id;
+    $('normNote').textContent = n.note + ' — ' + n.source;
+  };
+  paintNorm();
+  normSel.onchange = () => {
+    setNorm(normSel.value); paintNorm(); setPref('normPinned', true);
+    if (openIdx != null && panelEl) openPanel(openIdx, panelTab);
+    renderList();
+    toast('Form set to ' + curNorm().label + '.');
+  };
+  const paintFollow = () => {
+    $('bScroll').textContent = 'Follow the form: ' + (followForm() ? 'on' : 'off');
+    $('bScroll').classList.toggle('p', followForm());
+  };
+  paintFollow();
+  $('bScroll').onclick = () => { setPref('follow', !followForm()); paintFollow(); };
+  paintAskDist();
+  $('bAskDist').onclick = () => { setPref('askDist', !askDist()); paintAskDist(); };
+  paintAutoVoice();
+  $('bAutoVoice').onclick = () => { setPref('autoVoice', !autoVoice()); paintAutoVoice(); };
+  $('prefLang').value = prefs().lang || 'auto';
+  $('prefLang').onchange = () => {
+    setLang($('prefLang').value);
+    toast('The app in ' + (LANG_NAMES[uiLang()] || uiLang()) + '.');
+  };
+  $('prefPnet').value = pnetCfg().key || '';
+  $('prefPnet').onchange = () => { const c = pnetCfg(); c.key = $('prefPnet').value.trim(); pnetSave(c);
+                                   toast(c.key ? 'Pl@ntNet key kept on this phone.' : 'Pl@ntNet key removed.'); };
+  $('prefStep').value = prefs().stepOff == null ? '1.0' : prefs().stepOff;
+  $('prefStep').onchange = () => {
+    const v = parseFloat(String($('prefStep').value).replace(',', '.'));
+    setPref('stepOff', isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.0);
+    $('prefStep').value = stepOff().toFixed(1);
+    toast('A recorded tree goes ' + stepOff().toFixed(1) + ' m ahead of you.');
+  };
+  const paintSafe = () => {
+    const d = prefs().depth, on = depthWanted();
+    const word = d === true ? 'on' : d === false ? 'off'
+               : prefs().depthBanned ? 'off – this phone died with it'
+               : prefs().depthProven ? 'on – this phone takes it' : 'auto – will try';
+    $('bSafe').textContent = 'Depth: ' + word;
+    $('bSafe').classList.toggle('p', on);
+  };
+  paintSafe();
+  /* auto → on → off → auto. Setting it by hand clears what the watchdog
+     learned, because a hand on the switch is a person who knows better. */
+  $('bSafe').onclick = () => {
+    const d = prefs().depth;
+    const next = d == null ? true : d === true ? false : null;
+    const pr = prefs(); pr.depth = next; delete pr.depthBanned; delete pr.depthProven;
+    lsSet(K_PREF, JSON.stringify(pr));
+    if (!depthWanted()) { stemScanOff = true; depthOk = false; }
+    else { stemScanOff = false; }
+    paintSafe();
+    toast(next === true ? 'Depth on – leave AR and come back for it to take effect.'
+        : next === false ? 'Depth off – trees are recorded where you stand.'
+        : 'Depth on trial – the next AR session tries it and remembers whether this phone survives.');
+  };
+  $('plotHere').onclick = () => {
+    if (!lastFix) return toast('No GPS fix.');
+    if (!plotGeoreferenced()) return toast('There is no plot yet – record a tree in AR.');
+    // where the phone is in the plot frame: from the session if there is one,
+    // otherwise from the nearest surveyed tree, which is what you are next to
+    let l = null;
+    if (mode === 'WebXR' && S2P) l = s2pInvert(camPos().x, camPos().z);
+    if (!l) {
+      const i = nearestByGps();
+      l = i == null ? null : localOf(i);
+      if (l && !confirm('Put the stand so that ' + tid(i) + ', the nearest tree, sits at ' +
+          'your own position (±' + lastFix.acc.toFixed(0) + ' m)?\n\nEvery tree moves the ' +
+          'same amount; the distances between them do not change.')) return;
+    }
+    if (!l) return toast('No surveyed tree to hang the stand on.');
+    const before = distBear(PLOT.lat, PLOT.lon, lastFix.lat, lastFix.lon).d;
+    plotAnchorAt(l, lastFix.lat, lastFix.lon);
+    renderPlotBox(); drawMap();
+    toast('The stand is on your position now (origin moved ' +
+          Math.abs(before - distBear(PLOT.lat, PLOT.lon, lastFix.lat, lastFix.lon).d).toFixed(0) + ' m).');
+  };
+  /* What a phone accumulates while somebody learns the app: points set in a
+     park three countries away, a plot origin from a session that was never
+     finished, stands remembered, a bin full. None of it is the survey, all of
+     it steers the survey, and until now there was no way to be rid of it. */
+  const WIPE = [
+    /* an origin borrowed from a tree is re-derived the moment it is needed and
+       is never a leftover; one that somebody set is */
+    ['The plot and its origin', () => K_PLOT, () => (PLOT && plotGeoreferenced() && !PLOT.provisional ? 1 : 0)],
+    ['Stands remembered', () => K_STAND, () => (loadStandMemo() || []).length],
+    ['Anchors kept', () => K_PANCH, () => (lsGet(K_PANCH) ? 1 : 0)],
+    ['The bin', () => K_TRASH, () => trashList().length],
+    ['The trail', () => K_AUDIT, () => auditList().length],
+    ['Addresses imported from', () => K_URLS, () => urlHist().length],
+    ['The open round', () => K_ROUND, () => (roundGet() ? 1 : 0)]
+  ];
+  const paintWipe = () => {
+    const el = $('wipeBox'); if (!el) return;
+    const rows = WIPE.map(w => { let n = 0; try { n = w[2]() || 0; } catch (e) {} return [w[0], n]; })
+                     .filter(r => r[1]);
+    el.innerHTML = rows.length
+      ? 'On this phone now: ' + rows.map(r => '<b>' + r[0].toLowerCase() + '</b> ' + (r[1] > 1 ? r[1] : '')).join(', ') + '.'
+      : 'Nothing left over on this phone.';
+  };
+  wipePaint = paintWipe; paintWipe();
+  $('bWipe').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin clears this.');
+    if (!confirm('Forget the plot, the remembered stands, the bin, the trail, the addresses ' +
+                 'and the open round?\n\nTrees, field records and photographs stay.')) return;
+    WIPE.forEach(w => { try { lsDel(w[1]()); } catch (e) {} });
+    lsDel(K_REF);                       // reference points, from a version that had them
+    PLOT = null; standPts = []; refFix.clear(); lastFit = null; track = [];
+    loadPlot();
+    buildMarkers(); renderList(); renderStats(); renderPlotBox(); renderAlignBox();
+    renderAudit(); renderTrash(); renderRound(); paintImpPick(); paintWipe();
+    toast('Cleared. The trees and their records are untouched.');
+  };
+
+  $('bResetEdits').onclick = () => {
+    if (!userCan('manage')) return toast('Only an admin deletes the field records.');
+    if (!confirm('Delete every inspection record captured in the field?')) return;
+    edits = {}; lsDel(K_EDIT); buildMarkers(); renderList(); renderStats(); toast('Field records deleted.');
+  };
+  const pf = prefs();
+  $('prefInspector').value = pf.inspector || '';
+  $('prefInspector').onchange = () => setPref('inspector', $('prefInspector').value.trim());
+  $('prefPrefix').value = pf.idPrefix || '';
+  $('prefPrefix').onchange = () => {
+    const v = $('prefPrefix').value.trim();
+    setPref('idPrefix', v);
+    setPref('idPrefixManual', !!v && v !== placePrefix(lastFix && lastFix.lat, lastFix && lastFix.lon));
+    paintPrefix(); toast('Next tree will be ' + nextTreeId() + '.');
+  };
+  $('bPrefixHere').onclick = () => {
+    if (!lastFix) return toast('No position yet – the prefix comes from where you stand.');
+    const want = placePrefix(lastFix.lat, lastFix.lon);
+    if (!want) return toast('This place is not in the list – type a prefix of your own.');
+    setPref('idPrefix', want); setPref('idPrefixManual', false);
+    $('prefPrefix').value = want; paintPrefix();
+    toast('Next tree will be ' + nextTreeId() + '.');
+  };
+  $('bPrefixOff').onclick = () => {
+    setPref('idPrefix', ''); setPref('idPrefixManual', true);
+    $('prefPrefix').value = ''; paintPrefix();
+    toast('Next tree will be ' + nextTreeId() + '.');
+  };
+  paintPrefix();
+  $('roundStart').onclick = () => {
+    if (!userCan('edit')) return toast('A viewer cannot run a round.');
+    const who = (curUser() ? curUser().name : ($('prefInspector').value || '')).trim();
+    if (!who) return toast('Put your name in first – a round has to be signed.');
+    if (!curUser()) setPref('inspector', who);
+    roundStart(who); auditAdd({ what: 'round started', detail: who });
+    toast('Round started. Every tree you save is stamped and counted.');
+  };
+  $('roundEnd').onclick = () => {
+    const r = roundGet(); if (!r) return;
+    if (!confirm('Close the round?\n\n' + r.trees.length + ' of ' + CAT.features.length +
+                 ' trees walked. The report can then be printed for it.')) return;
+    roundSet(null); renderRound(); renderList();
+    toast('Round closed – print the report while it is fresh.');
+  };
+  $('bDay').onclick = () => { setPref('day', !prefs().day); applyDay(); };
+  const nc = niaCfg();
+  $('niaUrl').value = nc.url || '';
+  $('niaTok').value = nc.token || '';
+  $('niaSave').onclick = () => {
+    niaSave({ url: $('niaUrl').value.trim(), token: $('niaTok').value.trim() });
+    toast('Identification service saved.');
+  };
+  $('bUpdate').onclick = async () => {
+    // A stale service worker keeps serving yesterday's app and no amount of
+    // reloading helps, so throw the worker and every cache away and come back
+    // on a URL the caches have never seen. Trees and photos are untouched.
+    $('bUpdate').disabled = true; toast('Fetching the current version …');
+    try {
+      if ('serviceWorker' in navigator) {
+        const rs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(rs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k => caches.delete(k)));
+      }
+    } catch (e) {}
+    location.replace(location.pathname + '?u=' + Date.now());
+  };
+  $('bEmpty').onclick = () => {
+    if (!CAT.features.length) return toast('The register is already empty.');
+    if (!confirm('Delete all ' + CAT.features.length + ' trees and start an empty register? Photos are kept.')) return;
+    emptyRegister();
+    toast('Register emptied – record your first tree by coordinates.');
+  };
+  $('lbClose').onclick = () => { $('lightbox').style.display = 'none'; $('lbImg').src = ''; };
+  $('lightbox').onclick = e => { if (e.target.id === 'lightbox') $('lbClose').click(); };
+
+  let deferred = null;
+  addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferred = e;
+    const b = $('bInstall'); b.style.display = '';
+    b.onclick = async () => { b.style.display = 'none'; deferred.prompt(); await deferred.userChoice; deferred = null; };
+  });
+}
+
+/* The on-screen keyboard covers the bottom of the window without changing the
+   layout viewport, so the controls end up underneath it. visualViewport knows
+   how much is left; the bottom stack is lifted by exactly that much. */
+function watchKeyboard() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const apply = () => {
+    const hidden = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty('--kb', (hidden > 90 ? hidden : 0) + 'px');
+  };
+  vv.addEventListener('resize', apply);
+  vv.addEventListener('scroll', apply);
+  apply();
+}
+
+/* Startup is a straight line, and anything that throws in it leaves a blank
+   page with no way back - the worst possible failure for something used in a
+   wood. Each step stands on its own, and one that fails says so on the screen
+   instead of taking the rest with it. */
+function step(name, fn) {
+  try { fn(); } catch (e) {
+    lastErr = 'start · ' + name + ': ' + ((e && e.message) || e);
+    const m = document.getElementById('msg');
+    if (m) m.textContent = lastErr;
+  }
+}
+step('language', () => { langMigrate(); uiApply(); });
+step('old keys', () => lsDel(K_REF));   // reference points are gone
+step('register', loadAll);
+step('plot', loadPlot);
+step('plot repair', plotHeal);
+let _demo = 0;
+step('demo trees', () => { _demo = dropDemoTrees(); });
+step('scene', buildScene);
+step('markers', buildMarkers);
+step('buttons', wire);
+step('users', wireUsers);
+step('reports', wireReports);
+step('map sheets', wireSheets);
+step('signature', wireSign);
+step('OSM sign-in', () => { osmFinishLogin().then(done => { if (done) { paintOsm(); toast('Signed in to OpenStreetMap as ' + (osmCfg().user || 'you') + '.'); } }).catch(e => toast(e.message)); });
+step('camera file', wireFilePhoto);
+step('map', wireMap);
+step('keyboard', watchKeyboard);
+step('daylight', applyDay);
+step('battery', watchBattery);
+step('depth watchdog', () => {
+  if (depthTrialCheck())
+    setTimeout(() => toast('The last AR session died with depth on. Depth is off for this phone now; ' +
+                           'Data → App switches it back if you want to try again.'), 800);
+});
+step('storage', () => storageCheck(true));
+step('checks', checks);
+step('list', renderList);
+step('summary', renderStats);
+step('the front door', gateOpen);
+step('version', () => { $('about').textContent = 'VTA Field ' + APP_VERSION; });
+/* The app is up: the watchdog in index.html stands down. This is the last
+   thing that happens and it is not allowed to depend on anything above it -
+   a rescue screen over a working app is worse than no rescue screen. */
+try { if (typeof window.__vtaUp === 'function') window.__vtaUp(); } catch (e) {}
+step('demo notice', () => { if (_demo) toast(_demo + ' demo trees removed – the register is yours now.'); });
+/* The service worker is gone.
+
+   It was the offline cache, and it became the reason the app would not start
+   on a phone: a worker between the app and the network that a person cannot
+   reach from inside the app. sw.js is now a kill switch that removes itself
+   and every cache from phones that still carry it, and nothing here registers
+   a new one.
+
+   So this is a plain web page again. It needs a connection to start, which is
+   the price of it starting at all. An offline cache can come back later, built
+   so that it can always be got rid of from outside. */
+if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+  /* one last sweep from the page's side, for a phone where the worker's own
+     activate step never got to run */
+  navigator.serviceWorker.getRegistrations()
+    .then(rs => rs.forEach(r => r.unregister().catch(() => {})))
+    .catch(() => {});
+  if (window.caches && caches.keys)
+    caches.keys().then(ks => ks.forEach(k => caches.delete(k).catch(() => {}))).catch(() => {});
+}

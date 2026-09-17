@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VTA Field – reparieren</title>
+<!-- ===========================================================================
+     A page that depends on nothing.
+
+     No app, no service worker, no cache, no scripts of its own beyond what is
+     written here. If the app will not start, this will, and from here the
+     worker and the file caches can be thrown away without touching a single
+     tree record. Reachable at /vta/repair.html and meant to be typed by hand
+     on a phone that is having a bad day.
+     ======================================================================== -->
+<style>
+  html { background: #0d1310; color: #e7f0ea; }
+  body { font: 16px/1.55 system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+         margin: 0; padding: 26px 20px 60px; max-width: 640px; }
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  p  { margin: 0 0 14px; }
+  .q { color: #9db3a6; }
+  button { font: inherit; width: 100%; padding: 13px 16px; border-radius: 11px;
+           border: 1px solid #3a5245; background: #1b2620; color: #e7f0ea;
+           margin: 0 0 10px; }
+  button.p { background: #2f6b4a; border-color: #2f6b4a; color: #fff; font-weight: 600; }
+  a.b { display: block; text-align: center; text-decoration: none; }
+  #out { white-space: pre-wrap; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+         color: #8fa79a; border-top: 1px solid #1e2a24; margin-top: 18px; padding-top: 12px; }
+  .keep { border: 1px solid #2f6b4a; border-radius: 11px; padding: 10px 12px; color: #9db3a6;
+          font-size: 14px; margin-bottom: 18px; }
+</style>
+
+<h1>VTA Field reparieren</h1>
+<p class="q">Wenn die App nicht mehr startet: hier wird die gespeicherte Programmkopie
+weggeworfen und frisch geladen.</p>
+
+<div class="keep"><b>Deine Daten bleiben.</b> Bäume, Feldaufnahmen, Fotos, Benutzer und
+Protokoll liegen im Speicher des Telefons, nicht im Programm-Cache. Kein Knopf auf
+dieser Seite fasst sie an.</div>
+
+<button class="p" id="fix">Programmkopie wegwerfen und App neu laden</button>
+<a class="b" href="./?fresh=1"><button>Nur neu laden</button></a>
+<button id="look">Nachsehen, was gespeichert ist</button>
+
+<div id="out">bereit</div>
+
+<script>
+var out = document.getElementById('out');
+function say(t) { out.textContent = t; }
+function add(t) { out.textContent += '\n' + t; }
+
+document.getElementById('look').onclick = function () {
+  say('sehe nach …');
+  var lines = [];
+  try {
+    var n = 0, bytes = 0;
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k.indexOf('vta') !== 0) continue;
+      n++; bytes += (localStorage.getItem(k) || '').length;
+    }
+    lines.push('Daten auf dem Telefon: ' + n + ' Einträge, rund ' + Math.round(bytes / 1024) + ' kB');
+    try {
+      var cat = JSON.parse(localStorage.getItem('vta_catalog_v1') || 'null');
+      lines.push('Bäume im Register: ' + (cat && cat.features ? cat.features.length : 0));
+    } catch (e) { lines.push('Register: nicht lesbar'); }
+  } catch (e) { lines.push('Speicher nicht lesbar: ' + e.message); }
+  var done = function () { say(lines.join('\n')); };
+  if (window.caches && caches.keys) {
+    caches.keys().then(function (ks) {
+      lines.push('Programmkopien: ' + (ks.length ? ks.join(', ') : 'keine'));
+      return Promise.all(ks.map(function (k) {
+        return caches.open(k).then(function (c) { return c.keys(); })
+                     .then(function (r) { lines.push('  ' + k + ': ' + r.length + ' Dateien'); });
+      }));
+    }).then(done, done);
+  } else done();
+  if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+    navigator.serviceWorker.getRegistrations().then(function (rs) {
+      lines.push('Service Worker: ' + rs.length);
+      rs.forEach(function (r) {
+        lines.push('  ' + (r.active ? 'aktiv' : r.installing ? 'installiert gerade' : 'wartet') +
+                   ' · ' + (r.scope || ''));
+      });
+      say(lines.join('\n'));
+    });
+};
+
+document.getElementById('fix').onclick = function () {
+  say('werfe die Programmkopie weg …');
+  var jobs = [];
+  try {
+    if (window.caches && caches.keys)
+      jobs.push(caches.keys().then(function (ks) {
+        add('Caches: ' + (ks.length ? ks.join(', ') : 'keine'));
+        return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+      }));
+  } catch (e) { add('Cache: ' + e.message); }
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+      jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+        add('Service Worker abgemeldet: ' + rs.length);
+        return Promise.all(rs.map(function (r) { return r.unregister(); }));
+      }));
+  } catch (e) { add('Worker: ' + e.message); }
+  var go = function () {
+    add('fertig – lade die App neu');
+    setTimeout(function () { location.replace('./?fresh=' + Date.now()); }, 700);
+  };
+  Promise.all(jobs).then(go, go);
+  setTimeout(go, 6000);
+};
+</script>
