@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VTA Field reparieren</title>
+<!-- ===========================================================================
+     OUTSIDE THE SCOPE, ON PURPOSE.
+
+     The service worker of this app controls /vta/ and everything under it. A
+     rescue page that lives under /vta/ is therefore a rescue page the broken
+     worker gets to intercept - which is no rescue at all. This one sits at the
+     site root, outside that scope, where no worker of this app can touch it,
+     and where its own fetches are not intercepted either. So it can say what
+     the server is really serving.
+
+     Same origin, so it reaches the same localStorage and the same IndexedDB:
+     it can count the trees without being able to harm them.
+     ======================================================================== -->
+<style>
+  html { background:#0d1310; color:#e7f0ea; }
+  body { font:16px/1.55 system-ui,-apple-system,Segoe UI,Arial,sans-serif;
+         margin:0; padding:24px 18px 64px; max-width:640px; }
+  h1 { font-size:21px; margin:0 0 6px; }
+  p { margin:0 0 14px; } .q { color:#9db3a6; }
+  button { font:inherit; width:100%; padding:14px 16px; border-radius:11px;
+           border:1px solid #3a5245; background:#1b2620; color:#e7f0ea; margin:0 0 10px; }
+  button.p { background:#2f6b4a; border-color:#2f6b4a; color:#fff; font-weight:600; font-size:17px; }
+  .keep { border:1px solid #2f6b4a; border-radius:11px; padding:10px 12px; color:#9db3a6;
+          font-size:14px; margin:0 0 18px; }
+  #out { white-space:pre-wrap; font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;
+         color:#8fa79a; border-top:1px solid #1e2a24; margin-top:18px; padding-top:12px; }
+  .ok{color:#6fd08c}.no{color:#e2704a}.wa{color:#e8c15a}
+</style>
+
+<h1>VTA Field reparieren</h1>
+<p class="q">Diese Seite liegt außerhalb der App. Kein Service Worker und kein Cache der App
+kann sie blockieren.</p>
+
+<div class="keep"><b>Deine Daten bleiben.</b> Bäume, Feldaufnahmen, Fotos, Benutzer und Protokoll
+liegen im Speicher des Telefons, nicht in der Programmkopie. Kein Knopf hier fasst sie an.</div>
+
+<button class="p" id="fix">Reparieren und App starten</button>
+<button id="check">Erst nachsehen, was los ist</button>
+
+<div id="out">bereit</div>
+
+<script>
+var out = document.getElementById('out');
+function line(t, cls) {
+  var d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = t;
+  out.appendChild(d);
+}
+function clear() { out.textContent = ''; }
+
+/* Fetches from this page are NOT intercepted by the app's worker, so this is
+   the real server talking, not a cache. With its own limit, because the whole
+   point of this page is the case where something answers nothing at all. */
+function probe(url) {
+  var t0 = Date.now();
+  var net = fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 'probe=' + t0, { cache: 'no-store' })
+    .then(function (r) {
+      return r.text().then(function (txt) {
+        return { url: url, status: r.status, ms: Date.now() - t0, len: txt.length, txt: txt };
+      });
+    })
+    .catch(function (e) { return { url: url, status: 0, ms: Date.now() - t0, err: e.message }; });
+  var give = new Promise(function (res) {
+    setTimeout(function () {
+      res({ url: url, status: 0, ms: Date.now() - t0, err: 'keine Antwort in 8 s' });
+    }, 8000);
+  });
+  return Promise.race([net, give]);
+}
+
+function check() {
+  clear();
+  line('sehe nach, was der Server wirklich liefert …');
+  var files = ['./vta/', './vta/app.js', './vta/sw.js', './vta/index.html'];
+  Promise.all(files.map(probe)).then(function (rs) {
+    clear();
+    rs.forEach(function (r) {
+      var name = r.url.replace('./vta/', '') || '(Startseite)';
+      if (r.status === 200)
+        line('OK   ' + name + '  ' + r.len + ' Bytes, ' + r.ms + ' ms', 'ok');
+      else if (r.status)
+        line('FEHLER ' + name + '  HTTP ' + r.status, 'no');
+      else
+        line('KEINE ANTWORT ' + name + '  ' + (r.err || '') + ' nach ' + r.ms + ' ms', 'no');
+    });
+    var idx = rs[0].txt || rs[3].txt || '';
+    var v = idx.match(/app\.js\?v=([0-9.]+)/);
+    line(v ? 'Auf dem Server liegt Version ' + v[1] : 'Version nicht erkennbar', v ? 'ok' : 'wa');
+    var sw = (rs[2].txt || '').match(/vta-v(\d+)/);
+    if (sw) line('Service Worker auf dem Server: Cache vta-v' + sw[1], 'ok');
+    return state();
+  });
+}
+
+function state() {
+  var jobs = [];
+  try {
+    var n = 0;
+    for (var i = 0; i < localStorage.length; i++)
+      if ((localStorage.key(i) || '').indexOf('vta') === 0) n++;
+    var cat = JSON.parse(localStorage.getItem('vta_catalog_v1') || 'null');
+    line('Auf dem Telefon: ' + n + ' Einträge, ' +
+         (cat && cat.features ? cat.features.length : 0) + ' Bäume im Register');
+  } catch (e) { line('Speicher nicht lesbar: ' + e.message, 'wa'); }
+  if (window.caches && caches.keys)
+    jobs.push(caches.keys().then(function (ks) {
+      line('Programmkopien: ' + (ks.length ? ks.join(', ') : 'keine'));
+    }));
+  if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+    jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+      line('Service Worker: ' + rs.length);
+      rs.forEach(function (r) {
+        line('   ' + (r.active ? 'aktiv' : r.installing ? 'installiert' : 'wartet') + ' · ' + r.scope);
+      });
+    }));
+  return Promise.all(jobs);
+}
+
+document.getElementById('check').onclick = check;
+
+document.getElementById('fix').onclick = function () {
+  clear();
+  line('werfe die Programmkopie weg …');
+  var jobs = [];
+  try {
+    if (window.caches && caches.keys)
+      jobs.push(caches.keys().then(function (ks) {
+        line('Caches gelöscht: ' + (ks.length ? ks.join(', ') : 'keine'));
+        return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+      }));
+  } catch (e) { line('Cache: ' + e.message, 'wa'); }
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+      jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+        line('Service Worker abgemeldet: ' + rs.length);
+        return Promise.all(rs.map(function (r) { return r.unregister(); }));
+      }));
+  } catch (e) { line('Worker: ' + e.message, 'wa'); }
+  var go = function () {
+    line('fertig – starte die App', 'ok');
+    setTimeout(function () { location.replace('./vta/?fresh=' + Date.now()); }, 800);
+  };
+  Promise.all(jobs).then(go, go);
+  setTimeout(go, 6000);
+};
+</script>

@@ -11,5 +11,6 @@
 .DS_Store
 
 **/*.quarto_ipynb
-!vta/index.html
+!vta/*.html
+!vta-repair.html
 !companions/index.html
