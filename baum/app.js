@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.0.2';
+const APP_VERSION = '3.1.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5645,6 +5645,72 @@ function paintHome() {
   b.classList.toggle('off', mapMode !== 'me');
   b.classList.toggle('no', !lastFix);
 }
+/* Berlin's register, fetched and added. Lifted out of the map wiring so the
+   one import button can call it like any other source. */
+async function berlinRun(spot, base, say) {
+  say = say || (() => {});
+  say('Fetching ' + spot.name + ' …');
+  try {
+    const feats = await berlinImport(spot, base || BERLIN_WFS, say);
+    if (!feats.length) { say('The service answered, with no trees in that area.'); return 0; }
+    const r = addBerlin(feats);
+    say(r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + spot.name +
+        (r.dup ? ' · ' + r.dup + ' were already here' : '') +
+        (r.bad ? ' · ' + r.bad + ' without a position' : ''));
+    if (r.added) {
+      toast(r.added + ' trees imported – register positions, so stand at each ' +
+            'stem and record it properly.');
+      showScreen('map');
+      mapCentre(); mapView.lat = spot.lat; mapView.lon = spot.lon; mapView.z = 17;
+      mapViewFrom = 'map'; mapMode = 'free'; drawMap();
+    }
+    return r.added;
+  } catch (e) {
+    say('Failed: ' + e.message);
+    return 0;
+  }
+}
+
+/* The same for OpenStreetMap. */
+async function osmRun(box, what, say) {
+  say = say || (() => {});
+  say('Asking OpenStreetMap…');
+  try {
+    const r = await osmImportTrees(box);
+    buildMarkers(); renderList(); renderStats(); drawMap();
+    say(r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + what +
+        (r.already ? ', ' + r.already + ' were already here' : '') +
+        (r.found ? '' : ' – nothing is mapped there yet') +
+        (r.capped ? '. The download was capped – zoom in and do it in pieces.' : '.') +
+        '  © OpenStreetMap contributors, ODbL 1.0');
+    if (r.added) toast(r.added + ' trees from OpenStreetMap.');
+    return r.added;
+  } catch (e) {
+    say('OpenStreetMap could not be reached: ' +
+        (e.message === 'Failed to fetch' ? 'no signal, or the service is busy' : e.message));
+    return 0;
+  }
+}
+/* The rectangle a source should be asked for, from what the person picked. */
+function impArea(which) {
+  if (which === 'here') {
+    if (!lastFix) return null;
+    const dLat = 300 / mLat(lastFix.lat), dLon = 300 / mLon(lastFix.lat);
+    return { s: +(lastFix.lat - dLat).toFixed(6), n: +(lastFix.lat + dLat).toFixed(6),
+             w: +(lastFix.lon - dLon).toFixed(6), e: +(lastFix.lon + dLon).toFixed(6),
+             lat: lastFix.lat, lon: lastFix.lon, r: 300, what: '300 m around you' };
+  }
+  const v = mapCentre(), box = $('mapBox');
+  const halfW = (box && box.clientWidth ? box.clientWidth : 360) / 2;
+  const halfH = (box && box.clientHeight ? box.clientHeight : 300) / 2;
+  const mPerPx = 156543.03392 * Math.cos(v.lat * Math.PI / 180) / Math.pow(2, v.z);
+  const dLat = halfH * mPerPx / mLat(v.lat), dLon = halfW * mPerPx / mLon(v.lat);
+  return { s: +(v.lat - dLat).toFixed(6), n: +(v.lat + dLat).toFixed(6),
+           w: +(v.lon - dLon).toFixed(6), e: +(v.lon + dLon).toFixed(6),
+           lat: v.lat, lon: v.lon, r: Math.round(Math.max(halfW, halfH) * mPerPx),
+           what: 'the area on the map' };
+}
+
 function mapModeLine() {
   const el = $('mapMode'); if (!el) return;
   const t = navTarget != null && CAT.features[navTarget] ? tid(navTarget) : null;
@@ -5815,36 +5881,6 @@ function wireMap() {
     toast('Back on your own position.');
   };
   $('mNavNo').onfocus = buildNavList;
-
-  /* --- the Berlin register --- */
-  const bMsg = t => { $('berlinMsg').textContent = t; };
-  $('berlinUrl').value = prefs().berlinUrl || BERLIN_WFS;
-  $('berlinUrl').onchange = () => setPref('berlinUrl', $('berlinUrl').value.trim());
-  const runBerlin = async (spot) => {
-    const base = ($('berlinUrl').value || '').trim() || BERLIN_WFS;
-    bMsg('Fetching ' + spot.name + ' …');
-    try {
-      const feats = await berlinImport(spot, base, bMsg);
-      if (!feats.length) { bMsg('The service answered, with no trees in that area.'); return; }
-      const r = addBerlin(feats);
-      bMsg(r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + spot.name +
-           (r.dup ? ' · ' + r.dup + ' were already here' : '') +
-           (r.bad ? ' · ' + r.bad + ' without a position' : ''));
-      if (r.added) {
-        toast(r.added + ' trees imported – register positions, so stand at each ' +
-              'stem and record it properly.');
-        showScreen('map');
-        mapCentre(); mapView.lat = spot.lat; mapView.lon = spot.lon; mapView.z = 17; mapViewFrom = 'map';
-        mapMode = 'free'; drawMap();
-      }
-    } catch (e) {
-      bMsg('Failed: ' + e.message);
-    }
-  };
-  $('berlinHere').onclick = () => {
-    const v = mapCentre();
-    runBerlin({ name: 'the area on the map', lat: v.lat, lon: v.lon, r: 500 });
-  };
 
   const backToMe = () => {
     if (!mapToMe(true)) return toast('No GPS fix yet – the map centres itself as soon as there is one.');
@@ -8395,6 +8431,14 @@ function mapEnvelope() {
 /* What the rectangle is, in words, under the tick box. */
 function paintImpBox() {
   const el = $('impBoxWhere'); if (!el) return;
+  const which = $('srcArea') ? $('srcArea').value : 'map';
+  if (which === 'here') {
+    el.textContent = lastFix ? '300 m around you – ' + lastFix.lat.toFixed(5) + ', ' + lastFix.lon.toFixed(5)
+                             : 'No GPS fix yet – open the map so the phone locates you.';
+    el.className = 'small' + (lastFix ? '' : ' wa');
+    return;
+  }
+  if (which === 'all') { el.textContent = 'Everything the source has will be asked for.'; el.className = 'small'; return; }
   if (!$('impBbox') || !$('impBbox').checked) { el.textContent = 'The whole layer will be asked for.'; return; }
   const b = mapEnvelope();
   el.innerHTML = 'Rectangle round <b>' + b.lat.toFixed(5) + ', ' + b.lon.toFixed(5) + '</b>, about ' +
@@ -8415,6 +8459,48 @@ function arcgisQueryUrl(u, offset, box) {
    never tried from here. Beside them sit the addresses this phone has itself
    imported from, which are working by definition - they worked here. */
 const K_URLS = 'vta_urls_v1';
+/* ---- one list of places trees can come from ---------------------------
+   File, open map data, a city's register, or an address somebody pastes: the
+   difference between them is which function fetches, and that is the app's
+   problem and not the user's. One drop-down, one button.
+
+   Only services that have been fetched from this app and seen to work are
+   listed by name. There is no Helsinki entry because no Helsinki address has
+   been tried here, and a list of addresses that might work is worse than no
+   list at all - "a web address you paste" is where an untried one belongs,
+   and it is remembered once it has worked. */
+const SOURCES = [
+  { id: 'file', group: 'From this phone', kind: 'file',
+    label: 'A file on this phone',
+    note: 'GeoJSON or CSV. Nothing leaves the phone.' },
+
+  { id: 'osm', group: 'Open map data', kind: 'osm', areas: ['map', 'here'],
+    label: 'OpenStreetMap – anywhere',
+    note: 'What people have mapped: in a well-surveyed park most of the trees, on an ordinary ' +
+          'street often none. ODbL 1.0, © OpenStreetMap contributors – the licence is stored on ' +
+          'every tree and rides along into exports. A tree from here is never offered back to ' +
+          'OSM as new.' },
+
+  { id: 'berlin', group: 'City registers', kind: 'berlin', areas: ['map', 'here'],
+    url: 'https://gdi.berlin.de/services/wfs/baumbestand',
+    label: 'Berlin – street and park trees',
+    note: 'The city\u2019s open register (WFS). Street trees and trees in public grounds; forest ' +
+          'stands are not in it.' },
+
+  { id: 'tallinn', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://gis.tallinn.ee/arcgis/rest/services/HHHIS/HHHIS_puud/MapServer/0',
+    label: 'Tallinn – all city trees',
+    note: 'Fetched in the field and read correctly. No species column: the layer carries the ' +
+          'district, the address and remarks. The whole city is a large download – leave it on ' +
+          'the map area unless you mean all of it.' },
+
+  { id: 'url', group: 'Your own', kind: 'url', areas: ['map', 'all'],
+    label: 'A web address you paste',
+    note: 'An ArcGIS layer, a WFS GetFeature request, or a GeoJSON or CSV file. An ArcGIS layer ' +
+          'address is completed to a query by itself and read in pages.' }
+];
+function srcById(id) { return SOURCES.find(x => x.id === id) || null; }
+
 const IMPORT_SOURCES = [
   { label: 'Tallinn · HHHIS puud (all city trees)',
     url: 'https://gis.tallinn.ee/arcgis/rest/services/HHHIS/HHHIS_puud/MapServer/0',
@@ -8429,32 +8515,103 @@ function urlRemember(u, n) {
   h.unshift({ url: url, n: n || 0, at: new Date().toISOString() });
   lsSet(K_URLS, JSON.stringify(h.slice(0, 8)));
 }
+/* The one drop-down: the known sources, plus every address that has actually
+   worked on this phone. */
 function paintImpPick() {
-  const sel = $('impPick'); if (!sel) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">— pick one, or paste below —</option>';
-  const add = (group, items) => {
-    if (!items.length) return;
-    const g = document.createElement('optgroup'); g.label = group;
-    items.forEach(it => {
-      const o = document.createElement('option');
-      o.value = it.url; o.textContent = it.label; g.appendChild(o);
+  const sel = $('srcPick'); if (!sel) return;
+  const cur = sel.value || prefs().srcPick || 'osm';
+  sel.innerHTML = '';
+  const groups = {};
+  SOURCES.forEach(x => { (groups[x.group] = groups[x.group] || []).push(x); });
+  Object.keys(groups).forEach(g => {
+    const og = document.createElement('optgroup'); og.label = g;
+    groups[g].forEach(x => {
+      const o = document.createElement('option'); o.value = x.id; o.textContent = x.label;
+      og.appendChild(o);
     });
-    sel.appendChild(g);
-  };
-  add('Worked on this phone', urlHist().map(h => ({
-    url: h.url, label: (h.n ? h.n + ' trees · ' : '') + h.url.replace(/^https?:\/\//, '').slice(0, 52) })));
-  add('Tried in the field', IMPORT_SOURCES.filter(x => x.tried).map(x => ({ url: x.url, label: x.label })));
+    sel.appendChild(og);
+  });
+  const hist = urlHist();
+  if (hist.length) {
+    const og = document.createElement('optgroup'); og.label = 'Worked on this phone';
+    hist.forEach(h => {
+      const o = document.createElement('option');
+      o.value = 'hist:' + h.url;
+      o.textContent = (h.n ? h.n + ' trees · ' : '') + h.url.replace(/^https?:\/\//, '').slice(0, 52);
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  }
   sel.value = cur;
+  if (!sel.value) sel.value = 'osm';
+  paintSrc();
 }
-function paintImpNote(url) {
-  const el = $('impNote'); if (!el) return;
-  const known = IMPORT_SOURCES.find(x => x.url === url);
-  const mine = urlHist().find(h => h.url === url);
-  el.innerHTML = known ? (known.tried ? '' : '<b class="wa">Not tried from here.</b> ') + esc(known.note)
-    : mine ? 'Imported from this address before' + (mine.n ? ', ' + mine.n + ' trees' : '') +
-             ', on ' + esc(mine.at.slice(0, 10)) + '.'
-    : '';
+/* What the chosen source needs on screen, and what it is. */
+/* One button, whatever was chosen. Everything below it existed already; all
+   this does is pick which one to call and put the answer in one place. */
+async function impRun() {
+  if (!userCan('manage')) return toast('Only an admin imports.');
+  const sel = $('srcPick'), out = $('srcOut');
+  const say = t => { if (out) out.textContent = t; };
+  const v = (sel && sel.value) || '';
+  const hist = v.indexOf('hist:') === 0;
+  const src = hist ? srcById('url') : srcById(v);
+  if (!src) return toast('Pick where the trees should come from.');
+  const which = $('srcArea') ? $('srcArea').value : 'map';
+  const replace = !!($('srcReplace') && $('srcReplace').checked);
+  say('');
+
+  if (replace && !confirm('Replace the whole register, losing every tree on this phone that is ' +
+                          'not in what arrives?\n\nYour own field records are kept and ' +
+                          're-attached by tree number.')) return;
+  if (src.kind === 'file') {
+    importReplace = replace;
+    $('fileImp').click();
+    return;
+  }
+  const box = impArea(which);
+  if (!box && which === 'here')
+    return toast('No GPS fix yet – open the map so the phone locates you, or choose the map area.');
+
+  if (src.kind === 'osm') return osmRun(box, box.what, say);
+
+  if (src.kind === 'berlin') {
+    return berlinRun({ name: box.what, lat: box.lat, lon: box.lon, r: Math.max(200, Math.min(box.r, 2000)) },
+                     src.url, say);
+  }
+  /* everything else is an address */
+  const url = hist ? v.slice(5) : (src.url || ($('impUrl').value || '').trim());
+  if (!url) return toast('Paste an address first.');
+  $('impBbox').checked = (which !== 'all');
+  importReplace = replace;
+  say('Fetching …');
+  importFromUrl(url);
+}
+function paintSrc() {
+  const sel = $('srcPick'); if (!sel) return;
+  const v = sel.value || '';
+  const hist = v.indexOf('hist:') === 0;
+  const src = hist ? srcById('url') : srcById(v);
+  const note = $('srcNote');
+  if (note) note.textContent = hist ? 'An address that has worked on this phone before.'
+                                    : (src ? src.note : '');
+  const urlRow = $('srcUrlRow'), area = $('srcAreaRow'), rep = $('srcRepRow'), chk = $('bImpCheck');
+  const isUrl = !!src && src.kind === 'url';
+  const fixed = !!(src && src.url) && !hist;
+  if (urlRow) urlRow.style.display = (isUrl && !fixed) ? '' : 'none';
+  if (chk) chk.style.display = (isUrl && !fixed) ? '' : 'none';
+  if (hist && $('impUrl')) $('impUrl').value = v.slice(5);
+  if (fixed && isUrl && $('impUrl')) $('impUrl').value = src.url;
+  /* which areas this source understands */
+  const asel = $('srcArea');
+  if (asel) {
+    const want = (src && src.areas) || [];
+    [...asel.options].forEach(o => { o.hidden = want.indexOf(o.value) < 0; });
+    if (want.length && want.indexOf(asel.value) < 0) asel.value = want[0];
+    if (area) area.style.display = want.length ? '' : 'none';
+  }
+  if (rep) rep.style.display = (src && (src.kind === 'file' || src.kind === 'url')) ? '' : 'none';
+  if (typeof paintImpBox === 'function') paintImpBox();
 }
 
 /* An ArcGIS service address without a layer number on the end is the service,
@@ -8780,42 +8937,6 @@ function wire() {
   $('bResPhotos').onclick = () => resGo(true);
   paintRes();
 
-  /* --- OpenStreetMap: bringing real trees in ------------------------------ */
-  const osmGet = async (b, what) => {
-    const box = $('osmGetBox');
-    box.textContent = 'Asking OpenStreetMap…';
-    try {
-      const r = await osmImportTrees(b);
-      buildMarkers(); renderList(); renderStats(); drawMap();
-      box.innerHTML = r.added + ' tree' + (r.added === 1 ? '' : 's') + ' added from ' + what +
-        (r.already ? ', ' + r.already + ' were already here' : '') +
-        (r.found ? '' : ' – nothing is mapped there yet') +
-        (r.capped ? '. The download was capped – zoom in and do it in pieces.' : '.') +
-        ' <span class="q">© OpenStreetMap contributors, ODbL 1.0</span>';
-      if (r.added) toast(r.added + ' trees from OpenStreetMap.');
-    } catch (e) {
-      box.textContent = 'OpenStreetMap could not be reached: ' +
-        (e.message === 'Failed to fetch' ? 'no signal, or the service is busy' : e.message);
-    }
-  };
-  $('osmGetHere').onclick = () => {
-    if (!lastFix) return toast('No GPS fix yet – open the map so the phone locates you.');
-    const dLat = 300 / mLat(lastFix.lat), dLon = 300 / mLon(lastFix.lat);
-    osmGet({ s: +(lastFix.lat - dLat).toFixed(6), n: +(lastFix.lat + dLat).toFixed(6),
-             w: +(lastFix.lon - dLon).toFixed(6), e: +(lastFix.lon + dLon).toFixed(6) },
-           '300 m around you');
-  };
-  $('osmGetMap').onclick = () => {
-    const v = mapCentre();
-    const box = $('mapBox');
-    const halfW = (box.clientWidth || 360) / 2, halfH = (box.clientHeight || 300) / 2;
-    const mPerPx = 156543.03392 * Math.cos(v.lat * Math.PI / 180) / Math.pow(2, v.z);
-    const dLat = halfH * mPerPx / mLat(v.lat), dLon = halfW * mPerPx / mLon(v.lat);
-    osmGet({ s: +(v.lat - dLat).toFixed(6), n: +(v.lat + dLat).toFixed(6),
-             w: +(v.lon - dLon).toFixed(6), e: +(v.lon + dLon).toFixed(6) },
-           'the map view');
-  };
-
   /* --- OpenStreetMap: giving your own away -------------------------------- */
   $('osmClient').value = osmCfg().clientId || '';
   $('osmClient').onchange = () => { const c = osmCfg(); c.clientId = $('osmClient').value.trim(); osmSave(c); paintOsm(); };
@@ -8876,12 +8997,6 @@ function wire() {
       await new Promise(r => setTimeout(r, 350));
     }
   };
-  $('bImp').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importReplace = false; $('fileImp').click(); };
-  $('bImpRep').onclick = () => {
-    if (!userCan('manage')) return toast('Only an admin replaces the register.');
-    if (!confirm('Replace the whole register with the file, losing everything on this phone that is not in it?')) return;
-    importReplace = true; $('fileImp').click();
-  };
   $('fileImp').onchange = () => {
     const f = $('fileImp').files && $('fileImp').files[0]; if (!f) return;
     const rd = new FileReader();
@@ -8940,16 +9055,18 @@ function wire() {
     rd.readAsText(f);
   };
   $('mapX').onclick = closeMapper;
-  $('impBbox').onchange = paintImpBox;
-  $('impPick').onchange = () => {
-    const u = $('impPick').value;
-    if (u) { $('impUrl').value = u; paintImpNote(u); } else paintImpNote('');
+  $('srcPick').onchange = () => { setPref('srcPick', $('srcPick').value); paintSrc(); };
+  $('srcArea').onchange = () => {
+    /* the bbox flag the URL path reads is now just the area choice, kept in the
+       DOM so the fetching code did not have to be rewritten around it */
+    $('impBbox').checked = $('srcArea').value !== 'all';
+    paintImpBox();
   };
-  $('impUrl').oninput = () => paintImpNote($('impUrl').value.trim());
+  $('srcGo').onclick = impRun;
   $('bImpCheck').onclick = async () => {
     const u = ($('impUrl').value || '').trim();
     if (!u) return toast('Paste an address first, or pick one above.');
-    const el = $('impNote'); el.textContent = 'Asking …';
+    const el = $('srcNote'); el.textContent = 'Asking …';
     try {
       const probe = /\/(FeatureServer|MapServer)(\/\d+)?\/?$/i.test(u)
         ? u.replace(/\/$/, '') + '?f=json'
@@ -8961,17 +9078,16 @@ function wire() {
       try { const j = JSON.parse(t); name = j.name || j.mapName || (j.layers && j.layers.length + ' layers'); } catch (e) {}
       if (!name && /<(wfs:)?WFS_Capabilities/i.test(t)) name = 'a WFS service';
       el.innerHTML = '<b class="ok">It answers.</b> ' + (name ? esc(String(name)) + '. ' : '') +
-        (/\/(FeatureServer|MapServer)\/\d+/.test(u) ? 'Press “Fetch and read”.'
-          : 'Put a layer number on the end, or press “Fetch and read” and the app will ask which layer.');
+        (/\/(FeatureServer|MapServer)\/\d+/.test(u) ? 'Press Import.'
+          : 'Put a layer number on the end, or press Import and the app will ask which layer.');
     } catch (e) {
       el.innerHTML = '<b class="wa">No answer.</b> ' + (e.message === 'Failed to fetch'
         ? 'Either no signal, or this server does not allow requests from a web page. Open the address ' +
-          'in the browser, save the file, then Import → Merge a register…'
+          'in the browser, save the file, and import it as a file.'
         : esc(e.message));
     }
   };
   paintImpPick();
-  $('bImpUrl').onclick = () => { if (!userCan('manage')) return toast('Only an admin imports.'); importFromUrl($('impUrl').value); };
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
   NORMS.forEach(n => { const o = document.createElement('option');
