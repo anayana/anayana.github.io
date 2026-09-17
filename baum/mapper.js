@@ -271,19 +271,95 @@ function parseDelim(text) {
 
 /* GeoJSON arrives as properties plus a geometry; the geometry is turned into
    two ordinary columns so the same mapping table can describe it. */
+/* ---- a point for a shape that is not one ------------------------------
+   A register gives a point per tree. A dataset derived from imagery gives
+   what the imagery shows: a crown outline, a row of trees, a patch of
+   canopy. Those used to be thrown away with "no point features in the file",
+   which is the wrong answer to a file full of trees.
+
+   So a shape is reduced to one point - the area centroid of a polygon, the
+   middle of a line - and the app remembers that it did so. A crown centroid
+   is NOT a stem: it is the middle of what the sensor saw, and on a leaning
+   or one-sided crown that is metres from the trunk. Everything derived this
+   way is stamped as derived, and the tree carries it into every export, so
+   nobody can later mistake it for a surveyed position. */
+function ringCentroid(ring) {
+  /* Shifted to the first vertex before anything is multiplied. A crown is a
+     few metres across and its coordinates are around 13 and 52: the products
+     in the shoelace formula then differ in the twelfth digit and the answer
+     comes out a quarter of a metre off - which is a lot, for a tree. Shifting
+     costs nothing and keeps the arithmetic in the range the shape occupies. */
+  const o = ring && ring.length && ring[0] ? ring[0] : [0, 0];
+  let a = 0, x = 0, y = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const q1 = ring[i], q2 = ring[j];
+    if (!q1 || !q2) continue;
+    const p1 = [q1[0] - o[0], q1[1] - o[1]], p2 = [q2[0] - o[0], q2[1] - o[1]];
+    const f = p1[0] * p2[1] - p2[0] * p1[1];
+    a += f; x += (p1[0] + p2[0]) * f; y += (p1[1] + p2[1]) * f;
+  }
+  if (Math.abs(a) < 1e-18) {            // a degenerate ring: fall back to the mean
+    let sx = 0, sy = 0, n = 0;
+    ring.forEach(p => { if (p) { sx += p[0]; sy += p[1]; n++; } });
+    return n ? { lon: sx / n, lat: sy / n, area: 0 } : null;
+  }
+  a *= 0.5;
+  return { lon: o[0] + x / (6 * a), lat: o[1] + y / (6 * a), area: Math.abs(a) };
+}
+function lineMid(line) {
+  if (!line || !line.length) return null;
+  /* the point halfway along it, not the middle vertex */
+  let total = 0;
+  for (let i = 1; i < line.length; i++)
+    total += Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+  let want = total / 2;
+  for (let i = 1; i < line.length; i++) {
+    const d = Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+    if (want <= d || i === line.length - 1) {
+      const t = d ? want / d : 0;
+      return { lon: line[i - 1][0] + (line[i][0] - line[i - 1][0]) * t,
+               lat: line[i - 1][1] + (line[i][1] - line[i - 1][1]) * t };
+    }
+    want -= d;
+  }
+  return { lon: line[0][0], lat: line[0][1] };
+}
+/* One point for any geometry, and what it was before. */
+function geomPoint(g) {
+  if (!g || !g.coordinates) return null;
+  const t = g.type, c = g.coordinates;
+  if (t === 'Point') return { lon: c[0], lat: c[1], from: 'point' };
+  if (t === 'MultiPoint') return c[0] ? { lon: c[0][0], lat: c[0][1], from: 'point' } : null;
+  if (t === 'LineString') { const m = lineMid(c); return m && { lon: m.lon, lat: m.lat, from: 'line' }; }
+  if (t === 'MultiLineString') { const m = lineMid(c[0]); return m && { lon: m.lon, lat: m.lat, from: 'line' }; }
+  if (t === 'Polygon') { const m = ringCentroid(c[0] || []); return m && { lon: m.lon, lat: m.lat, from: 'outline' }; }
+  if (t === 'MultiPolygon') {
+    /* the biggest part of a multipart shape, not the first one that turns up */
+    let best = null;
+    (c || []).forEach(poly => {
+      const m = ringCentroid((poly && poly[0]) || []);
+      if (m && (!best || m.area > best.area)) best = m;
+    });
+    return best && { lon: best.lon, lat: best.lat, from: 'outline' };
+  }
+  return null;
+}
+
 function parseGeoJSON(obj) {
-  const feats = (obj.features || []).filter(f => f && f.geometry &&
-    (f.geometry.type === 'Point' || f.geometry.type === 'MultiPoint'));
-  if (!feats.length) throw new Error('no point features in the file');
-  const cols = [];
-  const rows = feats.map(f => {
+  const cols = [], rows = [];
+  let shapes = 0;
+  (obj.features || []).forEach(f => {
+    if (!f || !f.geometry) return;
+    const g = geomPoint(f.geometry);
+    if (!g || !isFinite(g.lon) || !isFinite(g.lat)) return;
     const p = Object.assign({}, f.properties || {});
-    const c = f.geometry.type === 'Point' ? f.geometry.coordinates : f.geometry.coordinates[0];
-    p.__lon = c[0]; p.__lat = c[1];
-    Object.keys(p).forEach(k => { if (cols.indexOf(k) < 0) cols.push(k); });
-    return p;
+    p.__lon = g.lon; p.__lat = g.lat;
+    if (g.from !== 'point') { p.__derived = g.from; shapes++; }
+    Object.keys(p).forEach(k => { if (k !== '__derived' && cols.indexOf(k) < 0) cols.push(k); });
+    rows.push(p);
   });
-  return { cols: cols, rows: rows, geo: true };
+  if (!rows.length) throw new Error('nothing with a position in the file');
+  return { cols: cols, rows: rows, geo: true, shapes: shapes };
 }
 
 function parseRegisterFile(text) {
@@ -360,7 +436,12 @@ function applyMapping(parsed, plan, opts) {
     if (!p.tree_id) p.tree_id = p.tag_no || ('IMP-' + String(n + 1).padStart(5, '0'));
     p.tree_id = String(p.tree_id);
     if (p.girth_cm && !p.dbh_cm) p.dbh_cm = Math.round(p.girth_cm / Math.PI * 10) / 10;
-    if (!p.geometry_source) p.geometry_source = 'imported register';
+    if (!p.geometry_source)
+      p.geometry_source = row.__derived === 'outline'
+        ? 'imported – centre of a mapped outline, not the stem'
+        : row.__derived === 'line'
+        ? 'imported – middle of a mapped line, not the stem'
+        : 'imported register';
     feats.push({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [+(+lon).toFixed(7), +(+lat).toFixed(7)] },
