@@ -373,6 +373,8 @@ const UI = {
   'A file on this phone': { de: 'Eine Datei auf diesem Telefon', nl: 'Een bestand op deze telefoon',
       et: 'Fail selles telefonis', fi: 'Tiedosto tässä puhelimessa' },
   'Address': { de: 'Adresse', nl: 'Adres', et: 'Aadress', fi: 'Osoite' },
+  'How many are there?': { de: 'Wie viele sind es?', nl: 'Hoeveel zijn het er?',
+      et: 'Kui palju neid on?', fi: 'Kuinka monta niitä on?' },
   'Load from a web address': { de: 'Von einer Webadresse laden', nl: 'Van een webadres laden',
       et: 'Lae veebiaadressilt', fi: 'Lataa verkko-osoitteesta' },
   'Berlin tree register': { de: 'Berliner Baumkataster', nl: 'Bomenregister Berlijn',

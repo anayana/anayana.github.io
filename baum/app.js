@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -8547,6 +8547,88 @@ function paintImpPick() {
   paintSrc();
 }
 /* What the chosen source needs on screen, and what it is. */
+/* ---- how many are there, before fetching any of them -------------------
+   "Is this register any good round here?" is a question with a cheap answer:
+   every one of these services will count without sending the rows. WFS has
+   RESULTTYPE=hits, ArcGIS has returnCountOnly, Overpass has "out count". A
+   second on a phone, instead of a download and a look.
+
+   It is also the honest way to answer "where are there many trees": pan the
+   map, press it, read the number. Nobody has to take my word for where a
+   register is dense. */
+async function impCount() {
+  if (!$('srcPick')) return;
+  const sel = $('srcPick'), out = $('srcOut');
+  const say = t => { if (out) out.textContent = t; };
+  const v = sel.value || '';
+  const hist = v.indexOf('hist:') === 0;
+  const src = hist ? srcById('url') : srcById(v);
+  if (!src || src.kind === 'file') return toast('Pick a service – a file is counted by opening it.');
+  const which = $('srcArea') ? $('srcArea').value : 'map';
+  if (which === 'all') return toast('Counting works on an area – choose the map or 300 m.');
+  const box = impArea(which);
+  if (!box) return toast('No GPS fix yet – choose the map area instead.');
+  const where = box.what + ' (' + Math.round(box.r * 2) + ' m across)';
+  say('Counting …');
+  try {
+    let n = null;
+    if (src.kind === 'osm') {
+      const q = '[out:json][timeout:60];node(' + box.s + ',' + box.w + ',' + box.n + ',' + box.e +
+                ')[natural=tree];out count;';
+      const r = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST', body: 'data=' + encodeURIComponent(q),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      if (!r.ok) throw new Error('Overpass answered ' + r.status);
+      const j = await r.json();
+      const c = (j.elements || []).find(e => e.type === 'count');
+      n = c ? +(c.tags && c.tags.total) : 0;
+    } else if (src.kind === 'berlin') {
+      const base = src.url;
+      const c = CRS['EPSG:25833'].from(box.lat, box.lon);
+      const bbox = [c.e - box.r, c.n - box.r, c.e + box.r, c.n + box.r].map(x => x.toFixed(1)).join(',');
+      const layers = (await wfsLayers(base)).filter(x => /baum|tree/i.test(x));
+      if (!layers.length) throw new Error('no tree layer in the service');
+      n = 0;
+      const per = [];
+      for (let i = 0; i < layers.length && i < 4; i++) {
+        const u = base + (base.indexOf('?') < 0 ? '?' : '&') +
+          'SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&RESULTTYPE=hits&TYPENAMES=' +
+          encodeURIComponent(layers[i]) + '&SRSNAME=EPSG:25833&BBOX=' + encodeURIComponent(bbox + ',EPSG:25833');
+        const r = await fetch(u);
+        if (!r.ok) continue;
+        const t = await r.text();
+        const m = t.match(/numberMatched\s*=\s*"(\d+)"/i) || t.match(/numberOfFeatures\s*=\s*"(\d+)"/i);
+        const k = m ? +m[1] : 0;
+        n += k;
+        per.push(layers[i].replace(/^.*:/, '') + ' ' + k);
+      }
+      say(n + ' trees in ' + where + (per.length > 1 ? ' · ' + per.join(', ') : ''));
+      return n;
+    } else {
+      const url = hist ? v.slice(5) : (src.url || ($('impUrl').value || '').trim());
+      if (!url) return toast('Paste an address first.');
+      if (!/\/(FeatureServer|MapServer)\/\d+/.test(url))
+        return toast('Counting needs an ArcGIS layer address, a WFS service, or OpenStreetMap.');
+      const env = mapEnvelope();
+      const u = url.replace(/\/$/, '') + '/query?where=1%3D1&returnCountOnly=true&f=json' +
+        (env ? '&geometry=' + encodeURIComponent(JSON.stringify(env)) +
+               '&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326' : '');
+      const r = await fetch(u);
+      if (!r.ok) throw new Error('the service answered ' + r.status);
+      const j = await r.json();
+      n = (j.count != null) ? j.count : null;
+    }
+    if (n == null) say('The service did not give a count.');
+    else say(n + ' tree' + (n === 1 ? '' : 's') + ' in ' + where +
+             (n ? ' – press Import to fetch them.' : ' – nothing from this source here.'));
+    return n;
+  } catch (e) {
+    say('Could not count: ' + (e.message === 'Failed to fetch'
+      ? 'no signal, or the service refuses requests from a web page' : e.message));
+    return null;
+  }
+}
+
 /* One button, whatever was chosen. Everything below it existed already; all
    this does is pick which one to call and put the answer in one place. */
 async function impRun() {
@@ -9063,6 +9145,7 @@ function wire() {
     paintImpBox();
   };
   $('srcGo').onclick = impRun;
+  $('srcCount').onclick = impCount;
   $('bImpCheck').onclick = async () => {
     const u = ($('impUrl').value || '').trim();
     if (!u) return toast('Paste an address first, or pick one above.');
