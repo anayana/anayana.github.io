@@ -183,9 +183,28 @@ const K_CAT = 'vta_catalog_v1', K_EDIT = 'vta_edits_v1', K_REF = 'vta_refs_v1',
       K_NIA = 'vta_nia_v1', K_EXP = 'vta_exported_v1', K_TRASH = 'vta_trash_v1',
       K_ROUND = 'vta_round_v1', K_PREF = 'vta_prefs_v1', K_PLOT = 'vta_plot_v1';
 let mem = {};                                  // fallback when localStorage is blocked
+let lsFull = null;                             // what would not fit, and how big it was
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
-function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } }
-function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { delete mem[k]; } }
+/* A write that does not fit used to fall into `mem` without a word, and `mem`
+   is gone the moment the tab is. A register too big for the browser's store
+   would appear to save and be gone on the next start - the worst kind of loss,
+   the silent kind. It still falls back, so the session carries on, but it says
+   so, loudly, every time. */
+function lsSet(k, v) {
+  try { localStorage.setItem(k, v); if (lsFull && lsFull.key === k) lsFull = null; }
+  catch (e) {
+    mem[k] = v;
+    lsFull = { key: k, kb: Math.round(String(v).length / 1024), at: Date.now() };
+    try {
+      if (typeof toast === 'function')
+        toast('This phone\u2019s storage is full – ' + lsFull.kb + ' kB did not fit and is only ' +
+              'held until the app is closed. Export now (Data \u2192 Export), then delete what is ' +
+              'not needed.');
+      if (typeof msg === 'function') msg('Storage full: ' + k + ' (' + lsFull.kb + ' kB) not saved');
+    } catch (e2) {}
+  }
+}
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} delete mem[k]; }
 
 let CAT, edits;
 function loadAll() {

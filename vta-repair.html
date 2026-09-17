@@ -36,11 +36,16 @@
 <p class="q">Diese Seite liegt außerhalb der App. Kein Service Worker und kein Cache der App
 kann sie blockieren.</p>
 
-<div class="keep"><b>Deine Daten bleiben.</b> Bäume, Feldaufnahmen, Fotos, Benutzer und Protokoll
-liegen im Speicher des Telefons, nicht in der Programmkopie. Kein Knopf hier fasst sie an.</div>
+<div class="keep"><b>Zuerst sichern.</b> Der erste Knopf lädt alles herunter, was dieser Browser
+für die App gespeichert hat &ndash; Bäume, Feldaufnahmen, Fotos, Benutzer, Protokoll &ndash; als eine
+Datei. Das geht auch, wenn die App selbst nicht startet. Danach ist Löschen gefahrlos.<br><br>
+<b>Reparieren</b> wirft nur die Programmkopie weg und fasst diese Daten nicht an.</div>
 
-<button class="p" id="fix">Reparieren und App starten</button>
-<button id="check">Erst nachsehen, was los ist</button>
+<button class="p" id="save">Daten sichern (Download)</button>
+<button id="fix">Reparieren und App starten</button>
+<button id="check">Nachsehen, was los ist</button>
+<button id="loadbtn">Sicherung zurückspielen</button>
+<input type="file" id="loadfile" accept=".json,application/json" style="display:none">
 
 <div id="out">bereit</div>
 
@@ -123,6 +128,111 @@ function state() {
 }
 
 document.getElementById('check').onclick = check;
+
+/* And back in again, into whichever browser this page is open in. The point
+   of an export nobody can restore is nothing at all. */
+document.getElementById('loadbtn').onclick = function () {
+  document.getElementById('loadfile').click();
+};
+document.getElementById('loadfile').onchange = function (ev) {
+  var file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  clear();
+  line('lese ' + file.name + ' …');
+  var fr = new FileReader();
+  fr.onerror = function () { line('Datei nicht lesbar', 'no'); };
+  fr.onload = function () {
+    var dump;
+    try { dump = JSON.parse(fr.result); }
+    catch (e) { return line('Das ist keine Sicherungsdatei: ' + e.message, 'no'); }
+    if (!dump || !dump.local) return line('Das ist keine Sicherungsdatei dieser App.', 'no');
+    var n = 0;
+    try {
+      Object.keys(dump.local).forEach(function (k) { localStorage.setItem(k, dump.local[k]); n++; });
+      line(n + ' Einträge zurückgeschrieben', 'ok');
+      try {
+        var cat = JSON.parse(dump.local['vta_catalog_v1'] || 'null');
+        line('darin ' + (cat && cat.features ? cat.features.length : 0) + ' Bäume', 'ok');
+      } catch (e) {}
+    } catch (e) { return line('Schreiben fehlgeschlagen: ' + e.message, 'no'); }
+
+    var done = function () {
+      line('fertig – starte die App', 'ok');
+      setTimeout(function () { location.replace('./baum/?fresh=' + Date.now()); }, 900);
+    };
+    var photos = dump.photos || [];
+    if (!photos.length || !window.indexedDB) return done();
+    var req = indexedDB.open('vta-photos', 1);
+    req.onupgradeneeded = function () {
+      var db = req.result;
+      if (!db.objectStoreNames.contains('photos')) {
+        var st = db.createObjectStore('photos', { keyPath: 'id' });
+        st.createIndex('tree', 'tree', { unique: false });
+      }
+    };
+    req.onerror = function () { line('Fotos konnten nicht geschrieben werden', 'wa'); done(); };
+    req.onsuccess = function () {
+      var db = req.result;
+      try {
+        var tx = db.transaction('photos', 'readwrite');
+        var st = tx.objectStore('photos');
+        photos.forEach(function (ph) { try { st.put(ph); } catch (e) {} });
+        tx.oncomplete = function () { line(photos.length + ' Fotos zurückgeschrieben', 'ok'); db.close(); done(); };
+        tx.onerror = function () { line('Fotos teilweise nicht geschrieben', 'wa'); db.close(); done(); };
+      } catch (e) { db.close(); line('Fotos nicht geschrieben: ' + e.message, 'wa'); done(); }
+    };
+  };
+  fr.readAsText(file);
+};
+
+/* Everything this browser holds for this app, as one file, without the app
+   having to work. First thing to do when anything is about to be deleted. */
+document.getElementById('save').onclick = function () {
+  clear();
+  line('sammle ein …');
+  var dump = { made: new Date().toISOString(), from: location.origin, local: {}, photos: [] };
+  var n = 0;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('vta') === 0) { dump.local[k] = localStorage.getItem(k); n++; }
+    }
+    line(n + ' Einträge aus dem Speicher', 'ok');
+    try {
+      var cat = JSON.parse(dump.local['vta_catalog_v1'] || 'null');
+      line('darin ' + (cat && cat.features ? cat.features.length : 0) + ' Bäume', 'ok');
+    } catch (e) {}
+  } catch (e) { line('Speicher nicht lesbar: ' + e.message, 'no'); }
+
+  var finish = function () {
+    try {
+      var blob = new Blob([JSON.stringify(dump)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'vta-sicherung-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      line('Datei wird heruntergeladen. Erst wenn sie da ist, etwas löschen.', 'ok');
+    } catch (e) { line('Download fehlgeschlagen: ' + e.message, 'no'); }
+  };
+
+  /* the photographs as well, out of IndexedDB */
+  if (!window.indexedDB) return finish();
+  var req = indexedDB.open('vta-photos');
+  req.onerror = function () { line('Fotos nicht lesbar – der Rest wird gesichert', 'wa'); finish(); };
+  req.onsuccess = function () {
+    var db = req.result;
+    if (!db.objectStoreNames.contains('photos')) { db.close(); return finish(); }
+    try {
+      var all = db.transaction('photos', 'readonly').objectStore('photos').getAll();
+      all.onsuccess = function () {
+        dump.photos = all.result || [];
+        line(dump.photos.length + ' Fotos', 'ok');
+        db.close(); finish();
+      };
+      all.onerror = function () { db.close(); line('Fotos nicht lesbar', 'wa'); finish(); };
+    } catch (e) { db.close(); line('Fotos nicht lesbar', 'wa'); finish(); }
+  };
+};
 
 document.getElementById('fix').onclick = function () {
   clear();
