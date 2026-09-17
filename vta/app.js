@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.58.2';
+const APP_VERSION = '2.59.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -9204,15 +9204,23 @@ step('version', () => { $('about').textContent = 'VTA Field ' + APP_VERSION; });
    a rescue screen over a working app is worse than no rescue screen. */
 try { if (typeof window.__vtaUp === 'function') window.__vtaUp(); } catch (e) {}
 step('demo notice', () => { if (_demo) toast(_demo + ' demo trees removed – the register is yours now.'); });
-/* Where the worker is allowed to run: https, or a loopback address, which
-   browsers count as trustworthy for exactly this reason. It used to say
-   'localhost' and nothing else, so a worker never started on 127.0.0.1 - which
-   is what every test here runs against, so the offline behaviour of the app
-   was the one part of it never being tested. */
-function swAllowed() {
-  return location.protocol === 'https:' ||
-         ['localhost', '127.0.0.1', '[::1]', '::1'].indexOf(location.hostname) >= 0;
-}
-if ('serviceWorker' in navigator && swAllowed()) {
-  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+/* The service worker is gone.
+
+   It was the offline cache, and it became the reason the app would not start
+   on a phone: a worker between the app and the network that a person cannot
+   reach from inside the app. sw.js is now a kill switch that removes itself
+   and every cache from phones that still carry it, and nothing here registers
+   a new one.
+
+   So this is a plain web page again. It needs a connection to start, which is
+   the price of it starting at all. An offline cache can come back later, built
+   so that it can always be got rid of from outside. */
+if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+  /* one last sweep from the page's side, for a phone where the worker's own
+     activate step never got to run */
+  navigator.serviceWorker.getRegistrations()
+    .then(rs => rs.forEach(r => r.unregister().catch(() => {})))
+    .catch(() => {});
+  if (window.caches && caches.keys)
+    caches.keys().then(ks => ks.forEach(k => caches.delete(k).catch(() => {}))).catch(() => {});
 }
