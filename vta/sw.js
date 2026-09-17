@@ -1,7 +1,7 @@
 /* Service worker: keep the whole app available offline.
    Navigation requests are network-first so fixes reach the field as soon as there
    is a connection; assets are cache-first. Bump CACHE on every change. */
-const CACHE = 'vta-v121';
+const CACHE = 'vta-v122';
 /* Map tiles live in their own cache: they are none of the app's business to
    version, and an area looked at once should still be there in the field with
    no network. Kept across updates, cleared only with the app's storage. */
@@ -10,62 +10,85 @@ const TILE_HOST = 'tile.openstreetmap.org';
 const ASSETS = [
   './',
   'index.html',
-  'app.js?v=2.58.0',
-  'data.js?v=2.58.0',
-  'norms.js?v=2.58.0',
-  'i18n.js?v=2.58.0',
-  'mapper.js?v=2.58.0',
-  'users.js?v=2.58.0',
-  'voice.js?v=2.58.0',
-  'plantnet.js?v=2.58.0',
-  'osm.js?v=2.58.0',
-  'research.js?v=2.58.0',
-  'marks.js?v=2.58.0',
-  'pins.js?v=2.58.0',
-  'ghost.js?v=2.58.0',
-  'guide.js?v=2.58.0',
-  'docx.js?v=2.58.0',
-  'reports.js?v=2.58.0',
-  'mapsheet.js?v=2.58.0',
-  'sign.js?v=2.58.0',
-  'gate.js?v=2.58.0',
-  'vendor/three.min.js?v=2.58.0',
+  'app.js?v=2.58.1',
+  'data.js?v=2.58.1',
+  'norms.js?v=2.58.1',
+  'i18n.js?v=2.58.1',
+  'mapper.js?v=2.58.1',
+  'users.js?v=2.58.1',
+  'voice.js?v=2.58.1',
+  'plantnet.js?v=2.58.1',
+  'osm.js?v=2.58.1',
+  'research.js?v=2.58.1',
+  'marks.js?v=2.58.1',
+  'pins.js?v=2.58.1',
+  'ghost.js?v=2.58.1',
+  'guide.js?v=2.58.1',
+  'docx.js?v=2.58.1',
+  'reports.js?v=2.58.1',
+  'mapsheet.js?v=2.58.1',
+  'sign.js?v=2.58.1',
+  'gate.js?v=2.58.1',
+  'vendor/three.min.js?v=2.58.1',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',
   'icon-maskable-512.png'
 ];
 
-/* Pre-cache one asset at a time rather than with addAll: a single failure there
-   rejects the whole install and leaves the worker with an empty cache, which is
-   the worst outcome for an app meant to run without a network.
-   cache:'reload' bypasses the browser HTTP cache - Pages serves assets with
-   max-age=600, so without it a fresh worker can store a stale build. */
+/* Pre-caching, and the rule that was missing from it.
+
+   One asset at a time, each retried, cache:'reload' to get past the HTTP cache
+   because Pages serves with max-age=600 and a fresh worker must not store a
+   stale build.
+
+   The rule: an install that did not get every file DOES NOT TAKE OVER. It used
+   to log a warning and carry on, which is the wrong way round - the new worker
+   would activate with half a cache and then the activate step would throw the
+   OLD, complete cache away. A phone on a thin connection could come out of an
+   update with no offline copy at all, and that is a dead app in a wood. A
+   failed install costs nothing: the old worker stays in charge with the old
+   complete app, and the update is tried again on the next start. */
+const TRIES = 3;
+async function getOnce(u) {
+  const r = await fetch(new Request(u, { cache: 'reload' }));
+  if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+  return r;
+}
 async function precache() {
   const c = await caches.open(CACHE);
-  const results = await Promise.all(ASSETS.map(async u => {
-    try {
-      const r = await fetch(new Request(u, { cache: 'reload' }));
-      if (!r.ok) return u + ' -> ' + r.status;
-      await c.put(new Request(u), r);          // plain request as the cache key
-      return null;
-    } catch (err) {
-      return u + ' -> ' + err.message;
+  const failed = [];
+  for (const u of ASSETS) {
+    let last = null;
+    for (let n = 0; n < TRIES; n++) {
+      try { await c.put(new Request(u), await getOnce(u)); last = null; break; }
+      catch (err) { last = err; await new Promise(r => setTimeout(r, 400 * (n + 1))); }
     }
-  }));
-  const failed = results.filter(Boolean);
-  if (failed.length) console.warn('[sw] not pre-cached:', failed);
+    if (last) failed.push(u + ' -> ' + last.message);
+  }
+  if (failed.length) {
+    console.warn('[sw] install abandoned, the old version stays:', failed);
+    await caches.delete(CACHE);            // leave no half-filled cache behind
+    throw new Error('incomplete precache: ' + failed.length + ' of ' + ASSETS.length);
+  }
 }
 self.addEventListener('install', e => {
   e.waitUntil(precache().then(() => self.skipWaiting()));
 });
 
+/* Old versions are swept only once this one is known to be whole - checked
+   again here, because between install and activate is a place things happen. */
+async function sweep() {
+  const c = await caches.open(CACHE);
+  for (const u of ASSETS) if (!(await c.match(new Request(u)))) {
+    console.warn('[sw] this version is not complete; keeping the older caches');
+    return;
+  }
+  const ks = await caches.keys();
+  await Promise.all(ks.filter(k => k !== CACHE && k !== TILES).map(k => caches.delete(k)));
+}
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== TILES).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil(sweep().then(() => self.clients.claim()));
 });
 
 const NAV_WAIT = 2500;          // how long a start waits for the network before the cache answers
@@ -106,6 +129,10 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (url.origin !== location.origin) return;
+  /* The repair page is deliberately outside all of this. It exists for the
+     case where the worker or the cache is the problem, so it must never come
+     from either: the browser fetches it the ordinary way. */
+  if (url.pathname.endsWith('/repair.html')) return;
 
   /* Opening the app.
 
@@ -126,20 +153,21 @@ self.addEventListener('fetch', e => {
     e.respondWith(navigate(req));
     return;
   }
-  /* An asset that is not cached yet has to come off the network, and the same
-     stalled connection would hang the script tag waiting for it - a page that
-     never finishes loading, which is the other half of the dead app. Give up
-     after eight seconds instead: the page finishes, the script errors, and the
-     watchdog in index.html shows a way out. */
+  /* An asset that is not cached yet has to come off the network. A stalled
+     connection would hang the script tag on it for ever, so there is a limit -
+     but a generous one. Eight seconds was too mean: a slow-but-working mobile
+     connection needs longer than that for a file, and cutting it off turns
+     "slow" into "broken", which is worse than waiting. Thirty seconds, and
+     then an error the page can see rather than an empty body it cannot. */
   e.respondWith(
     caches.match(req).then(hit => {
       if (hit) return hit;
       const net = fetch(req).then(r => {
-        if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
+        if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)).catch(() => {}); }
         return r;
       });
-      const give = new Promise(res => setTimeout(() =>
-        res(new Response('', { status: 504, statusText: 'no answer from the network' })), 8000));
+      const give = new Promise((res, rej) =>
+        setTimeout(() => rej(new Error('no answer from the network')), 30000));
       return Promise.race([net, give]);
     })
   );
