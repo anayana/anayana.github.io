@@ -13,6 +13,7 @@ project:
     - psm_data.js
     - KieferMistel.html
     - vta/
+    - vta-repair.html      # outside vta/, so no worker of the app can intercept it
     - companions/
 
 website:
