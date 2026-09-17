@@ -1,0 +1,56 @@
+---
+title: "VTA Field – tree inspection in AR"
+description: "Offline-first field app for visual tree assessment: AR markers on the stem, register, inspection record, photographs, reports."
+image: thumbnail.jpg
+categories: [WebXR, PWA, JavaScript, Trees, VTA]
+---
+
+## Open the app
+
+[**anayana.github.io/baum/**](/baum/)
+
+Works in any modern mobile browser. Add it to the home screen to keep it one tap away.
+
+## If the app will not start
+
+Browsers keep things for a web app – stored data, cached files, background
+workers – and now and then one of those gets in the way. This page repairs
+that, and it is deliberately outside the app so that it still works when the
+app does not:
+
+[**anayana.github.io/vta-repair.html**](/vta-repair.html)
+
+It does three things, in this order:
+
+1. **Save the data** – everything the browser holds for the app (register, field
+   records, photographs, users, log) as one file. This works even when the app
+   itself will not start. Do this first.
+2. **Repair** – throws away the stored programme copy and reloads. It does not
+   touch the saved data.
+3. **Restore** – reads a saved file back in, photographs included.
+
+Worth writing down or bookmarking **before** it is needed.
+
+## About
+
+A visual tree assessment is a walk, a look and a judgement, and the record of it
+is what anybody else ever sees. VTA Field does that record in the field, on a
+phone, without a connection to anything:
+
+- **AR** – markers on the trees through the camera, the diameter measured off the
+  stem, defects pinned to the trunk at a height and a bearing, and last year's
+  photograph laid over this year's bark from the same standpoint.
+- **The register** – imported from a municipal service or a file, in its own
+  columns, with the field names matched automatically and corrected by hand.
+- **The record** – the fields of the standard in use (FLL, ÖNORM, VSSG and
+  others), by hand or by voice, in five languages.
+- **Reports** – a letter head, the client's own column layout read from their
+  blank form, a drawn signature, and output as a printable page, Word or CSV.
+- **Map sheets** – printed at a chosen scale over as many sheets as that scale
+  needs, rather than a whole job squeezed illegibly onto one page.
+
+Data stays on the phone. Nothing is uploaded anywhere unless a button is pressed.
+
+## Stack
+
+[JavaScript]{.badge-skill} [WebXR]{.badge-skill} [three.js]{.badge-skill} [PWA]{.badge-skill} [OpenStreetMap]{.badge-skill} [WFS / ArcGIS]{.badge-skill}

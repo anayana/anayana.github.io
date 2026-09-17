@@ -1928,7 +1928,11 @@ function onFix(fix) {
   fixStep('fit', autoFit);                           // and every fix is a chance to do better
   fixStep('map', () => {
     if (!mapOn()) return;
-    if (mapMode === 'me') mapToMe(!mapView);
+    if (mapMode === 'me') {
+      const close = mapWantClose || !mapView;      // the first fix pulls it in; later ones do not
+      mapToMe(close);
+      if (close) mapWantClose = false;
+    }
     else if (mapMode === 'both' && navTarget != null) mapFit(navTarget);
     else drawMap();
     renderNav(); mapModeLine();
@@ -5598,12 +5602,20 @@ function mapCentre() {
   mapViewFrom = lastFix ? 'you' : 'fallback';
   return mapView;
 }
+/* Opening the map with no fix yet: the first fix that arrives should pull the
+   view in close, not merely centre a view that is still showing half a
+   country. Set when the map screen opens without a fix, cleared by the fix
+   that answers it. */
+let mapWantClose = false;
+const MAP_WORK_Z = 18;          // what "you can see what you are looking at" is
+const MAP_FIT_MIN = 15;         // and how far out fitting you-and-a-tree may ever go
+
 /* Put the view on the phone and keep it there. */
 function mapToMe(zoom) {
   if (!lastFix) return false;
   const v = mapCentre();
   v.lat = lastFix.lat; v.lon = lastFix.lon; mapViewFrom = 'you';
-  if (zoom) v.z = Math.max(v.z, 18);
+  if (zoom) v.z = Math.max(v.z, MAP_WORK_Z);
   mapMode = 'me';
   drawMap();
   return true;
@@ -5613,7 +5625,10 @@ function mapFit(i) {
   if (i == null || !CAT.features[i] || !lastFix) return false;
   const c = CAT.features[i].geometry.coordinates, v = mapCentre(), box = $('mapBox');
   v.lat = (c[1] + lastFix.lat) / 2; v.lon = (c[0] + lastFix.lon) / 2;
-  for (v.z = MAPZ.max; v.z > MAPZ.min; v.z--) {
+  /* Not below MAP_FIT_MIN: a tree four kilometres off would otherwise pull the
+     map out until neither it nor the street it stands in can be made out, and
+     a map you cannot read is not a better answer than one you have to pan. */
+  for (v.z = MAPZ.max; v.z > MAP_FIT_MIN; v.z--) {
     const dx = Math.abs(lon2px(c[0], v.z) - lon2px(lastFix.lon, v.z));
     const dy = Math.abs(lat2px(c[1], v.z) - lat2px(lastFix.lat, v.z));
     if (dx < box.clientWidth * 0.8 && dy < box.clientHeight * 0.7) break;
@@ -7742,7 +7757,11 @@ function showScreen(k) {
     if (typeof wipePaint === 'function') wipePaint(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
-    mapMode = 'me'; if (!mapToMe(true)) drawMap();
+    /* Always open close enough to recognise a tree. Zooming out afterwards is
+       the user's business and is left alone; this is only the way in. */
+    mapMode = 'me';
+    mapWantClose = !mapToMe(true);
+    if (mapWantClose) drawMap();
     syncMapSel(); buildNavList(); renderNav(); mapModeLine(); paintHome();
   }
 }
