@@ -1,49 +1,76 @@
 #!/usr/bin/env bash
 # Fetch each candidate address and say what came back, the same way the app's
 # check button does: by looking at the body, not at the status code.
+# One request per address, all of them at once, so a host that hangs costs
+# twenty seconds rather than holding up the rest.
 set -u
 list="${1:?usage: probe-sources.sh <list-file>}"
+work=$(mktemp -d)
+
+probe_one() {
+  local label="$1" url="$2" out="$3"
+  local body code
+  body=$(curl -sSL --max-time 25 -A 'vta-field source probe' \
+              -w '\n@@HTTP@@%{http_code}' "$url" 2>/dev/null)
+  code="${body##*@@HTTP@@}"
+  body="${body%$'\n'@@HTTP@@*}"
+  body=$(printf '%s' "$body" | head -c 300000)
+  printf '%-30s %-4s  %s\n' "$label" "${code:-000}" "$(classify "$body")" > "$out"
+}
 
 classify() {
-  local body="$1"
-  local head; head=$(printf '%s' "$body" | head -c 400 | tr -d '\r' | tr '\n' ' ')
+  local body="$1" head
+  head=$(printf '%s' "$body" | head -c 600 | tr -d '\r' | tr '\n' ' ')
+  [ -z "${head// }" ] && { echo "NO ANSWER"; return; }
   case "$head" in
-    *'<!DOCTYPE'*|*'<!doctype'*|*'<html'*|*'<HTML'*) echo "HTML page (not data)"; return;;
+    *'<!DOCTYPE'*|*'<!doctype'*|*'<html'*|*'<HTML'*) echo "HTML page, not data"; return;;
   esac
-  if printf '%s' "$head" | grep -qi 'WFS_Capabilities'; then
-    local lay; lay=$(printf '%s' "$body" | grep -oiE '<(wfs:)?Name>[^<]*(baum|tree|arbre|arbrat|boom|puu|arbol|albero|drzew|strom|tra|drevo)[^<]*</(wfs:)?Name>' \
-      | sed -E 's#</?(wfs:)?Name>##g' | sort -u | paste -sd, - | cut -c1-200)
-    echo "WFS · tree layers: ${lay:-none found}"; return
+  if printf '%s' "$body" | grep -qi 'WFS_Capabilities'; then
+    local lay
+    lay=$(printf '%s' "$body" \
+      | grep -oiE '<(wfs:)?Name>[^<]*(baum|tree|arbre|arbrat|arbol|boom|puu|albero|drzew|strom|trad|drevo|arvore)[^<]*</(wfs:)?Name>' \
+      | sed -E 's#</?[Ww][Ff][Ss]?:?[Nn]ame>##g' | sort -u | paste -sd, - | cut -c1-220)
+    echo "WFS · tree layers: ${lay:-NONE FOUND}"; return
   fi
-  if printf '%s' "$head" | grep -qE '"(currentVersion|layers|serviceDescription|geometryType|fields)"'; then
-    local lay; lay=$(printf '%s' "$body" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -12 | sed 's/.*: *//' | paste -sd, - | cut -c1-200)
+  if printf '%s' "$head" | grep -qE '"(currentVersion|serviceDescription|geometryType|folders)"'; then
+    local lay
+    lay=$(printf '%s' "$body" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]*"' \
+      | head -14 | sed 's/.*: *//' | tr -d '"' | paste -sd, - | cut -c1-220)
     echo "ArcGIS · ${lay:-no layer names}"; return
   fi
   if printf '%s' "$head" | grep -qE '"type"[[:space:]]*:[[:space:]]*"(FeatureCollection|Feature)"'; then
-    local n; n=$(printf '%s' "$body" | grep -o '"type"[[:space:]]*:[[:space:]]*"Feature"' | wc -l | tr -d ' ')
-    echo "GeoJSON · ${n} features in this answer"; return
+    local n
+    n=$(printf '%s' "$body" | grep -o '"type"[[:space:]]*:[[:space:]]*"Feature"' | wc -l | tr -d ' ')
+    echo "GeoJSON · ${n}+ features in this answer"; return
   fi
   case "$head" in
-    '{'*|'['*) echo "JSON, but not GeoJSON/ArcGIS: $(printf '%s' "$head" | cut -c1-90)"; return;;
+    '{'*|'['*) echo "JSON, not GeoJSON: $(printf '%s' "$head" | cut -c1-110)"; return;;
+    '<?xml'*|'<'*) echo "XML, not WFS caps: $(printf '%s' "$head" | cut -c1-110)"; return;;
   esac
-  if printf '%s' "$head" | head -1 | grep -qE '([^,;\t]+[,;\t]){2,}'; then
-    echo "CSV · first line: $(printf '%s' "$body" | head -1 | cut -c1-90)"; return
+  if printf '%s' "$body" | head -1 | grep -qE '([^,;\t]+[,;\t]){2,}'; then
+    echo "CSV · first line: $(printf '%s' "$body" | head -1 | cut -c1-110)"; return
   fi
-  echo "unreadable: $(printf '%s' "$head" | cut -c1-90)"
+  echo "unreadable: $(printf '%s' "$head" | cut -c1-110)"
 }
+export -f probe_one classify
 
-fail=0; ok=0
+i=0
 while IFS='|' read -r label url; do
-  [ -z "${label// }" ] && continue
-  case "$label" in \#*) continue;; esac
-  url="${url// }"
-  body=$(curl -sSL --max-time 45 --retry 1 -A 'vta-field source probe' "$url" 2>/dev/null | head -c 300000)
-  code=$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 45 -A 'vta-field source probe' "$url" 2>/dev/null)
-  if [ -z "$body" ]; then
-    printf '%-34s %-4s  NO ANSWER\n' "$label" "${code:-000}"; fail=$((fail+1)); continue
-  fi
-  printf '%-34s %-4s  %s\n' "$label" "${code:-000}" "$(classify "$body")"
-  ok=$((ok+1))
-done < "$list"
+  case "$label" in ''|\#*) continue;; esac
+  label="${label%"${label##*[![:space:]]}"}"
+  url="${url//[[:space:]]/}"
+  [ -z "$url" ] && continue
+  i=$((i+1))
+  printf '%s\t%s\t%s\n' "$label" "$url" "$work/$(printf '%03d' $i)"
+done < "$list" | while IFS=$'\t' read -r l u o; do
+  printf '%s\t%s\t%s\0' "$l" "$u" "$o"
+done | xargs -0 -P 12 -I{} bash -c 'IFS=$'"'"'\t'"'"' read -r l u o <<< "{}"; probe_one "$l" "$u" "$o"'
+
 echo
-echo "answered: $ok   silent: $fail"
+echo "=========== WHAT EACH ADDRESS ACTUALLY ANSWERS WITH ==========="
+cat "$work"/* 2>/dev/null | sort
+echo "==============================================================="
+echo
+echo "with data:  $(cat "$work"/* 2>/dev/null | grep -cE 'WFS ·|ArcGIS ·|GeoJSON ·|CSV ·')"
+echo "html/none:  $(cat "$work"/* 2>/dev/null | grep -cE 'HTML page|NO ANSWER')"
+rm -rf "$work"
