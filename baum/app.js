@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.3.2';
+const APP_VERSION = '3.4.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -8494,6 +8494,71 @@ const SOURCES = [
           'district, the address and remarks. The whole city is a large download – leave it on ' +
           'the map area unless you mean all of it.' },
 
+  { id: 'vienna', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0' +
+         '&typeName=ogdwien:BAUMKATOGD&srsName=EPSG:4326&outputFormat=json',
+    label: 'Vienna \u2013 the city tree register',
+    note: 'The city\u2019s own register (WFS, layer BAUMKATOGD). Asked for the map view it ' +
+          'answered with 470 trees over a few streets; the whole city is a large download.' },
+
+  { id: 'zurich', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster?service=WFS&version=1.1.0' +
+         '&request=GetFeature&typename=baumkataster_baumstandorte&outputFormat=GeoJSON' +
+         '&srsName=EPSG:4326',
+    label: 'Zurich \u2013 the city tree register',
+    note: 'Stem positions from the Baumkataster. There is a second layer of crown diameters ' +
+          'in the same service; this is the stems.' },
+
+  { id: 'helsinki', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://kartta.hel.fi/ws/geoserver/avoindata/wfs?service=WFS&version=2.0.0' +
+         '&request=GetFeature&typeNames=avoindata:Puurekisteri_piste' +
+         '&outputFormat=application/json&srsName=EPSG:4326',
+    label: 'Helsinki \u2013 the tree register',
+    note: 'Puurekisteri, the city\u2019s tree register, as points.' },
+
+  { id: 'paris', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/exports/geojson',
+    label: 'Paris \u2013 les arbres',
+    note: 'Street and park trees of the city. Asked for the map view it answers with what is ' +
+          'around that spot; asked for everything it is two hundred and twenty thousand trees ' +
+          'in one download \u2013 do that on wifi, not in the field.' },
+
+  { id: 'lyon', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?SERVICE=WFS&VERSION=2.0.0' +
+         '&REQUEST=GetFeature&typeName=metropole-de-lyon:abr_arbres_alignement.abrarbre' +
+         '&outputFormat=application/json&SRSNAME=EPSG:4326',
+    label: 'Lyon \u2013 street trees',
+    note: 'Arbres d\u2019alignement of the M\u00e9tropole de Lyon. The service is slow to ' +
+          'answer \u2013 give it a moment.' },
+
+  { id: 'amsterdam', group: 'City registers', kind: 'url', areas: ['all'],
+    url: 'https://api.data.amsterdam.nl/v1/bomen/stamgegevens/?_format=geojson&_pageSize=1000',
+    label: 'Amsterdam \u2013 bomen',
+    note: 'The city\u2019s tree API. It did not answer a map rectangle when asked, so this ' +
+          'fetches pages of the whole set.' },
+
+  { id: 'copenhagen', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature' +
+         '&typeNames=k101:gadetraer&outputFormat=application/json&srsName=EPSG:4326',
+    label: 'Copenhagen \u2013 street trees',
+    note: 'Gadetr\u00e6er, the street-tree register: species, Danish name and planting year on ' +
+          'every stem. The city also publishes trees found automatically from the air; those ' +
+          'are not this, and are not offered here.' },
+
+  { id: 'utrecht', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://geodata.utrecht.nl/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature' +
+         '&typeNames=Signalen:BOOM_BEHEERGU&outputFormat=application/json&srsName=EPSG:4326',
+    label: 'Utrecht \u2013 the tree register',
+    note: 'A hundred and fifty-four thousand stems with species and age. Keep to the map area ' +
+          'unless you mean the whole city.' },
+
+  { id: 'camden', group: 'City registers', kind: 'url', areas: ['all'],
+    url: 'https://opendata.camden.gov.uk/resource/csqp-kdss.geojson?$limit=50000',
+    label: 'London, Camden \u2013 street trees',
+    note: 'One London borough, not the whole city \u2013 the Greater London catalogue does not ' +
+          'answer for trees. Camden carries height, crown spread and DBH, but part of the rows ' +
+          'say "no spatial information available" and have no coordinates; those are skipped.' },
+
   { id: 'url', group: 'Your own', kind: 'url', areas: ['map', 'all'],
     label: 'A web address you paste',
     note: 'An ArcGIS layer, a WFS GetFeature request, or a GeoJSON or CSV file. An ArcGIS layer ' +
@@ -8710,6 +8775,37 @@ async function arcgisLayers(base) {
 }
 function looksLikeHtml(t) { return /^\s*(<!doctype html|<html[\s>])/i.test(String(t || '').slice(0, 400)); }
 
+/* A WFS GetFeature address can be asked for one rectangle instead of a whole
+   city, which is the difference between a few hundred trees and Paris's two
+   hundred thousand. Which way round the two numbers go is the classic place
+   to get this wrong, so it is not reasoned about: the four services in the
+   list were each asked both ways on a machine that can reach them, and
+   west,south,east,north with the plain EPSG:4326 code is the order that
+   returned features from every one of them - the other order returned zero
+   from Vienna and Zurich. Anything that is not a GetFeature address is left
+   exactly as it was. */
+function wfsWithBox(u, box) {
+  if (!box) return u;
+  if (/opendata\.paris\.fr\/api\/explore/i.test(u)) return odsWithBox(u, box);
+  if (!/[?&]request=getfeature/i.test(u)) return u;
+  if (/[?&]bbox=/i.test(u)) return u;             // the address already says where
+  const bb = [box.w, box.s, box.e, box.n].map(x => (+x).toFixed(6)).join(',');
+  return u + (u.indexOf('?') < 0 ? '?' : '&') + 'bbox=' + encodeURIComponent(bb + ',EPSG:4326');
+}
+
+/* Paris is not a WFS and ignores a bbox; its catalogue takes a distance from
+   a point instead. Asked that way it answered with the five hundred and sixty
+   trees within three hundred metres of the Ile de la Cite rather than with
+   all two hundred and twenty thousand, which is the whole point of asking. */
+function odsWithBox(u, box) {
+  if (/[?&]where=/i.test(u)) return u;
+  const r = Math.max(100, Math.round(Math.hypot(
+    (box.e - box.w) / 2 * mLon(box.lat), (box.n - box.s) / 2 * mLat(box.lat))));
+  const w = "within_distance(geo_point_2d, geom'POINT(" +
+            box.lon.toFixed(6) + ' ' + box.lat.toFixed(6) + ")', " + r + 'm)';
+  return u + (u.indexOf('?') < 0 ? '?' : '&') + 'where=' + encodeURIComponent(w);
+}
+
 async function fetchRegister(url, onlyBox) {
   let u = String(url || '').trim();
   if (!/^https?:\/\//i.test(u)) throw new Error('that is not a web address');
@@ -8726,14 +8822,16 @@ async function fetchRegister(url, onlyBox) {
   }
   const isArc = /\/(FeatureServer|MapServer)\/\d+/.test(u);
   if (!isArc) {
-    const r = await fetch(u);
+    const boxed = wfsWithBox(u, (typeof onlyBox !== 'undefined' && onlyBox) ? onlyBox : null);
+    const r = await fetch(boxed);
     if (!r.ok) throw new Error('the server answered ' + r.status);
     const text = await r.text();
     if (looksLikeHtml(text))
       throw new Error('that address gives a web page, not data. If it is an ArcGIS layer, its ' +
                       'address ends in /FeatureServer/0 or /MapServer/0; if it is a download ' +
                       'page, open it and copy the link to the file itself.');
-    return { text: text, name: u.split('/').pop().split('?')[0] || 'download' };
+    return { text: text, name: (boxed !== u ? 'the map view of ' : '') +
+                               (u.split('/').pop().split('?')[0] || 'download') };
   }
   const feats = [];
   const box = (typeof onlyBox !== 'undefined' && onlyBox) ? onlyBox : null;
