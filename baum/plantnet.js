@@ -45,7 +45,7 @@ function pnetParse(j) {
 async function pnetIdentify(photos) {
   const c = pnetCfg();
   const key = (c.key || '').trim();
-  if (!key) throw new Error('no Pl@ntNet key – Data → App holds the field');
+  if (!key) throw new Error('no Pl@ntNet key – Office → App holds the field');
   if (!photos || !photos.length) throw new Error('no photographs to send');
   const fd = new FormData();
   photos.slice(0, 5).forEach((ph, n) => {

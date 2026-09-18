@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.9.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -718,9 +718,14 @@ const RET_MIN = 0.6, RET_MAX = 2.6;
    when nothing better is available the tree is put one step ahead along the
    view, and the marker lands round the stem instead of on your own boots.
    The step is settable because people and trees differ. */
+/* One metre, not one and a half. Both are "a metre or two in front of you",
+   and both put the marker round the trunk instead of on your own boots - but
+   at a metre and a half the day-two lock, which picks the nearest surveyed
+   tree by GPS, changed its mind between two trees that were within a hand's
+   breadth of equally far away. The half metre bought nothing and cost that. */
 function stepOff() {
   const v = parseFloat(prefs().stepOff);
-  return isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.5;
+  return isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.0;
 }
 function reticleStem() {
   if (!hitPt) return null;
@@ -841,7 +846,7 @@ function distanceSheet(i, o) {
   off.onclick = () => {
     const f = distAsk && distAsk.after;
     setPref('askDist', false); el.style.display = 'none'; distAsk = null;
-    toast('The distance will not be asked again – switch it back on under Data → App.');
+    toast('The distance will not be asked again – switch it back on under Office → App.');
     if (f) f();
   };
   el.appendChild(off);
@@ -2842,7 +2847,7 @@ function note(where, e) {
       toast('Reading depth keeps failing on this phone – switched off. ' +
             'Recording still works, it just records where you stand.');
     } else {
-      toast(where + ' keeps failing – see Data · Alignment for the message.');
+      toast(where + ' keeps failing – see Office · Alignment for the message.');
     }
   }
 }
@@ -3280,7 +3285,7 @@ let cal = null;
 
 function calStart(tree) {
   if (!depthWanted() || !depthOk) {
-    toast('This needs depth. Switch it on under Data → App, on a phone that has it.');
+    toast('This needs depth. Switch it on under Office → App, on a phone that has it.');
     return false;
   }
   cal = { tree: tree, pts: [], bins: new Array(CAL_BINS).fill(0), fit: null,
@@ -4772,7 +4777,7 @@ let stemObs = [], stemMatchN = 0, stemScanAt = 0, lockStems = 0, ambigSaid = fal
 let diag = { look: 'not looked yet', match: 'not tried yet', scans: 0 };
 function stemScan() {
   diag.scans++;
-  if (!depthWanted()) { diag.look = 'depth is switched off (Data · App)'; return; }
+  if (!depthWanted()) { diag.look = 'depth is switched off (Office · App)'; return; }
   if (lockStems >= 4) { diag.look = 'locked on ' + lockStems + ' stems – not looking any more'; return; }
   if (mode !== 'WebXR') { diag.look = 'not in AR'; return; }
   if (measure) { diag.look = 'a measurement is running'; return; }
@@ -8961,7 +8966,7 @@ async function importFromUrl(url) {
     alert(m === 'Failed to fetch'
       ? 'The server does not allow requests from a web page (no CORS), or there is no signal.\n\n' +
         'Open the address in the browser instead, save the file (Ctrl+S / Share → Save), ' +
-        'then Data → Merge a register… and pick that file.'
+        'then Office → Merge a register… and pick that file.'
       : 'Could not read it: ' + m);
   }
 }
@@ -9649,7 +9654,7 @@ step('battery', watchBattery);
 step('depth watchdog', () => {
   if (depthTrialCheck())
     setTimeout(() => toast('The last AR session died with depth on. Depth is off for this phone now; ' +
-                           'Data → App switches it back if you want to try again.'), 800);
+                           'Office → App switches it back if you want to try again.'), 800);
 });
 step('storage', () => storageCheck(true));
 step('checks', checks);

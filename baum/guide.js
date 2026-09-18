@@ -80,11 +80,11 @@ const GUIDE = [
           'wenn niemand sagen kann, wer sie wann und nach welcher Regel gemacht hat.'
     },
     app: [
-      { en: 'Data → Standard: the German FLL form. The app offers it by itself as soon as it knows you are in Germany.',
+      { en: 'Office → Standard: the German FLL form. The app offers it by itself as soon as it knows you are in Germany.',
         de: 'Daten → Standard: das FLL-Formular. Die App bietet es von selbst an, sobald sie weiß, dass du in Deutschland bist.' },
-      { en: 'Data → Inspector: your name. It is stamped on every change you save.',
+      { en: 'Office → Inspector: your name. It is stamped on every change you save.',
         de: 'Daten → Inspector: dein Name. Er wird auf jede gespeicherte Änderung gestempelt.' },
-      { en: 'Data → Start a round. Everything you record from now on belongs to that round and is counted in it.',
+      { en: 'Office → Start a round. Everything you record from now on belongs to that round and is counted in it.',
         de: 'Daten → Start a round. Alles, was du ab jetzt erfasst, gehört zu dieser Runde und wird darin gezählt.' },
       { en: 'Bring the trees in: Merge a register, Load from a web address, or simply record them as you go.',
         de: 'Bäume holen: Register zusammenführen, über eine Webadresse laden, oder einfach unterwegs neu aufnehmen.' },
@@ -390,11 +390,11 @@ const GUIDE = [
           'ist keine Dokumentation. Runde schließen, Protokoll erzeugen, Daten vom Telefon holen.'
     },
     app: [
-      { en: 'Data → Inspection report: the German FLL protocol, with the photographs if you want them. It prints to paper or to PDF.',
+      { en: 'Office → Inspection report: the German FLL protocol, with the photographs if you want them. It prints to paper or to PDF.',
         de: 'Daten → Inspection report: das Baumkontrollprotokoll nach FLL, auf Wunsch mit Fotos. Druckt auf Papier oder als PDF.' },
-      { en: 'Data → GeoJSON or CSV for the register, and the map page for anybody who only wants to look.',
+      { en: 'Office → GeoJSON or CSV for the register, and the map page for anybody who only wants to look.',
         de: 'Daten → GeoJSON oder CSV fürs Kataster, und die Kartenseite für alle, die nur schauen wollen.' },
-      { en: 'Data → Close the round. It counts what was done against what there was.',
+      { en: 'Office → Close the round. It counts what was done against what there was.',
         de: 'Daten → Runde schließen. Sie zählt das Erledigte gegen den Bestand.' }
     ],
     go: { sc: 'data', label: { en: 'Open Data', de: 'Daten öffnen' } }

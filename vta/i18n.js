@@ -336,7 +336,7 @@ const UI = {
   /* the tab bar and the screens */
   'Trees': { de: 'Bäume', nl: 'Bomen', et: 'Puud', fi: 'Puut' },
   'Map': { de: 'Karte', nl: 'Kaart', et: 'Kaart', fi: 'Kartta' },
-  'Data': { de: 'Daten', nl: 'Gegevens', et: 'Andmed', fi: 'Tiedot' },
+  'Office': { de: 'B\u00fcro', nl: 'Kantoor', et: 'Kontor', fi: 'Toimisto' },
   'Method': { de: 'Methode', nl: 'Methode', et: 'Meetod', fi: 'Menetelmä' },
   'AR survey': { de: 'AR-Aufnahme', nl: 'AR-opname', et: 'AR-vaatlus', fi: 'AR-kartoitus' },
   'The method': { de: 'Die Methode', nl: 'De methode', et: 'Meetod', fi: 'Menetelmä' },
