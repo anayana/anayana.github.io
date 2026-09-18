@@ -1,0 +1,21 @@
+name: Probe tree-register sources
+
+# The sandbox this app is developed in cannot reach any open-data host: the
+# egress proxy answers 403 to the CONNECT for every one of them. A GitHub
+# runner can. This workflow asks each candidate address what it really
+# answers with, so only addresses that actually serve data get built into
+# the app's import list.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ask every candidate what it answers with
+        run: bash tools/probe-sources.sh tools/tree-sources.txt

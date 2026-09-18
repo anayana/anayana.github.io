@@ -1,0 +1,47 @@
+# label | address
+# Candidates only. Nothing here reaches the app until this probe shows it
+# answers with data. The first two are already in the app and act as controls.
+Berlin WFS (in app)        | https://gdi.berlin.de/services/wfs/baumbestand?SERVICE=WFS&REQUEST=GetCapabilities
+Tallinn ArcGIS (in app)    | https://gis.tallinn.ee/arcgis/rest/services/HHHIS/HHHIS_puud/MapServer/0?f=json
+Vienna WFS caps            | https://data.wien.gv.at/daten/geo?service=WFS&request=GetCapabilities&version=1.1.0
+Vienna BAUMOGD             | https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&typeName=ogdwien:BAUMOGD&srsName=EPSG:4326&outputFormat=json&maxFeatures=3
+Hamburg WFS caps           | https://geodienste.hamburg.de/HH_WFS_Strassenbaumkataster?SERVICE=WFS&REQUEST=GetCapabilities
+Cologne WFS caps           | https://geoportal.stadt-koeln.de/arcgis/services/basiskarten/kgg/MapServer/WFSServer?service=WFS&request=GetCapabilities
+Frankfurt WFS caps         | https://geoportal.frankfurt.de/geoserver/wfs?service=WFS&request=GetCapabilities
+Munich open data           | https://opendata.muenchen.de/api/3/action/package_search?q=baum&rows=5
+Leipzig WFS caps           | https://geodienste.leipzig.de/wss/service/stadt_leipzig_baumkataster/guest?service=WFS&request=GetCapabilities
+Dresden WFS caps           | https://kommisdd.dresden.de/net4/public/ogcsl.ashx?nodeid=1234&service=WFS&request=GetCapabilities
+Paris les-arbres GeoJSON   | https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/exports/geojson?limit=3
+Paris les-arbres records   | https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/records?limit=3
+Lyon arbres WFS            | https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?SERVICE=WFS&REQUEST=GetCapabilities
+Barcelona arbrat viari     | https://opendata-ajuntament.barcelona.cat/data/api/3/action/package_show?id=arbrat-viari
+Barcelona CKAN search      | https://opendata-ajuntament.barcelona.cat/data/api/3/action/package_search?q=arbrat&rows=5
+Madrid arbolado            | https://datos.madrid.es/egob/catalogo/300614-0-arbolado-zonas-verdes.json
+Amsterdam bomen API        | https://api.data.amsterdam.nl/v1/bomen/stamgegevens/?_format=geojson&_pageSize=3
+Amsterdam WFS caps         | https://map.data.amsterdam.nl/maps/bomen?service=WFS&request=GetCapabilities
+Rotterdam WFS caps         | https://geo.rotterdam.nl/arcgis/services/Geoservices/Bomen/MapServer/WFSServer?service=WFS&request=GetCapabilities
+Utrecht WFS caps           | https://geodata.utrecht.nl/geoserver/wfs?service=WFS&request=GetCapabilities
+London street trees        | https://data.london.gov.uk/api/action/package_show?id=local-authority-maintained-trees
+Camden street trees        | https://opendata.camden.gov.uk/resource/csqp-kdss.json?$limit=3
+Bristol trees ArcGIS       | https://maps.bristol.gov.uk/arcgis/rest/services/ext/trees/MapServer?f=json
+Edinburgh trees ArcGIS     | https://services1.arcgis.com/Q1Hb3ivpA1kJJnSK/arcgis/rest/services/Trees/FeatureServer?f=json
+Dublin trees               | https://data.smartdublin.ie/api/3/action/package_search?q=trees&rows=5
+Brussels WFS caps          | https://geoservices-urbis.irisnet.be/geoserver/wfs?service=WFS&request=GetCapabilities
+Antwerp bomen              | https://geodata.antwerpen.be/arcgissql/rest/services/P_Portaal/portaal_publiek/MapServer?f=json
+Ghent open data            | https://data.stad.gent/api/explore/v2.1/catalog/datasets?limit=5&where=search(dataset_id%2C%22boom%22)
+Zurich Baumkataster WFS    | https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster?service=WFS&request=GetCapabilities
+Basel WFS caps             | https://wfs.geo.bs.ch/?SERVICE=WFS&REQUEST=GetCapabilities
+Bern WFS caps              | https://map.bern.ch/geoservice/services?service=WFS&request=GetCapabilities
+Geneva SITG trees          | https://ge.ch/sitgags2/rest/services/VECTOR/SITG_OPENDATA_03/MapServer?f=json
+Copenhagen WFS caps        | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&request=GetCapabilities
+Oslo trebase ArcGIS        | https://geodata.bymoslo.no/arcgis/rest/services?f=json
+Stockholm open data        | https://dataportalen.stockholm.se/dataportalen/
+Helsinki WFS caps          | https://kartta.hel.fi/ws/geoserver/avoindata/wfs?service=WFS&request=GetCapabilities
+Prague open data           | https://api.opendata.praha.eu/lod/catalog?q=stromy
+Warsaw WFS caps            | https://wfs.um.warszawa.pl/wfs?service=WFS&request=GetCapabilities
+Krakow open data           | https://api.msip.um.krakow.pl/geoserver/wfs?service=WFS&request=GetCapabilities
+Milan WFS caps             | https://geoportale.comune.milano.it/geoserver/wfs?service=WFS&request=GetCapabilities
+Bologna alberi             | https://opendata.comune.bologna.it/api/explore/v2.1/catalog/datasets?limit=5&where=search(dataset_id%2C%22alber%22)
+Turin WFS caps             | https://geoportale.comune.torino.it/geowebcache/service/wfs?service=WFS&request=GetCapabilities
+Lisbon arvoredo            | https://geodados-cml.hub.arcgis.com/api/feed/dcat-us/1.1.json
+Overpass count test        | https://overpass-api.de/api/interpreter?data=[out:json];node[natural=tree](52.42,13.15,52.43,13.16);out%20count;
