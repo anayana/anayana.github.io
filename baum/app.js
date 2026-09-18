@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.12.0';
+const APP_VERSION = '3.13.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3751,12 +3751,43 @@ function mbar(txt, buttons) {
     el.onclick = b[1]; box.appendChild(el);
   });
   $('mbar').classList.add('on');
+  tapCatcher();
+}
+
+/* Tapping the camera view is what everybody tries first, and for good reason:
+   the instruction said to. It went through WebXR's own select event, which on
+   this phone never arrives, so the tap landed nowhere and the screen sat there
+   saying "tap". The overlay catches it itself now - the empty middle of the
+   screen becomes the target while a measurement is running, and lets go of it
+   the moment the measurement ends, so nothing else is swallowed. The button in
+   the bar still does the same thing; neither depends on the other. */
+let tapPad = null, lastTapAt = 0;
+function tapCatcher() {
+  const mid = $('xrmid'); if (!mid) return;
+  const on = !!measure;
+  if (!tapPad) {
+    tapPad = document.createElement('div');
+    tapPad.id = 'tappad';
+    tapPad.innerHTML = '<span class="cross">\u2316</span><span class="say"></span>';
+    tapPad.addEventListener('pointerdown', ev => {
+      ev.preventDefault(); ev.stopPropagation();
+      if (measure) safeTap();
+    });
+    mid.appendChild(tapPad);
+  }
+  tapPad.classList.toggle('on', on);
+  mid.style.pointerEvents = on ? 'auto' : 'none';
+  if (on) {
+    const s = tapPad.querySelector('.say');
+    if (s) s.textContent = 'anywhere here, or the button below';
+  }
 }
 let mObjs = [];                    // what was drawn, and where it was hung
 function clearMeasure() {
   measure = null;
   reticle.visible = false;
   $('mbar').classList.remove('on');
+  tapCatcher();
   mObjs.forEach(c => {
     if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); }
     if (c.geometry) c.geometry.dispose();
@@ -3814,13 +3845,13 @@ function startMeasure(kind, refArg) {
               markKind: kind === 'mark' ? refArg : null };
   const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
-  const ask = kind === 'mark' ? 'Aim at the defect on the tree'
-            : cfg.aim ? 'Aim at the stem base'
-            : kind === 'target' ? 'Aim at the target on the ground'
-            : kind === 'stems' ? 'Aim at the base of a stem you can see. Three or four, well spread'
+  const ask = kind === 'mark' ? 'Aim at the defect on the tree, then tap the screen or the button'
+            : cfg.aim ? 'Aim at the stem base, then tap the screen or the button'
+            : kind === 'target' ? 'Aim at the target on the ground, then tap the screen or the button'
+            : kind === 'stems' ? 'Aim at a stem you can see and tap. Three or four, well spread'
             : kind === 'ref' ? 'Aim at the point itself – or cancel and stand on it instead'
-            : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base'
-            : 'Aim at the first point';
+            : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base, then tap the screen or the button'
+            : 'Aim at the first point, then tap the screen or the button';
   mbar('<b>' + cfg.label + who + '</b><br>' + ask, takeBtns());
 }
 
@@ -3890,6 +3921,7 @@ function tapPoint(wantStem) {
 
 function measureTap() {
   const m = measure; if (!m) return;
+  lastTapAt = Date.now();
   const cfg = m.cfg;
   const tp = m.wantsHit ? tapPoint(m.kind === 'stems' || m.kind === 'stem' || m.kind === 'newtree') : null;
   if (m.wantsHit && !tp) {
