@@ -10,7 +10,7 @@ work=$(mktemp -d)
 probe_one() {
   local label="$1" url="$2" out="$3"
   local body code
-  body=$(curl -sSL --max-time 25 -A 'vta-field source probe' \
+  body=$(curl -sSL --max-time 25 -A 'Mozilla/5.0 (compatible; vta-field source probe)' \
               -w '\n@@HTTP@@%{http_code}' "$url" 2>/dev/null)
   code="${body##*@@HTTP@@}"
   body="${body%$'\n'@@HTTP@@*}"

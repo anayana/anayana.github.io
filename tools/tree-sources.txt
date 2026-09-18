@@ -1,16 +1,12 @@
 # label | address
-# Round five: Tampere, Joensuu, and Tharandt near Dresden.
-Tampere geoserver caps     | https://geodata.tampere.fi/geoserver/ows?service=WFS&request=GetCapabilities
-Tampere inspire caps       | https://inspire-wfs.tampere.fi/geoserver/ows?service=WFS&request=GetCapabilities
-Tampere opendata search    | https://data.tampere.fi/data/api/3/action/package_search?q=puu&rows=10
-Joensuu opendata           | https://data.joensuu.fi/api/3/action/package_search?q=puu&rows=10
-Joensuu geoserver caps     | https://kartta.joensuu.fi/geoserver/ows?service=WFS&request=GetCapabilities
-FI national puurekisteri   | https://www.avoindata.fi/data/api/3/action/package_search?q=puurekisteri&rows=20
-FI national puukartta      | https://www.avoindata.fi/data/api/3/action/package_search?q=puukartta&rows=20
-FI national katupuu        | https://www.avoindata.fi/data/api/3/action/package_search?q=katupuut&rows=20
-DE govdata baumkataster    | https://ckan.govdata.de/api/3/action/package_search?q=baumkataster&rows=20
-DE govdata baumbestand     | https://ckan.govdata.de/api/3/action/package_search?q=baumbestand&rows=20
-Saxony geoportal caps      | https://geodienste.sachsen.de/wfs_geosn_verwaltungsgrenzen/guest?service=WFS&request=GetCapabilities
-Dresden baum caps          | https://kommisdd.dresden.de/net4/public/ogcsl.ashx?service=WFS&request=GetCapabilities
-Tharandt gemeinde search   | https://ckan.govdata.de/api/3/action/package_search?q=Tharandt&rows=10
-Freital Wilsdruff search   | https://ckan.govdata.de/api/3/action/package_search?q=Sächsische+Schweiz+Osterzgebirge+Baum&rows=10
+# Round six. Finland's national catalogue holds exactly one real tree
+# register - Helsinki's, already in the app. Turku turned up alongside it and
+# is followed here. Tampere's service carries canopy heights, not stems.
+Turku WFS caps             | https://opaskartta.turku.fi/TeklaOGCWeb/WFS.ashx?service=WFS&request=GetCapabilities
+Tampere opendata puu       | https://data.tampere.fi/data/api/3/action/package_search?q=puu&rows=15
+Tampere avoindata          | https://www.avoindata.fi/data/api/3/action/package_search?q=Tampere+puu&rows=15
+Joensuu avoindata          | https://www.avoindata.fi/data/api/3/action/package_search?q=Joensuu&rows=15
+Tharandt forstgarten       | https://ckan.govdata.de/api/3/action/package_search?q=Forstbotanischer+Garten&rows=10
+Saxony baumkataster        | https://ckan.govdata.de/api/3/action/package_search?q=Baumkataster+Sachsen&rows=10
+FFO baumkataster           | https://ckan.govdata.de/api/3/action/package_search?q=Baumkataster+Frankfurt+Oder&rows=5
+Norderstedt baumkataster   | https://ckan.govdata.de/api/3/action/package_search?q=Baumkataster+Norderstedt&rows=5
