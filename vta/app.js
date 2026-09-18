@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.73.0';
+const APP_VERSION = '2.74.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -6353,6 +6353,149 @@ function renderMoved() {
 let openIdx = null, panelEl = null, panelTab = 'vta';
 function panelTarget() { return (mode ? $('panelXR') : $('panelHome')); }
 
+/* ---- filling a form inside the camera view -----------------------------
+   A WebXR session with a DOM overlay is drawn by the compositor, and Chrome
+   does not put its own native widgets on top of it: a <select> opens a
+   drop-down that is never painted, and a text field never raises the
+   keyboard. Both look identical from the outside - you press, and the app
+   sits there. That is what "I cannot enter a species, it just hangs" was.
+
+   So inside AR the app supplies its own. A select opens a list of its options
+   as buttons in the overlay; a number opens a keypad; free text says where it
+   can be typed and offers the microphone, which does work in there. Outside
+   AR nothing changes: the browser's own controls are better than anything
+   written here. */
+function inARPanel() {
+  return mode === 'WebXR' && $('panelXR') && $('panelXR').classList.contains('on');
+}
+function overlaySheet(title, build) {
+  const el = $('pickmenu');
+  closePopups('pickmenu');
+  el.innerHTML = '';
+  const h = document.createElement('div');
+  h.innerHTML = '<b>' + esc(title) + '</b>';
+  h.style.marginBottom = '8px';
+  el.appendChild(h);
+  const body = document.createElement('div');
+  el.appendChild(body);
+  build(body, () => { el.style.display = 'none'; el.innerHTML = ''; });
+  const act = document.createElement('div'); act.className = 'btnrow';
+  act.style.marginTop = '10px';
+  const cl = document.createElement('button'); cl.textContent = 'Close';
+  cl.onclick = () => { el.style.display = 'none'; el.innerHTML = ''; };
+  act.appendChild(cl); el.appendChild(act);
+  el.style.display = 'block';
+}
+function arPickList(title, items, current, pick) {
+  overlaySheet(title, (body, done) => {
+    items.forEach(it => {
+      const b = document.createElement('button');
+      b.className = 'numrow' + (it.value === current ? ' p' : '');
+      b.innerHTML = '<span>' + esc(it.label) + '</span>' +
+                    (it.note ? '<span class="small">' + esc(it.note) + '</span>' : '');
+      b.style.marginTop = '5px';
+      b.onclick = () => { done(); pick(it.value); };
+      body.appendChild(b);
+    });
+  });
+}
+function arKeypad(title, value, apply) {
+  overlaySheet(title, (body, done) => {
+    let v = String(value == null ? '' : value);
+    const out = document.createElement('div');
+    out.style.cssText = 'font-size:26px;font-weight:600;text-align:center;padding:8px 0;min-height:38px';
+    const show = () => { out.textContent = v || '–'; };
+    show(); body.appendChild(out);
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px';
+    ['1','2','3','4','5','6','7','8','9','.','0','⌫'].forEach(ch => {
+      const b = document.createElement('button');
+      b.textContent = ch;
+      b.style.cssText = 'font-size:19px;padding:12px 0';
+      b.onclick = () => {
+        if (ch === '⌫') v = v.slice(0, -1);
+        else if (ch === '.' && v.indexOf('.') >= 0) return;
+        else v += ch;
+        show();
+      };
+      grid.appendChild(b);
+    });
+    body.appendChild(grid);
+    const ok = document.createElement('button');
+    ok.className = 'p'; ok.textContent = 'Use this';
+    ok.style.cssText = 'width:100%;margin-top:8px;padding:12px';
+    ok.onclick = () => { done(); apply(v); };
+    body.appendChild(ok);
+  });
+}
+/* Every control in the AR panel is given the overlay's own way in. The
+   handler sits on pointerdown so the native one never gets the chance. */
+function arFormFix(root, tree) {
+  if (!root) return;
+  root.querySelectorAll('select').forEach(sel => {
+    if (sel.dataset.arfix) return;
+    sel.dataset.arfix = '1';
+    sel.addEventListener('pointerdown', ev => {
+      if (!inARPanel()) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const items = [...sel.options].map(o => ({ value: o.value, label: o.textContent }));
+      const lab = (sel.closest('.row') && sel.closest('.row').querySelector('label'));
+      arPickList(lab ? lab.textContent : 'Choose', items, sel.value, v => {
+        sel.value = v;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  });
+  root.querySelectorAll('input[type="text"],input[type="number"],input[type="url"],' +
+                        'input[type="password"],input[type="tel"],textarea')
+      .forEach(inp => {
+    if (inp.dataset.arfix) return;
+    inp.dataset.arfix = '1';
+    inp.addEventListener('pointerdown', ev => {
+      if (!inARPanel()) return;
+      const num = inp.type === 'number' || inp.dataset.t === 'number' ||
+                  inp.inputMode === 'decimal' || inp.inputMode === 'numeric';
+      ev.preventDefault(); ev.stopPropagation();
+      const lab = (inp.closest('.row') && inp.closest('.row').querySelector('label'));
+      const title = lab ? lab.textContent : 'Enter a value';
+      if (num) return arKeypad(title, inp.value, v => {
+        inp.value = v; inp.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      if ((inp.dataset.k || '') === 'species') return arSpecies(inp);
+      overlaySheet(title, (body, done) => {
+        const pnote = document.createElement('p'); pnote.className = 'small';
+        pnote.textContent = 'The keyboard does not come up inside the camera view – ' +
+          'that is the browser, not this app. Say it instead, or leave AR and type it ' +
+          'on the tree’s page.';
+        body.appendChild(pnote);
+        const mic = document.createElement('button');
+        mic.className = 'p'; mic.textContent = '🎤  Say it';
+        mic.style.cssText = 'width:100%;padding:12px;margin-bottom:6px';
+        mic.onclick = () => { done(); speechStart(tree == null ? targetTree() : tree); };
+        body.appendChild(mic);
+        const out = document.createElement('button');
+        out.textContent = 'Leave AR and type it';
+        out.style.cssText = 'width:100%;padding:12px';
+        out.onclick = () => { done(); closePanel(); endAR(); setTimeout(() => {
+          const t = tree == null ? targetTree() : tree;
+          if (t != null) openPanel(t);
+        }, 400); };
+        body.appendChild(out);
+      });
+    });
+  });
+}
+function arSpecies(inp) {
+  const items = SPECIES.map(x => ({ value: x[0], label: x[0], note: x[1] }));
+  arPickList('Species', items, inp.value, v => {
+    inp.value = v;
+    const hit = SPECIES.find(x => x[0] === v);
+    const cn = panelEl && panelEl.querySelector('[data-k="name_en"]');
+    if (hit && cn && !cn.value.trim()) cn.value = hit[1];
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
 function fieldRow(k, lab, typ, opt, p) {
   const r = document.createElement('div');
   r.className = 'row' + (typ === 'area' || typ === 'list' ? ' wide' : '');
@@ -7211,6 +7354,7 @@ function openPanel(i, tab) {
   panelEl.addEventListener('input', twin);
   panelEl.addEventListener('change', twin);
 
+  arFormFix(el, i);
   el.classList.add('on');
   updateVerdict();
 }
