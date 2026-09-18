@@ -29,7 +29,7 @@ const COLSYN = {
             'latname', 'spc_latin', 'taxon_name', 'taxon', 'wiss_name', 'gattung_art',
             'gattungart', 'gattung', 'boomsoort', 'soort', 'latijnse_naam', 'nom_latin',
             'especie', 'scientific_name', 'sciname', 'botanic'],
-  name_en: ['laji_suomi', 'suomalainen_nimi', 'suomenkielinen_nimi', 'lajinimi', 'liik_eesti', 'eesti_nimi', 'eestikeelne_nimi', 'nimetus', 'name_en', 'common_name', 'commonname', 'art_dtsch', 'artdtsch', 'deutscher_name',
+  name_en: ['laji_suomi', 'suomalainen_nimi', 'suomenkielinen_nimi', 'lajinimi', 'liik_eesti', 'eesti_nimi', 'eestikeelne_nimi', 'nimetus', 'name_en', 'common_name', 'commonname', 'art_dtsch', 'artdtsch', 'art_de', 'art_deutsch', 'deutscher_name',
             'trivialname', 'spc_common', 'nederlandse_naam', 'nom_commun', 'volksname'],
   lat: ['laius', 'laiuskraad', 'y_lest', 'lat', 'latitude', 'breite', 'y', 'y_coord', 'ycoord', 'geo_breite', 'wgs84_lat',
         'nord', 'northing', 'breitengrad'],
@@ -37,13 +37,13 @@ const COLSYN = {
         'geo_laenge', 'wgs84_lon', 'ost', 'easting', 'laengengrad'],
   planted: ['istutusvuosi', 'istutettu', 'istutus_vuosi', 'istutusaasta', 'istutatud', 'istutamise_aasta', 'planted', 'pflanzjahr', 'pflanzdatum', 'standalter', 'jahr', 'year_planted',
             'plantjaar', 'planting_year', 'pflanzung', 'baumjahr', 'annee_plantation'],
-  girth_cm: ['ymparysmitta', 'ympärysmitta', 'rungon_ymparysmitta', 'ymparys', 'umbermoot', 'ümbermõõt', 'tyve_umbermoot', 'tüve_ümbermõõt', 'rinnasumbermoot', 'girth_cm', 'girth', 'stammumfg', 'stammumfang', 'umfang', 'umfg', 'stamomtrek',
+  girth_cm: ['ymparysmitta', 'ympärysmitta', 'rungon_ymparysmitta', 'ymparys', 'umbermoot', 'ümbermõõt', 'tyve_umbermoot', 'tüve_ümbermõõt', 'rinnasumbermoot', 'girth_cm', 'girth', 'stammumfg', 'stammumfang', 'stammum', 'umfang', 'umfg', 'stamomtrek',
              'omtrek', 'circumference', 'circonference'],
-  dbh_cm: ['lapimitta', 'läpimitta', 'rungon_lapimitta', 'rinnankorkeuslapimitta', 'labimoot', 'läbimõõt', 'tyve_labimoot', 'tüve_läbimõõt', 'rinnasdiameeter', 'rinnasdiam', 'dbh_cm', 'dbh', 'bhd', 'stammdurchmesser', 'durchmesser', 'tree_dbh', 'diameter',
+  dbh_cm: ['lapimitta', 'läpimitta', 'rungon_lapimitta', 'rinnankorkeuslapimitta', 'labimoot', 'läbimõõt', 'tyve_labimoot', 'tüve_läbimõõt', 'rinnasdiameeter', 'rinnasdiam', 'dbh_cm', 'dbh', 'bhd', 'stammdurchmesser', 'stammcm', 'stammdm', 'durchmesser', 'tree_dbh', 'diameter',
            'diam', 'stamdiameter', 'dbh_mm', 'd13', 'bhd_cm', 'diametre'],
-  height_m: ['korkeus', 'puun_korkeus', 'korgus', 'kõrgus', 'puu_korgus', 'puu_kõrgus', 'height_m', 'height', 'baumhoehe', 'baumhöhe', 'hoehe', 'höhe', 'tree_height',
+  height_m: ['korkeus', 'puun_korkeus', 'korgus', 'kõrgus', 'puu_korgus', 'puu_kõrgus', 'height_m', 'height', 'baumhoehe', 'baumhöhe', 'hoehe', 'hoehem', 'höhe', 'tree_height',
              'boomhoogte', 'hoogte', 'hauteur', 'altura'],
-  crown_d_m: ['latvus', 'latvuksen_leveys', 'latvusleveys', 'latvuksen_halkaisija', 'vora_labimoot', 'võra_läbimõõt', 'vora', 'võra', 'vora_laius', 'crown_d_m', 'kronendurchmesser', 'krone', 'kronendm', 'crown_diameter',
+  crown_d_m: ['latvus', 'latvuksen_leveys', 'latvusleveys', 'latvuksen_halkaisija', 'vora_labimoot', 'võra_läbimõõt', 'vora', 'võra', 'vora_laius', 'crown_d_m', 'kronendurchmesser', 'krone', 'kronendm', 'kronenm', 'crown_diameter',
               'crown_spread', 'kroondiameter', 'kroon', 'couronne'],
   crown_base_m: ['crown_base_m', 'kronenansatz', 'kronansatz', 'crown_base', 'kroonaanzet'],
   area: ['kaupunginosa', 'osoite', 'katu', 'alue', 'kohde', 'linnaosa', 'asum', 'aadress', 'tanav', 'tänav', 'asukoht', 'asukoha_kirjeldus', 'asukoha', 'kirjeldus', 'area', 'bezirk', 'ortsteil', 'revier', 'gebiet', 'stadtteil', 'district', 'borough',
@@ -98,6 +98,17 @@ function normKey(s) {
    0 = no relation, 100 = certain. Deliberately conservative: a contained
    word scores low, because "baumhoehe_ueber_grund" and "hoehe_ueber_nn" are
    not the same thing and the inspector should look. */
+/* Some synonyms are the name of the thing and some are only what a database
+   happened to call its primary key. Norderstedt's register carries both: an
+   "id" counting from one, and a "baumnr" holding 00005, which is the number
+   painted on the tree and the one an inspector reads out. Both were synonyms
+   of tree_id and both scored the same, so the column order of the file
+   decided - and it decided wrongly. These score lower than a real name, and
+   still win when nothing better is there. */
+const COLWEAK = {
+  tree_id: ['id', 'gid', 'nr', 'no', 'ref', 'objectid', 'objnr', 'nummer', 'unique_id'],
+  area:    ['lage', 'zone', 'kohde', 'alue', 'area']
+};
 function scoreCol(col, key) {
   const c = normKey(col);
   if (!c) return 0;
@@ -105,12 +116,13 @@ function scoreCol(col, key) {
      of it too and scores just as well. The canonical name outranks every
      synonym so the two never have to be separated by sort order. */
   if (c === normKey(key)) return 105;
+  const weak = (COLWEAK[key] || []).map(normKey);
   const syn = COLSYN[key] || [];
   let best = 0;
   for (const raw of syn) {
     const s = normKey(raw);
     if (!s) continue;
-    if (c === s) { best = Math.max(best, 100); continue; }
+    if (c === s) { best = Math.max(best, weak.indexOf(s) >= 0 ? 88 : 100); continue; }
     if (c.startsWith(s + '_') || c.endsWith('_' + s)) { best = Math.max(best, 82); continue; }
     if (('_' + c + '_').indexOf('_' + s + '_') >= 0) { best = Math.max(best, 78); continue; }
     if (s.length >= 5 && c.indexOf(s) >= 0) { best = Math.max(best, 58); continue; }

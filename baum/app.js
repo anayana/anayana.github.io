@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.5.1';
+const APP_VERSION = '3.6.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -8564,6 +8564,16 @@ const SOURCES = [
     label: 'Utrecht \u2013 the tree register',
     note: 'A hundred and fifty-four thousand stems with species and age. Keep to the map area ' +
           'unless you mean the whole city.' },
+
+  { id: 'norderstedt', group: 'City registers', kind: 'url', areas: ['map', 'all'],
+    url: 'https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=2.0.0' +
+         '&request=GetFeature&typeNames=gru:gruen_baum&outputFormat=application/json' +
+         '&srsName=EPSG:4326',
+    label: 'Norderstedt \u2013 the tree register',
+    note: 'Thirty-one thousand trees, and the fullest register in this list: species in German ' +
+          'and Latin, stem diameter and girth, crown width, height, life phase, and whether the ' +
+          'position was surveyed or estimated. Ask it in EPSG:4326 as this does \u2013 its own ' +
+          'default is UTM and lands nowhere.' },
 
   { id: 'camden', group: 'City registers', kind: 'url', areas: ['all'],
     url: 'https://opendata.camden.gov.uk/resource/csqp-kdss.geojson?$limit=50000',
