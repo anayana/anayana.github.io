@@ -1,11 +1,9 @@
 # label | address
-# Round seven: finish Joensuu, and follow the three real registers that
-# turned up on the way - Turku, Norderstedt and Frankfurt (Oder).
-Turku Puut                 | https://opaskartta.turku.fi/TeklaOGCWeb/WFS.ashx?service=WFS&version=1.1.0&request=GetFeature&typeName=GIS:Puut&maxFeatures=3&outputFormat=application/json&srsName=EPSG:4326
-Turku Lehtipuu             | https://opaskartta.turku.fi/TeklaOGCWeb/WFS.ashx?service=WFS&version=1.1.0&request=GetFeature&typeName=kanta:Lehtipuu&maxFeatures=3&outputFormat=application/json&srsName=EPSG:4326
-Norderstedt GeoJSON        | https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=gru:gruen_baum&outputFormat=application/json&maxFeatures=3
-Norderstedt bbox           | https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=gru:gruen_baum&outputFormat=application/json&srsName=EPSG:4326&bbox=9.985,53.700,10.010,53.712,EPSG:4326
-FFO WFS caps               | https://geoportal.frankfurt-oder.de/wss/service/WFS_Baumkataster/guest?service=WFS&request=GetCapabilities
-Joensuu avoindata          | https://www.avoindata.fi/data/api/3/action/package_search?q=Joensuu&rows=20
-Joensuu city site          | https://kartta.joensuu.fi/
-Joensuu paikkatieto        | https://paikkatieto.joensuu.fi/geoserver/ows?service=WFS&request=GetCapabilities
+# Round eight: pin Norderstedt's coordinates down, read Frankfurt (Oder)'s
+# layer name, see what Turku will actually serve, and try Joensuu once more.
+Norderstedt 4326           | https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=gru:gruen_baum&outputFormat=application/json&srsName=EPSG:4326&count=2
+Norderstedt 4326 bbox      | https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=gru:gruen_baum&outputFormat=application/json&srsName=EPSG:4326&bbox=9.985,53.700,10.010,53.712,EPSG:4326
+Turku GML                  | https://opaskartta.turku.fi/TeklaOGCWeb/WFS.ashx?service=WFS&version=1.1.0&request=GetFeature&typeName=GIS:Puut&maxFeatures=1
+FFO caps raw               | https://geoportal.frankfurt-oder.de/wss/service/WFS_Baumkataster/guest?service=WFS&version=1.1.0&request=GetCapabilities
+Joensuu avoindata en       | https://www.avoindata.fi/data/en/api/3/action/package_search?q=Joensuu%20puu&rows=20
+Joensuu opendata portal    | https://www.joensuu.fi/avoin-data
