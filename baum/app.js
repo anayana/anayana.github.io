@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.5.1';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5717,7 +5717,7 @@ function mapModeLine() {
   const age = distDrawnT ? Math.round((Date.now() - distDrawnT) / 1000) : null;
   el.textContent = (mapMode === 'me' ? 'following you'
     : mapMode === 'both' ? 'holding you and ' + (t || 'the tree') + ' on screen'
-    : 'moved by hand – press “Centre on me” to follow again') +
+    : 'moved by hand – the ⌖ on the map follows you again') +
     ' · distances ' + (age == null ? 'not worked out yet' : age < 2 ? 'just now' : age + ' s old') +
     (fixErr ? ' · ' + fixErr : '');
   el.className = 'small' + (mapMode === 'free' || fixErr || (age != null && age > 30) ? ' wa' : '');
@@ -5886,7 +5886,6 @@ function wireMap() {
     if (!mapToMe(true)) return toast('No GPS fix yet – the map centres itself as soon as there is one.');
     mapModeLine(); paintHome();
   };
-  $('mMe').onclick = backToMe;
   $('mHome').onclick = backToMe;
   $('mCache').onclick = async () => {
     const v = mapCentre(), box = $('mapBox');
