@@ -19,3 +19,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Ask every candidate what it answers with
         run: bash tools/probe-sources.sh tools/tree-sources.txt
+      - name: Read off what the unresolved ones contain
+        if: always()
+        run: bash tools/dump-detail.sh
