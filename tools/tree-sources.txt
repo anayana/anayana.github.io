@@ -1,21 +1,10 @@
 # label | address
-# Round three. The eight confirmed addresses work as a whole-layer download;
-# what is asked here is whether they also answer a bbox, because a whole city
-# is a big download on a phone in the field. Axis order for EPSG:4326 is the
-# usual trap, so both orders are asked and the one that returns features wins.
-Vienna bbox latlon         | https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&typeName=ogdwien:BAUMKATOGD&srsName=EPSG:4326&outputFormat=json&bbox=48.205,16.368,48.212,16.380,EPSG:4326
-Vienna bbox lonlat         | https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&typeName=ogdwien:BAUMKATOGD&srsName=EPSG:4326&outputFormat=json&bbox=16.368,48.205,16.380,48.212,EPSG:4326
-Zurich bbox latlon         | https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster?service=WFS&version=1.1.0&request=GetFeature&typename=baumkataster_baumstandorte&outputFormat=GeoJSON&srsName=EPSG:4326&bbox=47.374,8.538,47.380,8.546,EPSG:4326
-Zurich bbox lonlat         | https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster?service=WFS&version=1.1.0&request=GetFeature&typename=baumkataster_baumstandorte&outputFormat=GeoJSON&srsName=EPSG:4326&bbox=8.538,47.374,8.546,47.380,EPSG:4326
-Helsinki bbox latlon       | https://kartta.hel.fi/ws/geoserver/avoindata/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=avoindata:Puurekisteri_piste&outputFormat=application/json&srsName=EPSG:4326&bbox=60.166,24.930,60.174,24.946,urn:ogc:def:crs:EPSG::4326
-Helsinki bbox lonlat       | https://kartta.hel.fi/ws/geoserver/avoindata/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=avoindata:Puurekisteri_piste&outputFormat=application/json&srsName=EPSG:4326&bbox=24.930,60.166,24.946,60.174,EPSG:4326
-Utrecht bbox lonlat        | https://geodata.utrecht.nl/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=Signalen:BOOM_BEHEERGU&outputFormat=application/json&srsName=EPSG:4326&bbox=5.115,52.087,5.125,52.094,EPSG:4326
-Paris geofilter            | https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/records?where=within_distance(geo_point_2d%2C%20geom%27POINT(2.3522%2048.8566)%27%2C%20300m)&limit=3
-Amsterdam bbox             | https://api.data.amsterdam.nl/v1/bomen/stamgegevens/?_format=geojson&_pageSize=3&geometrie[contains]=POINT(4.8952%2052.3702)
-# --- still unresolved
-Barcelona JSON download    | https://opendata-ajuntament.barcelona.cat/data/dataset/27b3f8a7-e536-4eea-b025-ce094817b2bd/resource/a8f8f4bf-5295-46d9-93ab-7eebb165ca52/download
-Barcelona CSV download     | https://opendata-ajuntament.barcelona.cat/data/dataset/27b3f8a7-e536-4eea-b025-ce094817b2bd/resource/23124fd5-521f-40f8-85b8-efb1e71c2ec8/download
-Camden geojson             | https://opendata.camden.gov.uk/resource/csqp-kdss.geojson?%24limit=3
-Copenhagen bevaringsv      | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=k101:bevaringsvaerdige_traer&count=3&outputFormat=application/json&srsName=EPSG:4326
-Lyon arbres retry          | https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&typeName=metropole-de-lyon:abr_arbres_alignement.abrarbre&count=1&outputFormat=application/json&SRSNAME=EPSG:4326
-London package_show        | https://data.london.gov.uk/api/3/action/package_show?id=local-authority-maintained-trees
+# Round four: the last four gaps.
+Copenhagen gadetraer       | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=k101:gadetraer&count=3&outputFormat=application/json&srsName=EPSG:4326
+Copenhagen gadetraer bbox  | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=k101:gadetraer&outputFormat=application/json&srsName=EPSG:4326&bbox=12.565,55.675,12.580,55.685,EPSG:4326
+Hamburg caps 1.1.0         | https://geodienste.hamburg.de/HH_WFS_Strassenbaumkataster?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities
+Paris geojson where        | https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/exports/geojson?where=within_distance(geo_point_2d%2C%20geom%27POINT(2.3522%2048.8566)%27%2C%20300m)
+Lyon bbox                  | https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&typeName=metropole-de-lyon:abr_arbres_alignement.abrarbre&outputFormat=application/json&SRSNAME=EPSG:4326&bbox=4.830,45.760,4.845,45.770,EPSG:4326
+Camden geojson full        | https://opendata.camden.gov.uk/resource/csqp-kdss.geojson?%24limit=5
+Utrecht one feature        | https://geodata.utrecht.nl/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=Signalen:BOOM_BEHEERGU&count=1&outputFormat=application/json&srsName=EPSG:4326
+Amsterdam page two         | https://api.data.amsterdam.nl/v1/bomen/stamgegevens/?_format=geojson&_pageSize=2&page=2
