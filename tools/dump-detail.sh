@@ -1,19 +1,40 @@
 #!/usr/bin/env bash
-# Print what the still-open addresses actually contain, so the next address
-# is read off rather than invented. Nothing here ships.
+# Read off what the catalogues actually hold, so an address is copied rather
+# than invented. Nothing here ships.
 set -u
-head_of() {
-  echo "--- $1"
-  curl -sSL --max-time 30 "$2" 2>/dev/null | head -c "${3:-700}" | tr -d '\0'
-  echo; echo
+titles() {
+  echo "=== $1"
+  curl -sSL --max-time 35 "$2" 2>/dev/null \
+    | python3 -c '
+import json,sys
+try: j=json.load(sys.stdin)
+except Exception as e: print("   not JSON:", e); raise SystemExit
+res=(j.get("result") or {})
+rows=res.get("results") or res.get("result") or []
+print("   hits:", res.get("count", len(rows)))
+for d in rows[:12]:
+    t=d.get("title") or d.get("name")
+    print("   *", t)
+    for r in (d.get("resources") or [])[:6]:
+        f=(r.get("format") or "?").upper()
+        u=r.get("url") or ""
+        if f in ("WFS","GEOJSON","JSON","CSV","WMS","API","ZIP","SHP"):
+            print("       ", f, u[:150])
+'
+  echo
 }
-echo "--- Hamburg 1.1.0 · layer names"
-curl -sSL --max-time 30 'https://geodienste.hamburg.de/HH_WFS_Strassenbaumkataster?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities' 2>/dev/null \
-  | grep -oE '<[A-Za-z]*:?Name>[^<]+</[A-Za-z]*:?Name>' | sed -E 's#</?[A-Za-z]*:?Name>##g' | sort -u | head -20
-echo
-head_of "Utrecht one feature, so its geometry type is visible" \
-  'https://geodata.utrecht.nl/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=Signalen:BOOM_BEHEERGU&count=1&outputFormat=application/json&srsName=EPSG:4326' 900
-head_of "Camden one feature" \
-  'https://opendata.camden.gov.uk/resource/csqp-kdss.geojson?%24limit=1' 900
-head_of "Copenhagen gadetraer one feature" \
-  'https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=k101:gadetraer&count=1&outputFormat=application/json&srsName=EPSG:4326' 900
+layers() {
+  echo "=== $1 · layers whose name mentions a tree"
+  curl -sSL --max-time 35 "$2" 2>/dev/null \
+    | grep -oE '<[A-Za-z]*:?Name>[^<]+</[A-Za-z]*:?Name>' \
+    | sed -E 's#</?[A-Za-z]*:?Name>##g' | sort -u \
+    | grep -iE 'puu|baum|tree|kasvi|viher' | head -25
+  echo "   (total layers: $(curl -sSL --max-time 35 "$2" 2>/dev/null | grep -coE '<[A-Za-z]*:?Name>[^<]+</[A-Za-z]*:?Name>'))"
+  echo
+}
+titles "Finland, national catalogue: puurekisteri" 'https://www.avoindata.fi/data/api/3/action/package_search?q=puurekisteri&rows=20'
+titles "Finland, national catalogue: puut"         'https://www.avoindata.fi/data/api/3/action/package_search?q=puut&rows=20'
+titles "Germany, GovData: Baumkataster"            'https://ckan.govdata.de/api/3/action/package_search?q=baumkataster&rows=20'
+titles "Germany, GovData: Tharandt"                'https://ckan.govdata.de/api/3/action/package_search?q=Tharandt&rows=10'
+layers "Tampere geoserver"  'https://geodata.tampere.fi/geoserver/ows?service=WFS&request=GetCapabilities'
+layers "Joensuu geoserver"  'https://kartta.joensuu.fi/geoserver/ows?service=WFS&request=GetCapabilities'

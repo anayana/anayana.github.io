@@ -1,10 +1,16 @@
 # label | address
-# Round four: the last four gaps.
-Copenhagen gadetraer       | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=k101:gadetraer&count=3&outputFormat=application/json&srsName=EPSG:4326
-Copenhagen gadetraer bbox  | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=k101:gadetraer&outputFormat=application/json&srsName=EPSG:4326&bbox=12.565,55.675,12.580,55.685,EPSG:4326
-Hamburg caps 1.1.0         | https://geodienste.hamburg.de/HH_WFS_Strassenbaumkataster?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities
-Paris geojson where        | https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/exports/geojson?where=within_distance(geo_point_2d%2C%20geom%27POINT(2.3522%2048.8566)%27%2C%20300m)
-Lyon bbox                  | https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&typeName=metropole-de-lyon:abr_arbres_alignement.abrarbre&outputFormat=application/json&SRSNAME=EPSG:4326&bbox=4.830,45.760,4.845,45.770,EPSG:4326
-Camden geojson full        | https://opendata.camden.gov.uk/resource/csqp-kdss.geojson?%24limit=5
-Utrecht one feature        | https://geodata.utrecht.nl/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=Signalen:BOOM_BEHEERGU&count=1&outputFormat=application/json&srsName=EPSG:4326
-Amsterdam page two         | https://api.data.amsterdam.nl/v1/bomen/stamgegevens/?_format=geojson&_pageSize=2&page=2
+# Round five: Tampere, Joensuu, and Tharandt near Dresden.
+Tampere geoserver caps     | https://geodata.tampere.fi/geoserver/ows?service=WFS&request=GetCapabilities
+Tampere inspire caps       | https://inspire-wfs.tampere.fi/geoserver/ows?service=WFS&request=GetCapabilities
+Tampere opendata search    | https://data.tampere.fi/data/api/3/action/package_search?q=puu&rows=10
+Joensuu opendata           | https://data.joensuu.fi/api/3/action/package_search?q=puu&rows=10
+Joensuu geoserver caps     | https://kartta.joensuu.fi/geoserver/ows?service=WFS&request=GetCapabilities
+FI national puurekisteri   | https://www.avoindata.fi/data/api/3/action/package_search?q=puurekisteri&rows=20
+FI national puukartta      | https://www.avoindata.fi/data/api/3/action/package_search?q=puukartta&rows=20
+FI national katupuu        | https://www.avoindata.fi/data/api/3/action/package_search?q=katupuut&rows=20
+DE govdata baumkataster    | https://ckan.govdata.de/api/3/action/package_search?q=baumkataster&rows=20
+DE govdata baumbestand     | https://ckan.govdata.de/api/3/action/package_search?q=baumbestand&rows=20
+Saxony geoportal caps      | https://geodienste.sachsen.de/wfs_geosn_verwaltungsgrenzen/guest?service=WFS&request=GetCapabilities
+Dresden baum caps          | https://kommisdd.dresden.de/net4/public/ogcsl.ashx?service=WFS&request=GetCapabilities
+Tharandt gemeinde search   | https://ckan.govdata.de/api/3/action/package_search?q=Tharandt&rows=10
+Freital Wilsdruff search   | https://ckan.govdata.de/api/3/action/package_search?q=Sächsische+Schweiz+Osterzgebirge+Baum&rows=10
