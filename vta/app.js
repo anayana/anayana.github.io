@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.63.0';
+const APP_VERSION = '2.64.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -9391,6 +9391,7 @@ function wire() {
       lsSet('vta_hudmore', hud.classList.contains('more') ? '1' : '0');
     };
   }
+  versionWatch();
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
   NORMS.forEach(n => { const o = document.createElement('option');
@@ -9680,4 +9681,37 @@ if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
     .catch(() => {});
   if (window.caches && caches.keys)
     caches.keys().then(ks => ks.forEach(k => caches.delete(k).catch(() => {}))).catch(() => {});
+}
+
+/* ---- am I the version that is on the server? --------------------------
+   Three times now a fix has been built, deployed and reported as not
+   working, because the phone was still running the copy it had. index.html
+   carries no version in its address, so a browser is free to keep serving
+   the one it fetched days ago, and the ?v= on every script then only
+   confirms that stale copy's own idea of the version.
+
+   version.txt is one line, fetched past the cache. If it names a version
+   this copy is not, the copy is old: the stored caches go and the page
+   reloads itself, once, guarded so a server that answers oddly cannot put
+   the app in a reload loop. Said out loud, because a page that reloads
+   itself without explanation is its own kind of broken. */
+async function versionWatch() {
+  let live = null;
+  try {
+    const r = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    live = (await r.text()).trim().split(/\s/)[0];
+  } catch (e) { return; }                       // offline is not out of date
+  if (!live || live === APP_VERSION) { try { sessionStorage.removeItem('vta_reloaded'); } catch (e) {} return; }
+  let already = null;
+  try { already = sessionStorage.getItem('vta_reloaded'); } catch (e) {}
+  if (already === live) {                       // reloaded once and still old: say so, do not loop
+    toast('Version ' + live + ' is on the server and this is ' + APP_VERSION +
+          ' - the browser is holding an old copy. Data - State of the app - Fetch the current version.');
+    return;
+  }
+  try { sessionStorage.setItem('vta_reloaded', live); } catch (e) {}
+  toast('Version ' + live + ' is ready - loading it.');
+  try { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } catch (e) {}
+  setTimeout(() => location.reload(), 600);
 }

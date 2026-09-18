@@ -45,6 +45,14 @@ a{color:#7fbf96}
 #topbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #223027;background:#101815}
 #topbar h1{font-size:16px;margin:0;flex:1;font-weight:600}
 #topbar .badge{font-size:11px;color:#8fa697;border:1px solid #2b3a31;border-radius:20px;padding:2px 8px}
+/* The method text and the install prompt belong to the app, not to the AR
+   tab, where they took two lines each off the one screen whose job is to
+   start the camera. Up here they are a symbol wide and on every screen. */
+#topbar .ico{font-size:17px;line-height:1;color:#8fa697;background:none;border:0;
+  padding:2px 5px;border-radius:8px}
+#topbar .ico:hover,#topbar .ico:focus{color:#dff0e6;background:#1b2620}
+html.day #topbar .ico{color:#5a6b60}
+html.day #topbar .ico:hover,html.day #topbar .ico:focus{color:#16281d;background:#e7eae4}
 /* The Data tab used to be one scroll of twenty-one headings. Seven drawers,
    shut until wanted, put the whole tab on one screen again. */
 details.grp{border:1px solid #223027;border-radius:10px;margin:8px 0;background:#0e1512;overflow:hidden}
@@ -595,6 +603,9 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
   <div id="topbar">
     <h1 id="ttl">VTA Field</h1>
     <span class="badge" id="gpsBadge">GPS –</span>
+    <button class="ico" id="bGuide" title="How a tree inspection works">&#9432;</button>
+    <button class="ico" id="bInstall" style="display:none"
+      title="Install on the home screen">&#8615;</button>
     <button class="badge" id="langBtn" title="Language of the form"></button>
     <button class="badge" id="whoBtn" style="display:none"></button>
   </div>
@@ -613,12 +624,6 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       </div>
       <p class="small">Camera is for phones without AR. LiDAR is for phones that have a
         LiDAR scanner.</p>
-      <div class="btnrow">
-        <button id="bGuide">How a tree inspection works</button>
-      </div>
-      <p class="small">The Regelkontrolle after the FLL guidelines, step by step, and which
-        button here does which part of it. In German and English.</p>
-      <div class="btnrow"><button id="bInstall" style="display:none">Install on the home screen</button></div>
       <div id="msg"></div>
       <h3>Device check</h3>
       <div id="checks"></div>
@@ -1164,25 +1169,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=3.7.0"></script>
-<script src="data.js?v=3.7.0"></script>
-<script src="norms.js?v=3.7.0"></script>
-<script src="i18n.js?v=3.7.0"></script>
-<script src="mapper.js?v=3.7.0"></script>
-<script src="users.js?v=3.7.0"></script>
-<script src="voice.js?v=3.7.0"></script>
-<script src="plantnet.js?v=3.7.0"></script>
-<script src="osm.js?v=3.7.0"></script>
-<script src="research.js?v=3.7.0"></script>
-<script src="marks.js?v=3.7.0"></script>
-<script src="pins.js?v=3.7.0"></script>
-<script src="ghost.js?v=3.7.0"></script>
-<script src="guide.js?v=3.7.0"></script>
-<script src="docx.js?v=3.7.0"></script>
-<script src="reports.js?v=3.7.0"></script>
-<script src="mapsheet.js?v=3.7.0"></script>
-<script src="sign.js?v=3.7.0"></script>
-<script src="gate.js?v=3.7.0"></script>
-<script src="app.js?v=3.7.0"></script>
+<script src="vendor/three.min.js?v=3.8.0"></script>
+<script src="data.js?v=3.8.0"></script>
+<script src="norms.js?v=3.8.0"></script>
+<script src="i18n.js?v=3.8.0"></script>
+<script src="mapper.js?v=3.8.0"></script>
+<script src="users.js?v=3.8.0"></script>
+<script src="voice.js?v=3.8.0"></script>
+<script src="plantnet.js?v=3.8.0"></script>
+<script src="osm.js?v=3.8.0"></script>
+<script src="research.js?v=3.8.0"></script>
+<script src="marks.js?v=3.8.0"></script>
+<script src="pins.js?v=3.8.0"></script>
+<script src="ghost.js?v=3.8.0"></script>
+<script src="guide.js?v=3.8.0"></script>
+<script src="docx.js?v=3.8.0"></script>
+<script src="reports.js?v=3.8.0"></script>
+<script src="mapsheet.js?v=3.8.0"></script>
+<script src="sign.js?v=3.8.0"></script>
+<script src="gate.js?v=3.8.0"></script>
+<script src="app.js?v=3.8.0"></script>
 </body>
 </html>
