@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.72.0';
+const APP_VERSION = '2.73.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3830,8 +3830,21 @@ function drawSegment(a, b, text, tree) {
 }
 
 function startMeasure(kind, refArg) {
-  if (mode !== 'WebXR') return toast('Measuring needs the WebXR mode.');
-  if (!hitOk) return toast('Hit-test unavailable in this session.');
+  /* These two used to be toasts. A toast is gone in three seconds, and both
+     of these fire before anything is drawn - so the screen was left exactly
+     as it had been, which is what "nothing happens" looks like from the
+     outside. They say what is missing, and they stay until they are read. */
+  if (mode !== 'WebXR') return mbar(
+    '<b>Not in the camera view</b><br>' +
+    'Measuring works inside AR: open the AR tab and press Start AR, then ' +
+    'Tools. Camera mode and the map cannot measure an angle.',
+    [['Close', clearMeasure]]);
+  if (!hitOk) return mbar(
+    '<b>This session has no hit-test</b><br>' +
+    'The ring that finds the ground never came up, so there is nothing to ' +
+    'measure from. Leave AR and start it again; if it keeps happening, the ' +
+    'phone or the browser is not giving the app a hit-test.',
+    [['Close', clearMeasure]]);
   $('mmenu').style.display = 'none';
   $('refmenu').style.display = 'none';
   clearMeasure();
@@ -5301,6 +5314,17 @@ function buildToolMenu() {
       who => who == null ? noTree() : markMenu(who));
   add(n, '🌳  Tree out of reach', 'one you cannot walk to',
       () => startMeasure('newtree'));
+
+  const help = group('When something will not measure');
+  add(help, '\u2753  Why is a measurement not working?', 'checks each one and says what it finds',
+      () => {
+        let txt;
+        try { txt = selfTestMeasure(); }
+        catch (e) { txt = 'The check itself failed: ' + ((e && e.message) || e); }
+        mbar('<b>What each measurement does right now</b><br>' +
+             '<pre style="white-space:pre-wrap;margin:6px 0 0;font-size:11px">' +
+             esc(txt) + '</pre>', [['Close', clearMeasure]]);
+      });
 
   const note = document.createElement('p'); note.className = 'small';
   note.style.marginTop = '12px';
@@ -9180,6 +9204,17 @@ function selfTestMeasure() {
   const say = (k, v) => lines.push(k + ': ' + v);
 
   say('version', APP_VERSION);
+  if (mode !== 'WebXR') {
+    /* Run from the Office tab there is no AR session, so every measurement
+       refuses at the first line and the answer is worthless. Say that rather
+       than printing six identical refusals. */
+    return 'version: ' + APP_VERSION + '\n\n' +
+      'NOT IN THE CAMERA VIEW - this test says nothing from here.\n\n' +
+      'Measuring only runs inside AR, so run it there:\n' +
+      '  AR tab -> Start AR -> Tools -> Why is a measurement not working?\n\n' +
+      'trees: ' + CAT.features.length + ' in the register\n' +
+      'last error: ' + (lastErr || 'none');
+  }
   say('mode', mode + (hitOk ? ', hit-test yes' : ', hit-test NO'));
   say('ring', hitPt ? 'on a surface' : 'nothing under the crosshair');
   say('depth', depthOk ? (depthWanted() ? 'on' : 'available, switched off') : 'not available');
