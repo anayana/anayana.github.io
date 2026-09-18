@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.9.0';
+const APP_VERSION = '3.10.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3819,7 +3819,19 @@ function startMeasure(kind, refArg) {
    pressing it will do. The screen tap still works where it works; it is no
    longer the only way in. */
 function takeBtns(label) {
-  return [[label || 'Take the point', measureTap, 'p'], ['Cancel', clearMeasure]];
+  return [['\u25c9  ' + (label || 'Take the point'), safeTap, 'p big'],
+          ['Cancel', clearMeasure]];
+}
+/* Whatever goes wrong inside a measurement, it says so and the session stays
+   up. It used to throw out of the button and take the AR view with it, which
+   from the outside is the app crashing at the moment of measuring. */
+function safeTap() {
+  try { measureTap(); }
+  catch (e) {
+    note('measure', e);
+    mbar('<b>That did not work</b><br>' + esc((e && e.message) || String(e)),
+         [['Again', () => measure && startMeasure(measure.kind), 'p'], ['Cancel', clearMeasure]]);
+  }
 }
 
 /* The hit test needs ARCore to have found a plane along the screen's centre
@@ -9396,6 +9408,7 @@ function wire() {
       lsSet('vta_hudmore', hud.classList.contains('more') ? '1' : '0');
     };
   }
+  const vb = $('verBadge'); if (vb) vb.textContent = 'v' + APP_VERSION;
   versionWatch();
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
