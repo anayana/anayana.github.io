@@ -1083,7 +1083,11 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
           itself on the stems it sees. It runs a second pipeline inside ARCore, which not every
           phone survives &ndash; so it is off until you switch it on. If a session dies a few
           seconds after starting, switch it off again and everything else keeps working.</p>
-        <div class="btnrow"><button id="bUpdate">Fetch the current version</button></div>
+        <div class="btnrow"><button id="bUpdate">Fetch the current version</button>
+        <button id="bSelfTest">Test the measurements</button></div>
+      <pre id="selfTestOut" class="small" style="display:none;white-space:pre-wrap;
+        background:#0e1512;border:1px solid #223027;border-radius:10px;padding:10px;
+        margin:8px 0;overflow-x:auto"></pre>
         <p class="small">Throws the offline copy away and reloads from the server.
           Trees and photos stay.</p>
       </details>
@@ -1189,25 +1193,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=3.14.0"></script>
-<script src="data.js?v=3.14.0"></script>
-<script src="norms.js?v=3.14.0"></script>
-<script src="i18n.js?v=3.14.0"></script>
-<script src="mapper.js?v=3.14.0"></script>
-<script src="users.js?v=3.14.0"></script>
-<script src="voice.js?v=3.14.0"></script>
-<script src="plantnet.js?v=3.14.0"></script>
-<script src="osm.js?v=3.14.0"></script>
-<script src="research.js?v=3.14.0"></script>
-<script src="marks.js?v=3.14.0"></script>
-<script src="pins.js?v=3.14.0"></script>
-<script src="ghost.js?v=3.14.0"></script>
-<script src="guide.js?v=3.14.0"></script>
-<script src="docx.js?v=3.14.0"></script>
-<script src="reports.js?v=3.14.0"></script>
-<script src="mapsheet.js?v=3.14.0"></script>
-<script src="sign.js?v=3.14.0"></script>
-<script src="gate.js?v=3.14.0"></script>
-<script src="app.js?v=3.14.0"></script>
+<script src="vendor/three.min.js?v=3.15.0"></script>
+<script src="data.js?v=3.15.0"></script>
+<script src="norms.js?v=3.15.0"></script>
+<script src="i18n.js?v=3.15.0"></script>
+<script src="mapper.js?v=3.15.0"></script>
+<script src="users.js?v=3.15.0"></script>
+<script src="voice.js?v=3.15.0"></script>
+<script src="plantnet.js?v=3.15.0"></script>
+<script src="osm.js?v=3.15.0"></script>
+<script src="research.js?v=3.15.0"></script>
+<script src="marks.js?v=3.15.0"></script>
+<script src="pins.js?v=3.15.0"></script>
+<script src="ghost.js?v=3.15.0"></script>
+<script src="guide.js?v=3.15.0"></script>
+<script src="docx.js?v=3.15.0"></script>
+<script src="reports.js?v=3.15.0"></script>
+<script src="mapsheet.js?v=3.15.0"></script>
+<script src="sign.js?v=3.15.0"></script>
+<script src="gate.js?v=3.15.0"></script>
+<script src="app.js?v=3.15.0"></script>
 </body>
 </html>

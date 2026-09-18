@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.14.0';
+const APP_VERSION = '3.15.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3839,7 +3839,20 @@ function startMeasure(kind, refArg) {
   let tree = selIdx;
   if (cfg.field || kind === 'stem') {
     if (tree == null) { tree = nearestTree(); selectTree(tree); }
-    if (tree == null) return toast('No tree to measure.');
+    /* A toast here was the wrong shape: it is gone in three seconds, it
+       appears at the bottom of a camera view full of bark, and it leaves the
+       screen exactly as it was - which is what "it does nothing" looks like.
+       It goes in the bar, where the measurement would have been, and it
+       offers the way out rather than describing it. */
+    if (tree == null) return mbar(
+      '<b>' + cfg.label + ' needs a tree</b><br>' +
+      (CAT.features.length
+        ? 'Nothing of the register is drawn in front of you yet. Pick the tree ' +
+          'under Trees, or stand at one you know and press Align.'
+        : 'There are no trees on this phone yet. Press + Tree at the trunk, ' +
+          'or import a register under Office.'),
+      [['Trees', () => { clearMeasure(); $('bwhich').click(); }, 'p'],
+       ['Close', clearMeasure]]);
   }
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
               markKind: kind === 'mark' ? refArg : null };
@@ -5201,16 +5214,17 @@ function markMenu(tree) {
 function buildToolMenu() {
   const el = $('toolmenu');
   el.innerHTML = '';
-  const t = targetTree();
 
   const head = document.createElement('div');
   head.innerHTML = '<b>Tools</b>';
   el.appendChild(head);
   const sub = document.createElement('div'); sub.className = 'small';
   sub.style.margin = '2px 0 10px';
-  sub.textContent = t == null ? 'No tree in view \u2013 point at one, or pick it under Trees.'
-    : 'On ' + tid(t) + (props(t).species ? ' \u00b7 ' + props(t).species : '');
-  if (t == null) sub.className = 'small wa';
+  const t0 = targetTree();
+  sub.textContent = t0 == null
+    ? 'Point at a tree, or pick one under Trees – Tape needs none.'
+    : 'On ' + tid(t0) + (props(t0).species ? ' · ' + props(t0).species : '');
+  if (t0 == null) sub.className = 'small wa';
   el.appendChild(sub);
 
   const group = title => {
@@ -5220,47 +5234,58 @@ function buildToolMenu() {
     const g = document.createElement('div'); g.className = 'toolgrid';
     el.appendChild(g); return g;
   };
-  const add = (g, label, hint, fn, needTree) => {
+  /* Which tree is meant is decided at the moment the button is pressed, not
+     when the menu was drawn. It used to be worked out once, while the menu
+     was being built, and every tool that needs a tree then refused for the
+     rest of that menu's life if nothing happened to be in view at that
+     instant - which is most of the time, because the menu gets opened while
+     standing at a trunk with the camera full of bark. That is why Tape, the
+     one measurement that needs no tree, was the only one that still worked.
+     Nothing is blocked here now: the measurement finds the nearest tree it is
+     drawing, and says so in the bar if it cannot. */
+  const noTree = () => toast('No tree in view – point at one, or pick it under Trees.');
+  const add = (g, label, hint, fn) => {
     const b = document.createElement('button');
     b.className = 'toolbtn';
     b.innerHTML = '<span class="tl">' + esc(label) + '</span>' +
                   (hint ? '<span class="th">' + esc(hint) + '</span>' : '');
     b.onclick = () => {
-      if (needTree && t == null) return toast('No tree in view \u2013 point at one, or pick it under Trees.');
       el.style.display = 'none';
-      if (t != null) selectTree(t);
-      fn();
+      const who = targetTree();
+      if (who != null) selectTree(who);
+      fn(who);
     };
     g.appendChild(b);
   };
 
   const m = group('Measure this tree');
-  add(m, '\u2195\uFE0E  Height', 'stem base, then the treetop', () => startMeasure('height'), true);
-  add(m, '\u2300\uFE0E  DBH \u2013 walk the stem', 'all the way round, off the bark',
-      () => startCaliper(t), true);
-  add(m, '\u25EF  Crown width', 'the stem, then each edge in turn', () => startMeasure('crown'), true);
-  add(m, '\u2934\uFE0E  Crown base', 'stem base, then the lowest live branch',
-      () => startMeasure('crownbase'), true);
-  add(m, '\u2194\uFE0E  Tape', 'any two points', () => startMeasure('tape'), false);
-  add(m, '\u25CE  Stem position', 'put this tree where you are aiming',
-      () => startMeasure('stem'), true);
-  add(m, '\u2316  Target distance', 'to the path, the road, the building',
-      () => startMeasure('target'), true);
+  add(m, '↕︎  Height', 'stem base, then the treetop', () => startMeasure('height'));
+  add(m, '⌀︎  DBH – walk the stem', 'all the way round, off the bark',
+      who => who == null ? noTree() : startCaliper(who));
+  add(m, '◯  Crown width', 'the stem, then each edge in turn', () => startMeasure('crown'));
+  add(m, '⤴︎  Crown base', 'stem base, then the lowest live branch',
+      () => startMeasure('crownbase'));
+  add(m, '↔︎  Tape', 'any two points, no tree needed', () => startMeasure('tape'));
+  add(m, '◎  Stem position', 'put this tree where you are aiming',
+      () => startMeasure('stem'));
+  add(m, '⌖  Target distance', 'to the path, the road, the building',
+      () => startMeasure('target'));
 
   const ph = group('Photograph');
-  add(ph, '\u25A3  Bark at 1.30 m', 'the one the diameter is read from', () => {
-    if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(t, 'bark');
-    startBark(t);
-  }, true);
+  add(ph, '▣  Bark at 1.30 m', 'the one the diameter is read from', who => {
+    if (who == null) return noTree();
+    if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(who, 'bark');
+    startBark(who);
+  });
   [['leaf', 'Leaf'], ['flower', 'Flower'], ['fruit', 'Fruit'], ['habit', 'Whole tree']].forEach(o =>
-    add(ph, o[1], '', () => takePhotoOf(t, o[0]), true));
+    add(ph, o[1], '', who => who == null ? noTree() : takePhotoOf(who, o[0])));
 
   const n = group('Record');
-  add(n, '\uD83C\uDFA4  Voice', 'say the findings, hands free', () => speechStart(t), false);
-  add(n, '\u26A0\uFE0E  Mark a defect', 'pinned where it is on the tree',
-      () => markMenu(t), true);
-  add(n, '\uD83C\uDF33  Tree out of reach', 'one you cannot walk to',
-      () => startMeasure('newtree'), false);
+  add(n, '🎤  Voice', 'say the findings, hands free', who => speechStart(who));
+  add(n, '⚠︎  Mark a defect', 'pinned where it is on the tree',
+      who => who == null ? noTree() : markMenu(who));
+  add(n, '🌳  Tree out of reach', 'one you cannot walk to',
+      () => startMeasure('newtree'));
 
   const note = document.createElement('p'); note.className = 'small';
   note.style.marginTop = '12px';
@@ -9127,6 +9152,43 @@ function runMapper() {
         '\n\nThese are register positions. Stand at each stem and record it to get a survey.');
 }
 
+/* ---- what actually happens when a measurement is started ---------------
+   "Nothing works except Tape" cannot be chased from here: the phone that
+   fails is not the phone this is written on. So the app tries each one
+   itself, on the spot, with whatever tree and session it has at that moment,
+   and writes down what came back. Started, refused with this message, or
+   threw this error - one line each. Nothing is saved and nothing is changed:
+   whatever was running is put back afterwards. */
+function selfTestMeasure() {
+  const before = { measure: measure, sel: selIdx, pinned: selPinned };
+  const lines = [];
+  const say = (k, v) => lines.push(k + ': ' + v);
+
+  say('version', APP_VERSION);
+  say('mode', mode + (hitOk ? ', hit-test yes' : ', hit-test NO'));
+  say('ring', hitPt ? 'on a surface' : 'nothing under the crosshair');
+  say('depth', depthOk ? (depthWanted() ? 'on' : 'available, switched off') : 'not available');
+  say('trees', CAT.features.length + ' in the register, ' + sprites.length + ' drawn here');
+  say('session', S2P ? ('tied – ' + (s2pFrom || 'unknown')) : 'NOT tied to the stand');
+  const t = targetTree();
+  say('tree in view', t == null ? 'NONE – this is what stops everything but Tape' : tid(t));
+
+  ['height', 'crownbase', 'crown', 'target', 'stem', 'tape'].forEach(kind => {
+    let out;
+    try {
+      measure = null; $('mbar').classList.remove('on');
+      startMeasure(kind);
+      if (measure && measure.kind === kind) out = 'STARTS';
+      else out = 'refused – ' + ($('mtxt').textContent || 'no reason given').slice(0, 70);
+    } catch (e) { out = 'THREW – ' + ((e && e.message) || String(e)); }
+    say(MEAS[kind].label, out);
+  });
+  try { clearMeasure(); } catch (e) {}
+  measure = before.measure; selIdx = before.sel; selPinned = before.pinned;
+  if (lastErr) say('last error', lastErr);
+  return lines.join('\n');
+}
+
 /* ============================ START ============================ */
 
 function chk(state, txt) {
@@ -9539,6 +9601,18 @@ function wire() {
     };
   }
   const vb = $('verBadge'); if (vb) vb.textContent = 'v' + APP_VERSION;
+  const st = $('bSelfTest');
+  if (st) st.onclick = () => {
+    const out = $('selfTestOut');
+    out.style.display = 'block';
+    out.textContent = 'Testing \u2026';
+    setTimeout(() => {
+      let txt;
+      try { txt = selfTestMeasure(); }
+      catch (e) { txt = 'The test itself failed: ' + ((e && e.message) || e); }
+      out.textContent = txt;
+    }, 30);
+  };
   versionWatch();
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
