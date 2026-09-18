@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.6.0';
+const APP_VERSION = '3.7.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -711,7 +711,7 @@ function addTreeHere() {
 /* The reticle, when it is where a stem's foot would be: in front of you,
    within a step or two. Further off it is the ground you happen to be looking
    at, which is not a tree, so it is ignored. */
-const RET_MIN = 0.35, RET_MAX = 2.6;
+const RET_MIN = 0.6, RET_MAX = 2.6;
 /* You stand a step in front of the trunk and face it. That step is the whole
    error, and the session already knows which way you are facing to a fraction
    of a degree - the compass is not needed and would only make it worse. So
@@ -720,7 +720,7 @@ const RET_MIN = 0.35, RET_MAX = 2.6;
    The step is settable because people and trees differ. */
 function stepOff() {
   const v = parseFloat(prefs().stepOff);
-  return isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.0;
+  return isFinite(v) ? Math.max(0, Math.min(3, v)) : 1.5;
 }
 function reticleStem() {
   if (!hitPt) return null;
@@ -762,7 +762,14 @@ function headingOfDir(d) {
   if (north != null) return ((inScene - north) % 360 + 360) % 360;
   return (haveOrient && heading != null) ? heading : inScene;
 }
-function askDist() { return prefs().askDist !== false; }
+/* Pressing + Tree means record a tree, so a tree gets recorded - a step or
+   so ahead, along the way the phone is facing, which is where the trunk is
+   when you are standing at it looking at it. It used to stop and ask how far
+   away the stem was before it would finish, on every single tree. The answer
+   it is really after is only worth having when the tree is across a lawn,
+   and that is the rarer case; it is a switch under Settings now, off until
+   somebody wants it. */
+function askDist() { return prefs().askDist === true; }
 function autoVoice() { return prefs().autoVoice !== false; }
 function paintAutoVoice() {
   const b = $('bAutoVoice'); if (!b) return;
@@ -1286,8 +1293,12 @@ let navTarget = null;
 /* Which way and how far, in words, under the map. Updated with every fix, so
    it counts down as you walk. */
 function renderNav() {
-  const box = $('mNavInfo'); if (!box) return;
-  if (navTarget == null || !CAT.features[navTarget]) { box.textContent = ''; return; }
+  const box = $('mNavTxt') || $('mNavInfo'); if (!box) return;
+  const stop = $('mNavStop');
+  if (navTarget == null || !CAT.features[navTarget]) {
+    box.textContent = ''; if (stop) stop.style.display = 'none'; return;
+  }
+  if (stop) stop.style.display = '';
   const p = props(navTarget), c = CAT.features[navTarget].geometry.coordinates;
   if (!lastFix) {
     box.innerHTML = '<b>' + esc(p.tag_no ? '№ ' + p.tag_no : tid(navTarget)) + '</b> · waiting for a fix';
@@ -3785,14 +3796,25 @@ function startMeasure(kind, refArg) {
               markKind: kind === 'mark' ? refArg : null };
   const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
-  const ask = kind === 'mark' ? 'Aim at the defect on the tree and tap'
-            : cfg.aim ? 'Aim at the stem base and tap'
-            : kind === 'target' ? 'Aim at the target on the ground and tap'
-            : kind === 'stems' ? 'Aim at the base of a stem you can see and tap. Three or four, well spread'
-            : kind === 'ref' ? 'Aim at the point itself and tap – or cancel and stand on it instead'
-            : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base and tap'
-            : 'Aim at the first point and tap';
-  mbar('<b>' + cfg.label + who + '</b><br>' + ask, [['Cancel', clearMeasure]]);
+  const ask = kind === 'mark' ? 'Aim at the defect on the tree'
+            : cfg.aim ? 'Aim at the stem base'
+            : kind === 'target' ? 'Aim at the target on the ground'
+            : kind === 'stems' ? 'Aim at the base of a stem you can see. Three or four, well spread'
+            : kind === 'ref' ? 'Aim at the point itself – or cancel and stand on it instead'
+            : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base'
+            : 'Aim at the first point';
+  mbar('<b>' + cfg.label + who + '</b><br>' + ask, takeBtns());
+}
+
+/* The point used to be taken by tapping the camera view, which goes through
+   WebXR's own select event. On the phone this app is used on that event does
+   not arrive: aiming at a stem and tapping did nothing, over and over, with
+   nothing on screen but the word "tap". A button in the bar is a DOM button
+   and always arrives, it sits where the thumb already is, and it says what
+   pressing it will do. The screen tap still works where it works; it is no
+   longer the only way in. */
+function takeBtns(label) {
+  return [[label || 'Take the point', measureTap, 'p'], ['Cancel', clearMeasure]];
 }
 
 /* The hit test needs ARCore to have found a plane along the screen's centre
@@ -3817,18 +3839,28 @@ function depthAhead() {
   });
   return best ? new THREE.Vector3(best.x, 0, best.z) : null;
 }
+/* Pressed from the bar there is no select event and so no fresh frame: the
+   depth reader may be holding one the browser has already expired, and asking
+   it anything throws. That must not cost the press. Each way of finding the
+   point is tried on its own, and the ring on the ground - which the render
+   loop keeps current - is always there as the last one. */
 function tapPoint(wantStem) {
   if (wantStem) {
-    const st = findStem();
-    if (st && !st.error) return new THREE.Vector3(st.x, 0, st.z);
+    try {
+      const st = findStem();
+      if (st && !st.error) return new THREE.Vector3(st.x, 0, st.z);
+    } catch (e) { note('tap stem', e); }
   }
-  const d = depthAhead();
-  if (d) return d;
+  try {
+    const d = depthAhead();
+    if (d) return d;
+  } catch (e) { note('tap depth', e); }
   return hitPt ? hitPt.clone() : null;
 }
 
 function measureTap() {
-  const m = measure, cfg = m.cfg;
+  const m = measure; if (!m) return;
+  const cfg = m.cfg;
   const tp = m.wantsHit ? tapPoint(m.kind === 'stems' || m.kind === 'stem' || m.kind === 'newtree') : null;
   if (m.wantsHit && !tp) {
     toast('Nothing measurable straight ahead – point at the trunk, or a little lower.');
@@ -3841,8 +3873,8 @@ function measureTap() {
       m.pts[0] = hitPt.clone();
       m.step = 1; m.wantsHit = false; reticle.visible = false;
       mbar('<b>' + cfg.label + '</b><br>Now aim at the ' +
-           (m.kind === 'height' ? 'treetop' : 'lowest live branch') + ' and tap',
-           [['Cancel', clearMeasure]]);
+           (m.kind === 'height' ? 'treetop' : 'lowest live branch'),
+           takeBtns(m.kind === 'height' ? 'Treetop' : 'Branch'));
       return;
     }
     const base = m.pts[0], c = camPos(), d = camDir();
@@ -3899,7 +3931,9 @@ function measureTap() {
     const n = m.pts.length;
     mbar('<b>Match stems</b><br>' + n + ' stem' + (n === 1 ? '' : 's') + ' marked' +
          (n < 3 ? ' · ' + (3 - n) + ' more' : ' · ready'),
-         (n >= 3 ? [['Match', () => runStemMatch(m.pts), 'p']] : []).concat([['Cancel', clearMeasure]]));
+         [['Take the point', measureTap, n >= 3 ? '' : 'p']]
+           .concat(n >= 3 ? [['Match', () => runStemMatch(m.pts), 'p']] : [])
+           .concat([['Cancel', clearMeasure]]));
     return;
   }
 
@@ -3946,7 +3980,7 @@ function measureTap() {
   // two free points: crown diameter or plain tape
   if (m.step === 0) {
     m.pts[0] = hitPt.clone(); m.step = 1;
-    mbar('<b>' + cfg.label + '</b><br>Aim at the second point and tap', [['Cancel', clearMeasure]]);
+    mbar('<b>' + cfg.label + '</b><br>Aim at the second point', takeBtns('Second point'));
     return;
   }
   const a = m.pts[0], b = hitPt.clone();
@@ -5903,17 +5937,18 @@ function wireMap() {
         }
     }
     if (urls.length > 400) return toast('Zoom in – that would be ' + urls.length + ' tiles.');
-    const b = $('mCache'); b.disabled = true;
+    const b = $('mCache'); b.disabled = true; b.classList.add('busy');
     let done = 0, failed = 0;
     // one at a time: this is somebody else's tile server, and a field phone on
     // a thin connection does better with a queue than with a stampede
     for (const u of urls) {
       try { const r = await fetch(u, { mode: 'cors' }); if (!r.ok) failed++; } catch (e) { failed++; }
       done++;
-      if (done % 5 === 0 || done === urls.length)
-        b.textContent = 'Loading ' + done + '/' + urls.length + '…';
+      if (done % 20 === 0 || done === urls.length)
+        b.title = 'Saving this area: ' + done + ' of ' + urls.length + ' tiles';
     }
-    b.disabled = false; b.textContent = 'Save this area offline';
+    b.disabled = false; b.classList.remove('busy');
+    b.title = 'Save this area for working without a signal';
     toast(failed ? (urls.length - failed) + ' of ' + urls.length + ' tiles stored.'
                  : urls.length + ' tiles stored for offline use.');
   };
@@ -9347,6 +9382,15 @@ function wire() {
   };
   paintImpPick();
   drawersWire();
+  /* the camera view is for looking at the tree, not at the app */
+  const hud = $('hud');
+  if (hud) {
+    if (lsGet('vta_hudmore') === '1') hud.classList.add('more');
+    hud.onclick = () => {
+      hud.classList.toggle('more');
+      lsSet('vta_hudmore', hud.classList.contains('more') ? '1' : '0');
+    };
+  }
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
   NORMS.forEach(n => { const o = document.createElement('option');

@@ -10,6 +10,18 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
+/* Installed, the app draws under the phone's own status bar - and Android
+   then reports safe-area-inset-top as 0 on most devices, so everything that
+   starts at the top ends up beneath the clock and the battery. The tree
+   panel's Close button sat under the battery icon and could not be pressed.
+   In a browser tab the address bar already keeps the top clear and the inset
+   really is 0, so the floor only applies where the app owns the whole screen.
+   The AR bar has had this all along; this is the same figure for every other
+   layer that begins at the top. */
+:root{--top:env(safe-area-inset-top);--bot:env(safe-area-inset-bottom)}
+@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){
+  :root{--top:max(env(safe-area-inset-top),30px);--bot:max(env(safe-area-inset-bottom),8px)}
+}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   background:#0d1310;color:#e8ece9;overscroll-behavior:none}
@@ -28,7 +40,7 @@ a{color:#7fbf96}
 
 /* ---------- screens (non-AR) ---------- */
 #app{position:fixed;inset:0;z-index:3;display:flex;flex-direction:column;
-  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  padding:var(--top) env(safe-area-inset-right) var(--bot) env(safe-area-inset-left)}
 #app.hidden{display:none}
 #topbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #223027;background:#101815}
 #topbar h1{font-size:16px;margin:0;flex:1;font-weight:600}
@@ -132,6 +144,9 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #mapZ button{width:34px;height:34px;padding:0;font-size:17px}
 /* the way back to yourself, lit up exactly when the map is not following you */
 #mHome{margin-top:6px;font-size:19px;line-height:1}
+#mAddTree,#mCache{margin-top:6px;font-size:15px;line-height:1}
+#mCache.busy{opacity:.5}
+#mNavInfo #mNavStop{margin-left:8px;padding:2px 8px;font-size:11px;vertical-align:middle}
 #mHome.off{border-color:#e8c15a;color:#e8c15a}
 #mHome.no{opacity:.45}
 #mapAttr{position:absolute;right:0;bottom:0;background:rgba(10,16,13,.72);font-size:10px;
@@ -148,15 +163,24 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #xrtop,#xrbot{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;
   pointer-events:none;min-height:0}
 #xrtop>*,#xrbot>*{pointer-events:auto}
-#xrtop{padding:max(env(safe-area-inset-top),28px) 8px 0}
+#xrtop{padding:max(var(--top),28px) 8px 0}
 #xrmid{flex:1 1 auto;min-height:24px;pointer-events:none}
 /* clear of the browser's own full-screen card, and of the on-screen keyboard */
 #xrbot{padding:0 8px calc(72px + env(safe-area-inset-bottom) + var(--kb,0px));
   max-height:82%;overflow:hidden}
 .bar{background:rgba(12,18,15,.82);backdrop-filter:blur(8px);
   border:1px solid #2b3a31;border-radius:12px;padding:7px 10px}
+/* Standing at a tree, the two things worth a glance are how good the fix is
+   and whether the session is tied to the stand. The mode, the depth state,
+   north, what is selected and what is nearest are for when something is
+   wrong, and were taking two lines of the camera view to say so. Tap the bar
+   to see them. */
 #hud{font-size:12px;display:flex;gap:9px;flex-wrap:wrap;
-  align-items:center;padding:5px 10px}
+  align-items:center;padding:5px 10px;cursor:pointer}
+#hMore{display:none}
+#hud.more #hMore{display:contents}
+#hud::after{content:'\2026';color:#6f8a79;margin-left:auto;font-size:14px;line-height:1}
+#hud.more::after{content:'\2715';font-size:11px}
 #hud b{color:#8fd6a8;font-weight:600}
 #hMore{display:flex;gap:9px;flex-wrap:wrap}
 #hFit.ok{color:#8fd6a8;font-weight:600}
@@ -224,9 +248,12 @@ button.numrow .dim{color:#8ea396}
 
 /* ---------- panel / bottom sheet ---------- */
 .panel{position:fixed;left:0;right:0;bottom:0;top:0;z-index:6;background:#0c1310;display:none;
-  flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  flex-direction:column;padding-top:var(--top);padding-bottom:var(--bot)}
 .panel.on{display:flex}
 .ph{padding:11px 14px;border-bottom:1px solid #26332b;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ph>div:first-child{min-width:0;flex:1 1 auto}
+.ph .btnrow{flex:0 0 auto;flex-wrap:nowrap;gap:5px;margin:0}
+.ph .btnrow button{font-size:12px;padding:6px 9px;white-space:nowrap}
 .ph h2{margin:0;font-size:17px}
 .ph .sub{color:#93a89b;font-size:12px;margin-top:2px}
 .ptabs{display:flex;gap:4px;padding:8px 10px 0;border-bottom:1px solid #26332b}
@@ -310,7 +337,7 @@ table.hist th{color:#8fa697;font-weight:500}
 html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2}
 #lightbox{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.95);display:none;align-items:center;justify-content:center}
 #lightbox img{max-width:100%;max-height:88%}
-#lightbox button{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px}
+#lightbox button{position:absolute;top:calc(12px + var(--top));right:12px}
 #shotok{display:none;position:fixed;left:8px;right:8px;bottom:calc(88px + env(safe-area-inset-bottom));
   z-index:11;gap:10px;align-items:center;background:rgba(10,22,15,.97);border:1px solid #3f8a60;
   border-radius:12px;padding:8px;pointer-events:auto}
@@ -332,7 +359,7 @@ html.day .photos select.organ{background:#fff;color:#15201a;border-color:#c3ccc2
 #speechbar .t i{font-style:normal;font-size:11.5px;color:#9fb3a6;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 #pinview{position:fixed;inset:0;z-index:23;background:rgba(6,10,8,.97);display:flex;
-  flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+  flex-direction:column;padding:var(--top) 0 var(--bot)}
 #pinview .wrap{position:relative;flex:1 1 auto;display:flex;align-items:center;
   justify-content:center;min-height:0;overflow:hidden}
 #pinview img{max-width:100%;max-height:100%;object-fit:contain}
@@ -391,7 +418,7 @@ html.day .row.asking{background:#e6f0e9}
 @keyframes vpulse{0%,100%{opacity:.35}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){#speechbar .dot{animation:none}}
 #whodlg{position:fixed;inset:0;z-index:13;background:rgba(6,10,8,.97);display:none}
-#whodlg .inner{display:flex;flex-direction:column;height:100%}
+#whodlg .inner{display:flex;flex-direction:column;height:100%;padding-top:var(--top);padding-bottom:var(--bot)}
 #whodlg .pb{flex:1 1 auto;overflow:auto;padding:8px 14px 24px}
 #whodlg button.numrow{margin-top:8px;padding:12px}
 #whodlg input{width:100%;margin-top:6px}
@@ -401,7 +428,7 @@ html.day .row.asking{background:#e6f0e9}
 #langBtn{background:#1b2620;border:1px solid #3a5245;color:#dff0e6;padding:3px 9px;
   border-radius:9px;font-size:12px;letter-spacing:.04em}
 html.day #langBtn{background:#eceee9;border-color:#c3ccc2;color:#15201a}
-#langdlg{position:fixed;left:10px;right:10px;top:54px;z-index:22;display:none;
+#langdlg{position:fixed;left:10px;right:10px;top:calc(54px + var(--top));z-index:22;display:none;
   background:rgba(10,16,13,.98);border:1px solid #34483c;border-radius:14px;padding:10px}
 html.day #langdlg{background:#fff;border-color:#c3ccc2}
 #langdlg button{width:100%;text-align:left;margin-top:5px}
@@ -415,7 +442,7 @@ html.day #langdlg{background:#fff;border-color:#c3ccc2}
 #auditBox{max-height:220px;overflow:auto;font-size:12px;border:1px solid #223027;border-radius:9px;padding:6px 8px}
 #auditBox div{padding:3px 0;border-bottom:1px solid #16201a;color:#cfe0d5}
 #auditBox div span{color:#7f9488}
-#signdlg{position:fixed;left:8px;right:8px;top:8px;z-index:32;background:#0d1512;
+#signdlg{position:fixed;left:8px;right:8px;top:calc(8px + var(--top));z-index:32;background:#0d1512;
   border:1px solid #2f6b4a;border-radius:14px;padding:14px}
 html.day #signdlg{background:#fff;border-color:#8fbfa2}
 #signdlg h3{margin:0 0 4px}
@@ -425,7 +452,7 @@ html.day #signdlg{background:#fff;border-color:#8fbfa2}
 #signdlg .pad .base{position:absolute;left:8%;right:8%;bottom:26%;border-top:1px dashed #9aa79c}
 img.sigprev{display:block;max-width:60%;height:auto;background:#f7f8f5;border:1px solid #2f4137;
   border-radius:8px;padding:4px;margin:2px 0 4px}
-#tpldlg{position:fixed;left:8px;right:8px;top:8px;bottom:8px;z-index:30;overflow-y:auto;
+#tpldlg{position:fixed;left:8px;right:8px;top:calc(8px + var(--top));bottom:8px;z-index:30;overflow-y:auto;
   background:#0d1512;border:1px solid #2f6b4a;border-radius:14px;padding:14px 14px 20px}
 html.day #tpldlg{background:#fff;border-color:#8fbfa2}
 #tpldlg h3{margin:0 0 6px}
@@ -434,7 +461,8 @@ html.day #tpldlg{background:#fff;border-color:#8fbfa2}
 html.day #tpldlg textarea{background:#fff;border-color:#c3ccc2;color:#16241c}
 #tpldlg .kv{font-size:13px}
 #rHeadBox textarea{min-height:66px}
-#mapdlg{position:fixed;inset:0;z-index:12;background:rgba(6,10,8,.97);display:none}
+#mapdlg{position:fixed;inset:0;z-index:12;background:rgba(6,10,8,.97);display:none;
+  padding-top:var(--top);padding-bottom:var(--bot)}
 #mapdlg .inner{display:flex;flex-direction:column;height:100%}
 #mapdlg .ph{flex:0 0 auto}
 #mapdlg .pb{flex:1 1 auto;overflow:auto;padding:0 8px 20px}
@@ -461,7 +489,7 @@ html.day #tpldlg textarea{background:#fff;border-color:#c3ccc2;color:#16241c}
       display:flex;align-items:flex-start;justify-content:center}
 #gate[hidden]{display:none}
 html.day #gate{background:#f2f4f0}
-#gate .gwrap{width:100%;max-width:440px;padding:0 0 24px}
+#gate .gwrap{width:100%;max-width:440px;padding:var(--top) 0 24px}
 #gate .gart{display:block;width:84px;height:84px;margin:34px auto 0;border-radius:18px}
 #gate .ghead{padding:14px 16px 0;text-align:center}
 #gate .ghead h1{margin:0;font-size:25px;letter-spacing:.2px}
@@ -637,7 +665,9 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
         <div id="mapCross">✛</div>
         <div id="mapZ"><button id="mZin" title="Zoom in">+</button>
           <button id="mZout" title="Zoom out">−</button>
-          <button id="mHome" title="Back to where I am">⌖</button></div>
+          <button id="mHome" title="Back to where I am">⌖</button>
+          <button id="mAddTree" title="Put a tree where the crosshair is">✛+</button>
+          <button id="mCache" title="Save this area for working without a signal">⤓</button></div>
         <div id="mapAttr">© <a href="https://www.openstreetmap.org/copyright"
           target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>
@@ -646,12 +676,8 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
       <div class="row"><label>Go to tree number</label>
         <input type="text" id="mNavNo" inputmode="numeric" autocomplete="off" placeholder="e.g. 417"></div>
       <div id="mNavList"></div>
-      <div id="mNavInfo" class="small"></div>
-      <div class="btnrow"><button id="mNavStop" class="sm">Stop walking to it</button></div>
-      <div class="btnrow">
-        <button id="mAddTree">+ Tree at crosshair</button>
-        <button id="mCache">Save this area offline</button>
-      </div>
+      <div id="mNavInfo" class="small"><span id="mNavTxt"></span><button id="mNavStop"
+        class="sm" style="display:none">stop</button></div>
       <div class="small" id="mSel"></div>
       <div class="btnrow"><button class="p" id="mMove" style="display:none"></button>
         <button id="mUndo" style="display:none"></button>
@@ -1138,25 +1164,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.62.0"></script>
-<script src="data.js?v=2.62.0"></script>
-<script src="norms.js?v=2.62.0"></script>
-<script src="i18n.js?v=2.62.0"></script>
-<script src="mapper.js?v=2.62.0"></script>
-<script src="users.js?v=2.62.0"></script>
-<script src="voice.js?v=2.62.0"></script>
-<script src="plantnet.js?v=2.62.0"></script>
-<script src="osm.js?v=2.62.0"></script>
-<script src="research.js?v=2.62.0"></script>
-<script src="marks.js?v=2.62.0"></script>
-<script src="pins.js?v=2.62.0"></script>
-<script src="ghost.js?v=2.62.0"></script>
-<script src="guide.js?v=2.62.0"></script>
-<script src="docx.js?v=2.62.0"></script>
-<script src="reports.js?v=2.62.0"></script>
-<script src="mapsheet.js?v=2.62.0"></script>
-<script src="sign.js?v=2.62.0"></script>
-<script src="gate.js?v=2.62.0"></script>
-<script src="app.js?v=2.62.0"></script>
+<script src="vendor/three.min.js?v=2.63.0"></script>
+<script src="data.js?v=2.63.0"></script>
+<script src="norms.js?v=2.63.0"></script>
+<script src="i18n.js?v=2.63.0"></script>
+<script src="mapper.js?v=2.63.0"></script>
+<script src="users.js?v=2.63.0"></script>
+<script src="voice.js?v=2.63.0"></script>
+<script src="plantnet.js?v=2.63.0"></script>
+<script src="osm.js?v=2.63.0"></script>
+<script src="research.js?v=2.63.0"></script>
+<script src="marks.js?v=2.63.0"></script>
+<script src="pins.js?v=2.63.0"></script>
+<script src="ghost.js?v=2.63.0"></script>
+<script src="guide.js?v=2.63.0"></script>
+<script src="docx.js?v=2.63.0"></script>
+<script src="reports.js?v=2.63.0"></script>
+<script src="mapsheet.js?v=2.63.0"></script>
+<script src="sign.js?v=2.63.0"></script>
+<script src="gate.js?v=2.63.0"></script>
+<script src="app.js?v=2.63.0"></script>
 </body>
 </html>
