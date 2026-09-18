@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.15.0';
+const APP_VERSION = '3.16.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3837,23 +3837,24 @@ function startMeasure(kind, refArg) {
   clearMeasure();
   const cfg = MEAS[kind];
   let tree = selIdx;
-  if (cfg.field || kind === 'stem') {
-    if (tree == null) { tree = nearestTree(); selectTree(tree); }
-    /* A toast here was the wrong shape: it is gone in three seconds, it
-       appears at the bottom of a camera view full of bark, and it leaves the
-       screen exactly as it was - which is what "it does nothing" looks like.
-       It goes in the bar, where the measurement would have been, and it
-       offers the way out rather than describing it. */
-    if (tree == null) return mbar(
-      '<b>' + cfg.label + ' needs a tree</b><br>' +
-      (CAT.features.length
-        ? 'Nothing of the register is drawn in front of you yet. Pick the tree ' +
-          'under Trees, or stand at one you know and press Align.'
-        : 'There are no trees on this phone yet. Press + Tree at the trunk, ' +
-          'or import a register under Office.'),
-      [['Trees', () => { clearMeasure(); $('bwhich').click(); }, 'p'],
-       ['Close', clearMeasure]]);
-  }
+  /* A height is a triangle in the air and a crown width is two bearings:
+     neither touches the tree while it is being measured, and neither has any
+     business refusing to start because the app has not decided which trunk
+     you are standing at. They are measured first and written to a tree
+     afterwards, which is the only moment the tree is actually needed. Only
+     the two that work off the stem itself - putting a tree where you aim, and
+     the distance from a stem to a target - need it before they can begin. */
+  const needsTreeNow = kind === 'stem' || kind === 'target';
+  if (tree == null) { tree = nearestTree(); if (tree != null) selectTree(tree); }
+  if (needsTreeNow && tree == null) return mbar(
+    '<b>' + cfg.label + ' needs a tree</b><br>' +
+    (CAT.features.length
+      ? 'Nothing of the register is drawn in front of you yet. Pick the tree ' +
+        'under Trees, or stand at one you know and press Align.'
+      : 'There are no trees on this phone yet. Press + Tree at the trunk, ' +
+        'or import a register under Office.'),
+    [['Trees', () => { clearMeasure(); $('bwhich').click(); }, 'p'],
+     ['Close', clearMeasure]]);
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
               markKind: kind === 'mark' ? refArg : null };
   const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
@@ -4116,14 +4117,28 @@ function finishMeasure(value, html) {
   reticle.visible = false;
   const btns = [];
   if (m.cfg.field) {
-    html = props(m.tree).tree_id + ' · ' + html;
-    btns.push(['Apply', () => {
+    const write = i2 => {
       const patch = {};
       patch[m.cfg.field] = Math.round(value * 10) / 10;
-      setEdit(m.tree, patch);
-      toast(m.cfg.label + ' saved to ' + props(m.tree).tree_id + '.');
+      setEdit(i2, patch);
+      toast(m.cfg.label + ' saved to ' + props(i2).tree_id + '.');
       clearMeasure();
-    }, 'p']);
+    };
+    if (m.tree != null) {
+      html = props(m.tree).tree_id + ' · ' + html;
+      btns.push(['Apply to ' + props(m.tree).tree_id, () => write(m.tree), 'p']);
+    } else {
+      /* Measured with nothing chosen. The number is good; only its owner is
+         missing, and that is a question to ask now rather than a reason to
+         have refused ten seconds ago. */
+      html += '<br><span class="small">Not on a tree yet.</span>';
+      btns.push(['Which tree?', () => {
+        const pick = targetTree();
+        if (pick != null) return write(pick);
+        clearMeasure(); $('bwhich').click();
+        toast('Pick the tree, then measure again – or press Apply on its page.');
+      }, 'p']);
+    }
   }
   btns.push(['Again', () => startMeasure(m.kind)]);
   btns.push(['Close', clearMeasure]);
