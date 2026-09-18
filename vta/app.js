@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.60.0';
+const APP_VERSION = '2.61.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -8126,12 +8126,26 @@ function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g,
 function voiceToggle(i) { speechStart(i); }
 
 /* ======================= WHO IS HOLDING THE PHONE ======================= */
+/* The top bar carries the name of the app, the GPS badge and the language,
+   and a name plus a role written out beside those pushed the title off a
+   narrow phone. A person and, when somebody is signed in, their initials is
+   as much as is needed to see who the record will be stamped with; the rest
+   is one tap away. With nobody signed in it says so in one word, because an
+   icon on its own would not tell a new user that this is where to sign in. */
+function initials(name) {
+  const w = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '';
+  return (w.length === 1 ? w[0].slice(0, 2) : w[0][0] + w[w.length - 1][0]).toUpperCase();
+}
 function paintWho() {
   const b = $('whoBtn'); if (!b) return;
   if (!usersExist()) { b.style.display = 'none'; return; }
   const u = curUser();
   b.style.display = '';
-  b.textContent = u ? (u.name + ' · ' + ROLES[u.role]) : 'Sign in';
+  b.innerHTML = '<span aria-hidden="true">\u25cc</span>' +
+                (u ? '<span>' + esc(initials(u.name)) + '</span>' : '<span>Sign in</span>');
+  b.title = u ? (u.name + ' · ' + ROLES[u.role] + ' – tap to sign out or change') : 'Sign in';
+  b.setAttribute('aria-label', b.title);
   b.classList.toggle('p', !!u);
 }
 function openWho(force) {
@@ -8582,6 +8596,21 @@ function urlRemember(u, n) {
 }
 /* The one drop-down: the known sources, plus every address that has actually
    worked on this phone. */
+/* Which drawer somebody had open is theirs, not the app's opinion: it is put
+   back the way they left it, so the tab does not shut itself every visit. */
+const K_DRAWERS = 'vta_drawers';
+function drawersWire() {
+  let open = [];
+  try { open = JSON.parse(lsGet(K_DRAWERS)) || []; } catch (e) { open = []; }
+  document.querySelectorAll('details.grp').forEach(d => {
+    d.open = open.indexOf(d.id) >= 0;
+    d.addEventListener('toggle', () => {
+      const now = [...document.querySelectorAll('details.grp')].filter(x => x.open).map(x => x.id);
+      lsSet(K_DRAWERS, JSON.stringify(now));
+    });
+  });
+}
+
 function paintImpPick() {
   const sel = $('srcPick'); if (!sel) return;
   const cur = sel.value || prefs().srcPick || 'osm';
@@ -9308,6 +9337,7 @@ function wire() {
     }
   };
   paintImpPick();
+  drawersWire();
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
   NORMS.forEach(n => { const o = document.createElement('option');
