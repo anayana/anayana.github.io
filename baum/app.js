@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.3.1';
+const APP_VERSION = '3.3.2';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -9157,12 +9157,51 @@ function wire() {
       const r = await fetch(probe);
       const t = (await r.text()).slice(0, 4000);
       if (!r.ok) { el.innerHTML = '<b class="wa">The server answered ' + r.status + '.</b>'; return; }
-      let name = null, count = null;
-      try { const j = JSON.parse(t); name = j.name || j.mapName || (j.layers && j.layers.length + ' layers'); } catch (e) {}
-      if (!name && /<(wfs:)?WFS_Capabilities/i.test(t)) name = 'a WFS service';
-      el.innerHTML = '<b class="ok">It answers.</b> ' + (name ? esc(String(name)) + '. ' : '') +
-        (/\/(FeatureServer|MapServer)\/\d+/.test(u) ? 'Press Import.'
-          : 'Put a layer number on the end, or press Import and the app will ask which layer.');
+
+      /* What answered matters more than that something did. Saying "it
+         answers, put a layer number on the end" to a web page sent somebody
+         looking for a layer number that was never the problem. */
+      if (looksLikeHtml(t)) {
+        el.innerHTML = '<b class="wa">That is a web page, not data.</b> A browser can read it; ' +
+          'this app cannot. Open the address in the browser, find the file itself &ndash; the ' +
+          'GeoJSON, CSV or WFS link on the page &ndash; and paste <i>that</i>.';
+        return;
+      }
+      let j = null;
+      try { j = JSON.parse(t); } catch (e) {}
+      if (j && (j.layers || j.name || j.mapName || j.fields || j.type === 'FeatureServer')) {
+        const layers = Array.isArray(j.layers) ? j.layers : null;
+        const hasNo = /\/(FeatureServer|MapServer)\/\d+/.test(u);
+        el.innerHTML = '<b class="ok">An ArcGIS service.</b> ' +
+          esc(String(j.name || j.mapName || '')) +
+          (layers ? ' · ' + layers.length + ' layer' + (layers.length === 1 ? '' : 's') +
+             (layers.length ? ': ' + layers.slice(0, 6).map(l => esc(l.id + ' ' + (l.name || ''))).join(', ') : '')
+           : '') + '<br>' +
+          (hasNo ? 'Ready – press Import.'
+                 : 'Put a layer number on the end, or press Import and the app will ask which one.');
+        return;
+      }
+      if (j && (j.type === 'FeatureCollection' || Array.isArray(j.features))) {
+        el.innerHTML = '<b class="ok">GeoJSON, ready to import.</b> ' +
+          (j.features ? j.features.length + ' features in this answer.' : '');
+        return;
+      }
+      if (/<(wfs:)?WFS_Capabilities/i.test(t)) {
+        const names = (t.match(/<(?:\w+:)?Name>([^<]+)<\/(?:\w+:)?Name>/g) || [])
+          .map(x => x.replace(/<[^>]+>/g, '')).filter(x => /baum|tree|arbre|arbrat|boom|puu/i.test(x));
+        el.innerHTML = '<b class="ok">A WFS service.</b> ' +
+          (names.length ? 'Tree layers: ' + names.slice(0, 5).map(esc).join(', ') + '. ' : '') +
+          'Press Import.';
+        return;
+      }
+      if (/^\s*[\w"'][^\n]*[;,\t]/.test(t)) {
+        el.innerHTML = '<b class="ok">A table (CSV), ready to import.</b> First line: ' +
+          esc(t.split('\n')[0].slice(0, 80));
+        return;
+      }
+      el.innerHTML = '<b class="wa">It answers, but not with anything this app reads.</b> ' +
+        'Expected GeoJSON, CSV, a WFS service or an ArcGIS layer. It began: ' +
+        esc(t.slice(0, 60).replace(/\s+/g, ' '));
     } catch (e) {
       el.innerHTML = '<b class="wa">No answer.</b> ' + (e.message === 'Failed to fetch'
         ? 'Either no signal, or this server does not allow requests from a web page. Open the address ' +
