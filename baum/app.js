@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.10.0';
+const APP_VERSION = '3.11.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2504,7 +2504,20 @@ async function cameraAllowed() {
 async function startXR() {
   if (!navigator.xr) throw new Error('navigator.xr missing');
   const ok = await navigator.xr.isSessionSupported('immersive-ar');
-  if (!ok) throw new Error('immersive-ar not supported (is Google Play Services for AR installed?)');
+  /* A browser can have WebXR and still refuse an AR session, and on Android
+     the reason is almost always the same one: immersive-ar is served through
+     Google Play Services for AR, which a de-Googled browser such as Vanadium
+     on GrapheneOS does not talk to. The browser is not broken and neither is
+     the phone - that path simply is not there, and no setting inside the app
+     reaches it. Say which it is instead of "not supported". */
+  if (!ok) throw new Error(
+    'This browser will not open an AR session. On Android, immersive AR runs ' +
+    'through Google Play Services for AR, and a browser that does not use ' +
+    'Google services - Vanadium on GrapheneOS, and most privacy forks - has no ' +
+    'way to reach it. Chrome on the same phone will, if Play Services for AR is ' +
+    'installed. Everything except the camera view works here: Camera mode ' +
+    'measures with the plain camera, and the map, the register, the forms and ' +
+    'the reports do not need AR at all.');
   $('xrui').classList.add('on');            // the overlay root has to be visible or Chrome rejects it
   let s;
   try {
@@ -9021,7 +9034,14 @@ async function checks() {
   if (navigator.xr) {
     try { xrOk = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) {}
   }
-  chk(xrOk ? 'ok' : 'wa', 'AR tracking' + (xrOk ? '' : ' – unavailable, use camera mode'));
+  /* Name the reason. Without it, "unavailable" on a browser that plainly has
+     WebXR reads as the app being broken. */
+  chk(xrOk ? 'ok' : 'wa', 'AR tracking' + (xrOk ? '' : (navigator.xr
+        ? ' \u2013 this browser has WebXR but no AR session. On Android that comes ' +
+          'from Google Play Services for AR, which a de-Googled browser (Vanadium, ' +
+          'most privacy forks) cannot reach. Chrome on the same phone can. ' +
+          'Camera mode works here.'
+        : ' \u2013 this browser has no WebXR at all. Use camera mode.')));
   $('bxr').disabled = !xrOk;
   $('bcam').disabled = !navigator.mediaDevices;
   chk(photosOk ? 'ok' : 'wa', 'Photo storage');
@@ -9104,6 +9124,32 @@ function wire() {
   $('bnew').onclick = addTreeHere;
   /* The way from the camera to a tree's page, as a button. Tapping the marker
      works too, but a button cannot be missed. */
+  /* The four measurements that get made at every tree, on the bar, one press
+     from the camera view. They used to be inside the Tools popup, which meant
+     the measuring button somebody was looking for only appeared after they
+     had found a menu they did not know was a menu. */
+  const measBtn = (id, kind, needsTree) => {
+    const b = $(id); if (!b) return;
+    b.onclick = () => {
+      closePopups('');
+      const t = targetTree();
+      if (needsTree) {
+        if (t == null) return toast('No tree in view - point at one, or pick it under Trees.');
+        selectTree(t);
+      } else if (t != null) selectTree(t);
+      startMeasure(kind);
+    };
+  };
+  measBtn('mHeight', 'height', true);
+  measBtn('mCrownW', 'crown', true);
+  measBtn('mTape', 'tape', false);
+  const dbh = $('mDbh');
+  if (dbh) dbh.onclick = () => {
+    closePopups('');
+    const t = targetTree();
+    if (t == null) return toast('No tree in view - point at one, or pick it under Trees.');
+    selectTree(t); startCaliper(t);
+  };
   $('btools').onclick = () => {
     buildToolMenu();
     closePopups('toolmenu');
