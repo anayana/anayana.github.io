@@ -8469,37 +8469,6 @@ const K_URLS = 'vta_urls_v1';
    been tried here, and a list of addresses that might work is worse than no
    list at all - "a web address you paste" is where an untried one belongs,
    and it is remembered once it has worked. */
-/* ---- registers other European cities are believed to publish -------------
-   Every one of these is a real municipal tree register as far as is known
-   here, and NOT ONE of these addresses has been fetched from this app. They
-   could not be: the machine this was written on reaches no outside service at
-   all. So they ship marked as untested, they say so in the list, and "Test
-   the sources" settles it on the phone in half a minute - which is the only
-   place the answer can honestly come from.
-
-   A tested source keeps its answer: it answered, it refused a browser (which
-   many public services do), or it is not there. A city whose address turns
-   out to be wrong is worth more marked wrong than quietly listed. */
-const CANDIDATES = [
-  { id: 'wien', city: 'Vienna', label: 'Vienna – city tree register',
-    url: 'https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&typeName=ogdwien:BAUMOGD&srsName=EPSG:4326&outputFormat=json' },
-  { id: 'zuerich', city: 'Zurich', label: 'Zurich – tree register',
-    url: 'https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster' },
-  { id: 'hamburg', city: 'Hamburg', label: 'Hamburg – street tree register',
-    url: 'https://geodienste.hamburg.de/HH_WFS_Strassenbaumkataster' },
-  { id: 'paris', city: 'Paris', label: 'Paris – les arbres',
-    url: 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/exports/geojson' },
-  { id: 'helsinki', city: 'Helsinki', label: 'Helsinki – trees',
-    url: 'https://kartta.hel.fi/ws/geoserver/avoindata/wfs' },
-  { id: 'amsterdam', city: 'Amsterdam', label: 'Amsterdam – bomen',
-    url: 'https://api.data.amsterdam.nl/v1/wfs/bomen/' }
-].map(x => Object.assign({
-  group: 'City registers', kind: 'url', areas: ['map', 'all'],
-  note: 'This city\u2019s own register. It was not reachable from where this app was written, so ' +
-        'if it does not answer, “Test the sources” says which ones do.',
-  guess: true
-}, x));
-
 const SOURCES = [
   { id: 'file', group: 'From this phone', kind: 'file',
     label: 'A file on this phone',
@@ -8529,7 +8498,7 @@ const SOURCES = [
     label: 'A web address you paste',
     note: 'An ArcGIS layer, a WFS GetFeature request, or a GeoJSON or CSV file. An ArcGIS layer ' +
           'address is completed to a query by itself and read in pages.' }
-].concat(CANDIDATES);
+];
 function srcById(id) { return SOURCES.find(x => x.id === id) || null; }
 
 const IMPORT_SOURCES = [
@@ -8557,8 +8526,7 @@ function paintImpPick() {
   Object.keys(groups).forEach(g => {
     const og = document.createElement('optgroup'); og.label = g;
     groups[g].forEach(x => {
-      const o = document.createElement('option'); o.value = x.id;
-      o.textContent = x.label + srcMark(x);
+      const o = document.createElement('option'); o.value = x.id; o.textContent = x.label;
       og.appendChild(o);
     });
     sel.appendChild(og);
@@ -8579,72 +8547,6 @@ function paintImpPick() {
   paintSrc();
 }
 /* What the chosen source needs on screen, and what it is. */
-/* ---- what each source is actually worth, measured on this phone ---------
-   The one honest way to sort a list of addresses somebody remembered: ask
-   them. Each probe is the cheapest request the kind of service understands,
-   the answer is kept, and the list carries it from then on. */
-const K_SRCOK = 'vta_src_ok_v1';
-function srcOkAll() { try { return JSON.parse(lsGet(K_SRCOK)) || {}; } catch (e) { return {}; } }
-function srcOkSet(id, v) { const o = srcOkAll(); o[id] = v; lsSet(K_SRCOK, JSON.stringify(o)); }
-function srcMark(src) {
-  const o = srcOkAll()[src.id];
-  if (!o) return '';                      // nothing known yet is not worth a word
-  if (o.ok) return ' ✓';
-  return o.cors ? ' · refuses browsers' : ' · no answer';
-}
-/* One request, as small as the service allows, with its own time limit. */
-async function srcProbe(src) {
-  const u = src.url || '';
-  const probe = /\/(FeatureServer|MapServer)(\/\d+)?\/?$/i.test(u)
-      ? u.replace(/\/$/, '') + '?f=json'
-    : /[?&](service|SERVICE)=WFS/i.test(u) || /\/wfs\b/i.test(u) || /wfs/i.test(u)
-      ? u + (u.indexOf('?') < 0 ? '?' : '&') + 'SERVICE=WFS&REQUEST=GetCapabilities'
-      : u;
-  const ctl = ('AbortController' in window) ? new AbortController() : null;
-  const t = setTimeout(() => { try { ctl && ctl.abort(); } catch (e) {} }, 12000);
-  try {
-    const r = await fetch(probe, ctl ? { signal: ctl.signal } : undefined);
-    clearTimeout(t);
-    if (!r.ok) return { ok: false, why: 'HTTP ' + r.status, at: Date.now() };
-    const txt = (await r.text()).slice(0, 3000);
-    let what = null;
-    if (/<(wfs:)?WFS_Capabilities/i.test(txt)) what = 'a WFS service';
-    else { try { const j = JSON.parse(txt);
-                 what = j.name || j.mapName || (j.features ? j.features.length + ' features' : null) ||
-                        (Array.isArray(j.layers) ? j.layers.length + ' layers' : null); } catch (e) {} }
-    return { ok: true, why: what || 'it answers', at: Date.now() };
-  } catch (e) {
-    clearTimeout(t);
-    /* a browser cannot tell a blocked origin from a dead host: both are
-       "Failed to fetch". Say so rather than guessing which. */
-    return { ok: false, cors: true, at: Date.now(),
-             why: e.name === 'AbortError' ? 'no answer in 12 s'
-                                          : 'no answer, or it refuses requests from a web page' };
-  }
-}
-async function srcTestAll() {
-  const list = SOURCES.filter(x => x.url);
-  const out = $('srcOut');
-  const b = $('srcTest'); if (b) b.disabled = true;
-  let n = 0;
-  for (const src of list) {
-    if (out) out.textContent = 'Testing ' + (n + 1) + '/' + list.length + ': ' + src.label + ' …';
-    const r = await srcProbe(src);
-    srcOkSet(src.id, r);
-    n++;
-  }
-  const all = srcOkAll();
-  const good = list.filter(x => all[x.id] && all[x.id].ok);
-  const bad = list.filter(x => all[x.id] && !all[x.id].ok);
-  if (out) out.innerHTML =
-    '<b>' + good.length + ' of ' + list.length + ' answered.</b><br>' +
-    good.map(x => '✓ ' + esc(x.label) + ' – ' + esc(all[x.id].why)).join('<br>') +
-    (bad.length ? '<br>' + bad.map(x => '✗ ' + esc(x.label) + ' – ' + esc(all[x.id].why)).join('<br>') : '');
-  if (b) b.disabled = false;
-  paintImpPick();
-  return good.length;
-}
-
 /* ---- how many are there, before fetching any of them -------------------
    "Is this register any good round here?" is a question with a cheap answer:
    every one of these services will count without sending the rows. WFS has
@@ -8773,12 +8675,8 @@ function paintSrc() {
   const hist = v.indexOf('hist:') === 0;
   const src = hist ? srcById('url') : srcById(v);
   const note = $('srcNote');
-  if (note) {
-    const st = src ? srcOkAll()[src.id] : null;
-    note.textContent = (hist ? 'An address that has worked on this phone before.'
-                             : (src ? src.note : '')) +
-      (st ? (st.ok ? '  ✓ Tested here: ' + st.why + '.' : '  ✗ Tested here: ' + st.why + '.') : '');
-  }
+  if (note) note.textContent = hist ? 'An address that has worked on this phone before.'
+                                    : (src ? src.note : '');
   const urlRow = $('srcUrlRow'), area = $('srcAreaRow'), rep = $('srcRepRow'), chk = $('bImpCheck');
   const isUrl = !!src && src.kind === 'url';
   const fixed = !!(src && src.url) && !hist;
@@ -9248,7 +9146,6 @@ function wire() {
   };
   $('srcGo').onclick = impRun;
   $('srcCount').onclick = impCount;
-  $('srcTest').onclick = srcTestAll;
   $('bImpCheck').onclick = async () => {
     const u = ($('impUrl').value || '').trim();
     if (!u) return toast('Paste an address first, or pick one above.');
