@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.69.0';
+const APP_VERSION = '2.70.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -3725,7 +3725,7 @@ function nearestTree() {
 const MEAS = {
   height:    { label: 'Tree height',      field: 'height_m',          hits: 1, aim: true },
   crownbase: { label: 'Crown base',       field: 'crown_base_m',      hits: 1, aim: true },
-  crown:     { label: 'Crown diameter',   field: 'crown_d_m',         hits: 2, aim: false },
+  crown:     { label: 'Crown diameter',   field: 'crown_d_m',         hits: 2, aim: 'wide' },
   target:    { label: 'Distance to target', field: 'target_distance_m', hits: 1, aim: false },
   stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false },
   newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false },
@@ -3931,26 +3931,65 @@ function measureTap() {
   if (tp) hitPt = tp;
 
   if (cfg.aim) {
-    if (m.step === 0) {                                   // remember the base, then aim high
+    if (m.step === 0) {                                   // remember the base, then aim away
       m.pts[0] = hitPt.clone();
       m.step = 1; m.wantsHit = false; reticle.visible = false;
-      mbar('<b>' + cfg.label + '</b><br>Now aim at the ' +
-           (m.kind === 'height' ? 'treetop' : 'lowest live branch'),
-           takeBtns(m.kind === 'height' ? 'Treetop' : 'Branch'));
+      mbar('<b>' + cfg.label + '</b><br>' + (cfg.aim === 'wide'
+             ? 'Now aim at one edge of the crown'
+             : 'Now aim at the ' + (m.kind === 'height' ? 'treetop' : 'lowest live branch')),
+           takeBtns(cfg.aim === 'wide' ? 'First edge'
+                    : m.kind === 'height' ? 'Treetop' : 'Branch'));
       return;
     }
     const base = m.pts[0], c = camPos(), d = camDir();
     const horiz = Math.hypot(c.x - base.x, c.z - base.z);
+    /* Standing at the trunk there is no triangle to solve: the angle to the
+       top runs off towards ninety degrees and a centimetre of hand-shake
+       becomes metres of tree. Stepping back is the fix, and the stem base is
+       worth keeping while you do it - it used to be thrown away, so every
+       warning sent you back to aiming at the foot of the tree again. */
+    if (horiz < 1.5) return mbar(
+      '<b>Too close \u2013 ' + horiz.toFixed(1) + ' m from the stem</b><br>' +
+      'Step back a few metres and press again. The stem base is remembered.',
+      takeBtns(cfg.aim === 'wide' ? 'First edge'
+               : m.kind === 'height' ? 'Treetop' : 'Branch'));
+
+    if (cfg.aim === 'wide') {
+      /* A crown edge is thin air. The hit-test has nothing to land on up
+         there, so aiming at one and pressing did nothing at all - which is
+         why the crown width never worked. It is an angle, like the height:
+         the bearing to one edge, the bearing to the other, and the
+         horizontal distance to the stem between them. */
+      const bear = Math.atan2(d.x, -d.z);
+      if (m.step === 1) {
+        m.bearA = bear; m.step = 2;
+        return mbar('<b>' + cfg.label + '</b><br>Now aim at the other edge',
+                    takeBtns('Other edge'));
+      }
+      let da = bear - m.bearA;
+      while (da > Math.PI) da -= 2 * Math.PI;
+      while (da < -Math.PI) da += 2 * Math.PI;
+      const w = 2 * horiz * Math.tan(Math.abs(da) / 2);
+      if (!(w > 0.2)) return mbar(
+        '<b>Both edges in the same place</b><br>Aim at one side of the crown, ' +
+        'press, then swing right across to the other side and press again.',
+        [['Again', () => startMeasure(m.kind), 'p'], ['Cancel', clearMeasure]]);
+      finishMeasure(w, cfg.label + ' ' + w.toFixed(1) + ' m<br><span class="small">' +
+        horiz.toFixed(1) + ' m from the stem, ' + (Math.abs(da) * 180 / Math.PI).toFixed(0) +
+        '\u00b0 across</span>');
+      return;
+    }
+
     const el = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
-    if (horiz < 1.5) return mbar('<b>Too close</b><br>Step back – at least a few metres from the stem.',
-                                 [['Again', () => startMeasure(m.kind)], ['Cancel', clearMeasure]]);
-    if (el < 0.09) return mbar('<b>Aim higher</b><br>The sightline is almost level, the result would be meaningless.',
-                               [['Again', () => startMeasure(m.kind)], ['Cancel', clearMeasure]]);
+    if (el < 0.09) return mbar(
+      '<b>Aim higher</b><br>The sightline is almost level \u2013 tilt up to the ' +
+      (m.kind === 'height' ? 'treetop' : 'branch') + ' and press again.',
+      takeBtns(m.kind === 'height' ? 'Treetop' : 'Branch'));
     const top = c.y + horiz * Math.tan(el);
     const h = top - base.y;
     drawSegment(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m', m.tree);
     finishMeasure(h, cfg.label + ' ' + h.toFixed(1) + ' m<br><span class="small">' +
-      horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '° up</span>');
+      horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '\u00b0 up</span>');
     return;
   }
 
@@ -4028,8 +4067,15 @@ function measureTap() {
   }
 
   if (m.kind === 'target') {
+    /* Measured from the stem, so the stem has to be drawn in this session.
+       It used to give up without a word when it was not: the press did
+       nothing and the bar vanished, which from the outside is broken. */
     const g = markerOf.get(m.tree);
-    if (!g) return clearMeasure();
+    if (!g) return mbar(
+      '<b>' + esc(tid(m.tree)) + ' is not in this session</b><br>' +
+      'The distance is measured from its stem, so the tree has to be on screen. ' +
+      'Pick it under Trees, or stand at it and press Align.',
+      [['Close', clearMeasure]]);
     const stem = g.getWorldPosition(new THREE.Vector3());
     const d = Math.hypot(hitPt.x - stem.x, hitPt.z - stem.z);
     drawSegment(new THREE.Vector3(stem.x, hitPt.y, stem.z), hitPt.clone(), d.toFixed(1) + ' m', m.tree);
@@ -5192,7 +5238,7 @@ function buildToolMenu() {
   add(m, '\u2195\uFE0E  Height', 'stem base, then the treetop', () => startMeasure('height'), true);
   add(m, '\u2300\uFE0E  DBH \u2013 walk the stem', 'all the way round, off the bark',
       () => startCaliper(t), true);
-  add(m, '\u25EF  Crown width', 'one edge, then the other', () => startMeasure('crown'), true);
+  add(m, '\u25EF  Crown width', 'the stem, then each edge in turn', () => startMeasure('crown'), true);
   add(m, '\u2934\uFE0E  Crown base', 'stem base, then the lowest live branch',
       () => startMeasure('crownbase'), true);
   add(m, '\u2194\uFE0E  Tape', 'any two points', () => startMeasure('tape'), false);
