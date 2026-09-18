@@ -1,30 +1,21 @@
 # label | address
-# Candidates. Nothing here reaches the app until the probe shows it answers
-# with data. Round two: the addresses that would actually be used, not just
-# the service roots. Berlin and Tallinn stay in as controls.
-Berlin GetFeature          | https://gdi.berlin.de/services/wfs/baumbestand?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=baumbestand:strassenbaeume&COUNT=3&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326
-Tallinn query              | https://gis.tallinn.ee/arcgis/rest/services/HHHIS/HHHIS_puud/MapServer/0/query?where=1%3D1&outFields=*&resultRecordCount=3&f=geojson
-Vienna BAUMKATOGD          | https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&typeName=ogdwien:BAUMKATOGD&srsName=EPSG:4326&outputFormat=json&maxFeatures=3
-Zurich Baumstandorte       | https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster?service=WFS&version=1.1.0&request=GetFeature&typename=baumkataster_baumstandorte&outputFormat=GeoJSON&srsName=EPSG:4326&maxFeatures=3
-Helsinki Puurekisteri      | https://kartta.hel.fi/ws/geoserver/avoindata/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=avoindata:Puurekisteri_piste&count=3&outputFormat=application/json&srsName=EPSG:4326
-Lyon arbres alignement     | https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&typeName=metropole-de-lyon:abr_arbres_alignement.abrarbre&count=3&outputFormat=application/json&SRSNAME=EPSG:4326
-Paris les-arbres GeoJSON   | https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/exports/geojson?limit=3
-Amsterdam bomen GeoJSON    | https://api.data.amsterdam.nl/v1/bomen/stamgegevens/?_format=geojson&_pageSize=3
-Utrecht BOOM_BEHEERGU      | https://geodata.utrecht.nl/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=Signalen:BOOM_BEHEERGU&count=3&outputFormat=application/json&srsName=EPSG:4326
-# --- still to be resolved: capabilities answered, tree layer not yet named
-Hamburg caps               | https://geodienste.hamburg.de/HH_WFS_Strassenbaumkataster?SERVICE=WFS&REQUEST=GetCapabilities
-Cologne caps               | https://geoportal.stadt-koeln.de/arcgis/services/basiskarten/kgg/MapServer/WFSServer?service=WFS&request=GetCapabilities
-Copenhagen caps            | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&request=GetCapabilities
-# --- Barcelona: the CKAN api answers, the dataset page does not
-Barcelona package_show     | https://opendata-ajuntament.barcelona.cat/data/api/3/action/package_show?id=arbrat-viari
-# --- second attempts at the ones that refused the first address
-London trees CKAN          | https://data.london.gov.uk/api/3/action/package_search?q=street+trees&rows=5
-Camden street trees        | https://opendata.camden.gov.uk/resource/csqp-kdss.json?%24limit=3
-Madrid catalogo            | https://datos.madrid.es/egob/catalogo.json
-Bristol trees ArcGIS       | https://services2.arcgis.com/InbcYSfLqPBmWhE5/arcgis/rest/services?f=json
-Edinburgh trees ArcGIS     | https://services1.arcgis.com/Q1Hb3ivpA1kJJnSK/ArcGIS/rest/services?f=json
-Oslo services              | https://geodata.bymoslo.no/arcgis/rest/services/?f=json
-Antwerp services           | https://geodata.antwerpen.be/arcgissql/rest/services?f=json
-Rotterdam services         | https://services.arcgis.com/zP1tGdLpGvt2qNJ6/arcgis/rest/services?f=json
-Milan geoserver            | https://geoportale.comune.milano.it/geoserver/ows?service=WFS&request=GetCapabilities
-Prague stromy              | https://api.opendata.praha.eu/lod/catalog/api/3/action/package_search?q=stromy&rows=5
+# Round three. The eight confirmed addresses work as a whole-layer download;
+# what is asked here is whether they also answer a bbox, because a whole city
+# is a big download on a phone in the field. Axis order for EPSG:4326 is the
+# usual trap, so both orders are asked and the one that returns features wins.
+Vienna bbox latlon         | https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&typeName=ogdwien:BAUMKATOGD&srsName=EPSG:4326&outputFormat=json&bbox=48.205,16.368,48.212,16.380,EPSG:4326
+Vienna bbox lonlat         | https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&typeName=ogdwien:BAUMKATOGD&srsName=EPSG:4326&outputFormat=json&bbox=16.368,48.205,16.380,48.212,EPSG:4326
+Zurich bbox latlon         | https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster?service=WFS&version=1.1.0&request=GetFeature&typename=baumkataster_baumstandorte&outputFormat=GeoJSON&srsName=EPSG:4326&bbox=47.374,8.538,47.380,8.546,EPSG:4326
+Zurich bbox lonlat         | https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Baumkataster?service=WFS&version=1.1.0&request=GetFeature&typename=baumkataster_baumstandorte&outputFormat=GeoJSON&srsName=EPSG:4326&bbox=8.538,47.374,8.546,47.380,EPSG:4326
+Helsinki bbox latlon       | https://kartta.hel.fi/ws/geoserver/avoindata/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=avoindata:Puurekisteri_piste&outputFormat=application/json&srsName=EPSG:4326&bbox=60.166,24.930,60.174,24.946,urn:ogc:def:crs:EPSG::4326
+Helsinki bbox lonlat       | https://kartta.hel.fi/ws/geoserver/avoindata/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=avoindata:Puurekisteri_piste&outputFormat=application/json&srsName=EPSG:4326&bbox=24.930,60.166,24.946,60.174,EPSG:4326
+Utrecht bbox lonlat        | https://geodata.utrecht.nl/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=Signalen:BOOM_BEHEERGU&outputFormat=application/json&srsName=EPSG:4326&bbox=5.115,52.087,5.125,52.094,EPSG:4326
+Paris geofilter            | https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/records?where=within_distance(geo_point_2d%2C%20geom%27POINT(2.3522%2048.8566)%27%2C%20300m)&limit=3
+Amsterdam bbox             | https://api.data.amsterdam.nl/v1/bomen/stamgegevens/?_format=geojson&_pageSize=3&geometrie[contains]=POINT(4.8952%2052.3702)
+# --- still unresolved
+Barcelona JSON download    | https://opendata-ajuntament.barcelona.cat/data/dataset/27b3f8a7-e536-4eea-b025-ce094817b2bd/resource/a8f8f4bf-5295-46d9-93ab-7eebb165ca52/download
+Barcelona CSV download     | https://opendata-ajuntament.barcelona.cat/data/dataset/27b3f8a7-e536-4eea-b025-ce094817b2bd/resource/23124fd5-521f-40f8-85b8-efb1e71c2ec8/download
+Camden geojson             | https://opendata.camden.gov.uk/resource/csqp-kdss.geojson?%24limit=3
+Copenhagen bevaringsv      | https://wfs-kbhkort.kk.dk/k101/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=k101:bevaringsvaerdige_traer&count=3&outputFormat=application/json&srsName=EPSG:4326
+Lyon arbres retry          | https://data.grandlyon.com/geoserver/metropole-de-lyon/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&typeName=metropole-de-lyon:abr_arbres_alignement.abrarbre&count=1&outputFormat=application/json&SRSNAME=EPSG:4326
+London package_show        | https://data.london.gov.uk/api/3/action/package_show?id=local-authority-maintained-trees
