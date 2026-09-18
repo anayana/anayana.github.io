@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.11.0';
+const APP_VERSION = '3.12.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -5115,48 +5115,80 @@ function markMenu(tree) {
 
 /* Bark, the tape, the rough dendrometry: used on some trees, not on every
    tree, and never in a hurry. One button, a list, gone again. */
+/* Thirteen buttons of the same size in one wrapping row, each thirty-one
+   pixels tall, and the one somebody came for - Height - sitting in the middle
+   of them. Choosing a measurement off that with one thumb, at a tree, is what
+   "it does not work properly" meant. Three groups, headed, in the order the
+   work is done, and a measurement is a row of its own big enough to hit. */
 function buildToolMenu() {
   const el = $('toolmenu');
-  el.innerHTML = '<div><b>Tools</b> <span class="small">· on the tree in view</span></div>';
+  el.innerHTML = '';
   const t = targetTree();
-  const who = t == null ? '' : ' · ' + tid(t);
+
+  const head = document.createElement('div');
+  head.innerHTML = '<b>Tools</b>';
+  el.appendChild(head);
   const sub = document.createElement('div'); sub.className = 'small';
-  sub.style.margin = '2px 0 8px';
-  sub.textContent = t == null ? 'No tree in view – point at one first.'
-    : 'On ' + tid(t) + (props(t).species ? ' · ' + props(t).species : '');
+  sub.style.margin = '2px 0 10px';
+  sub.textContent = t == null ? 'No tree in view \u2013 point at one, or pick it under Trees.'
+    : 'On ' + tid(t) + (props(t).species ? ' \u00b7 ' + props(t).species : '');
+  if (t == null) sub.className = 'small wa';
   el.appendChild(sub);
-  const row = document.createElement('div'); row.className = 'btnrow';
-  const add = (label, fn, cls) => {
-    const b = document.createElement('button');
-    b.className = 'sm' + (cls ? ' ' + cls : '');
-    b.textContent = label;
-    b.onclick = () => { el.style.display = 'none'; fn(); };
-    row.appendChild(b);
+
+  const group = title => {
+    const h = document.createElement('div');
+    h.className = 'small'; h.style.cssText = 'margin:10px 0 5px;letter-spacing:.06em;text-transform:uppercase';
+    h.textContent = title; el.appendChild(h);
+    const g = document.createElement('div'); g.className = 'toolgrid';
+    el.appendChild(g); return g;
   };
-  add('Bark at 1.30 m', () => {
-    if (t == null) return toast('No tree in view.');
+  const add = (g, label, hint, fn, needTree) => {
+    const b = document.createElement('button');
+    b.className = 'toolbtn';
+    b.innerHTML = '<span class="tl">' + esc(label) + '</span>' +
+                  (hint ? '<span class="th">' + esc(hint) + '</span>' : '');
+    b.onclick = () => {
+      if (needTree && t == null) return toast('No tree in view \u2013 point at one, or pick it under Trees.');
+      el.style.display = 'none';
+      if (t != null) selectTree(t);
+      fn();
+    };
+    g.appendChild(b);
+  };
+
+  const m = group('Measure this tree');
+  add(m, '\u2195\uFE0E  Height', 'stem base, then the treetop', () => startMeasure('height'), true);
+  add(m, '\u2300\uFE0E  DBH \u2013 walk the stem', 'all the way round, off the bark',
+      () => startCaliper(t), true);
+  add(m, '\u25EF  Crown width', 'one edge, then the other', () => startMeasure('crown'), true);
+  add(m, '\u2934\uFE0E  Crown base', 'stem base, then the lowest live branch',
+      () => startMeasure('crownbase'), true);
+  add(m, '\u2194\uFE0E  Tape', 'any two points', () => startMeasure('tape'), false);
+  add(m, '\u25CE  Stem position', 'put this tree where you are aiming',
+      () => startMeasure('stem'), true);
+  add(m, '\u2316  Target distance', 'to the path, the road, the building',
+      () => startMeasure('target'), true);
+
+  const ph = group('Photograph');
+  add(ph, '\u25A3  Bark at 1.30 m', 'the one the diameter is read from', () => {
     if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(t, 'bark');
-    selectTree(t); startBark(t);
-  }, 'p');
+    startBark(t);
+  }, true);
   [['leaf', 'Leaf'], ['flower', 'Flower'], ['fruit', 'Fruit'], ['habit', 'Whole tree']].forEach(o =>
-    add(o[1] + ' photo', () => { if (t == null) return toast('No tree in view.'); selectTree(t); takePhotoOf(t, o[0]); }));
-  add('🎤 Voice', () => { if (t != null) selectTree(t); speechStart(t); });
-  add('DBH — walk the stem', () => {
-    if (t == null) return toast('No tree in view.');
-    selectTree(t); startCaliper(t);
-  }, 'p');
-  add('Stem position', () => { if (t != null) selectTree(t); startMeasure('stem'); });
-  add('Tape', () => startMeasure('tape'));
-  add('Height ~', () => { if (t != null) selectTree(t); startMeasure('height'); });
-  add('Crown base ~', () => { if (t != null) selectTree(t); startMeasure('crownbase'); });
-  add('Crown Ø ~', () => { if (t != null) selectTree(t); startMeasure('crown'); });
-  add('Target dist. ~', () => { if (t != null) selectTree(t); startMeasure('target'); });
-  add('Tree out of reach', () => startMeasure('newtree'));
-  add('Mark a defect', () => { if (t == null) return toast('No tree in view.'); selectTree(t); markMenu(t); }, 'p');
-  el.appendChild(row);
+    add(ph, o[1], '', () => takePhotoOf(t, o[0]), true));
+
+  const n = group('Record');
+  add(n, '\uD83C\uDFA4  Voice', 'say the findings, hands free', () => speechStart(t), false);
+  add(n, '\u26A0\uFE0E  Mark a defect', 'pinned where it is on the tree',
+      () => markMenu(t), true);
+  add(n, '\uD83C\uDF33  Tree out of reach', 'one you cannot walk to',
+      () => startMeasure('newtree'), false);
+
   const note = document.createElement('p'); note.className = 'small';
-  note.textContent = 'The four marked ~ are rough: a height from a phone is out by metres on ' +
-    'uneven ground. Bark and the stem position are not estimates.';
+  note.style.marginTop = '12px';
+  note.textContent = 'Height, crown width, crown base and target distance are worked out from ' +
+    'an angle and a distance: on uneven ground they are out by metres. The bark diameter and ' +
+    'the stem position are measured, not estimated.';
   el.appendChild(note);
   const act = document.createElement('div'); act.className = 'btnrow';
   const cl = document.createElement('button'); cl.textContent = 'Close';
@@ -9124,32 +9156,6 @@ function wire() {
   $('bnew').onclick = addTreeHere;
   /* The way from the camera to a tree's page, as a button. Tapping the marker
      works too, but a button cannot be missed. */
-  /* The four measurements that get made at every tree, on the bar, one press
-     from the camera view. They used to be inside the Tools popup, which meant
-     the measuring button somebody was looking for only appeared after they
-     had found a menu they did not know was a menu. */
-  const measBtn = (id, kind, needsTree) => {
-    const b = $(id); if (!b) return;
-    b.onclick = () => {
-      closePopups('');
-      const t = targetTree();
-      if (needsTree) {
-        if (t == null) return toast('No tree in view - point at one, or pick it under Trees.');
-        selectTree(t);
-      } else if (t != null) selectTree(t);
-      startMeasure(kind);
-    };
-  };
-  measBtn('mHeight', 'height', true);
-  measBtn('mCrownW', 'crown', true);
-  measBtn('mTape', 'tape', false);
-  const dbh = $('mDbh');
-  if (dbh) dbh.onclick = () => {
-    closePopups('');
-    const t = targetTree();
-    if (t == null) return toast('No tree in view - point at one, or pick it under Trees.');
-    selectTree(t); startCaliper(t);
-  };
   $('btools').onclick = () => {
     buildToolMenu();
     closePopups('toolmenu');

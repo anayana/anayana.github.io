@@ -225,8 +225,15 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 /* Everything on the bar, all of it, all the time. Two rows on a phone is a
    better price than a button nobody can find. */
 #ctl{display:flex;flex-wrap:wrap;gap:5px;padding:7px;flex:0 0 auto}
-#meas{display:flex;flex-wrap:wrap;gap:5px;padding:7px;flex:0 0 auto;margin-bottom:5px}
-#meas button{font-size:12.5px;padding:6px 9px;white-space:nowrap;flex:1 1 auto}
+/* A tool is picked with one thumb at a tree: two to a row, tall enough to
+   hit, and each says underneath what it will ask you to do. */
+#toolmenu{max-height:64vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.toolbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  min-height:52px;padding:9px 10px;text-align:left;line-height:1.25}
+.toolbtn .tl{font-size:14px;font-weight:600}
+.toolbtn .th{font-size:11px;color:#8ea396;font-weight:400}
+html.day .toolbtn .th{color:#5a6b60}
 #ctl button{font-size:12.5px;padding:6px 9px;white-space:nowrap;flex:0 0 auto}
 #chooser,#mmenu,#refmenu,#nummenu,#pickmenu,#toolmenu{background:rgba(10,16,13,.96);
   border:1px solid #34483c;border-radius:14px;padding:12px;display:none;
@@ -1113,19 +1120,11 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
   <div id="pickmenu"></div>
   <div id="toolmenu"></div>
   <div class="bar" id="mbar"><span id="mtxt"></span><div id="mbtn"></div></div>
-  <!-- Measuring was one press away only if you knew it lived under Tools.
-       The four that get used at every tree are on the bar itself now. -->
-  <div class="bar" id="meas">
-    <button id="mHeight">&#8593; Height</button>
-    <button id="mDbh">&#8709; DBH</button>
-    <button id="mCrownW">&#9711; Crown</button>
-    <button id="mTape">&#8596; Tape</button>
-    <button id="btools">Tools&hellip;</button>
-  </div>
   <div class="bar" id="ctl">
     <button class="p" id="bnew">+ Tree</button>
     <button id="bwhich">Trees</button>
     <button id="bshot">Photo</button>
+    <button id="btools">Tools</button>
     <button id="balign">Align</button>
     <button class="x" id="bq">Exit</button>
   </div>
@@ -1182,25 +1181,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.67.0"></script>
-<script src="data.js?v=2.67.0"></script>
-<script src="norms.js?v=2.67.0"></script>
-<script src="i18n.js?v=2.67.0"></script>
-<script src="mapper.js?v=2.67.0"></script>
-<script src="users.js?v=2.67.0"></script>
-<script src="voice.js?v=2.67.0"></script>
-<script src="plantnet.js?v=2.67.0"></script>
-<script src="osm.js?v=2.67.0"></script>
-<script src="research.js?v=2.67.0"></script>
-<script src="marks.js?v=2.67.0"></script>
-<script src="pins.js?v=2.67.0"></script>
-<script src="ghost.js?v=2.67.0"></script>
-<script src="guide.js?v=2.67.0"></script>
-<script src="docx.js?v=2.67.0"></script>
-<script src="reports.js?v=2.67.0"></script>
-<script src="mapsheet.js?v=2.67.0"></script>
-<script src="sign.js?v=2.67.0"></script>
-<script src="gate.js?v=2.67.0"></script>
-<script src="app.js?v=2.67.0"></script>
+<script src="vendor/three.min.js?v=2.68.0"></script>
+<script src="data.js?v=2.68.0"></script>
+<script src="norms.js?v=2.68.0"></script>
+<script src="i18n.js?v=2.68.0"></script>
+<script src="mapper.js?v=2.68.0"></script>
+<script src="users.js?v=2.68.0"></script>
+<script src="voice.js?v=2.68.0"></script>
+<script src="plantnet.js?v=2.68.0"></script>
+<script src="osm.js?v=2.68.0"></script>
+<script src="research.js?v=2.68.0"></script>
+<script src="marks.js?v=2.68.0"></script>
+<script src="pins.js?v=2.68.0"></script>
+<script src="ghost.js?v=2.68.0"></script>
+<script src="guide.js?v=2.68.0"></script>
+<script src="docx.js?v=2.68.0"></script>
+<script src="reports.js?v=2.68.0"></script>
+<script src="mapsheet.js?v=2.68.0"></script>
+<script src="sign.js?v=2.68.0"></script>
+<script src="gate.js?v=2.68.0"></script>
+<script src="app.js?v=2.68.0"></script>
 </body>
 </html>
