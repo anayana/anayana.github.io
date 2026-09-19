@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.24.0';
+const APP_VERSION = '3.25.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2789,13 +2789,14 @@ function setTxt(el, text, cls) {
   if (el.textContent !== text) el.textContent = text;
   if (cls != null && el.className !== cls) el.className = cls;
 }
-let hudAt = 0;
-function hudDue() {
-  if (popupOpen()) return false;
-  const n = performance.now();
-  if (n - hudAt < 200) return false;
-  hudAt = n; return true;
-}
+/* No clock here. Throttling by time delays a read-out that has genuinely
+   changed - "this is DE-B-00001" has to appear the moment the camera is on
+   the tree, not up to a fifth of a second later - and it buys nothing that
+   setTxt does not already buy by refusing to write a value that is the same
+   as the one on screen. What is left is the one case worth skipping: a menu
+   or the card over the camera view, where the overlay is at its largest and
+   none of these read-outs can be seen at all. */
+function hudDue() { return !popupOpen(); }
 
 function tick() {
   const cam = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
