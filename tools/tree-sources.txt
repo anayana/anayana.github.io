@@ -1,9 +1,8 @@
 # label | address
-# Round eight: pin Norderstedt's coordinates down, read Frankfurt (Oder)'s
-# layer name, see what Turku will actually serve, and try Joensuu once more.
-Norderstedt 4326           | https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=gru:gruen_baum&outputFormat=application/json&srsName=EPSG:4326&count=2
-Norderstedt 4326 bbox      | https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=gru:gruen_baum&outputFormat=application/json&srsName=EPSG:4326&bbox=9.985,53.700,10.010,53.712,EPSG:4326
-Turku GML                  | https://opaskartta.turku.fi/TeklaOGCWeb/WFS.ashx?service=WFS&version=1.1.0&request=GetFeature&typeName=GIS:Puut&maxFeatures=1
-FFO caps raw               | https://geoportal.frankfurt-oder.de/wss/service/WFS_Baumkataster/guest?service=WFS&version=1.1.0&request=GetCapabilities
-Joensuu avoindata en       | https://www.avoindata.fi/data/en/api/3/action/package_search?q=Joensuu%20puu&rows=20
-Joensuu opendata portal    | https://www.joensuu.fi/avoin-data
+# What does the live site actually hand a fresh browser? Repo, build and
+# deploy are all verifiable from here; what Pages serves is not, and that is
+# the one link in the chain that has never been checked.
+vta version.txt            | https://anayana.github.io/vta/version.txt
+vta index.html             | https://anayana.github.io/vta/index.html
+baum version.txt           | https://anayana.github.io/baum/version.txt
+repair page                | https://anayana.github.io/vta-repair.html

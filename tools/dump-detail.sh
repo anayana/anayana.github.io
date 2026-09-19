@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
 set -u
-UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36'
-head_of() { echo "=== $1"; curl -sSL --max-time 35 -A "$UA" "$2" 2>/dev/null | head -c "${3:-800}" | tr -d '\0'; echo; echo; }
-head_of "Norderstedt asked in EPSG:4326 - are the numbers lat/lon now?" \
-  'https://geoservice.norderstedt.de/geoserver/gru/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=gru:gruen_baum&outputFormat=application/json&srsName=EPSG:4326&count=1'
-head_of "Frankfurt (Oder) capabilities, as they come" \
-  'https://geoportal.frankfurt-oder.de/wss/service/WFS_Baumkataster/guest?service=WFS&version=1.1.0&request=GetCapabilities' 1400
-head_of "Turku, whatever it will serve" \
-  'https://opaskartta.turku.fi/TeklaOGCWeb/WFS.ashx?service=WFS&version=1.1.0&request=GetFeature&typeName=GIS:Puut&maxFeatures=1' 700
-echo "=== Joensuu, one last try with a browser agent"
-curl -sSL --max-time 35 -A "$UA" 'https://www.avoindata.fi/data/en/api/3/action/package_search?q=Joensuu&rows=20' 2>/dev/null \
-  | python3 -c '
-import json,sys
-raw=sys.stdin.read()
-try: j=json.loads(raw)
-except Exception: print("   refused again, first bytes:", raw[:100].replace("\n"," ")); raise SystemExit
-res=j.get("result") or {}
-print("   hits:", res.get("count"))
-for d in (res.get("results") or [])[:20]: print("   *", d.get("title"))
-'
+UA='Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36'
+echo "=== what the live site serves, with no cache in the way"
+for u in https://anayana.github.io/vta/version.txt \
+         https://anayana.github.io/baum/version.txt; do
+  printf '%-52s %s\n' "$u" "$(curl -sSL --max-time 30 -A "$UA" -H 'Cache-Control: no-cache' "$u" | tr -d '\n')"
+done
+echo
+echo "=== the version the served app.js declares"
+for u in https://anayana.github.io/vta/app.js https://anayana.github.io/baum/app.js; do
+  printf '%-44s %s\n' "$u" "$(curl -sSL --max-time 60 -A "$UA" "$u" | grep -m1 'const APP_VERSION' || echo 'NOT FOUND')"
+done
+echo
+echo "=== what index.html asks for, and its cache headers"
+curl -sSIL --max-time 30 -A "$UA" https://anayana.github.io/vta/index.html \
+  | grep -iE '^(HTTP|cache-control|etag|last-modified|age)' | sed 's/^/   /'
+echo
+echo "   script tags:"
+curl -sSL --max-time 30 -A "$UA" https://anayana.github.io/vta/index.html \
+  | grep -oE '(src|href)="[^"]*\?v=[^"]*"' | head -6 | sed 's/^/   /'
+echo
+echo "=== is the measure button in the served app.js?"
+curl -sSL --max-time 60 -A "$UA" https://anayana.github.io/vta/app.js > /tmp/served.js 2>/dev/null
+for needle in "Take the point" "arstand" "xrFrameBody" "ar-on" "needs the depth camera"; do
+  printf '   %-26s %s\n' "$needle" "$(grep -c "$needle" /tmp/served.js) occurrences"
+done
