@@ -28,6 +28,20 @@
    clock and the battery are then drawn straight over whatever is up there.
    So the floor is set by the session, not by the manifest. */
 html.ar-on{--top:max(env(safe-area-inset-top),46px);--bot:max(env(safe-area-inset-bottom),8px)}
+/* No blurred backdrops while AR is running. backdrop-filter makes the
+   compositor read back what is behind the element on every single frame, and
+   in an immersive session that frame is already carrying the camera image,
+   the tracking and the depth pipeline. Opening Tools makes the blurred area
+   bigger, and a few seconds later the GPU context is gone - which from the
+   outside is the app crashing. The bars are given a solid background
+   instead: same legibility, none of the readback. Outside AR the blur stays,
+   because outside AR it costs nothing. */
+html.ar-on .bar,html.ar-on #arcard,html.ar-on #tappad .say{backdrop-filter:none}
+html.ar-on .bar{background:rgba(10,16,13,.95)}
+html.ar-on #arcard{background:rgba(9,14,12,.96)}
+html.ar-on #tappad .say{background:rgba(12,18,15,.92)}
+html.ar-on #chooser,html.ar-on #mmenu,html.ar-on #refmenu,html.ar-on #nummenu,
+html.ar-on #pickmenu,html.ar-on #toolmenu{background:#0a100d}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   background:#0d1310;color:#e8ece9;overscroll-behavior:none}
@@ -1203,25 +1217,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=2.76.0"></script>
-<script src="data.js?v=2.76.0"></script>
-<script src="norms.js?v=2.76.0"></script>
-<script src="i18n.js?v=2.76.0"></script>
-<script src="mapper.js?v=2.76.0"></script>
-<script src="users.js?v=2.76.0"></script>
-<script src="voice.js?v=2.76.0"></script>
-<script src="plantnet.js?v=2.76.0"></script>
-<script src="osm.js?v=2.76.0"></script>
-<script src="research.js?v=2.76.0"></script>
-<script src="marks.js?v=2.76.0"></script>
-<script src="pins.js?v=2.76.0"></script>
-<script src="ghost.js?v=2.76.0"></script>
-<script src="guide.js?v=2.76.0"></script>
-<script src="docx.js?v=2.76.0"></script>
-<script src="reports.js?v=2.76.0"></script>
-<script src="mapsheet.js?v=2.76.0"></script>
-<script src="sign.js?v=2.76.0"></script>
-<script src="gate.js?v=2.76.0"></script>
-<script src="app.js?v=2.76.0"></script>
+<script src="vendor/three.min.js?v=2.77.0"></script>
+<script src="data.js?v=2.77.0"></script>
+<script src="norms.js?v=2.77.0"></script>
+<script src="i18n.js?v=2.77.0"></script>
+<script src="mapper.js?v=2.77.0"></script>
+<script src="users.js?v=2.77.0"></script>
+<script src="voice.js?v=2.77.0"></script>
+<script src="plantnet.js?v=2.77.0"></script>
+<script src="osm.js?v=2.77.0"></script>
+<script src="research.js?v=2.77.0"></script>
+<script src="marks.js?v=2.77.0"></script>
+<script src="pins.js?v=2.77.0"></script>
+<script src="ghost.js?v=2.77.0"></script>
+<script src="guide.js?v=2.77.0"></script>
+<script src="docx.js?v=2.77.0"></script>
+<script src="reports.js?v=2.77.0"></script>
+<script src="mapsheet.js?v=2.77.0"></script>
+<script src="sign.js?v=2.77.0"></script>
+<script src="gate.js?v=2.77.0"></script>
+<script src="app.js?v=2.77.0"></script>
 </body>
 </html>
