@@ -48,6 +48,7 @@ Datei. Das geht auch, wenn die App selbst nicht startet. Danach ist Löschen gef
 <input type="file" id="loadfile" accept=".json,application/json" style="display:none">
 
 <div id="vcheck" class="keep" style="border-color:#3a5245">Version wird geprüft &hellip;</div>
+<div id="crash" class="keep" style="display:none;border-color:#7a3a22"></div>
 <div id="out">bereit</div>
 
 <script>
@@ -55,6 +56,29 @@ Datei. Das geht auch, wenn die App selbst nicht startet. Danach ist Löschen gef
    version this browser is running. Both are read here, on a page no worker
    of the app can intercept, and printed side by side. If they differ, the
    phone is holding an old copy and the button below is the answer. */
+/* Whatever the app wrote down the last time it stopped. Storage survives the
+   page dying, so this is readable here even when the app will not start. */
+(function lastCrash() {
+  let c = null;
+  try { c = JSON.parse(localStorage.getItem('vta_crash') || 'null'); } catch (e) {}
+  const box = document.getElementById('crash');
+  if (!c) return;
+  box.style.display = '';
+  const txt = c.when + '  v' + c.ver + '\n' + c.kind + ': ' + c.msg +
+              '\nmode ' + c.mode + ' · screen ' + c.screen +
+              '\noffen: ' + c.open + (c.meas ? '\nmessung: ' + c.meas : '') +
+              '\nbäume: ' + c.trees + (c.extra ? '\n' + c.extra : '');
+  box.innerHTML = '<b>Zuletzt hat die App eine Notiz hinterlassen:</b>' +
+    '<pre style="white-space:pre-wrap;margin:8px 0;font-size:11px" id="crashtxt"></pre>' +
+    '<button id="crashcopy" style="margin:0">Notiz kopieren</button>';
+  document.getElementById('crashtxt').textContent = txt;
+  document.getElementById('crashcopy').onclick = () => {
+    try { navigator.clipboard.writeText(txt);
+          document.getElementById('crashcopy').textContent = 'Kopiert'; }
+    catch (e) { document.getElementById('crashcopy').textContent = 'Text oben markieren'; }
+  };
+})();
+
 (async function versionCompare() {
   const box = document.getElementById('vcheck');
   const get = async u => {

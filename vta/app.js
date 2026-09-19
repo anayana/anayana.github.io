@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.75.0';
+const APP_VERSION = '2.76.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2706,6 +2706,8 @@ function enterAR() {
 }
 function endAR() {
   document.documentElement.classList.remove('ar-on');
+  if (measure || (typeof cal !== 'undefined' && cal))
+    crashWrite('AR session ended', 'while a measurement was running', '');
   renderer.setAnimationLoop(null);
   lsDel(K_DTRIAL);                 // ended on purpose: not a death
   letSleep();
@@ -2869,6 +2871,7 @@ const guardFails = {};
 let stemScanOff = false;
 function note(where, e) {
   lastErr = where + ': ' + ((e && e.message) || String(e));
+  crashWrite('caught in ' + where, (e && e.message) || String(e), '');
   guardFails[where] = (guardFails[where] || 0) + 1;
   if (guardFails[where] === 3) {
     if (where === 'stem scan' || where === 'depth') {
@@ -9452,6 +9455,79 @@ function selfTestMeasure() {
   return lines.join('\n');
 }
 
+/* ---- what killed it, written down before it dies ----------------------
+   An app that dies takes its console with it, and a phone in a wood has no
+   console to begin with. Every error the page throws - and every one the app
+   catches itself - is written to storage the moment it happens, with what was
+   on screen at the time. Storage survives the page dying, the session ending
+   and the browser being killed, so the next start can say what happened
+   rather than starting clean and innocent. */
+const K_CRASH = 'vta_crash';
+function crashWrite(kind, msg, extra) {
+  try {
+    const rec = {
+      when: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      kind: kind, msg: String(msg || '').slice(0, 300),
+      ver: APP_VERSION,
+      mode: mode || 'not in AR',
+      screen: (document.querySelector('.screen.on') || {}).id || '?',
+      open: [['toolmenu', 'Tools'], ['pickmenu', 'a list'], ['mmenu', 'a menu'],
+             ['panelXR', 'the tree page'], ['mbar', 'the measure bar']]
+              .filter(x => { const e = $(x[0]);
+                return e && (e.style.display === 'block' || e.classList.contains('on')); })
+              .map(x => x[1]).join(', ') || 'nothing',
+      meas: measure ? measure.kind : (typeof cal !== 'undefined' && cal ? 'dbh scan' : ''),
+      trees: CAT.features.length,
+      extra: extra || ''
+    };
+    localStorage.setItem(K_CRASH, JSON.stringify(rec));
+  } catch (e) {}
+}
+function crashRead() {
+  try { return JSON.parse(localStorage.getItem(K_CRASH) || 'null'); } catch (e) { return null; }
+}
+function crashText(c) {
+  if (!c) return 'Nothing recorded.';
+  return c.when + '  v' + c.ver + '\n' + c.kind + ': ' + c.msg +
+         '\nmode ' + c.mode + ' · screen ' + c.screen +
+         '\nopen at the time: ' + c.open +
+         (c.meas ? '\nmeasuring: ' + c.meas : '') +
+         '\ntrees: ' + c.trees + (c.extra ? '\n' + c.extra : '');
+}
+addEventListener('error', e => {
+  crashWrite('error', (e && e.message) || 'unknown',
+             e && e.filename ? (e.filename.split('/').pop() + ':' + e.lineno) : '');
+});
+addEventListener('unhandledrejection', e => {
+  const r = e && e.reason;
+  crashWrite('promise', (r && r.message) || String(r || 'unknown'), '');
+});
+/* Shown once, at the start after it happened, where it cannot be missed. */
+function crashShowOnce() {
+  const c = crashRead();
+  if (!c) return;
+  let seen = null;
+  try { seen = localStorage.getItem('vta_crash_seen'); } catch (e) {}
+  if (seen === c.when) return;
+  try { localStorage.setItem('vta_crash_seen', c.when); } catch (e) {}
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;left:8px;right:8px;top:calc(8px + var(--top));z-index:70;' +
+    'background:#2a1a14;border:1px solid #7a3a22;border-radius:12px;padding:12px 14px;' +
+    'font-size:13px;color:#f2ded4';
+  d.innerHTML = '<b>Last time this app stopped, it left a note.</b>' +
+    '<pre style="white-space:pre-wrap;margin:8px 0;font-size:11px">' + esc(crashText(c)) + '</pre>';
+  const row = document.createElement('div'); row.className = 'btnrow';
+  const cp = document.createElement('button'); cp.textContent = 'Copy it';
+  cp.onclick = () => {
+    try { navigator.clipboard.writeText(crashText(c)); toast('Copied – paste it in the chat.'); }
+    catch (e) { toast('Select the text above and copy it.'); }
+  };
+  const x = document.createElement('button'); x.textContent = 'Close';
+  x.onclick = () => d.remove();
+  row.appendChild(cp); row.appendChild(x); d.appendChild(row);
+  document.body.appendChild(d);
+}
+
 /* ============================ START ============================ */
 
 function chk(state, txt) {
@@ -9876,6 +9952,7 @@ function wire() {
       out.textContent = txt;
     }, 30);
   };
+  crashShowOnce();
   versionWatch();
   $('mapGo').onclick = runMapper;
   const normSel = $('normSel');
