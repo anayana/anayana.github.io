@@ -47,9 +47,49 @@ Datei. Das geht auch, wenn die App selbst nicht startet. Danach ist Löschen gef
 <button id="loadbtn">Sicherung zurückspielen</button>
 <input type="file" id="loadfile" accept=".json,application/json" style="display:none">
 
+<div id="vcheck" class="keep" style="border-color:#3a5245">Version wird geprüft &hellip;</div>
 <div id="out">bereit</div>
 
 <script>
+/* The one thing nobody could see: which version the server has and which
+   version this browser is running. Both are read here, on a page no worker
+   of the app can intercept, and printed side by side. If they differ, the
+   phone is holding an old copy and the button below is the answer. */
+(async function versionCompare() {
+  const box = document.getElementById('vcheck');
+  const get = async u => {
+    try {
+      const r = await fetch(u + '?t=' + Date.now(), { cache: 'no-store' });
+      return r.ok ? (await r.text()).trim().split(/\s/)[0] : null;
+    } catch (e) { return null; }
+  };
+  const server = await get('/vta/version.txt');
+  let mine = null;
+  try {
+    const r = await fetch('/vta/app.js');          // through the cache, as the app sees it
+    const t = await r.text();
+    const m = t.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    mine = m ? m[1] : null;
+  } catch (e) {}
+  let sw = 0, cn = 0;
+  try { sw = (await navigator.serviceWorker.getRegistrations()).length; } catch (e) {}
+  try { cn = (await caches.keys()).length; } catch (e) {}
+  const row = (k, v, cls) => '<div><span class="q">' + k + '</span> <b class="' +
+                             (cls || '') + '">' + v + '</b></div>';
+  if (!server) { box.innerHTML = row('Server', 'nicht erreichbar – kein Netz?', 'wa'); return; }
+  const same = mine && mine === server;
+  box.innerHTML =
+    row('Auf dem Server', server, 'ok') +
+    row('Dieses Gerät lädt', mine || 'unbekannt', same ? 'ok' : 'no') +
+    row('Service Worker', sw + (sw ? ' – der hält die alte Kopie fest' : ''), sw ? 'no' : 'ok') +
+    row('Zwischenspeicher', cn + (cn ? ' – werden beim Reparieren geleert' : ''), cn ? 'wa' : 'ok') +
+    (same
+      ? '<div style="margin-top:8px" class="ok">Gleich. Wenn die App trotzdem alt aussieht, ' +
+        'einmal reparieren – dann ist es der Bildschirm-Cache.</div>'
+      : '<div style="margin-top:8px" class="no"><b>Verschieden.</b> Dein Gerät läuft auf ' +
+        'einer alten Kopie. Der Knopf <b>Reparieren und App starten</b> holt ' + server + '.</div>');
+})();
+
 var out = document.getElementById('out');
 function line(t, cls) {
   var d = document.createElement('div');
