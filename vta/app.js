@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.74.0';
+const APP_VERSION = '2.75.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2543,6 +2543,7 @@ async function startXR() {
     throw err;
   }
   xrSession = s; mode = 'WebXR';
+  document.documentElement.classList.add('ar-on');
   if (depthWanted()) depthTrialStart();
   renderer.xr.enabled = true;
   renderer.xr.setReferenceSpaceType('local-floor');
@@ -2587,6 +2588,20 @@ async function startXR() {
    loop can be driven by hand - one frame, one fake XRFrame - and every branch
    in it tested without a phone. */
 function xrFrame(t, frame) {
+  try { xrFrameBody(t, frame); }
+  catch (e) {
+    /* An exception thrown out of the animation callback stops the callback,
+       and a stopped callback in an immersive session is a frozen picture with
+       the buttons still drawn on it - which is what "it crashes" looks like.
+       It is written down and the next frame is tried. */
+    note('frame', e);
+    frameFails++;
+    if (frameFails === 5) toast('Something in the camera view keeps failing \u2013 ' +
+      'see Office \u00b7 Alignment for the message.');
+  }
+}
+let frameFails = 0;
+function xrFrameBody(t, frame) {
   lastFrame = frame;
   frameLive = !!frame;
   if (frame) {
@@ -2690,6 +2705,7 @@ function enterAR() {
   restoreStemAnchors();         // and if the phone itself remembers the stems, better still
 }
 function endAR() {
+  document.documentElement.classList.remove('ar-on');
   renderer.setAnimationLoop(null);
   lsDel(K_DTRIAL);                 // ended on purpose: not a death
   letSleep();
@@ -3298,7 +3314,17 @@ let cal = null;
 
 function calStart(tree) {
   if (!depthWanted() || !depthOk) {
-    toast('This needs depth. Switch it on under Office → App, on a phone that has it.');
+    /* In the bar, where it stays. As a toast this was three seconds of small
+       text at the bottom of a camera view, and then a screen looking exactly
+       as it had before the press. */
+    mbar('<b>The diameter needs the depth camera</b><br>' +
+         (depthOk === false
+           ? 'This phone or this browser gives the app no depth image, so the stem ' +
+             'cannot be read off the bark. Measure the girth with a tape and type it ' +
+             'on the tree\u2019s page.'
+           : 'Depth is switched off. Office \u00b7 Settings \u00b7 App \u2013 Depth, then ' +
+             'start AR again.'),
+         [['Close', clearMeasure]]);
     return false;
   }
   cal = { tree: tree, pts: [], bins: new Array(CAL_BINS).fill(0), fit: null,
@@ -3417,15 +3443,35 @@ function finishCaliper() {
   const r = calResult();
   const calDone = calStop(); calTree = null;
   $('mbar').classList.remove('on');
-  if (r.error) return toast(r.error);
-  if (t == null) return toast('Ø ' + r.dbh_cm + ' cm, but no tree to write it on.');
-  if (!r.firm && !confirm('Only ' + r.arc + '° of the stem was seen, so the far side is ' +
-      'inferred. Diameter ' + r.dbh_cm + ' cm. Record it anyway?')) return;
-  setEdit(t, { dbh_cm: r.dbh_cm, dbh_source: r.note });
-  resScanAdd(t, calDone, r);            // kept only if research collecting is on
-  renderList();
-  if (openIdx === t && panelEl) openPanel(t, panelTab);
-  toast('DBH ' + r.dbh_cm + ' cm on ' + tid(t) + ' · ' + r.arc + '° scanned.');
+  if (r.error) return mbar('<b>The stem could not be read</b><br>' + esc(r.error),
+                           [['Again', () => startCaliper(t), 'p'], ['Close', clearMeasure]]);
+  /* Measured with no tree chosen. The diameter is good; only its owner is
+     missing, and that is a question to ask now rather than a reason to have
+     refused to measure at all. */
+  const put = i2 => {
+    setEdit(i2, { dbh_cm: r.dbh_cm, dbh_source: r.note });
+    resScanAdd(i2, calDone, r); renderList();
+    if (openIdx === i2 && panelEl) openPanel(i2, panelTab);
+    toast('DBH ' + r.dbh_cm + ' cm on ' + tid(i2) + ' \u00b7 ' + r.arc + '\u00b0 scanned.');
+    clearMeasure();
+  };
+  const loose = !r.firm ? '<br><span class="small">Only ' + r.arc + '\u00b0 of the stem was ' +
+                          'seen, so the far side is inferred.</span>' : '';
+  if (t == null) return mbar(
+    '<b>\u00d8 ' + r.dbh_cm + ' cm</b> <span class="small">\u00b7 ' + r.arc +
+    '\u00b0 scanned</span>' + loose + '<br><span class="small">Not on a tree yet.</span>',
+    [['Which tree?', () => {
+        const pick = targetTree();
+        if (pick != null) return put(pick);
+        clearMeasure(); $('bwhich').click();
+        toast('Pick the tree, then measure again.');
+      }, 'p'],
+     ['Close', clearMeasure]]);
+  if (!r.firm) return mbar(
+    '<b>\u00d8 ' + r.dbh_cm + ' cm on ' + esc(tid(t)) + '</b>' + loose,
+    [['Record it anyway', () => put(t), 'p'], ['Again', () => startCaliper(t)],
+     ['Close', clearMeasure]]);
+  put(t);
 }
 
 /* Off unless switched on: see the session request above. */
@@ -5289,7 +5335,7 @@ function buildToolMenu() {
   const m = group('Measure this tree');
   add(m, '↕︎  Height', 'stem base, then the treetop', () => startMeasure('height'));
   add(m, '⌀︎  DBH – walk the stem', 'all the way round, off the bark',
-      who => who == null ? noTree() : startCaliper(who));
+      who => startCaliper(who));
   add(m, '◯  Crown width', 'the stem, then each edge in turn', () => startMeasure('crown'));
   add(m, '⤴︎  Crown base', 'stem base, then the lowest live branch',
       () => startMeasure('crownbase'));
@@ -6428,71 +6474,91 @@ function arKeypad(title, value, apply) {
     body.appendChild(ok);
   });
 }
-/* Every control in the AR panel is given the overlay's own way in. The
-   handler sits on pointerdown so the native one never gets the chance. */
+/* Intercepting the native control was not enough: a pointerdown handler that
+   calls preventDefault stops the drop-down on a desktop browser, and on the
+   phone the press still went to a widget the compositor never paints. So in
+   AR the native control is not intercepted, it is taken off the screen and a
+   button is put in its place. The control itself stays in the DOM, unchanged,
+   so everything that reads and saves the form keeps working; only the thing
+   your thumb lands on is different. Nothing native is left to freeze. */
+function arStand(el, label, read, open) {
+  if (el.dataset.arstand) { el.nextSibling.textContent = read(); return; }
+  el.dataset.arstand = '1';
+  el.style.display = 'none';
+  const b = document.createElement('button');
+  b.className = 'arstand';
+  b.textContent = read();
+  b.onclick = ev => { ev.preventDefault(); open(() => { b.textContent = read(); }); };
+  el.parentNode.insertBefore(b, el.nextSibling);
+}
 function arFormFix(root, tree) {
   if (!root) return;
+  if (!inARPanel()) return;
   root.querySelectorAll('select').forEach(sel => {
-    if (sel.dataset.arfix) return;
-    sel.dataset.arfix = '1';
-    sel.addEventListener('pointerdown', ev => {
-      if (!inARPanel()) return;
-      ev.preventDefault(); ev.stopPropagation();
-      const items = [...sel.options].map(o => ({ value: o.value, label: o.textContent }));
-      const lab = (sel.closest('.row') && sel.closest('.row').querySelector('label'));
-      arPickList(lab ? lab.textContent : 'Choose', items, sel.value, v => {
-        sel.value = v;
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
+    const lab = sel.closest('.row') && sel.closest('.row').querySelector('label');
+    arStand(sel, lab ? lab.textContent : 'Choose',
+      () => {
+        const o = sel.options[sel.selectedIndex];
+        return (o && o.textContent) || 'Choose…';
+      },
+      done => {
+        const items = [...sel.options].map(o => ({ value: o.value, label: o.textContent }));
+        arPickList(lab ? lab.textContent : 'Choose', items, sel.value, v => {
+          sel.value = v;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          done();
+        });
       });
-    });
   });
   root.querySelectorAll('input[type="text"],input[type="number"],input[type="url"],' +
-                        'input[type="password"],input[type="tel"],textarea')
-      .forEach(inp => {
-    if (inp.dataset.arfix) return;
-    inp.dataset.arfix = '1';
-    inp.addEventListener('pointerdown', ev => {
-      if (!inARPanel()) return;
-      const num = inp.type === 'number' || inp.dataset.t === 'number' ||
-                  inp.inputMode === 'decimal' || inp.inputMode === 'numeric';
-      ev.preventDefault(); ev.stopPropagation();
-      const lab = (inp.closest('.row') && inp.closest('.row').querySelector('label'));
-      const title = lab ? lab.textContent : 'Enter a value';
-      if (num) return arKeypad(title, inp.value, v => {
-        inp.value = v; inp.dispatchEvent(new Event('change', { bubbles: true }));
+                        'input[type="password"],input[type="tel"],textarea').forEach(inp => {
+    const lab = inp.closest('.row') && inp.closest('.row').querySelector('label');
+    const title = lab ? lab.textContent : 'Enter a value';
+    const num = inp.type === 'number' || inp.dataset.t === 'number' ||
+                inp.inputMode === 'decimal' || inp.inputMode === 'numeric';
+    const isSp = (inp.dataset.k || '') === 'species';
+    arStand(inp, title,
+      () => inp.value || (isSp ? 'Pick a species…' : num ? 'Tap to enter a number' : 'Tap to say it'),
+      done => {
+        if (isSp) return arSpecies(inp, done);
+        if (num) return arKeypad(title, inp.value, v => {
+          inp.value = v; inp.dispatchEvent(new Event('change', { bubbles: true })); done();
+        });
+        overlaySheet(title, (body, shut) => {
+          const pn = document.createElement('p'); pn.className = 'small';
+          pn.textContent = 'The keyboard does not come up inside the camera view – that is ' +
+            'the browser, not this app. Say it instead, or leave AR and type it on the ' +
+            'tree’s page.';
+          body.appendChild(pn);
+          const mic = document.createElement('button');
+          mic.className = 'p'; mic.textContent = '🎤  Say it';
+          mic.style.cssText = 'width:100%;padding:12px;margin-bottom:6px';
+          mic.onclick = () => { shut(); done(); speechStart(tree == null ? targetTree() : tree); };
+          body.appendChild(mic);
+          const out = document.createElement('button');
+          out.textContent = 'Leave AR and type it';
+          out.style.cssText = 'width:100%;padding:12px';
+          out.onclick = () => { shut(); const t2 = tree == null ? targetTree() : tree;
+            closePanel(); endAR(); setTimeout(() => { if (t2 != null) openPanel(t2); }, 400); };
+          body.appendChild(out);
+        });
       });
-      if ((inp.dataset.k || '') === 'species') return arSpecies(inp);
-      overlaySheet(title, (body, done) => {
-        const pnote = document.createElement('p'); pnote.className = 'small';
-        pnote.textContent = 'The keyboard does not come up inside the camera view – ' +
-          'that is the browser, not this app. Say it instead, or leave AR and type it ' +
-          'on the tree’s page.';
-        body.appendChild(pnote);
-        const mic = document.createElement('button');
-        mic.className = 'p'; mic.textContent = '🎤  Say it';
-        mic.style.cssText = 'width:100%;padding:12px;margin-bottom:6px';
-        mic.onclick = () => { done(); speechStart(tree == null ? targetTree() : tree); };
-        body.appendChild(mic);
-        const out = document.createElement('button');
-        out.textContent = 'Leave AR and type it';
-        out.style.cssText = 'width:100%;padding:12px';
-        out.onclick = () => { done(); closePanel(); endAR(); setTimeout(() => {
-          const t = tree == null ? targetTree() : tree;
-          if (t != null) openPanel(t);
-        }, 400); };
-        body.appendChild(out);
-      });
-    });
   });
 }
-function arSpecies(inp) {
+function arSpecies(inp, done) {
   const items = SPECIES.map(x => ({ value: x[0], label: x[0], note: x[1] }));
   arPickList('Species', items, inp.value, v => {
     inp.value = v;
     const hit = SPECIES.find(x => x[0] === v);
     const cn = panelEl && panelEl.querySelector('[data-k="name_en"]');
-    if (hit && cn && !cn.value.trim()) cn.value = hit[1];
+    if (hit && cn && !cn.value.trim()) {
+      cn.value = hit[1];
+      cn.dispatchEvent(new Event('change', { bubbles: true }));
+      if (cn.nextSibling && cn.nextSibling.className === 'arstand')
+        cn.nextSibling.textContent = cn.value;
+    }
     inp.dispatchEvent(new Event('change', { bubbles: true }));
+    if (done) done();
   });
 }
 
@@ -7354,8 +7420,11 @@ function openPanel(i, tab) {
   panelEl.addEventListener('input', twin);
   panelEl.addEventListener('change', twin);
 
-  arFormFix(el, i);
   el.classList.add('on');
+  /* After the panel is on screen, not before: the check for "are we inside an
+     AR panel" asks whether that panel is showing, and a moment earlier it was
+     not - so the whole thing quietly did nothing. */
+  arFormFix(el, i);
   updateVerdict();
 }
 function closePanel() { if (panelEl) panelEl.classList.remove('on'); openIdx = null; }

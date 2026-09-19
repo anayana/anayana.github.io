@@ -20,8 +20,14 @@
    layer that begins at the top. */
 :root{--top:env(safe-area-inset-top);--bot:env(safe-area-inset-bottom)}
 @media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){
-  :root{--top:max(env(safe-area-inset-top),30px);--bot:max(env(safe-area-inset-bottom),8px)}
+  :root{--top:max(env(safe-area-inset-top),46px);--bot:max(env(safe-area-inset-bottom),8px)}
 }
+/* An AR session owns the whole screen whatever the display mode says - it is
+   fullscreen even in an ordinary browser tab, where the inset is reported as
+   nought and the address bar that used to keep the top clear is gone. The
+   clock and the battery are then drawn straight over whatever is up there.
+   So the floor is set by the session, not by the manifest. */
+html.ar-on{--top:max(env(safe-area-inset-top),46px);--bot:max(env(safe-area-inset-bottom),8px)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   background:#0d1310;color:#e8ece9;overscroll-behavior:none}
@@ -171,7 +177,7 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 #xrtop,#xrbot{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;
   pointer-events:none;min-height:0}
 #xrtop>*,#xrbot>*{pointer-events:auto}
-#xrtop{padding:max(var(--top),28px) 8px 0}
+#xrtop{padding:max(var(--top),46px) 8px 0}
 #xrmid{flex:1 1 auto;min-height:24px;pointer-events:none;position:relative}
 /* While a measurement runs, the middle of the screen is the target the
    instruction has always described. It shows where, and says so. */
@@ -236,6 +242,10 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
 /* A tool is picked with one thumb at a tree: two to a row, tall enough to
    hit, and each says underneath what it will ask you to do. */
 #toolmenu{max-height:64vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* what stands in for a native control while AR owns the screen */
+.arstand{width:100%;text-align:left;padding:10px 11px;font-size:14px;
+  background:#131b17;border:1px solid #2f4137;color:#e8ece9;border-radius:8px}
+.arstand:active{background:#1b2620}
 .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .toolbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
   min-height:52px;padding:9px 10px;text-align:left;line-height:1.25}
@@ -1193,25 +1203,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=3.18.0"></script>
-<script src="data.js?v=3.18.0"></script>
-<script src="norms.js?v=3.18.0"></script>
-<script src="i18n.js?v=3.18.0"></script>
-<script src="mapper.js?v=3.18.0"></script>
-<script src="users.js?v=3.18.0"></script>
-<script src="voice.js?v=3.18.0"></script>
-<script src="plantnet.js?v=3.18.0"></script>
-<script src="osm.js?v=3.18.0"></script>
-<script src="research.js?v=3.18.0"></script>
-<script src="marks.js?v=3.18.0"></script>
-<script src="pins.js?v=3.18.0"></script>
-<script src="ghost.js?v=3.18.0"></script>
-<script src="guide.js?v=3.18.0"></script>
-<script src="docx.js?v=3.18.0"></script>
-<script src="reports.js?v=3.18.0"></script>
-<script src="mapsheet.js?v=3.18.0"></script>
-<script src="sign.js?v=3.18.0"></script>
-<script src="gate.js?v=3.18.0"></script>
-<script src="app.js?v=3.18.0"></script>
+<script src="vendor/three.min.js?v=3.19.0"></script>
+<script src="data.js?v=3.19.0"></script>
+<script src="norms.js?v=3.19.0"></script>
+<script src="i18n.js?v=3.19.0"></script>
+<script src="mapper.js?v=3.19.0"></script>
+<script src="users.js?v=3.19.0"></script>
+<script src="voice.js?v=3.19.0"></script>
+<script src="plantnet.js?v=3.19.0"></script>
+<script src="osm.js?v=3.19.0"></script>
+<script src="research.js?v=3.19.0"></script>
+<script src="marks.js?v=3.19.0"></script>
+<script src="pins.js?v=3.19.0"></script>
+<script src="ghost.js?v=3.19.0"></script>
+<script src="guide.js?v=3.19.0"></script>
+<script src="docx.js?v=3.19.0"></script>
+<script src="reports.js?v=3.19.0"></script>
+<script src="mapsheet.js?v=3.19.0"></script>
+<script src="sign.js?v=3.19.0"></script>
+<script src="gate.js?v=3.19.0"></script>
+<script src="app.js?v=3.19.0"></script>
 </body>
 </html>
