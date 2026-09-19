@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.79.0';
+const APP_VERSION = '2.80.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1929,7 +1929,7 @@ let fixErr = null, fixErrLast = null, fixCount = 0;
 
 function onFix(fix) {
   lastFix = fix; gpsAcc = fix.acc; fixCount++; fixErr = null;   // this fix's failures, not last week's
-  if ($('hAcc')) $('hAcc').textContent = fix.acc.toFixed(0);
+  setTxt($('hAcc'), fix.acc.toFixed(0));
   if ($('gpsBadge')) $('gpsBadge').textContent = 'GPS ±' + fix.acc.toFixed(0) + ' m';
   /* The lists first. Everything below this line is a job that can fail on some
      phone somewhere; how far away the trees are is the one thing the inspector
@@ -2020,7 +2020,11 @@ function onOrient(ev) {
   hSin = hSin + (Math.sin(r) - hSin) * k;
   hCos = hCos + (Math.cos(r) - hCos) * k;
   heading = (Math.atan2(hSin, hCos) * 180 / Math.PI + 360) % 360;
-  $('hHead').textContent = heading.toFixed(0);
+  /* The compass fires sixty times a second, and this wrote into the AR
+     overlay every single time. Rounded to a degree the value changes a
+     handful of times a second at most, so writing only when it differs takes
+     the same information at a fraction of the cost. */
+  setTxt($('hHead'), heading.toFixed(0));
 }
 async function startOrient() {
   if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
@@ -2456,7 +2460,7 @@ function phiFromTrack() {
    read-out. */
 function applyYaw() {
   if (world) world.rotation.y = 0;
-  $('hOff').textContent = Math.round(headOff);
+  setTxt($('hOff'), String(Math.round(headOff)));
 }
 function syncNorth(quiet) {
   if (heading == null) { if (!quiet) toast('No compass heading yet – move the phone in a figure of eight.'); return false; }
@@ -2759,6 +2763,40 @@ function fitScale(k, d, t, w, h) {
 }
 
 let arCardAt = null;
+/* ---- the overlay is a texture, and writing to it costs a frame ----------
+   Every write into the DOM of a WebXR dom-overlay dirties the whole overlay
+   layer: the compositor rasterises it again and uploads it again, on top of
+   the camera image, the tracking and the depth pipeline it is already
+   carrying. This function ran sixty times a second and wrote the nearest
+   tree, the tree in view and the depth note into it every single time -
+   sixty full re-rasters a second of an overlay that is usually two small
+   bars. Open Tools and that overlay is most of the screen, so each of those
+   sixty is several times the work, and a few seconds later the graphics
+   context is gone. Which is the crash.
+
+   Three things stop it. A value is only written when it has actually
+   changed, the text is refreshed five times a second rather than sixty, and
+   while a menu or a card is open nothing is written at all - the overlay is
+   at its largest exactly then, and none of those read-outs is what anybody
+   is looking at. */
+function popupOpen() {
+  return ['toolmenu', 'pickmenu', 'mmenu', 'refmenu', 'nummenu', 'chooser']
+           .some(id => { const e = $(id); return e && e.style.display === 'block'; }) ||
+         ($('arcard') && $('arcard').style.display === 'block');
+}
+function setTxt(el, text, cls) {
+  if (!el) return;
+  if (el.textContent !== text) el.textContent = text;
+  if (cls != null && el.className !== cls) el.className = cls;
+}
+let hudAt = 0;
+function hudDue() {
+  if (popupOpen()) return false;
+  const n = performance.now();
+  if (n - hudAt < 200) return false;
+  hudAt = n; return true;
+}
+
 function tick() {
   const cam = (renderer.xr.enabled && renderer.xr.isPresenting) ? renderer.xr.getCamera(camera) : camera;
   _cp.setFromMatrixPosition(cam.matrixWorld);
@@ -2796,12 +2834,12 @@ function tick() {
      marker is only as good as the alignment; GPS is metres out but it is out
      by metres, and "89, six metres north-east" is the difference between an
      inspector believing the register is empty and finding the tree. */
+  const hud = hudDue();
   if (best) {
-    $('hNear').textContent = props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m';
-    $('hNear').className = '';
+    if (hud) setTxt($('hNear'), props(best.userData.idx).tree_id + ' ' + bd.toFixed(1) + ' m', '');
   } else if (edgeTick % 20 === 7) {
     const g = lastFix == null ? null : nearestByGps();
-    if (g == null) { $('hNear').textContent = ''; $('hNear').className = ''; }
+    if (g == null) { if (hud) setTxt($('hNear'), '', ''); }
     else {
       const c = CAT.features[g].geometry.coordinates;
       const db = distBear(c[1], c[0], lastFix.lat, lastFix.lon);   // from me to the tree
@@ -2812,22 +2850,19 @@ function tick() {
   }
   if (edgeTick % 20 === 3) {
     const v = treeInView();
-    if ($('hDepth') && mode === 'WebXR' && !camAccessOk && !$('hDepth').textContent)
-      { $('hDepth').textContent = 'photos leave AR briefly on this phone';
-        $('hDepth').className = 'warn'; }
-    const el = $('hView');
-    if (el) {
-      el.textContent = !v ? '' : (v.sure ? 'this is ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m'
+    if (hud && $('hDepth') && mode === 'WebXR' && !camAccessOk && !$('hDepth').textContent)
+      setTxt($('hDepth'), 'photos leave AR briefly on this phone', 'warn');
+    if (hud) setTxt($('hView'),
+      !v ? '' : (v.sure ? 'this is ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m'
         : 'probably ' + tid(v.i) + ' · ' + v.d.toFixed(1) + ' m · from ' + v.why +
-          (v.gap < 3 ? ', and it could be its neighbour' : ''));
-      el.className = v && v.sure ? 'ok' : 'warn';
-    }
+          (v.gap < 3 ? ', and it could be its neighbour' : '')),
+      v && v.sure ? 'ok' : 'warn');
     /* The camera is pointing at a tree the register knows. Everything worth
        knowing before touching it belongs on the glass, not three taps away
        behind the camera: the sizes to compare against, what the level rests
        on, and how many marks are waiting to be checked. */
     const who = (v && v.i != null) ? v.i : (selIdx != null ? selIdx : null);
-    if (who !== arCardAt) { arCardAt = who; paintArCard(who); }
+    if (hud && who !== arCardAt) { arCardAt = who; paintArCard(who); }
     /* One ring per tree, and it says two things at once: its colour is the
        hazard level, which never changes, and how solid and how wide it is
        says whether the camera is pointing at it - solid and a little larger
@@ -2846,14 +2881,18 @@ function tick() {
         ch.scale.set(sc, sc, 1);
       });
     });
-    if ($('hView') && cands.length > 1 && $('hView').textContent)
+    if (hud && $('hView') && cands.length > 1 && $('hView').textContent &&
+        $('hView').textContent.indexOf(' in view') < 0)
       $('hView').textContent += ' · ' + cands.length + ' in view';
   }
   const nowMs = performance.now();
   decayComp(compAt ? Math.min(0.1, (nowMs - compAt) / 1000) : 0);
   compAt = nowMs;
   if (barkFor != null && (edgeTick % 4 === 2)) barkHint();
-  if (mode && ((edgeTick++) % 4 === 0)) updateEdge();
+  /* A menu over the camera view is the largest the overlay ever gets, and
+     the arrows under it cannot be seen. Writing to them then is the most
+     expensive thing the app does for the least return. */
+  if (mode && ((edgeTick++) % 4 === 0) && !popupOpen()) updateEdge();
 }
 
 /* Ask for a stem and be told next frame. Outside a running session the answer
@@ -3589,7 +3628,7 @@ function findStem() {
 /* ---- selection ---- */
 function selectTree(i) {
   selIdx = i;
-  $('hSel').textContent = i == null ? '' : ('sel ' + props(i).tree_id);
+  setTxt($('hSel'), i == null ? '' : ('sel ' + props(i).tree_id));
 }
 /* ================= WHICH TREE IS THAT =================
    Three things answer it, and none of them is recognising a tree by how it
@@ -4911,10 +4950,10 @@ function updateEdge() {
   sprites.forEach(sp => {
     const el = edgeEls[sp.userData.idx];
     if (!el) return;
-    if (!sp.parent || !sp.parent.visible) { el.classList.remove('on'); return; }
+    if (!sp.parent || !sp.parent.visible) { if (el.classList.contains('on')) el.classList.remove('on'); return; }
     sp.getWorldPosition(_wp);
     const dist = c.distanceTo(_wp);
-    if (dist < 2 || dist > DRAW_R) { el.classList.remove('on'); return; }
+    if (dist < 2 || dist > DRAW_R) { if (el.classList.contains('on')) el.classList.remove('on'); return; }
     const eye = _eye.copy(_wp).applyMatrix4(inv);
     let x, y, on = false;
     if (eye.z < -0.05) {                                   // in front: project normally
@@ -4927,13 +4966,13 @@ function updateEdge() {
       const len = Math.hypot(eye.x, eye.y) || 1;
       x = eye.x / len * 2; y = eye.y / len * 2;
     }
-    if (on) { el.classList.remove('on'); return; }
+    if (on) { if (el.classList.contains('on')) el.classList.remove('on'); return; }
     off.push({ el: el, x: x, y: y, d: dist, idx: sp.userData.idx });
   });
   off.sort((a, b) => a.d - b.d);
   const placed = [];
   off.forEach((o, n) => {
-    if (n > 2) { o.el.classList.remove('on'); return; }   // three at most, or it is a mess
+    if (n > 2) { if (o.el.classList.contains('on')) o.el.classList.remove('on'); return; }
     const m = Math.max(Math.abs(o.x), Math.abs(o.y)) || 1;
     const x = o.x / m, y = o.y / m;
     const mg = 54;
@@ -4945,10 +4984,19 @@ function updateEdge() {
       if (top > ch - mg) { top = mg; break; }
     }
     placed.push({ left: left, top: top });
-    o.el.style.left = left + 'px'; o.el.style.top = top + 'px';
-    o.el.querySelector('.g').style.transform = 'rotate(' + (Math.atan2(-y, x) * 180 / Math.PI) + 'deg)';
-    o.el.querySelector('.l').textContent = props(o.idx).tree_id + ' ' + o.d.toFixed(0) + ' m';
-    o.el.classList.add('on');
+    /* Written only when it has moved. These three lines ran four times a
+       second on up to three arrows, and every one of them dirtied the whole
+       overlay - the compositor then rasterises and uploads it again over the
+       camera image. Rounded to the pixel and the degree, an arrow that is
+       being walked towards changes perhaps twice a second. */
+    const L = left + 'px', T = top + 'px';
+    if (o.el.style.left !== L) o.el.style.left = L;
+    if (o.el.style.top !== T) o.el.style.top = T;
+    const rot = 'rotate(' + Math.round(Math.atan2(-y, x) * 180 / Math.PI) + 'deg)';
+    const g = o.el.querySelector('.g');
+    if (g.style.transform !== rot) g.style.transform = rot;
+    setTxt(o.el.querySelector('.l'), props(o.idx).tree_id + ' ' + o.d.toFixed(0) + ' m');
+    if (!o.el.classList.contains('on')) o.el.classList.add('on');
   });
 }
 
