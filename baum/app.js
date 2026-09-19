@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.22.0';
+const APP_VERSION = '3.23.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2544,6 +2544,7 @@ async function startXR() {
   }
   xrSession = s; mode = 'WebXR';
   document.documentElement.classList.add('ar-on');
+  beatStart();
   if (depthWanted()) depthTrialStart();
   renderer.xr.enabled = true;
   renderer.xr.setReferenceSpaceType('local-floor');
@@ -2706,6 +2707,7 @@ function enterAR() {
 }
 function endAR() {
   document.documentElement.classList.remove('ar-on');
+  beatStop();
   if (measure || (typeof cal !== 'undefined' && cal))
     crashWrite('AR session ended', 'while a measurement was running', '');
   renderer.setAnimationLoop(null);
@@ -8325,7 +8327,7 @@ function showScreen(k) {
   if (k === 'guide') renderGuide();
   if (k === 'rep') { if (typeof repPaint === 'function') repPaint();
                      if (typeof sheetPaint === 'function') sheetPaint(); }
-  if (k === 'data') { paintLang(); paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null);
+  if (k === 'data') { paintCrashBox(); paintLang(); paintAskDist(); paintAutoVoice(); paintImpBox(); paintImpPick(); paintVoiceCheck(null);
     if (typeof wipePaint === 'function') wipePaint(); renderStats(); renderMoved(); renderPlotBox(); renderAlignBox(); renderUsers(); renderAudit(); }
   if (k === 'map') {
     startGPS(); startOrient();
@@ -9544,6 +9546,63 @@ function selfTestMeasure() {
    on screen at the time. Storage survives the page dying, the session ending
    and the browser being killed, so the next start can say what happened
    rather than starting clean and innocent. */
+/* A GPU context dying, a tab killed for memory, the compositor giving up -
+   none of them throw a JavaScript error. The page simply stops, and a
+   recorder that listens for errors hears nothing at all. So the app writes a
+   heartbeat instead: every two seconds while AR is running it stores what it
+   is doing, and on a clean exit it clears it. A heartbeat still sitting there
+   at the next start means the app died where that heartbeat says it was. */
+const K_ALIVE = 'vta_alive';
+let beatTimer = null;
+function beatState() {
+  return {
+    when: Date.now(),
+    shown: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    ver: APP_VERSION,
+    mode: mode || 'not in AR',
+    open: [['toolmenu', 'Tools'], ['pickmenu', 'a list'], ['mmenu', 'a menu'],
+           ['arcard', 'the tree card'], ['panelXR', 'the tree page'], ['mbar', 'the measure bar']]
+            .filter(x => { const e = $(x[0]);
+              return e && (e.style.display === 'block' || e.classList.contains('on')); })
+            .map(x => x[1]).join(', ') || 'nothing',
+    meas: measure ? measure.kind : ((typeof cal !== 'undefined' && cal) ? 'dbh scan' : ''),
+    trees: CAT.features.length,
+    secs: xrStartedAt ? Math.round((Date.now() - xrStartedAt) / 1000) : 0
+  };
+}
+let xrStartedAt = 0;
+function beatStart() {
+  xrStartedAt = Date.now();
+  beatStop();
+  beatTimer = setInterval(() => {
+    try { localStorage.setItem(K_ALIVE, JSON.stringify(beatState())); } catch (e) {}
+  }, 2000);
+  try { localStorage.setItem(K_ALIVE, JSON.stringify(beatState())); } catch (e) {}
+}
+function beatStop() {
+  if (beatTimer) { clearInterval(beatTimer); beatTimer = null; }
+  try { localStorage.removeItem(K_ALIVE); } catch (e) {}
+}
+/* A heartbeat left behind is a death. Turned into the same note an error
+   would have written, so there is only ever one thing to read and send. */
+function beatCheck() {
+  let a = null;
+  try { a = JSON.parse(localStorage.getItem(K_ALIVE) || 'null'); } catch (e) {}
+  if (!a) return;
+  try { localStorage.removeItem(K_ALIVE); } catch (e) {}
+  const c = crashRead();
+  if (c && Math.abs(Date.parse(c.when.replace(' ', 'T') + 'Z') - a.when) < 20000) return;
+  try {
+    localStorage.setItem(K_CRASH, JSON.stringify({
+      when: a.shown, kind: 'stopped without an error',
+      msg: 'the camera view died after ' + a.secs + ' s - no JavaScript error, so this is ' +
+           'the graphics context or the browser killing the tab',
+      ver: a.ver, mode: a.mode, screen: 'AR', open: a.open, meas: a.meas,
+      trees: a.trees, extra: ''
+    }));
+  } catch (e) {}
+}
+
 const K_CRASH = 'vta_crash';
 function crashWrite(kind, msg, extra) {
   try {
@@ -9585,6 +9644,14 @@ addEventListener('unhandledrejection', e => {
   crashWrite('promise', (r && r.message) || String(r || 'unknown'), '');
 });
 /* Shown once, at the start after it happened, where it cannot be missed. */
+/* The same note, kept where the state of the app is reported, for as long as
+   it is the last thing that happened. */
+function paintCrashBox() {
+  const cn = $('crashBox'); if (!cn) return;
+  const c = crashRead();
+  cn.style.display = c ? 'block' : 'none';
+  cn.textContent = c ? crashText(c) : '';
+}
 function crashShowOnce() {
   const c = crashRead();
   if (!c) return;
@@ -9593,16 +9660,31 @@ function crashShowOnce() {
   if (seen === c.when) return;
   try { localStorage.setItem('vta_crash_seen', c.when); } catch (e) {}
   const d = document.createElement('div');
-  d.style.cssText = 'position:fixed;left:8px;right:8px;top:calc(8px + var(--top));z-index:70;' +
+  d.id = 'crashnote';
+  d.style.cssText = 'position:fixed;left:8px;right:8px;top:calc(8px + var(--top));z-index:9999;' +
     'background:#2a1a14;border:1px solid #7a3a22;border-radius:12px;padding:12px 14px;' +
-    'font-size:13px;color:#f2ded4';
-  d.innerHTML = '<b>Last time this app stopped, it left a note.</b>' +
-    '<pre style="white-space:pre-wrap;margin:8px 0;font-size:11px">' + esc(crashText(c)) + '</pre>';
+    'font-size:13px;color:#f2ded4;box-shadow:0 8px 30px rgba(0,0,0,.6)';
+  const h = document.createElement('b');
+  h.textContent = 'The app stopped last time. This is what it was doing:';
+  d.appendChild(h);
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'white-space:pre-wrap;margin:8px 0;font-size:11px;user-select:all;' +
+    '-webkit-user-select:all;background:#1a110d;border-radius:8px;padding:8px';
+  pre.textContent = crashText(c);
+  d.appendChild(pre);
   const row = document.createElement('div'); row.className = 'btnrow';
-  const cp = document.createElement('button'); cp.textContent = 'Copy it';
-  cp.onclick = () => {
-    try { navigator.clipboard.writeText(crashText(c)); toast('Copied – paste it in the chat.'); }
-    catch (e) { toast('Select the text above and copy it.'); }
+  const cp = document.createElement('button'); cp.className = 'p'; cp.textContent = 'Copy it';
+  cp.onclick = async () => {
+    let done = false;
+    try { await navigator.clipboard.writeText(crashText(c)); done = true; } catch (e) {}
+    if (!done) {                      // no clipboard permission: select it instead
+      try {
+        const r = document.createRange(); r.selectNodeContents(pre);
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        done = document.execCommand && document.execCommand('copy');
+      } catch (e) {}
+    }
+    cp.textContent = done ? 'Copied' : 'Selected – press copy';
   };
   const x = document.createElement('button'); x.textContent = 'Close';
   x.onclick = () => d.remove();
@@ -10034,6 +10116,8 @@ function wire() {
       out.textContent = txt;
     }, 30);
   };
+  beatCheck();
+  paintCrashBox();
   crashShowOnce();
   versionWatch();
   $('mapGo').onclick = runMapper;
