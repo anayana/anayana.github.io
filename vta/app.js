@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.77.0';
+const APP_VERSION = '2.78.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -7123,7 +7123,85 @@ function rowToTop(box, row) {
   try { box.scrollTo({ top: to, behavior: 'smooth' }); } catch (e) { box.scrollTop = to; }
 }
 
+/* ---- the tree, inside the camera view ----------------------------------
+   The full tree page is a screen-filling scrolling layer with two dozen form
+   controls. Drawn inside an immersive session it is composited over the
+   camera image on every frame, and it is the most expensive thing in the
+   overlay by a wide margin - which is where the freezing and the crashing
+   were. It does not belong there. In AR the tree gets a small card instead:
+   the six things anybody fills in at a trunk, each one a button that opens
+   the overlay's own picker or keypad, and a way out to the full page for the
+   rest. No scrolling layer, no native widget, nothing screen-filling. */
+function arQuick(i) {
+  const el = $('arcard');
+  if (i == null) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  openIdx = i; panelEl = null;
+  const p = props(i);
+  el.innerHTML = '';
+  el.style.display = 'block';
+
+  const hd = document.createElement('div'); hd.className = 'hd';
+  hd.innerHTML = '<b>' + esc(p.tree_id || '?') + '</b>' +
+                 '<span class="sp">' + esc(p.species || 'no species yet') + '</span>';
+  const x = document.createElement('button'); x.textContent = '✕';
+  x.onclick = () => arQuick(null);
+  hd.appendChild(x); el.appendChild(hd);
+
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px';
+  el.appendChild(grid);
+
+  const put = (label, value, open) => {
+    const b = document.createElement('button');
+    b.className = 'arstand';
+    b.innerHTML = '<span style="color:#7f9488;font-size:11px">' + esc(label) + '</span><br>' +
+                  '<span style="font-size:14px">' + esc(value == null || value === '' ? '–' : value) + '</span>';
+    b.style.cssText = 'padding:7px 9px;line-height:1.3';
+    b.onclick = open;
+    grid.appendChild(b);
+  };
+  const save = patch => { setEdit(i, patch); arQuick(i); renderList(); };
+
+  put('Species', p.species, () => {
+    arPickList('Species', SPECIES.map(x => ({ value: x[0], label: x[0], note: x[1] })),
+      p.species, v => {
+        const hit = SPECIES.find(y => y[0] === v);
+        save(hit && !p.name_en ? { species: v, name_en: hit[1] } : { species: v });
+      });
+  });
+  put('DBH (cm)', p.dbh_cm, () =>
+    arKeypad('DBH at 1.30 m (cm)', p.dbh_cm, v => save({ dbh_cm: v === '' ? null : +v })));
+  put('Height (m)', p.height_m, () =>
+    arKeypad('Height (m)', p.height_m, v => save({ height_m: v === '' ? null : +v })));
+  const vitOpt = [0, 1, 2, 3].map(n => ({ value: n, label: String(n) + ' · ' + optLabel('vitality_roloff', n) }));
+  put('Vitality', p.vitality_roloff, () =>
+    arPickList('Vitality (Roloff)', vitOpt, p.vitality_roloff, v => save({ vitality_roloff: +v })));
+  const dmg = ['none', 'slight', 'moderate', 'severe'].map(v => ({ value: v, label: optLabel('damage_class', v) }));
+  put('Damage', p.damage_class, () =>
+    arPickList('Damage class', dmg, p.damage_class, v => save({ damage_class: v })));
+  const saf = ['given', 'restricted', 'not given'].map(v => ({ value: v, label: optLabel('traffic_safety', v) }));
+  put('Traffic safety', p.traffic_safety, () =>
+    arPickList('Traffic safety', saf, p.traffic_safety, v => save({ traffic_safety: v })));
+
+  const row = document.createElement('div'); row.className = 'btnrow';
+  row.style.marginTop = '7px';
+  const mk = (t, fn, cls) => {
+    const b = document.createElement('button'); b.textContent = t;
+    if (cls) b.className = cls;
+    b.style.cssText = 'font-size:12.5px;padding:7px 10px';
+    b.onclick = fn; row.appendChild(b);
+  };
+  mk('🎤 Say it', () => speechStart(i));
+  mk('Photo', () => takePhotoOf(i, 'habit'));
+  mk('Full page', () => { arQuick(null); endAR(); setTimeout(() => openPanel(i), 400); });
+  el.appendChild(row);
+}
+
 function openPanel(i, tab) {
+  /* Inside a live AR session the full page is the wrong thing to draw - see
+     arQuick. Anything that wants the whole form ends the session first. */
+  if (mode === 'WebXR' && xrSession) return arQuick(i);
+  if ($('arcard')) { $('arcard').style.display = 'none'; $('arcard').innerHTML = ''; }
   openIdx = i; panelTab = tab || prefs().tab || 'quick';
   const p = props(i);
   const el = panelTarget(); panelEl = el;
@@ -7430,7 +7508,11 @@ function openPanel(i, tab) {
   arFormFix(el, i);
   updateVerdict();
 }
-function closePanel() { if (panelEl) panelEl.classList.remove('on'); openIdx = null; }
+function closePanel() {
+  if (panelEl) panelEl.classList.remove('on');
+  if ($('arcard')) { $('arcard').style.display = 'none'; $('arcard').innerHTML = ''; }
+  openIdx = null;
+}
 
 function collect() {
   const o = {};
