@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.82.0';
+const APP_VERSION = '2.83.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2972,7 +2972,9 @@ function onXRSelect(e) {
   const wasLive = frameLive;
   if (frame) { lastFrame = frame; frameLive = true; }
   try {
-    if (measure) { measureTap(); return; }        // a tap belongs to the tool that is running
+    // a tap belongs to the tool that is running - through the same guard as
+    // the button, so a failure here is written down and said out loud too
+    if (measure) { safeTap(); return; }
     let o = null, d = null;
     if (frame && xrRef && e.inputSource && e.inputSource.targetRaySpace) {
       try {
@@ -3019,12 +3021,13 @@ function camPos() { return new THREE.Vector3().setFromMatrixPosition(xrCam().mat
 function camDir() { return new THREE.Vector3(0, 0, -1).transformDirection(xrCam().matrixWorld); }
 
 function updateHitTest(frame) {
-  if (!hitSource) { hitPt = null; reticle.visible = false; return; }
+  if (!hitSource) { hitPt = null; hitAt = 0; reticle.visible = false; return; }
   const res = frame.getHitTestResults(hitSource);
   if (res.length) {
     const p = res[0].getPose(xrRef);
     if (p) {
       hitPt = new THREE.Vector3(p.transform.position.x, p.transform.position.y, p.transform.position.z);
+      hitAt = performance.now();
       reticle.position.copy(hitPt);
       // always visible in the survey: it is where + Tree will put the tree
       reticle.visible = !!(measure ? measure.wantsHit
@@ -3032,7 +3035,7 @@ function updateHitTest(frame) {
       return;
     }
   }
-  hitPt = null; reticle.visible = false;
+  hitPt = null; hitAt = 0; reticle.visible = false;
 }
 
 /* ---- anchors that outlive the session ----
@@ -3884,6 +3887,27 @@ function tapCatcher() {
     if (s) s.textContent = 'anywhere here, or the button below';
   }
 }
+/* ---- what the taps actually did ----
+   "It does not work" cannot be taken apart in a wood, and the one person who
+   could say more is holding the phone in the rain. So every step a
+   measurement takes writes one line here: what started, what each press
+   found, what was refused and why, what came out. Fourteen lines deep, kept
+   in storage so a crash does not take them, and printed by the check under
+   Tools - one button, and the answer is on the screen. */
+const K_MTRACE = 'vta_mtrace';
+let measTrace = [];
+function mlog(what) {
+  try {
+    measTrace.push(new Date().toTimeString().slice(0, 8) + '  ' + what);
+    if (measTrace.length > 14) measTrace.shift();
+    lsSet(K_MTRACE, measTrace.join('\n'));
+  } catch (e) {}
+}
+function measTraceText() {
+  if (measTrace.length) return measTrace.join('\n');
+  const old = lsGet(K_MTRACE);
+  return old ? old + '\n  (from before this start)' : '';
+}
 let mObjs = [];                    // what was drawn, and where it was hung
 function clearMeasure() {
   measure = null;
@@ -3922,6 +3946,9 @@ function dropMeasureAnchor() {
   if (mAnchor) { try { mAnchor.delete(); } catch (e) {} }
   mAnchor = mAnchorAt = mAnchorWant = null;
 }
+const MEAS_MAX = 0.6,    // an anchor further off than this is wrong, not drifted
+      MEAS_RATE = 0.4;   // and what is left is followed at most this fast (m/s)
+let mAnchorTime = 0;
 function updateMeasureAnchor(frame) {
   if (!mGroup || !xrRef) return;
   if (mAnchorWant) {
@@ -3929,14 +3956,47 @@ function updateMeasureAnchor(frame) {
     try {
       const pr = frame.createAnchor(
         new XRRigidTransform({ x: p.x, y: p.y, z: p.z }), xrRef);
-      if (pr && pr.then) pr.then(a => { mAnchor = a; mAnchorAt = p; }).catch(() => {});
+      if (pr && pr.then) pr.then(a => { mAnchor = a; mAnchorAt = p; mAnchorTime = 0; })
+                           .catch(() => {});
     } catch (e) { mAnchor = mAnchorAt = null; }   // no anchors here: session frame it is
   }
   if (!mAnchor || !mAnchorAt) return;
   const pose = frame.getPose(mAnchor.anchorSpace, xrRef);
   if (!pose) return;
   const q = pose.transform.position;
-  mGroup.position.set(q.x - mAnchorAt.x, q.y - mAnchorAt.y, q.z - mAnchorAt.z);
+  /* Everything below is about one thing: the drawing may never jump. This
+     offset is the correction for the session's own drift, which is
+     centimetres over minutes. A number far larger than that is not drift -
+     it is a pose from a reference space that has been re-localised under us,
+     or an anchor that has not settled - and following it would throw the
+     measurement off the screen. Anything wild is dropped, the anchor with
+     it, and the measurement simply stays in the session frame where it was
+     drawn. What is left is followed slowly, so nothing ever teleports. */
+  const tx = q.x - mAnchorAt.x, ty = q.y - mAnchorAt.y, tz = q.z - mAnchorAt.z;
+  if (!isFinite(tx) || !isFinite(ty) || !isFinite(tz) ||
+      Math.hypot(tx, ty, tz) > MEAS_MAX) {
+    mlog('anchor let go - its pose came back ' +
+         (isFinite(tx) ? Math.hypot(tx, ty, tz).toFixed(1) + ' m' : 'not a number') + ' off');
+    dropMeasureAnchor(); return;
+  }
+  const now = performance.now();
+  const dt = mAnchorTime ? Math.min(0.1, (now - mAnchorTime) / 1000) : 0;
+  mAnchorTime = now;
+  if (!dt) return;
+  const cur = mGroup.position;
+  const dx = tx - cur.x, dy = ty - cur.y, dz = tz - cur.z;
+  const len = Math.hypot(dx, dy, dz);
+  if (len < 0.002) return;
+  const k = Math.min(1, MEAS_RATE * dt / len);
+  cur.set(cur.x + dx * k, cur.y + dy * k, cur.z + dz * k);
+}
+/* Pinning the point and drawing a ring on it are decoration around the
+   measurement, and decoration is never allowed to stop the measurement. If
+   either fails, the failure is written down and the tape carries on. */
+function firstPoint(p, quiet) {
+  try { measureAnchor(p); } catch (e) { note('pin the point', e); mlog('FAILED to pin - ' + e); }
+  if (!quiet) { try { markPoint(p, PT_FROM); }
+                catch (e) { note('mark the point', e); mlog('FAILED to mark - ' + e); } }
 }
 function valueSprite(text) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128;
@@ -3992,6 +4052,13 @@ function dropDots() {
     return false;
   });
 }
+/* The number is the measurement; the line is a picture of it. A picture that
+   fails to draw must not swallow the number - that is how a working tape
+   turns into "nothing happens at all". */
+function safeDraw(a, b, text, tree) {
+  try { drawSegment(a, b, text, tree); }
+  catch (e) { note('draw the measurement', e); mlog('FAILED to draw - ' + ((e && e.message) || e)); }
+}
 function drawSegment(a, b, text, tree) {
   const parent = mParent(tree);
   parent.updateMatrixWorld(true);
@@ -4029,17 +4096,17 @@ function startMeasure(kind, refArg) {
      of these fire before anything is drawn - so the screen was left exactly
      as it had been, which is what "nothing happens" looks like from the
      outside. They say what is missing, and they stay until they are read. */
-  if (mode !== 'WebXR') return mbar(
+  if (mode !== 'WebXR') { mlog('refused ' + kind + ' - not in the camera view'); return mbar(
     '<b>Not in the camera view</b><br>' +
     'Measuring works inside AR: open the AR tab and press Start AR, then ' +
     'Tools. Camera mode and the map cannot measure an angle.',
-    [['Close', clearMeasure]]);
-  if (!hitOk) return mbar(
+    [['Close', clearMeasure]]); }
+  if (!hitOk) { mlog('refused ' + kind + ' - no hit-test in this session'); return mbar(
     '<b>This session has no hit-test</b><br>' +
     'The ring that finds the ground never came up, so there is nothing to ' +
     'measure from. Leave AR and start it again; if it keeps happening, the ' +
     'phone or the browser is not giving the app a hit-test.',
-    [['Close', clearMeasure]]);
+    [['Close', clearMeasure]]); }
   $('mmenu').style.display = 'none';
   $('refmenu').style.display = 'none';
   clearMeasure();
@@ -4065,6 +4132,8 @@ function startMeasure(kind, refArg) {
      ['Close', clearMeasure]]);
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
               done: false, markKind: kind === 'mark' ? refArg : null };
+  mlog('start ' + kind + (tree == null ? ' - no tree' : ' - ' + tid(tree)) +
+       (hitPt ? '' : ' - nothing under the crosshair'));
   const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
   const ask = kind === 'mark' ? 'Aim at the defect on the tree, then tap the screen or the button'
@@ -4095,6 +4164,7 @@ function safeTap() {
   try { measureTap(); }
   catch (e) {
     note('measure', e);
+    mlog('FAILED in the tap - ' + ((e && e.message) || e));
     mbar('<b>That did not work</b><br>' + esc((e && e.message) || String(e)),
          [['Again', () => measure && startMeasure(measure.kind), 'p'], ['Cancel', clearMeasure]]);
   }
@@ -4127,18 +4197,51 @@ function depthAhead() {
    it anything throws. That must not cost the press. Each way of finding the
    point is tried on its own, and the ring on the ground - which the render
    loop keeps current - is always there as the last one. */
+/* The session runs in a local-floor space, so y = 0 is the floor the phone
+   measured when it started. Where the sightline crosses that plane is a real
+   point on the ground in front of you - a plane instead of a scanned surface,
+   and said so, but geometry either way.
+
+   It is here because the hit-test needs ARCore to have found a plane along
+   the exact middle of the screen, and on grass, leaf litter, bark at arm's
+   length or in flat light it frequently has not. Then hitPt is null, every
+   press produced nothing but a toast - three seconds of small text over a
+   camera image in daylight - and from the outside the button is dead. A
+   press must always either take a point or say, and keep saying, why not. */
+function floorAhead() {
+  const c = camPos(), d = camDir();
+  if (!c || !d) return null;
+  if (!(d.y < -0.05)) return null;         // level or tilted up: it never meets the floor
+  const t = c.y / -d.y;                    // how far along the sightline that crossing is
+  if (!(t > 0.3 && t < 30)) return null;   // under the feet or over the horizon: no
+  return new THREE.Vector3(c.x + d.x * t, 0, c.z + d.z * t);
+}
+let tapFrom = '';
+/* When the ring on the ground was last a real answer from the hit-test.
+   Taking a point writes it into hitPt as well, and the frame loop normally
+   overwrites that a sixtieth of a second later - but if it does not, the
+   next press measures from the point already taken and the tape reads zero.
+   A hit older than this is not the ground in front of you any more. */
+let hitAt = 0;
+const HIT_FRESH = 600;   // ms
 function tapPoint(wantStem) {
   if (wantStem) {
     try {
       const st = findStem();
-      if (st && !st.error) return new THREE.Vector3(st.x, 0, st.z);
+      if (st && !st.error) { tapFrom = 'the stem the depth camera found'; return new THREE.Vector3(st.x, 0, st.z); }
     } catch (e) { note('tap stem', e); }
   }
   try {
     const d = depthAhead();
-    if (d) return d;
+    if (d) { tapFrom = 'the depth image'; return d; }
   } catch (e) { note('tap depth', e); }
-  return hitPt ? hitPt.clone() : null;
+  if (hitPt && (!hitAt || performance.now() - hitAt < HIT_FRESH)) {
+    tapFrom = 'the ring on the ground'; return hitPt.clone();
+  }
+  const f = floorAhead();
+  if (f) { tapFrom = 'the floor plane'; return f; }
+  tapFrom = '';
+  return null;
 }
 
 function measureTap() {
@@ -4147,15 +4250,36 @@ function measureTap() {
   const cfg = m.cfg;
   const tp = m.wantsHit ? tapPoint(m.kind === 'stems' || m.kind === 'stem' || m.kind === 'newtree') : null;
   if (m.wantsHit && !tp) {
-    toast('Nothing measurable straight ahead – point at the trunk, or a little lower.');
-    return;
+    /* This used to be a toast: three seconds of grey text over a camera
+       image in daylight, gone before it was read, and the bar unchanged
+       behind it. Pressing and seeing nothing change is the button being
+       dead. It stays up now and says what to do about it. */
+    mlog('tap on ' + m.kind + ' - no point: nothing ahead, sightline ' +
+         (camDir().y > 0 ? 'above' : 'below') + ' level');
+    return mbar(
+      '<b>Nothing under the crosshair</b><br>' +
+      'The phone has found no surface along the middle of the screen and the ' +
+      'sightline does not meet the ground either. Tilt down towards the foot ' +
+      'of the tree – a metre or two in front of your feet – and press again.',
+      takeBtns());
   }
-  if (tp) hitPt = tp;
+  /* The point just taken is a measurement, not the state of the hit-test. It
+     used to be written into hitPt, the live ring on the ground: when no frame
+     came between two presses - and one does not have to - the second press
+     measured from the point the first had already taken, and the tape read
+     zero. It stays local now. It is null only where no point is wanted: the
+     second half of a height is an angle, taken off the camera, with the
+     crosshair on the sky where there is nothing to hit. */
+  const pt = tp;
+  if (tp && tapFrom === 'the floor plane') m.soft = true;
+  mlog('tap on ' + m.kind + ' step ' + m.step + (tapFrom ? ' from ' + tapFrom : '') + (pt
+       ? ' at ' + pt.x.toFixed(1) + ',' + pt.y.toFixed(1) + ',' + pt.z.toFixed(1)
+       : ' - aimed, no surface needed'));
 
   if (cfg.aim) {
     if (m.step === 0) {                                   // remember the base, then aim away
-      m.pts[0] = hitPt.clone();
-      measureAnchor(hitPt); markPoint(hitPt, PT_FROM);    // and show where it was taken
+      m.pts[0] = pt.clone();
+      firstPoint(pt);                    // pin it and show where it was taken
       m.step = 1; m.wantsHit = false; reticle.visible = false;
       mbar('<b>' + cfg.label + '</b><br>' + (cfg.aim === 'wide'
              ? 'Now aim at one edge of the crown'
@@ -4171,11 +4295,11 @@ function measureTap() {
        becomes metres of tree. Stepping back is the fix, and the stem base is
        worth keeping while you do it - it used to be thrown away, so every
        warning sent you back to aiming at the foot of the tree again. */
-    if (horiz < 1.5) return mbar(
+    if (horiz < 1.5) { mlog('refused - only ' + horiz.toFixed(1) + ' m from the stem'); return mbar(
       '<b>Too close \u2013 ' + horiz.toFixed(1) + ' m from the stem</b><br>' +
       'Step back a few metres and press again. The stem base is remembered.',
       takeBtns(cfg.aim === 'wide' ? 'First edge'
-               : m.kind === 'height' ? 'Treetop' : 'Branch'));
+               : m.kind === 'height' ? 'Treetop' : 'Branch')); }
 
     if (cfg.aim === 'wide') {
       /* A crown edge is thin air. The hit-test has nothing to land on up
@@ -4204,23 +4328,23 @@ function measureTap() {
     }
 
     const el = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
-    if (el < 0.09) return mbar(
+    if (el < 0.09) { mlog('refused - sightline only ' + (el * 180 / Math.PI).toFixed(0) + ' deg up'); return mbar(
       '<b>Aim higher</b><br>The sightline is almost level \u2013 tilt up to the ' +
       (m.kind === 'height' ? 'treetop' : 'branch') + ' and press again.',
-      takeBtns(m.kind === 'height' ? 'Treetop' : 'Branch'));
+      takeBtns(m.kind === 'height' ? 'Treetop' : 'Branch')); }
     const top = c.y + horiz * Math.tan(el);
     const h = top - base.y;
-    drawSegment(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m', m.tree);
+    safeDraw(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m', m.tree);
     finishMeasure(h, cfg.label + ' ' + h.toFixed(1) + ' m<br><span class="small">' +
       horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '\u00b0 up</span>');
     return;
   }
 
   if (m.kind === 'stem') {
-    const g = sceneToWgs(hitPt);
+    const g = sceneToWgs(pt);
     if (!g) { toast('The session is not tied to the stand yet.'); return clearMeasure(); }
     setCoords(m.tree, g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null);
-    if (S2P) { const l = s2pInvert(hitPt.x, hitPt.z);
+    if (S2P) { const l = s2pInvert(pt.x, pt.z);
                setEdit(m.tree, { lx: +l.lx.toFixed(3), ly: +l.ly.toFixed(3) }); }
     toast('Stem position of ' + props(m.tree).tree_id + ' set.');
     requestAnchors();
@@ -4234,9 +4358,9 @@ function measureTap() {
     const g = markerOf.get(t);
     if (!g) { toast('That tree is not drawn in this session.'); return clearMeasure(); }
     const base = g.getWorldPosition(new THREE.Vector3());
-    const dx = hitPt.x - base.x, dz = hitPt.z - base.z;
+    const dx = pt.x - base.x, dz = pt.z - base.z;
     const az = headingOfDir({ x: dx, y: 0, z: dz });
-    const rec = { kind: m.markKind || 'other', h: +Math.max(0, hitPt.y).toFixed(2),
+    const rec = { kind: m.markKind || 'other', h: +Math.max(0, pt.y).toFixed(2),
                   az: +az.toFixed(0), r: +Math.hypot(dx, dz).toFixed(2), note: '' };
     markAdd(t, rec);
     layoutMarks();
@@ -4246,11 +4370,11 @@ function measureTap() {
   }
 
   if (m.kind === 'stems') {
-    m.pts.push({ x: hitPt.x, z: hitPt.z });
+    m.pts.push({ x: pt.x, z: pt.z });
     const mark = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.32, 24),
       new THREE.MeshBasicMaterial({ color: 0xffd27a, side: THREE.DoubleSide, depthTest: false }));
     mark.rotation.x = -Math.PI / 2;
-    mark.position.set(hitPt.x, 0.02, hitPt.z);
+    mark.position.set(pt.x, 0.02, pt.z);
     mark.renderOrder = 12; scene.add(mark); mObjs.push(mark);
     const n = m.pts.length;
     mbar('<b>Match stems</b><br>' + n + ' stem' + (n === 1 ? '' : 's') + ' marked' +
@@ -4265,7 +4389,7 @@ function measureTap() {
     // stored in session coordinates, not as a lat/lon: the fit is about to
     // move the world under this point, and the measurement must not move with
     // it. Height is dropped - the fit is a two-dimensional one.
-    refFix.set(m.refId, { x: hitPt.x, z: hitPt.z });
+    refFix.set(m.refId, { x: pt.x, z: pt.z });
     clearMeasure();
     const c = controlByKey(m.refId);
     const done = controlList().filter(r => refFix.has(r.key)).length;
@@ -4277,9 +4401,9 @@ function measureTap() {
   }
 
   if (m.kind === 'newtree') {
-    const g = sceneToWgs(hitPt);
+    const g = sceneToWgs(pt);
     if (!g) { toast('The session is not tied to the stand yet.'); return clearMeasure(); }
-    const la = S2P ? s2pInvert(hitPt.x, hitPt.z) : null;
+    const la = S2P ? s2pInvert(pt.x, pt.z) : null;
     const i = addTree(g.lon, g.lat, 'AR survey (aimed)', PLOT ? PLOT.acc : null, la);
     if (la) setEdit(i, { lx: +la.lx.toFixed(3), ly: +la.ly.toFixed(3) });
     selectTree(i);
@@ -4300,9 +4424,9 @@ function measureTap() {
       'Pick it under Trees, or stand at it and press Align.',
       [['Close', clearMeasure]]);
     const stem = g.getWorldPosition(new THREE.Vector3());
-    const d = Math.hypot(hitPt.x - stem.x, hitPt.z - stem.z);
-    measureAnchor(hitPt);
-    drawSegment(new THREE.Vector3(stem.x, hitPt.y, stem.z), hitPt.clone(), d.toFixed(1) + ' m', m.tree);
+    const d = Math.hypot(pt.x - stem.x, pt.z - stem.z);
+    firstPoint(pt, true);
+    safeDraw(new THREE.Vector3(stem.x, pt.y, stem.z), pt.clone(), d.toFixed(1) + ' m', m.tree);
     const h = num(props(m.tree).height_m);
     const zone = (h && d <= h) ? '<br><span class="small">inside the fall zone (' + h.toFixed(0) + ' m tree)</span>' : '';
     finishMeasure(d, 'Distance to target ' + d.toFixed(1) + ' m' + zone);
@@ -4311,20 +4435,28 @@ function measureTap() {
 
   // two free points: crown diameter or plain tape
   if (m.step === 0) {
-    m.pts[0] = hitPt.clone(); m.step = 1;
-    measureAnchor(hitPt); markPoint(hitPt, PT_FROM);
+    m.pts[0] = pt.clone(); m.step = 1;
+    firstPoint(pt);
     mbar('<b>' + cfg.label + '</b><br>Aim at the second point', takeBtns('Second point'));
     return;
   }
-  const a = m.pts[0], b = hitPt.clone();
+  const a = m.pts[0], b = pt.clone();
   const d = Math.hypot(b.x - a.x, b.z - a.z);
-  drawSegment(a, b, d.toFixed(1) + ' m', m.kind === 'crown' ? m.tree : null);
+  safeDraw(a, b, d.toFixed(1) + ' m', m.kind === 'crown' ? m.tree : null);
   finishMeasure(d, cfg.label + ' ' + d.toFixed(1) + ' m');
 }
 
 function finishMeasure(value, html) {
   const m = measure;
   m.value = value; m.wantsHit = false;
+  mlog('done ' + m.kind + ' = ' + (typeof value === 'number' ? value.toFixed(2) : value) +
+       (m.soft ? ' (off the floor plane)' : ''));
+  /* Where the point came from belongs with the number. A metre taken off the
+     floor plane is a metre measured against a plane, not against the ground
+     as the phone has scanned it, and the person writing it into a record is
+     entitled to know which. */
+  if (m.soft) html += '<br><span class="small wa">taken off the floor plane – ' +
+                      'no scanned surface was there</span>';
   /* Done means done. The bar stayed up with the measurement still live, so
      every further tap on the screen ran measureTap again - and with the first
      point still stored, that produced a new distance from that same point to
@@ -9692,7 +9824,9 @@ function selfTestMeasure() {
       'Measuring only runs inside AR, so run it there:\n' +
       '  AR tab -> Start AR -> Tools -> Why is a measurement not working?\n\n' +
       'trees: ' + CAT.features.length + ' in the register\n' +
-      'last error: ' + (lastErr || 'none');
+      'last error: ' + (lastErr || 'none') +
+      (measTraceText() ? '\n\nwhat the last presses did:\n' +
+                         measTraceText().replace(/^/gm, '  ') : '');
   }
   say('mode', mode + (hitOk ? ', hit-test yes' : ', hit-test NO'));
   say('ring', hitPt ? 'on a surface' : 'nothing under the crosshair');
@@ -9715,6 +9849,8 @@ function selfTestMeasure() {
   try { clearMeasure(); } catch (e) {}
   measure = before.measure; selIdx = before.sel; selPinned = before.pinned;
   if (lastErr) say('last error', lastErr);
+  const tr = measTraceText();
+  if (tr) lines.push('', 'what the last presses did:', tr.replace(/^/gm, '  '));
   return lines.join('\n');
 }
 
