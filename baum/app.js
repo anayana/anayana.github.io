@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.27.0';
+const APP_VERSION = '3.28.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2634,6 +2634,7 @@ function xrFrameBody(t, frame) {
     if (depthOk && depthWanted() && !cal && !xrBlurred &&
         t - stemScanAt >= STEM_EVERY) { stemScanAt = t; guard('stem scan', stemScan); }
     if (!xrBlurred) guard('standing', autoStand);
+    if (!xrBlurred) guard('aiming', aimTick);
     if (edgeTick % 60 === 11) guard('far from stand', checkFarFromStand);
     if (shotFor !== null) guard('photo', () => takeARPhoto(frame));
     if (ghost && edgeTick % 3 === 0) guard('ghost', ghostTick);
@@ -3911,6 +3912,7 @@ function measTraceText() {
 let mObjs = [];                    // what was drawn, and where it was hung
 function clearMeasure() {
   measure = null;
+  aimStop();
   reticle.visible = false;
   $('mbar').classList.remove('on');
   tapCatcher();
@@ -4244,10 +4246,72 @@ function tapPoint(wantStem) {
   return null;
 }
 
+/* ---- you cannot aim at a treetop and press a button at the same time ----
+   The field trace settled this. Five presses inside one second, each one
+   refused because the sightline was eight to eleven degrees BELOW level: the
+   phone was pointing at the ground every time the thumb landed. Of course it
+   was. To press the button, or to tap the screen, you look at the screen -
+   and the phone tilts down as you do it. The angle at the moment of the
+   press is not the angle you were aiming at, and for a height the angle IS
+   the measurement.
+
+   So the aiming half of a measurement stops asking for a press. Hold the
+   crosshair on the treetop and keep it there for a moment; the app watches
+   the direction, and when it has stopped moving it takes the reading itself.
+   The button still works for anyone who wants it, and the bar shows the
+   angle and the height live while you aim, so it is obvious that something
+   is happening and what it will come out as. */
+const AIM_STEADY = 2.5,     // degrees of wobble still counted as holding still
+      AIM_HOLD = 1.1,       // seconds to hold before it takes the reading
+      AIM_PAINT = 200;      // ms between read-out writes: the overlay is dear
+let aimAt = 0, aimDir = null, aimPaintAt = 0, aimSaid = '';
+function aimStop() { aimAt = 0; aimDir = null; aimSaid = ''; }
+function aimWants() {
+  const m = measure;
+  return !!(m && !m.done && m.cfg && m.cfg.aim && m.step >= 1 && mode === 'WebXR');
+}
+function aimTick() {
+  if (!aimWants()) { if (aimDir) aimStop(); return; }
+  const m = measure, now = performance.now();
+  const dd = camDir();                       // a plain triple from some callers
+  const d = new THREE.Vector3(dd.x, dd.y, dd.z);
+  if (!aimDir) { aimDir = d.clone(); aimAt = now; }
+  const moved = Math.acos(THREE.MathUtils.clamp(d.dot(aimDir), -1, 1)) * 180 / Math.PI;
+  if (moved > AIM_STEADY) { aimDir = d.clone(); aimAt = now; }
+  const held = (now - aimAt) / 1000;
+
+  const base = m.pts[0], c = camPos();
+  const horiz = base ? Math.hypot(c.x - base.x, c.z - base.z) : 0;
+  const el = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
+  const deg = el * 180 / Math.PI;
+  const wide = m.cfg.aim === 'wide';
+  /* Why it is not taking the reading, said while you are aiming rather than
+     after a press that looked like it did nothing. */
+  const bad = horiz < 1.5 ? 'too close to the stem \u2013 ' + horiz.toFixed(1) + ' m'
+            : (!wide && deg < 5) ? 'tilt up \u2013 the sightline is ' +
+              (deg < 0 ? Math.abs(deg).toFixed(0) + '\u00b0 below level' : deg.toFixed(0) + '\u00b0 up')
+            : '';
+  let say;
+  if (bad) say = bad;
+  else if (wide) say = 'holding \u2026 ' + Math.min(100, Math.round(held / AIM_HOLD * 100)) + '%';
+  else {
+    const h = c.y + horiz * Math.tan(el) - (base ? base.y : 0);
+    say = deg.toFixed(0) + '\u00b0 up \u00b7 ' + h.toFixed(1) + ' m \u00b7 ' +
+          (held >= AIM_HOLD ? 'taking it' :
+           'hold still ' + Math.max(0, AIM_HOLD - held).toFixed(1) + ' s');
+  }
+  if (now - aimPaintAt > AIM_PAINT && say !== aimSaid) {
+    aimPaintAt = now; aimSaid = say;
+    const el2 = $('aimnow'); if (el2) el2.textContent = say;
+  }
+  if (!bad && held >= AIM_HOLD) { aimStop(); mlog('held still - taking the reading itself'); safeTap(); }
+}
+
 function measureTap() {
   const m = measure; if (!m || m.done) return;
   lastTapAt = Date.now();
   const cfg = m.cfg;
+  if (!m.wantsHit) tapFrom = '';      // nothing was looked up: do not report the last lookup
   const tp = m.wantsHit ? tapPoint(m.kind === 'stems' || m.kind === 'stem' || m.kind === 'newtree') : null;
   if (m.wantsHit && !tp) {
     /* This used to be a toast: three seconds of grey text over a camera
@@ -4256,12 +4320,26 @@ function measureTap() {
        dead. It stays up now and says what to do about it. */
     mlog('tap on ' + m.kind + ' - no point: nothing ahead, sightline ' +
          (camDir().y > 0 ? 'above' : 'below') + ' level');
+    /* Twice in a row is not a knack that has not been got yet, it is
+       something wrong with this session - and then the answer belongs here,
+       under the thumb that is pressing, not behind a menu item nobody in a
+       wood is going to go looking for. */
+    m.misses = (m.misses || 0) + 1;
+    const why = m.misses < 2 ? [] : [['Why is this not working?', () => {
+      let txt;
+      try { txt = selfTestMeasure(); }
+      catch (e) { txt = 'The check itself failed: ' + ((e && e.message) || e); }
+      mbar('<b>What the phone can and cannot do right now</b>' +
+           '<pre style="white-space:pre-wrap;margin:6px 0 0;font-size:11px">' +
+           esc(txt) + '</pre>',
+           [['Back', () => startMeasure(m.kind), 'p'], ['Close', clearMeasure]]);
+    }, 'p']];
     return mbar(
       '<b>Nothing under the crosshair</b><br>' +
       'The phone has found no surface along the middle of the screen and the ' +
       'sightline does not meet the ground either. Tilt down towards the foot ' +
       'of the tree – a metre or two in front of your feet – and press again.',
-      takeBtns());
+      takeBtns().concat(why));
   }
   /* The point just taken is a measurement, not the state of the hit-test. It
      used to be written into hitPt, the live ring on the ground: when no frame
@@ -4282,10 +4360,13 @@ function measureTap() {
       firstPoint(pt);                    // pin it and show where it was taken
       m.step = 1; m.wantsHit = false; reticle.visible = false;
       mbar('<b>' + cfg.label + '</b><br>' + (cfg.aim === 'wide'
-             ? 'Now aim at one edge of the crown'
-             : 'Now aim at the ' + (m.kind === 'height' ? 'treetop' : 'lowest live branch')),
+             ? 'Now hold the crosshair on one edge of the crown'
+             : 'Now hold the crosshair on the ' +
+               (m.kind === 'height' ? 'treetop' : 'lowest live branch')) +
+           ' \u2013 it takes the reading itself.<br><span id="aimnow" class="small"></span>',
            takeBtns(cfg.aim === 'wide' ? 'First edge'
                     : m.kind === 'height' ? 'Treetop' : 'Branch'));
+      aimStop();
       return;
     }
     const base = m.pts[0], c = camPos(), d = camDir();
@@ -4297,7 +4378,9 @@ function measureTap() {
        warning sent you back to aiming at the foot of the tree again. */
     if (horiz < 1.5) { mlog('refused - only ' + horiz.toFixed(1) + ' m from the stem'); return mbar(
       '<b>Too close \u2013 ' + horiz.toFixed(1) + ' m from the stem</b><br>' +
-      'Step back a few metres and press again. The stem base is remembered.',
+      'Step back a few metres. The stem base is remembered, and the reading ' +
+      'is taken as soon as you hold still on the target.<br>' +
+      '<span id="aimnow" class="small"></span>',
       takeBtns(cfg.aim === 'wide' ? 'First edge'
                : m.kind === 'height' ? 'Treetop' : 'Branch')); }
 
@@ -4310,7 +4393,10 @@ function measureTap() {
       const bear = Math.atan2(d.x, -d.z);
       if (m.step === 1) {
         m.bearA = bear; m.step = 2;
-        return mbar('<b>' + cfg.label + '</b><br>Now aim at the other edge',
+        aimStop();
+        return mbar('<b>' + cfg.label + '</b><br>Now hold the crosshair on the other edge' +
+                    ' \u2013 it takes the reading itself.<br>' +
+                    '<span id="aimnow" class="small"></span>',
                     takeBtns('Other edge'));
       }
       let da = bear - m.bearA;
@@ -4330,7 +4416,8 @@ function measureTap() {
     const el = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
     if (el < 0.09) { mlog('refused - sightline only ' + (el * 180 / Math.PI).toFixed(0) + ' deg up'); return mbar(
       '<b>Aim higher</b><br>The sightline is almost level \u2013 tilt up to the ' +
-      (m.kind === 'height' ? 'treetop' : 'branch') + ' and press again.',
+      (m.kind === 'height' ? 'treetop' : 'branch') + ' and hold there \u2013 ' +
+      'it takes the reading itself.<br><span id="aimnow" class="small"></span>',
       takeBtns(m.kind === 'height' ? 'Treetop' : 'Branch')); }
     const top = c.y + horiz * Math.tan(el);
     const h = top - base.y;
@@ -4449,6 +4536,7 @@ function measureTap() {
 function finishMeasure(value, html) {
   const m = measure;
   m.value = value; m.wantsHit = false;
+  aimStop();
   mlog('done ' + m.kind + ' = ' + (typeof value === 'number' ? value.toFixed(2) : value) +
        (m.soft ? ' (off the floor plane)' : ''));
   /* Where the point came from belongs with the number. A metre taken off the
