@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '3.25.0';
+const APP_VERSION = '3.26.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1882,6 +1882,10 @@ function trackSpan() {
 let sceneLocked = false;
 function autoFit() {
   if (sceneLocked) return;
+  /* Not while measuring. A fit moves every tree on the screen at once, and
+     doing that between the first press and the second is the scene sliding
+     out from under the two points being measured between. */
+  if (measure) return;
   if (S2P && !s2pAuto) return;              // measured, or recorded into: leave it
   if (!plotGeoreferenced()) return;
   if (controlList().filter(r => refFix.has(r.key)).length >= 2) return;   // hand-measured wins
@@ -2069,11 +2073,12 @@ function buildScene() {
     new THREE.MeshBasicMaterial({ color: 0x8fd6a8, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false }));
   reticle.rotation.x = -Math.PI / 2; reticle.renderOrder = 12; reticle.visible = false;
   scene.add(reticle);
-  // Inside world, not in the session frame: a measurement drawn in session
-  // coordinates stays where the phone happened to be standing, while the trees
-  // move with every fit, yaw re-sync and anchor correction - so the line walks
-  // away from the tree it measured.
-  mGroup = new THREE.Group(); world.add(mGroup);
+  /* A measured point is a point in the real world, so it hangs in the session
+     frame and is pinned to ARCore on top of that - see measureAnchor(). Hung
+     inside world it inherited every fit, every yaw re-sync and every anchor
+     correction of the register, which is why a line drawn between two points
+     crawled away from both of them while the phone was carried about. */
+  mGroup = new THREE.Group(); scene.add(mGroup);
 
   addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
@@ -2166,7 +2171,7 @@ function markerWanted(i) {
    is thousands of trees. One map, rebuilt with the markers. */
 let markerOf = new Map();
 function buildMarkers() {
-  // only the marker groups: mGroup hangs here too and must survive
+  // only the marker groups: everything else under world stays
   world.children.filter(o => o.userData.idx != null).forEach(o => {
     world.remove(o); disposeObj(o);
   });
@@ -2294,6 +2299,7 @@ const AUTO_ACC = 20;          // metres of GPS accuracy worth aligning on
 let autoSaid = false;
 function autoAlign(force) {
   if (!world || !mode || sceneLocked) return false;
+  if (measure && !force) return false;         // not under a running measurement
   if (S2P && !force) return false;
   if (!lastFix || !plotGeoreferenced()) return false;
   // A ±30 m fix would put the whole stand thirty metres from where it is, and
@@ -2614,6 +2620,7 @@ function xrFrameBody(t, frame) {
     if (stemAsk) { const q = stemAsk; stemAsk = null; guard('stem request', () => q(findStem())); }
     guard('hit test', () => updateHitTest(frame));
     guard('anchors', () => updateAnchors(frame));
+    guard('measurement anchor', () => updateMeasureAnchor(frame));
     if (panchWanted) guard('keep anchors', () => makeStemAnchors(frame));
     if (!panchDone && panchRestored.size >= 2) guard('remembered anchors', () => fitFromRestored(frame));
     // depth is asked about once, on the first frame, and then only when
@@ -2828,7 +2835,10 @@ function tick() {
   mObjs.forEach(o => {
     const b = o.userData.base; if (!b) return;
     o.getWorldPosition(_sp);
-    const s = fitScale(1, _cp.distanceTo(_sp), t, b[0], b[1]);
+    const d = _cp.distanceTo(_sp);
+    // a point mark at twenty metres is three pixels across unless it grows
+    const k = o.userData.grow ? THREE.MathUtils.clamp(d / 8, 1, 3) : 1;
+    const s = fitScale(k, d, t, b[0], b[1]);
     o.scale.set(b[0] * s, b[1] * s, 1);
   });
   /* Which tree is nearest, said even when the scene is drawing nothing. A
@@ -3168,6 +3178,7 @@ function updateAnchors(frame) {
     return;
   }
   if (compActive()) return;            // let the glide finish before nudging anything
+  if (measure) return;                 // and never while something is being measured
   const now = performance.now();
   const dt = anchTime ? Math.min(0.1, (now - anchTime) / 1000) : 0;
   anchTime = now;
@@ -3855,7 +3866,7 @@ function mbar(txt, buttons) {
 let tapPad = null, lastTapAt = 0;
 function tapCatcher() {
   const mid = $('xrmid'); if (!mid) return;
-  const on = !!measure;
+  const on = !!measure && !measure.done;
   if (!tapPad) {
     tapPad = document.createElement('div');
     tapPad.id = 'tappad';
@@ -3885,13 +3896,47 @@ function clearMeasure() {
     if (c.parent) c.parent.remove(c);
   });
   mObjs = [];
+  dropMeasureAnchor();
+  if (mGroup) mGroup.position.set(0, 0, 0);
 }
-/* A measurement of a tree hangs on that tree, so an anchor correction moves
-   both together; a free tape hangs on the world, which is still georeferenced.
-   Points come in as session coordinates and are converted to the parent's. */
-function mParent(tree) {
-  const g = (tree != null && world) ? markerOf.get(tree) : null;
-  return g || mGroup;
+/* Everything a measurement draws hangs in mGroup: the session frame, held
+   against ARCore's own drift by the anchor below. Points come in as session
+   coordinates and are converted to the group's. */
+function mParent() { return mGroup; }
+
+/* ---- the measurement is pinned to the ground, not to the app ----
+   The phone's idea of where it is drifts as it is carried around, and every
+   correction the app makes to the register's fit moves the register with it.
+   Neither has any business moving a tape measure: those two points were real
+   points on real bark. So the first point of a measurement gets an ARCore
+   anchor, ARCore re-solves that anchor every frame as it re-recognises the
+   place, and mGroup is offset by exactly however far the anchor has moved.
+   The line then stays between the two things it was measured between. */
+let mAnchor = null, mAnchorAt = null, mAnchorWant = null;
+function measureAnchor(p) {
+  dropMeasureAnchor();
+  if (mGroup) mGroup.position.set(0, 0, 0);
+  if (anchorsOk && p) mAnchorWant = p.clone();     // made on the next frame
+}
+function dropMeasureAnchor() {
+  if (mAnchor) { try { mAnchor.delete(); } catch (e) {} }
+  mAnchor = mAnchorAt = mAnchorWant = null;
+}
+function updateMeasureAnchor(frame) {
+  if (!mGroup || !xrRef) return;
+  if (mAnchorWant) {
+    const p = mAnchorWant; mAnchorWant = null;
+    try {
+      const pr = frame.createAnchor(
+        new XRRigidTransform({ x: p.x, y: p.y, z: p.z }), xrRef);
+      if (pr && pr.then) pr.then(a => { mAnchor = a; mAnchorAt = p; }).catch(() => {});
+    } catch (e) { mAnchor = mAnchorAt = null; }   // no anchors here: session frame it is
+  }
+  if (!mAnchor || !mAnchorAt) return;
+  const pose = frame.getPose(mAnchor.anchorSpace, xrRef);
+  if (!pose) return;
+  const q = pose.transform.position;
+  mGroup.position.set(q.x - mAnchorAt.x, q.y - mAnchorAt.y, q.z - mAnchorAt.z);
 }
 function valueSprite(text) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128;
@@ -3906,17 +3951,76 @@ function valueSprite(text) {
   sp.userData.base = [1.2, 0.3];            // tick() caps this against the screen
   return sp;
 }
+/* Which two points were measured, marked on the screen. A bare line between
+   two invisible ends says nothing about where either end was, and that is
+   what the read-out was: a number floating in the air. */
+const PT_FROM = '#ffd27a', PT_TO = '#8fd6a8';
+function dotCanvas(colour) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.lineCap = 'round';
+  g.strokeStyle = 'rgba(8,14,11,.85)'; g.lineWidth = 16;
+  g.beginPath(); g.arc(64, 64, 40, 0, 6.2832); g.stroke();
+  g.strokeStyle = colour; g.lineWidth = 9;
+  g.beginPath(); g.arc(64, 64, 40, 0, 6.2832); g.stroke();
+  g.lineWidth = 8;
+  g.beginPath();
+  g.moveTo(64, 10); g.lineTo(64, 30); g.moveTo(64, 98); g.lineTo(64, 118);
+  g.moveTo(10, 64); g.lineTo(30, 64); g.moveTo(98, 64); g.lineTo(118, 64);
+  g.stroke();
+  g.fillStyle = colour; g.beginPath(); g.arc(64, 64, 12, 0, 6.2832); g.fill();
+  return c;
+}
+function markPoint(p, colour) {
+  if (!mGroup) return null;
+  mGroup.updateMatrixWorld(true);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(dotCanvas(colour)), depthTest: false, transparent: true }));
+  sp.position.copy(mGroup.worldToLocal(p.clone()));
+  sp.renderOrder = 14;
+  sp.userData.base = [0.3, 0.3];       // metres, grown a little with distance in tick()
+  sp.userData.grow = 1;
+  sp.userData.dot = 1;
+  mGroup.add(sp); mObjs.push(sp);
+  return sp;
+}
+function dropDots() {
+  mObjs = mObjs.filter(o => {
+    if (!o.userData.dot) return true;
+    if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    if (o.parent) o.parent.remove(o);
+    return false;
+  });
+}
 function drawSegment(a, b, text, tree) {
   const parent = mParent(tree);
   parent.updateMatrixWorld(true);
   const la = parent.worldToLocal(a.clone()), lb = parent.worldToLocal(b.clone());
+  const len = la.distanceTo(lb);
+  if (len > 0.02) {
+    /* A one-pixel line vanishes against bark and grass. A tube has a real
+       thickness out there in the world; the thin line drawn over it keeps the
+       run visible at the distances where the tube is thinner than a pixel. */
+    const tube = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, len, 10, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x8fd6a8, depthTest: false, side: THREE.DoubleSide,
+                                    transparent: true, opacity: 0.9 }));
+    tube.position.copy(la.clone().add(lb).multiplyScalar(0.5));
+    tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
+                                       lb.clone().sub(la).normalize());
+    tube.renderOrder = 11;
+    parent.add(tube); mObjs.push(tube);
+  }
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([la, lb]),
     new THREE.LineBasicMaterial({ color: 0x8fd6a8, depthTest: false }));
   line.renderOrder = 12;
   parent.add(line); mObjs.push(line);
+  dropDots();                                  // the one put down at the first point
+  markPoint(a, PT_FROM); markPoint(b, PT_TO);
   const sp = valueSprite(text);
   sp.position.copy(la.clone().add(lb).multiplyScalar(0.5));
+  sp.position.y += 0.25;                       // off the line, not on top of it
   parent.add(sp); mObjs.push(sp);
 }
 
@@ -3960,7 +4064,7 @@ function startMeasure(kind, refArg) {
     [['Trees', () => { clearMeasure(); $('bwhich').click(); }, 'p'],
      ['Close', clearMeasure]]);
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
-              markKind: kind === 'mark' ? refArg : null };
+              done: false, markKind: kind === 'mark' ? refArg : null };
   const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
             : (tree == null || kind === 'newtree') ? '' : ' · ' + props(tree).tree_id;
   const ask = kind === 'mark' ? 'Aim at the defect on the tree, then tap the screen or the button'
@@ -4038,7 +4142,7 @@ function tapPoint(wantStem) {
 }
 
 function measureTap() {
-  const m = measure; if (!m) return;
+  const m = measure; if (!m || m.done) return;
   lastTapAt = Date.now();
   const cfg = m.cfg;
   const tp = m.wantsHit ? tapPoint(m.kind === 'stems' || m.kind === 'stem' || m.kind === 'newtree') : null;
@@ -4051,6 +4155,7 @@ function measureTap() {
   if (cfg.aim) {
     if (m.step === 0) {                                   // remember the base, then aim away
       m.pts[0] = hitPt.clone();
+      measureAnchor(hitPt); markPoint(hitPt, PT_FROM);    // and show where it was taken
       m.step = 1; m.wantsHit = false; reticle.visible = false;
       mbar('<b>' + cfg.label + '</b><br>' + (cfg.aim === 'wide'
              ? 'Now aim at one edge of the crown'
@@ -4196,6 +4301,7 @@ function measureTap() {
       [['Close', clearMeasure]]);
     const stem = g.getWorldPosition(new THREE.Vector3());
     const d = Math.hypot(hitPt.x - stem.x, hitPt.z - stem.z);
+    measureAnchor(hitPt);
     drawSegment(new THREE.Vector3(stem.x, hitPt.y, stem.z), hitPt.clone(), d.toFixed(1) + ' m', m.tree);
     const h = num(props(m.tree).height_m);
     const zone = (h && d <= h) ? '<br><span class="small">inside the fall zone (' + h.toFixed(0) + ' m tree)</span>' : '';
@@ -4206,6 +4312,7 @@ function measureTap() {
   // two free points: crown diameter or plain tape
   if (m.step === 0) {
     m.pts[0] = hitPt.clone(); m.step = 1;
+    measureAnchor(hitPt); markPoint(hitPt, PT_FROM);
     mbar('<b>' + cfg.label + '</b><br>Aim at the second point', takeBtns('Second point'));
     return;
   }
@@ -4218,6 +4325,13 @@ function measureTap() {
 function finishMeasure(value, html) {
   const m = measure;
   m.value = value; m.wantsHit = false;
+  /* Done means done. The bar stayed up with the measurement still live, so
+     every further tap on the screen ran measureTap again - and with the first
+     point still stored, that produced a new distance from that same point to
+     wherever the phone was now pointing, over and over. A tape that measures
+     from one point to everything, and a height that keeps changing. */
+  m.done = true;
+  tapCatcher();
   reticle.visible = false;
   const btns = [];
   if (m.cfg.field) {
@@ -5416,6 +5530,22 @@ function buildToolMenu() {
       () => startMeasure('newtree'));
 
   const help = group('When something will not measure');
+  /* The register is fitted to the ground from GPS while you walk, and every
+     improvement moves every tree on the screen a little. Standing in front
+     of one trunk, that is the tree drifting away from it. This stops all of
+     it where it is - measurements are not affected either way, they are
+     pinned to the ground by ARCore. */
+  add(help, (sceneLocked ? '\u{1F512}  Trees are held still' : '\u{1F513}  Trees will not stay put'),
+      sceneLocked ? 'press to let them correct themselves again'
+                  : 'freeze them exactly where they are now',
+      () => {
+        sceneLocked = !sceneLocked;
+        if (sceneLocked) settleComp();
+        showFit(); buildRefMenu();
+        toast(sceneLocked
+          ? 'Held: the trees stay exactly where they are until you unlock them.'
+          : 'Unlocked: the trees line themselves up again as you walk.');
+      });
   add(help, '\u2753  Why is a measurement not working?', 'checks each one and says what it finds',
       () => {
         let txt;
