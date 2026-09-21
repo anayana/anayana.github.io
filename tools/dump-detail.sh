@@ -22,6 +22,6 @@ curl -sSL --max-time 30 -A "$UA" https://anayana.github.io/vta/index.html \
 echo
 echo "=== is the measure button in the served app.js?"
 curl -sSL --max-time 60 -A "$UA" https://anayana.github.io/vta/app.js > /tmp/served.js 2>/dev/null
-for needle in "Take the point" "arstand" "xrFrameBody" "ar-on" "needs the depth camera"; do
+for needle in "Take the point" "measureAnchor" "userData.dot = 1" "m.done = true" "Trees will not stay put"; do
   printf '   %-26s %s\n' "$needle" "$(grep -c "$needle" /tmp/served.js) occurrences"
 done
