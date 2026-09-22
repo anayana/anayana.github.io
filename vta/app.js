@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.84.0';
+const APP_VERSION = '2.85.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -2685,6 +2685,8 @@ async function startCam() {
 
 function enterAR() {
   $('app').classList.add('hidden');
+  arReturn = null;              // a session is running: there is nothing to go back to
+  armOverlayGuard();
   $('xrui').classList.add('on');
   renderer.domElement.style.display = 'block';
   $('hMode').textContent = mode;
@@ -2716,6 +2718,48 @@ function enterAR() {
           ' – stop at either and it will again.');
   autoAlign();                  // aligning is not a thing the user should have to ask for
   restoreStemAnchors();         // and if the phone itself remembers the stems, better still
+}
+/* Starting a session was written inside the button's own handler, so nothing
+   else could start one: the way back from a tree page had to fake a press,
+   and a press on a disabled button is silence. It is a function now, and the
+   button is one of its callers. */
+async function startARFromUI() {
+  if (!batteryOkForAR()) return false;
+  /* If the page does not hold the camera permission the session will start
+     without a camera image and no photograph can be taken in it. Get the
+     permission first - it costs one extra press, once, ever. */
+  if (!(await cameraAllowed())) {
+    msg('asking for the camera \u2026');
+    const got = await primeCamera();
+    msg(got ? 'Camera allowed \u2013 press AR again to start with photographs.'
+            : 'Without the camera, AR still runs; photographs will need camera mode.');
+    if (got) return false;
+  }
+  msg('starting \u2026');
+  try { await startXR(); startGPS(); startOrient(); msg(''); return true; }
+  catch (e) { msg('WebXR: ' + e.message + ' \u2192 try camera mode'); return false; }
+}
+
+/* The full tree page cannot be drawn over a live session - native fields and
+   the keyboard are not composited onto it, which is the frozen form this app
+   spent a week on. So anything that wants the whole form ends the session
+   first. That is a detour, and a detour has a way back: whoever leaves for a
+   page says so here, and closing or saving that page starts the camera again
+   and puts you back where you were. Recording a tree, saving it and carrying
+   on to the next one is the whole job; it must not cost a trip through the
+   start screen. */
+let arReturn = null;
+function leaveARfor(what, i) { arReturn = { what: what, tree: i, at: Date.now() }; }
+function backToAR(why) {
+  const r = arReturn; arReturn = null;
+  // twenty minutes later, on some other tree's page, this is not where you were
+  if (!r || mode || Date.now() - r.at > 10 * 60 * 1000) return false;
+  toast(why || 'Back to the camera.');
+  /* Straight out of the press that asked for it: starting a session needs a
+     user gesture and this one is still warm. */
+  try { startARFromUI(); } catch (e) { return false; }
+  if (r.tree != null) setTimeout(() => { try { selectTree(r.tree); } catch (e) {} }, 1200);
+  return true;
 }
 function endAR() {
   document.documentElement.classList.remove('ar-on');
@@ -2968,10 +3012,50 @@ function pickFromRay(o, d) {
    in AR has never worked. It uses the event's frame now, and if there is no
    pose to be had it falls back to where the camera is looking rather than
    losing the tap. */
+/* ---- one finger, one action ----
+   With a dom-overlay, Chrome hands a touch to the DOM and ALSO raises an XR
+   select for the same finger unless the page says otherwise. Nothing here
+   ever said otherwise, so every press on a control did its own job and then
+   arrived a second time as a tap on the camera view. That is the whole
+   family of faults the field kept reporting: pressing Tape in the menu put
+   the first point down instantly, wherever the crosshair happened to be, so
+   only the second point could still be chosen; the big button took two
+   points with one press, which is a tape reading zero; and a single tap on
+   the screen measured twice.
+
+   beforexrselect exists for exactly this. It is cancelled for a touch that
+   starts on any control - the bars, the menus, the tree card, the tap pad,
+   any button - and left alone over the bare camera view, where a tap really
+   is how a tree is chosen. */
+const OVERLAY_CTL = '#xrbot,#xrtop,#tappad,#arcard,#panelXR,#chooser,#pickmenu,' +
+                    '#mmenu,#refmenu,#nummenu,#toolmenu,button,select,input,textarea,label,a';
+let lastDomPress = 0;
+function onOverlayCtl(t) {
+  return !!(t && t.closest && t.closest(OVERLAY_CTL));
+}
+function armOverlayGuard() {
+  const ui = $('xrui'); if (!ui || ui.dataset.selGuard) return;
+  ui.dataset.selGuard = '1';
+  ui.addEventListener('beforexrselect', ev => {
+    if (onOverlayCtl(ev.target)) ev.preventDefault();
+  });
+  /* And for anything that does not implement beforexrselect: a press on a
+     control is remembered, and a select arriving on its heels is that same
+     finger coming round a second time. */
+  ui.addEventListener('pointerdown', ev => {
+    if (onOverlayCtl(ev.target)) lastDomPress = performance.now();
+  }, true);
+}
+const SEL_ECHO = 700;    // ms after a press on a control that a select is an echo
 function onXRSelect(e) {
   const frame = (e && e.frame) || null;
   const wasLive = frameLive;
   if (frame) { lastFrame = frame; frameLive = true; }
+  if (performance.now() - lastDomPress < SEL_ECHO) {
+    mlog('ignored a screen tap that was the button press coming round again');
+    frameLive = wasLive;
+    return;
+  }
   try {
     // a tap belongs to the tool that is running - through the same guard as
     // the button, so a failure here is written down and said out loud too
@@ -4133,7 +4217,8 @@ function startMeasure(kind, refArg) {
     [['Trees', () => { clearMeasure(); $('bwhich').click(); }, 'p'],
      ['Close', clearMeasure]]);
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
-              done: false, markKind: kind === 'mark' ? refArg : null };
+              done: false, openedAt: performance.now(),
+              markKind: kind === 'mark' ? refArg : null };
   mlog('start ' + kind + (tree == null ? ' - no tree' : ' - ' + tid(tree)) +
        (hitPt ? '' : ' - nothing under the crosshair'));
   const who = kind === 'ref' ? ' · ' + ((controlByKey(refArg) || {}).name || '')
@@ -5234,7 +5319,8 @@ function shotOk(tree, rec) {
   const bs = document.createElement('div'); bs.className = 'bs';
   const bShow = document.createElement('button');
   bShow.textContent = 'Photos';
-  bShow.onclick = () => { shotHide(); if (mode) endAR(); openPanel(tree, 'photo'); };
+  bShow.onclick = () => { shotHide(); if (mode) { leaveARfor('photo', tree); endAR(); }
+                          openPanel(tree, 'photo'); };
   bs.appendChild(bShow);
   const bx = document.createElement('button'); bx.className = 'x'; bx.textContent = 'OK';
   bx.onclick = shotHide; bs.appendChild(bx);
@@ -5705,7 +5791,21 @@ function buildToolMenu() {
      one measurement that needs no tree, was the only one that still worked.
      Nothing is blocked here now: the measurement finds the nearest tree it is
      drawing, and says so in the bar if it cannot. */
-  const noTree = () => toast('No tree in view – point at one, or pick it under Trees.');
+  /* This was a toast, and a toast in daylight over a camera image is not
+     there. Pressing Bark, or Flower, or Voice with no tree recorded looked
+     like a dead button - and with an empty register that is every press. It
+     stays on the screen now and offers the two ways out of it: record the
+     tree you are standing at, or choose one from the list. */
+  const noTree = what => mbar(
+    '<b>' + esc(what || 'That') + ' belongs to a tree</b><br>' +
+    (CAT.features.length
+      ? 'No tree is in view and none is chosen. Point the camera at one, pick ' +
+        'it from Trees, or record the one you are standing at.'
+      : 'There is no tree on this phone yet. Record the one you are standing ' +
+        'at – it takes one press – or import a register under Office.'),
+    [['+ Tree here', () => { clearMeasure(); addTreeHere(); }, 'p'],
+     ['Trees', () => { clearMeasure(); $('bwhich').click(); }],
+     ['Close', clearMeasure]]);
   const add = (g, label, hint, fn) => {
     const b = document.createElement('button');
     b.className = 'toolbtn';
@@ -5735,17 +5835,18 @@ function buildToolMenu() {
 
   const ph = group('Photograph');
   add(ph, '▣  Bark at 1.30 m', 'the one the diameter is read from', who => {
-    if (who == null) return noTree();
+    if (who == null) return noTree('A bark photograph');
     if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(who, 'bark');
     startBark(who);
   });
   [['leaf', 'Leaf'], ['flower', 'Flower'], ['fruit', 'Fruit'], ['habit', 'Whole tree']].forEach(o =>
-    add(ph, o[1], '', who => who == null ? noTree() : takePhotoOf(who, o[0])));
+    add(ph, o[1], '', who => who == null ? noTree('A ' + o[1].toLowerCase() + ' photograph')
+                                         : takePhotoOf(who, o[0])));
 
   const n = group('Record');
   add(n, '🎤  Voice', 'say the findings, hands free', who => speechStart(who));
   add(n, '⚠︎  Mark a defect', 'pinned where it is on the tree',
-      who => who == null ? noTree() : markMenu(who));
+      who => who == null ? noTree('A defect') : markMenu(who));
   add(n, '🌳  Tree out of reach', 'one you cannot walk to',
       () => startMeasure('newtree'));
 
@@ -6943,7 +7044,8 @@ function arFormFix(root, tree) {
           out.textContent = 'Leave AR and type it';
           out.style.cssText = 'width:100%;padding:12px';
           out.onclick = () => { shut(); const t2 = tree == null ? targetTree() : tree;
-            closePanel(); endAR(); setTimeout(() => { if (t2 != null) openPanel(t2); }, 400); };
+            closePanel(); leaveARfor('page', t2); endAR();
+            setTimeout(() => { if (t2 != null) openPanel(t2); }, 400); };
           body.appendChild(out);
         });
       });
@@ -7594,7 +7696,10 @@ function arQuick(i) {
   };
   mk('🎤 Say it', () => speechStart(i));
   mk('Photo', () => takePhotoOf(i, 'habit'));
-  mk('Full page', () => { arQuick(null); endAR(); setTimeout(() => openPanel(i), 400); });
+  mk('Full page', () => {
+    arQuick(null); leaveARfor('page', i); endAR();
+    setTimeout(() => openPanel(i), 400);
+  });
   el.appendChild(row);
 }
 
@@ -7863,7 +7968,13 @@ function openPanel(i, tab) {
 
   const pf = document.createElement('div'); pf.className = 'pf';
   const bs = document.createElement('button'); bs.className = 'p'; bs.textContent = 'Save';
-  bs.onclick = () => { savePanel(); closePanel(); };
+  bs.onclick = () => {
+    savePanel(); closePanel();
+    /* Saving a tree is not leaving the survey. If the camera was closed only
+       to show this page, it comes straight back and the next tree can be
+       recorded without walking through the start screen. */
+    backToAR('Saved \u00b7 back to the camera.');
+  };
   const br2 = document.createElement('button'); br2.textContent = 'Reset';
   br2.onclick = () => {
     delete edits[tid(i)]; saveEdits(); refreshMarker(i); renderList(); openPanel(i);
@@ -10173,22 +10284,7 @@ function toTable(i) {
 function wire() {
   document.querySelectorAll('#tabbar button').forEach(b => b.onclick = () => showScreen(b.dataset.sc));
 
-  $('bxr').onclick = async () => {
-    if (!batteryOkForAR()) return;
-    /* If the page does not hold the camera permission the session will start
-       without a camera image and no photograph can be taken in it. Get the
-       permission first - it costs one extra press, once, ever. */
-    if (!(await cameraAllowed())) {
-      msg('asking for the camera …');
-      const got = await primeCamera();
-      msg(got ? 'Camera allowed – press AR again to start with photographs.'
-              : 'Without the camera, AR still runs; photographs will need camera mode.');
-      if (got) return;
-    }
-    msg('starting …');
-    try { await startXR(); startGPS(); startOrient(); msg(''); }
-    catch (e) { msg('WebXR: ' + e.message + ' → try camera mode'); }
-  };
+  $('bxr').onclick = startARFromUI;
   $('blidar').onclick = () => {
     msg('LiDAR mode is not built yet.');
     toast('LiDAR mode is not built yet.');

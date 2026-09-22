@@ -384,10 +384,39 @@ function micStop() {
   if (!vRec) return;
   try { vRec.onend = null; vRec.abort ? vRec.abort() : vRec.stop(); } catch (e) {}
 }
+/* The microphone either starts or it does not, and until now it did not say
+   which. Every failure went into an empty catch: no permission, no network,
+   no recogniser - the button was pressed, nothing happened, and voice was
+   "broken". An InvalidStateError only means it is already listening, which is
+   fine; anything else is reported where it can be seen. */
 function micStart() {
   if (!vOn || !vRec || vSpeaking) return;
   vRec.onend = () => { if (vOn && !vSpeaking) setTimeout(micStart, 250); };
-  try { vRec.start(); } catch (e) {}          // already running: nothing to do
+  try { vRec.start(); }
+  catch (e) {
+    if (e && e.name === 'InvalidStateError') return;     // already listening
+    voiceFailed((e && e.message) || String(e));
+  }
+}
+/* Said in the one place the eye is: inside AR that is the bar under the
+   thumb, outside it the voice bar and a toast. Written to the measurement
+   trace too, so "voice does not work" arrives with a reason next time. */
+function voiceFailed(why) {
+  vOn = false;
+  try { if (typeof mlog === 'function') mlog('voice did not start - ' + why); } catch (e) {}
+  const de = voiceLang().startsWith('de');
+  const head = de ? 'Das Mikrofon startet nicht' : 'The microphone will not start';
+  try { speechBar(head, 'bad', why); } catch (e) {}
+  const body = '<b>' + head + '</b><br>' + esc(why) +
+    (de ? '<br>Chrome erkennt Sprache auf einem Server: ohne Netz geht es gar nicht. ' +
+          'Und das Mikrofon muss für diese Seite erlaubt sein.'
+        : '<br>Chrome recognises speech on a server: with no signal it cannot work ' +
+          'at all. And the microphone has to be allowed for this site.');
+  try {
+    if (typeof mode !== 'undefined' && mode === 'WebXR' && typeof mbar === 'function')
+      mbar(body, [['Close', typeof clearMeasure === 'function' ? clearMeasure : function () {}]]);
+    else toast(head + ' – ' + why);
+  } catch (e) {}
 }
 function say(text, cb) {
   const done = () => { vSpeaking = false; micStart(); if (cb) cb(); };
@@ -533,12 +562,15 @@ function speechStart(i) {
     speechHeard(alts);
   };
   vRec.onerror = ev => {
-    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-      speechBar('Microphone refused', 'bad', 'Allow the microphone for this site, then press 🎤 again.');
-      vOn = false; return;
-    }
+    const de = voiceLang().startsWith('de');
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed')
+      return voiceFailed(de ? 'Das Mikrofon ist für diese Seite nicht erlaubt.'
+                            : 'The microphone is not allowed for this site.');
     if (ev.error === 'network')
-      speechBar(vBarHead(), 'bad', 'No signal – the recogniser needs the network on this phone.');
+      return voiceFailed(de ? 'Kein Netz – die Erkennung läuft auf einem Server.'
+                            : 'No signal – the recogniser runs on a server.');
+    if (ev.error === 'audio-capture')
+      return voiceFailed(de ? 'Kein Mikrofon gefunden.' : 'No microphone found.');
   };
   vOn = true; vTree = i == null ? (typeof openIdx !== 'undefined' ? openIdx : null) : i;
   vAsking = null; vPendingText = null; vPendSpecies = null; vFields = []; vAt = -1;
