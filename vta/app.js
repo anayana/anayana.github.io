@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.85.0';
+const APP_VERSION = '2.86.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -881,6 +881,36 @@ function applyDist(d) {
   done();
 }
 
+/* A tool that needs a tree, pressed where no tree is recorded. Refusing is
+   the wrong answer: you are standing in front of the thing, the camera is on
+   its bark, and recording it is the press you were about to make anyway. So
+   it records the tree you are standing at and carries straight on into the
+   tool - the photograph, the identification, the defect, the distance -
+   instead of sending you back through a menu. What it recorded is said
+   plainly afterwards, and it can be deleted like any other. */
+let afterRecord = null;
+function noTreeBar(what) {
+  return mbar(
+    '<b>' + esc(what || 'That') + ' belongs to a tree</b><br>' +
+    'The camera view is not running, and without it a tree cannot be placed. ' +
+    'Start AR and press again, or pick a tree under Trees.',
+    [['Trees', () => { clearMeasure(); $('bwhich').click(); }, 'p'],
+     ['Close', clearMeasure]]);
+}
+let selfTesting = false;
+function ensureTree(label, go) {
+  const who = targetTree();
+  if (who != null) { if (who !== selIdx) selectTree(who); return go(who); }
+  /* The check under Tools starts every measurement in turn to see which of
+     them would run. It must not leave half a dozen trees in the register
+     behind it, so there it reports instead of recording. */
+  if (selfTesting) return mbar('<b>' + esc(label) + '</b><br>would record the tree you are ' +
+                               'standing at first', [['Close', clearMeasure]]);
+  if (mode !== 'WebXR') return noTreeBar(label);
+  mlog('no tree for ' + label + ' - recording the one being stood at');
+  afterRecord = i => go(i);
+  addTreeHere();
+}
 function recordTreeAt(st) {
   if (mode !== 'WebXR') return toast('The camera view is not running.');
   if (!S2P) return toast('The session has no frame to measure in – leave AR and come back.');
@@ -941,9 +971,9 @@ function recordTreeAt(st) {
     was: Math.hypot(at.x - c.x, at.z - c.z),
     note: how === 'reticle' ? 'Recorded at the ring' : how === 'step' ? 'Recorded a step ahead'
                                                      : 'Recorded where you stand',
-    after: () => openPanel(i)
+    after: () => recordDone(i)
   });
-  if (!asked) openPanel(i);
+  if (!asked) recordDone(i);
   const rough = s2pAuto && CAT.features.some((f, k) => k !== i && hasLocal(props(k)));
   toast('Tree ' + tid(i) + (how === 'depth'
           ? ' recorded on the stem in front of you' +
@@ -955,6 +985,15 @@ function recordTreeAt(st) {
           : ' recorded where you stand.') +
         (near ? ' ' + tid(near.i) + ' is ' + near.d.toFixed(1) + ' m away – delete this one if it is the same stem.' : '') +
         (rough ? ' Against the trees already here it is only as good as GPS – tap three stems and it moves onto the right place.' : ''));
+}
+
+/* Where recording ends: at the tree's card, or - when a tool asked for the
+   tree so that it could get on with its own job - in that tool. */
+function recordDone(i) {
+  const fn = afterRecord; afterRecord = null;
+  if (!fn) return openPanel(i);
+  try { fn(i); }
+  catch (e) { note('after recording', e); openPanel(i); }
 }
 
 /* ---- standing at trees you know ----
@@ -1525,8 +1564,12 @@ function plotAbsorbFix(fix, lx, ly) {
     }
   }
   if (!plotGeoreferenced() || PLOT.provisional) {
+    const keep = was ? { lat: PLOT.lat, lon: PLOT.lon, n: PLOT.n, acc: PLOT.acc,
+                         provisional: PLOT.provisional } : null;
+    const moved = was ? distBear(was.lat, was.lon, back.lat, back.lon).d : 0;
     PLOT.lat = back.lat; PLOT.lon = back.lon; PLOT.n = 1; PLOT.acc = fix.acc;
     delete PLOT.provisional;
+    if (moved > 10) plotMoved(moved, keep, fix);
   } else {
     const w = 1 / Math.max(1, PLOT.n + 1);
     PLOT.lat += (back.lat - PLOT.lat) * w;
@@ -1541,6 +1584,35 @@ function plotAbsorbFix(fix, lx, ly) {
      metres after an hour of walking - and how a tree could no longer be
      recognised by standing next to it. */
   if (was && distBear(was.lat, was.lon, PLOT.lat, PLOT.lon).d > 0.05) refreshPlotGeo();
+}
+
+/* A survey recorded before the phone had a usable fix sits where the first
+   guess put it. The first fix worth having says where it really is, and that
+   can be a hundred metres. The correction is right - but a tree that appears
+   to have wandered across a field overnight, with nothing said, is worse than
+   the error it just repaired. So it is said: how far, why, and with the way
+   to put it back. Once per session; nobody needs telling twice. */
+let plotMovedSaid = false;
+function plotMoved(d, keep, fix) {
+  if (plotMovedSaid) return;
+  plotMovedSaid = true;
+  const undo = () => {
+    if (!keep) return;
+    PLOT.lat = keep.lat; PLOT.lon = keep.lon; PLOT.n = keep.n; PLOT.acc = keep.acc;
+    if (keep.provisional) PLOT.provisional = true;
+    savePlot(); refreshPlotGeo();
+    toast('Put back where it was \u2013 the trees keep their spacing either way.');
+  };
+  const txt = '<b>The survey moved ' + d.toFixed(0) + ' m onto its GPS position</b><br>' +
+    'It had no measured position until now, so it sat where the first guess put ' +
+    'it. This fix is \u00b1' + fix.acc.toFixed(0) + ' m. Every distance between trees ' +
+    'is unchanged \u2013 only where the whole stand sits on the map.';
+  if (mode === 'WebXR' && typeof mbar === 'function')
+    mbar(txt, [['Leave it there', clearMeasure, 'p'],
+               ['Put it back', () => { undo(); clearMeasure(); }]]);
+  else toast('The survey moved ' + d.toFixed(0) + ' m onto its GPS position (\u00b1' +
+             fix.acc.toFixed(0) + ' m). Distances between trees are unchanged.');
+  mlog('stand moved ' + d.toFixed(0) + ' m onto a fix of +-' + fix.acc.toFixed(0) + ' m');
 }
 
 /* Putting the whole stand back on the earth without touching its shape.
@@ -2761,11 +2833,16 @@ function backToAR(why) {
   if (r.tree != null) setTimeout(() => { try { selectTree(r.tree); } catch (e) {} }, 1200);
   return true;
 }
-function endAR() {
+/* byUser: the Exit button, or leaving for a page on purpose. Anything else
+   is the session ending by itself, which is the only case worth writing down.
+   It used to be written down every single time a measurement happened to be
+   open - which is most exits - so the box came up at every start saying the
+   app had stopped when nothing had stopped at all. */
+function endAR(byUser) {
   document.documentElement.classList.remove('ar-on');
   beatStop();
-  if (measure || (typeof cal !== 'undefined' && cal))
-    crashWrite('AR session ended', 'while a measurement was running', '');
+  if (!byUser && (measure || (typeof cal !== 'undefined' && cal)))
+    crashWrite('The camera view closed by itself', 'while a measurement was running', '');
   renderer.setAnimationLoop(null);
   lsDel(K_DTRIAL);                 // ended on purpose: not a death
   letSleep();
@@ -3105,22 +3182,40 @@ function xrCam() {
 function camPos() { return new THREE.Vector3().setFromMatrixPosition(xrCam().matrixWorld); }
 function camDir() { return new THREE.Vector3(0, 0, -1).transformDirection(xrCam().matrixWorld); }
 
+/* The ring is a promise: the point will be taken where the ring is. It used
+   to disappear whenever ARCore had not found a plane along the middle of the
+   screen, and the press then landed on a point nobody could see - "I aim at
+   one thing and the mark lands two metres below it". So when there is no
+   scanned surface the ring falls back to the floor plane, in amber rather
+   than green, and stands exactly where the press will put the point. What
+   you see is what gets measured, and the colour says how well it is known. */
+const RET_HARD = 0x8fd6a8, RET_SOFT = 0xffd27a;
+let hitSoft = false;
+function retColour(soft) {
+  if (reticle && reticle.material && reticle.material.color.getHex() !== (soft ? RET_SOFT : RET_HARD))
+    reticle.material.color.setHex(soft ? RET_SOFT : RET_HARD);
+}
+function retShow(p, soft) {
+  hitPt = p; hitAt = performance.now(); hitSoft = soft;
+  reticle.position.copy(p);
+  retColour(soft);
+  reticle.visible = !!(measure ? measure.wantsHit
+    : (mode === 'WebXR' && !$('panelXR').classList.contains('on')));
+}
 function updateHitTest(frame) {
-  if (!hitSource) { hitPt = null; hitAt = 0; reticle.visible = false; return; }
+  if (!hitSource) { hitPt = null; hitAt = 0; hitSoft = false; reticle.visible = false; return; }
   const res = frame.getHitTestResults(hitSource);
   if (res.length) {
     const p = res[0].getPose(xrRef);
     if (p) {
-      hitPt = new THREE.Vector3(p.transform.position.x, p.transform.position.y, p.transform.position.z);
-      hitAt = performance.now();
-      reticle.position.copy(hitPt);
-      // always visible in the survey: it is where + Tree will put the tree
-      reticle.visible = !!(measure ? measure.wantsHit
-        : (mode === 'WebXR' && !$('panelXR').classList.contains('on')));
+      retShow(new THREE.Vector3(p.transform.position.x, p.transform.position.y,
+                                p.transform.position.z), false);
       return;
     }
   }
-  hitPt = null; hitAt = 0; reticle.visible = false;
+  const f = floorAhead();
+  if (f) { retShow(f, true); return; }
+  hitPt = null; hitAt = 0; hitSoft = false; reticle.visible = false;
 }
 
 /* ---- anchors that outlive the session ----
@@ -4207,15 +4302,14 @@ function startMeasure(kind, refArg) {
      the distance from a stem to a target - need it before they can begin. */
   const needsTreeNow = kind === 'stem' || kind === 'target';
   if (tree == null) { tree = nearestTree(); if (tree != null) selectTree(tree); }
-  if (needsTreeNow && tree == null) return mbar(
-    '<b>' + cfg.label + ' needs a tree</b><br>' +
-    (CAT.features.length
-      ? 'Nothing of the register is drawn in front of you yet. Pick the tree ' +
-        'under Trees, or stand at one you know and press Align.'
-      : 'There are no trees on this phone yet. Press + Tree at the trunk, ' +
-        'or import a register under Office.'),
-    [['Trees', () => { clearMeasure(); $('bwhich').click(); }, 'p'],
-     ['Close', clearMeasure]]);
+  /* Both of these are measured from a stem, so a stem has to exist - and if
+     none does, the one being stood at is recorded and the measurement starts
+     on it. Being sent to a menu to fetch a tree, while standing at one, was
+     never the right answer. */
+  if (needsTreeNow && tree == null) {
+    if (mode !== 'WebXR') return noTreeBar(cfg.label);
+    return ensureTree(cfg.label, () => startMeasure(kind, refArg));
+  }
   measure = { kind: kind, cfg: cfg, tree: tree, step: 0, pts: [], wantsHit: true, refId: refArg,
               done: false, openedAt: performance.now(),
               markKind: kind === 'mark' ? refArg : null };
@@ -4323,7 +4417,8 @@ function tapPoint(wantStem) {
     if (d) { tapFrom = 'the depth image'; return d; }
   } catch (e) { note('tap depth', e); }
   if (hitPt && (!hitAt || performance.now() - hitAt < HIT_FRESH)) {
-    tapFrom = 'the ring on the ground'; return hitPt.clone();
+    tapFrom = hitSoft ? 'the floor plane' : 'the ring on the ground';
+    return hitPt.clone();
   }
   const f = floorAhead();
   if (f) { tapFrom = 'the floor plane'; return f; }
@@ -5001,6 +5096,15 @@ function barkState() {
     okB: db == null || Math.abs(db) <= BARK_BEAR_TOL
   };
 }
+/* The whole bar - text AND buttons - was rebuilt fifteen times a second
+   while this ran. A finger goes down on a button that is destroyed and
+   replaced before it comes up again, so the press lands on nothing: from the
+   outside, there is nowhere to tap. (It was also the most expensive thing on
+   the screen, rewriting the overlay a hundred times for every glance at it.)
+   The bar is built once, and only the line that actually changes is written
+   after that. */
+let barkSaid = '', barkReadyWas = null;
+function barkReset() { barkSaid = ''; barkReadyWas = null; }
 function barkHint() {
   if (barkFor == null) return;
   const st = barkState();
@@ -5014,11 +5118,26 @@ function barkHint() {
       : 'go ' + (st.dBear > 0 ? 'left' : 'right') + ' ' + Math.abs(st.dBear).toFixed(0) + '° round the stem');
   else parts.push('side: where the number hangs');
   const ready = st.okH && st.okP && st.okB;
-  mbar('<b>Bark at 1.30 m · ' + (props(barkFor).tag_no || props(barkFor).tree_id) + '</b><br>' +
-       parts.join(' · '),
-       [[ready ? 'Take it' : 'Not yet', ready ? () => { shotFor = barkFor; shotKind = 'bark';
-            barkFor = null; clearMeasure(); toast('Bark photo …'); } : () => {}, ready ? 'p' : ''],
-        ['Cancel', () => { barkFor = null; clearMeasure(); }]]);
+  const line = parts.join(' · ');
+  if (ready !== barkReadyWas) {
+    barkReadyWas = ready; barkSaid = '';
+    /* And it is never a dead button. "Not yet" did nothing when pressed,
+       which is the same experience as a broken one; a bark photograph ten
+       centimetres off 1.30 m is still worth having, and the height it was
+       actually taken at is stored with it. */
+    const take = () => {
+      shotFor = barkFor; shotKind = 'bark';
+      barkFor = null; barkReset(); clearMeasure(); toast('Bark photo …');
+    };
+    mbar('<b>Bark at 1.30 m · ' + esc(props(barkFor).tag_no || props(barkFor).tree_id) +
+         '</b><br><span id="barknow"></span>',
+         [[ready ? '◉  Take it' : '◉  Take it anyway', take, ready ? 'p big' : 'big'],
+          ['Cancel', () => { barkFor = null; barkReset(); clearMeasure(); }]]);
+  }
+  if (line !== barkSaid) {
+    barkSaid = line;
+    const e = $('barknow'); if (e) e.textContent = line;
+  }
 }
 function startBark(tree) {
   // in camera mode there is no height to measure, but the picture is worth
@@ -5031,7 +5150,8 @@ function startBark(tree) {
   if (mode !== 'WebXR') return toast('Start the camera first.');
   if (!camAccessOk) return takePhotoOf(tree, 'bark');
   clearMeasure();
-  barkFor = tree; barkRef = null;
+  barkFor = tree; barkRef = null; barkReset();
+  barkHint();                       // a bar the moment it is pressed, not a frame later
   photoList(props(tree).tree_id).then(ps => {
     const b = ps.filter(x => x.kind === 'bark' && x.bearing != null)
                .sort((x, y) => (x.ts < y.ts ? 1 : -1))[0];
@@ -5126,7 +5246,7 @@ function takePhotoOf(tree, kind) {
        behind the session. Leaving AR first makes it deterministic - the
        picker opens on the ordinary page, every time - and the way back is
        one press once the picture is stored. */
-    endAR();
+    leaveARfor('photo', tree); endAR(true);
     setTimeout(() => filePhoto(tree, kind, true), 120);
     return;
   }
@@ -5319,7 +5439,7 @@ function shotOk(tree, rec) {
   const bs = document.createElement('div'); bs.className = 'bs';
   const bShow = document.createElement('button');
   bShow.textContent = 'Photos';
-  bShow.onclick = () => { shotHide(); if (mode) { leaveARfor('photo', tree); endAR(); }
+  bShow.onclick = () => { shotHide(); if (mode) { leaveARfor('photo', tree); endAR(true); }
                           openPanel(tree, 'photo'); };
   bs.appendChild(bShow);
   const bx = document.createElement('button'); bx.className = 'x'; bx.textContent = 'OK';
@@ -5770,9 +5890,9 @@ function buildToolMenu() {
   sub.style.margin = '2px 0 10px';
   const t0 = targetTree();
   sub.textContent = t0 == null
-    ? 'Point at a tree, or pick one under Trees – Tape needs none.'
+    ? 'No tree chosen – anything that needs one records the tree you are ' +
+      'standing at and carries on.'
     : 'On ' + tid(t0) + (props(t0).species ? ' · ' + props(t0).species : '');
-  if (t0 == null) sub.className = 'small wa';
   el.appendChild(sub);
 
   const group = title => {
@@ -5796,16 +5916,9 @@ function buildToolMenu() {
      like a dead button - and with an empty register that is every press. It
      stays on the screen now and offers the two ways out of it: record the
      tree you are standing at, or choose one from the list. */
-  const noTree = what => mbar(
-    '<b>' + esc(what || 'That') + ' belongs to a tree</b><br>' +
-    (CAT.features.length
-      ? 'No tree is in view and none is chosen. Point the camera at one, pick ' +
-        'it from Trees, or record the one you are standing at.'
-      : 'There is no tree on this phone yet. Record the one you are standing ' +
-        'at – it takes one press – or import a register under Office.'),
-    [['+ Tree here', () => { clearMeasure(); addTreeHere(); }, 'p'],
-     ['Trees', () => { clearMeasure(); $('bwhich').click(); }],
-     ['Close', clearMeasure]]);
+  /* Nothing here refuses for want of a tree any more: a tool that needs one
+     records the tree being stood at and gets on with its job. See
+     ensureTree. The line at the top says which tree it will be. */
   const add = (g, label, hint, fn) => {
     const b = document.createElement('button');
     b.className = 'toolbtn';
@@ -5834,19 +5947,20 @@ function buildToolMenu() {
       () => startMeasure('target'));
 
   const ph = group('Photograph');
-  add(ph, '▣  Bark at 1.30 m', 'the one the diameter is read from', who => {
-    if (who == null) return noTree('A bark photograph');
-    if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(who, 'bark');
-    startBark(who);
-  });
+  add(ph, '▣  Bark at 1.30 m', 'the one the diameter is read from', () =>
+    ensureTree('A bark photograph', w => {
+      if (mode === 'WebXR' && !camAccessOk) return takePhotoOf(w, 'bark');
+      startBark(w);
+    }));
   [['leaf', 'Leaf'], ['flower', 'Flower'], ['fruit', 'Fruit'], ['habit', 'Whole tree']].forEach(o =>
-    add(ph, o[1], '', who => who == null ? noTree('A ' + o[1].toLowerCase() + ' photograph')
-                                         : takePhotoOf(who, o[0])));
+    add(ph, o[1], 'for the species, and for the record', () =>
+      ensureTree('A ' + o[1].toLowerCase() + ' photograph', w => takePhotoOf(w, o[0]))));
 
   const n = group('Record');
-  add(n, '🎤  Voice', 'say the findings, hands free', who => speechStart(who));
-  add(n, '⚠︎  Mark a defect', 'pinned where it is on the tree',
-      who => who == null ? noTree('A defect') : markMenu(who));
+  add(n, '🎤  Voice', 'say the findings, hands free', () =>
+    ensureTree('Dictation', w => speechStart(w)));
+  add(n, '⚠︎  Mark a defect', 'pinned where it is on the tree', () =>
+    ensureTree('A defect', w => markMenu(w)));
   add(n, '🌳  Tree out of reach', 'one you cannot walk to',
       () => startMeasure('newtree'));
 
@@ -7044,7 +7158,7 @@ function arFormFix(root, tree) {
           out.textContent = 'Leave AR and type it';
           out.style.cssText = 'width:100%;padding:12px';
           out.onclick = () => { shut(); const t2 = tree == null ? targetTree() : tree;
-            closePanel(); leaveARfor('page', t2); endAR();
+            closePanel(); leaveARfor('page', t2); endAR(true);
             setTimeout(() => { if (t2 != null) openPanel(t2); }, 400); };
           body.appendChild(out);
         });
@@ -7697,7 +7811,7 @@ function arQuick(i) {
   mk('🎤 Say it', () => speechStart(i));
   mk('Photo', () => takePhotoOf(i, 'habit'));
   mk('Full page', () => {
-    arQuick(null); leaveARfor('page', i); endAR();
+    arQuick(null); leaveARfor('page', i); endAR(true);
     setTimeout(() => openPanel(i), 400);
   });
   el.appendChild(row);
@@ -10033,8 +10147,10 @@ function selfTestMeasure() {
   say('trees', CAT.features.length + ' in the register, ' + sprites.length + ' drawn here');
   say('session', S2P ? ('tied – ' + (s2pFrom || 'unknown')) : 'NOT tied to the stand');
   const t = targetTree();
-  say('tree in view', t == null ? 'NONE – this is what stops everything but Tape' : tid(t));
+  say('tree in view', t == null
+    ? 'NONE – a tool that needs one records the tree you are standing at' : tid(t));
 
+  selfTesting = true;
   ['height', 'crownbase', 'crown', 'target', 'stem', 'tape'].forEach(kind => {
     let out;
     try {
@@ -10045,6 +10161,7 @@ function selfTestMeasure() {
     } catch (e) { out = 'THREW – ' + ((e && e.message) || String(e)); }
     say(MEAS[kind].label, out);
   });
+  selfTesting = false;
   try { clearMeasure(); } catch (e) {}
   measure = before.measure; selIdx = before.sel; selPinned = before.pinned;
   if (lastErr) say('last error', lastErr);
@@ -10331,7 +10448,7 @@ function wire() {
         ' measured in this session' + (lastFit ? ' (fit ±' + lastFit.rms.toFixed(2) + ' m)' : '') +
         '. They are tied to this session and cannot be carried into the next one – ' +
         'you would measure them again.')) return;
-    endAR();
+    endAR(true);
   };
 
   $('bSort').onclick = () => {
