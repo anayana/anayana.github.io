@@ -213,12 +213,15 @@ html.day .warnbox,html.day .plaus{background:#fff5e2;border-color:#d8b877;color:
    to see them. */
 #hud{font-size:12px;display:flex;gap:9px;flex-wrap:wrap;
   align-items:center;padding:5px 10px;cursor:pointer}
+/* The diagnostics: mode, north, what is selected, what is nearest. Meant
+   to fold away behind the ... until something is wrong - and it never did,
+   because a second rule four lines down set it to flex unconditionally and
+   won. Half the camera view was diagnostics, at every glance. */
 #hMore{display:none}
-#hud.more #hMore{display:contents}
+#hud.more #hMore{display:flex;gap:9px;flex-wrap:wrap}
 #hud::after{content:'\2026';color:#6f8a79;margin-left:auto;font-size:14px;line-height:1}
 #hud.more::after{content:'\2715';font-size:11px}
 #hud b{color:#8fd6a8;font-weight:600}
-#hMore{display:flex;gap:9px;flex-wrap:wrap}
 #hFit.ok{color:#8fd6a8;font-weight:600}
 #hFit.warn{color:#ffcf8f;font-weight:600}
 #hDepth.warn{color:#ffcf8f}
@@ -1220,25 +1223,25 @@ html.day details.guide p,html.day ul.guideapp li{color:#2a3a30}
 <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
 <div id="toast"></div>
 
-<script src="vendor/three.min.js?v=3.30.0"></script>
-<script src="data.js?v=3.30.0"></script>
-<script src="norms.js?v=3.30.0"></script>
-<script src="i18n.js?v=3.30.0"></script>
-<script src="mapper.js?v=3.30.0"></script>
-<script src="users.js?v=3.30.0"></script>
-<script src="voice.js?v=3.30.0"></script>
-<script src="plantnet.js?v=3.30.0"></script>
-<script src="osm.js?v=3.30.0"></script>
-<script src="research.js?v=3.30.0"></script>
-<script src="marks.js?v=3.30.0"></script>
-<script src="pins.js?v=3.30.0"></script>
-<script src="ghost.js?v=3.30.0"></script>
-<script src="guide.js?v=3.30.0"></script>
-<script src="docx.js?v=3.30.0"></script>
-<script src="reports.js?v=3.30.0"></script>
-<script src="mapsheet.js?v=3.30.0"></script>
-<script src="sign.js?v=3.30.0"></script>
-<script src="gate.js?v=3.30.0"></script>
-<script src="app.js?v=3.30.0"></script>
+<script src="vendor/three.min.js?v=3.31.0"></script>
+<script src="data.js?v=3.31.0"></script>
+<script src="norms.js?v=3.31.0"></script>
+<script src="i18n.js?v=3.31.0"></script>
+<script src="mapper.js?v=3.31.0"></script>
+<script src="users.js?v=3.31.0"></script>
+<script src="voice.js?v=3.31.0"></script>
+<script src="plantnet.js?v=3.31.0"></script>
+<script src="osm.js?v=3.31.0"></script>
+<script src="research.js?v=3.31.0"></script>
+<script src="marks.js?v=3.31.0"></script>
+<script src="pins.js?v=3.31.0"></script>
+<script src="ghost.js?v=3.31.0"></script>
+<script src="guide.js?v=3.31.0"></script>
+<script src="docx.js?v=3.31.0"></script>
+<script src="reports.js?v=3.31.0"></script>
+<script src="mapsheet.js?v=3.31.0"></script>
+<script src="sign.js?v=3.31.0"></script>
+<script src="gate.js?v=3.31.0"></script>
+<script src="app.js?v=3.31.0"></script>
 </body>
 </html>

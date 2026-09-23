@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.86.0';
+const APP_VERSION = '2.87.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -1015,6 +1015,10 @@ let standPts = [];
 let farSaid = false;
 function checkFarFromStand() {
   if (farSaid || !lastFix || lastFix.acc > 15 || mode !== 'WebXR') return;
+  /* Never on top of something else, and never in the first half minute of a
+     session, when the fit is still settling. */
+  if (measure || barkFor != null) return;
+  if (xrStartedAt && Date.now() - xrStartedAt < 30000) return;
   const withL = CAT.features.filter((f, i) => hasLocal(props(i)));
   if (withL.length < 2) return;
   let bd = 1e12;
@@ -1024,11 +1028,17 @@ function checkFarFromStand() {
   });
   if (bd < 60) return;
   farSaid = true;
-  mbar('<b>Nothing of the stand is here</b><br>The nearest tree in the register is ' +
-       (bd > 999 ? (bd / 1000).toFixed(1) + ' km' : bd.toFixed(0) + ' m') +
-       ' away. If you are standing in it, its position on the earth is wrong and one press ' +
-       'puts it right – the trees keep every distance between them.',
-       [['The stand is here', () => {
+  /* It used to open with "Nothing of the stand is here" while the same screen
+     said a tree of that stand was forty centimetres away and locked on. Both
+     were true of different things - the markers come from the session, the
+     distance from GPS - and together they read as an app that does not know
+     what it is doing. Say which of the two is being doubted. */
+  const near = (bd > 999 ? (bd / 1000).toFixed(1) + ' km' : bd.toFixed(0) + ' m');
+  mbar('<b>The stand sits ' + near + ' from your GPS position</b><br>' +
+       'The trees in the camera are where this session puts them, and that ' +
+       'does not change. What looks wrong is where the whole stand is said to ' +
+       'be on the map. Putting it here keeps every distance between the trees.',
+       [['Put the stand here', () => {
           $('mbar').classList.remove('on');
           const l = S2P ? s2pInvert(camPos().x, camPos().z) : null;
           const i = nearestByGps();
@@ -2169,34 +2179,35 @@ function labelTexture(i) {
      forty-five of them on the GPU that is the difference between a session
      that runs and a tab the browser kills. The drawing below is laid out in
      the old size and scaled into the new one. */
-  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 192;
   const g = c.getContext('2d');
-  g.scale(512 / 640, 256 / 320);
-  g.fillStyle = 'rgba(10,16,13,.88)'; roundRect(g, 4, 4, 632, 312, 26); g.fill();
-  g.lineWidth = 8; g.strokeStyle = col; roundRect(g, 4, 4, 632, 312, 26); g.stroke();
-  g.fillStyle = col; g.beginPath(); g.arc(62, 74, 26, 0, 7); g.fill();
-  g.fillStyle = '#fff'; g.font = 'bold 46px system-ui,sans-serif';
-  g.fillText(p.tag_no ? ('№ ' + p.tag_no) : (p.tree_id || '?'), 104, 90);
+  g.scale(512 / 640, 192 / 240);
+  g.fillStyle = 'rgba(10,16,13,.88)'; roundRect(g, 4, 4, 632, 232, 24); g.fill();
+  g.lineWidth = 8; g.strokeStyle = col; roundRect(g, 4, 4, 632, 232, 24); g.stroke();
+  g.fillStyle = col; g.beginPath(); g.arc(58, 62, 24, 0, 7); g.fill();
+  g.fillStyle = '#fff'; g.font = 'bold 44px system-ui,sans-serif';
+  g.fillText(p.tag_no ? ('№ ' + p.tag_no) : (p.tree_id || '?'), 96, 78);
   // the species is what you actually look for on a marker, so it gets weight,
   // and its absence gets said rather than left as a blank line
   const sp = (p.species || '').trim(), cn = (p.name_en || '').trim();
   if (sp || cn) {
-    g.fillStyle = '#eaf3ee'; g.font = 'italic bold 40px system-ui,sans-serif';
-    g.fillText(sp || cn, 32, 154);
-    if (sp && cn) {
-      const w = g.measureText(sp).width;
-      g.fillStyle = '#9fb3a6'; g.font = '30px system-ui,sans-serif';
-      g.fillText(' · ' + cn, 32 + w, 154);
-    }
+    g.fillStyle = '#eaf3ee'; g.font = 'italic bold 38px system-ui,sans-serif';
+    g.fillText(sp || cn, 30, 140);
   } else {
-    g.fillStyle = '#e0a94a'; g.font = 'italic 36px system-ui,sans-serif';
-    g.fillText('species not recorded', 32, 154);
+    g.fillStyle = '#e0a94a'; g.font = 'italic 34px system-ui,sans-serif';
+    g.fillText('species not recorded', 30, 140);
   }
-  g.fillStyle = '#9fb3a6'; g.font = '32px system-ui,sans-serif';
-  g.fillText('DBH ' + (p.dbh_cm == null ? '–' : p.dbh_cm) + ' cm · H ' + (p.height_m == null ? '–' : p.height_m) + ' m', 32, 204);
-  g.fillText('Vitality ' + (p.vitality_roloff == null ? '–' : p.vitality_roloff) + ' · ' + (p.damage_class || '–'), 32, 250);
+  /* One line for the numbers instead of three. Everything that used to be
+     spread over the marker is on the tree's card, which is one press away. */
+  g.fillStyle = '#9fb3a6'; g.font = '30px system-ui,sans-serif';
+  const bits = [];
+  if (p.dbh_cm != null) bits.push('⌀ ' + p.dbh_cm);
+  if (p.height_m != null) bits.push('H ' + p.height_m);
+  if (p.vitality_roloff != null) bits.push('V' + p.vitality_roloff);
+  g.fillText(bits.join(' · '), 30, 196);
+  const wNum = bits.length ? g.measureText(bits.join(' · ')).width + 18 : 0;
   g.fillStyle = col; g.font = '28px system-ui,sans-serif';
-  g.fillText('▸ ' + LVLTXT[a.lvl], 32, 296);
+  g.fillText('▸ ' + LVLTXT[a.lvl], 30 + wNum, 196);
   const t = new THREE.CanvasTexture(c);
   // no mipmap chain: a third again of the memory, for a label always read
   // face-on at a couple of metres
@@ -2253,7 +2264,7 @@ function buildMarkers() {
     const p = props(i), col = LVLCOL[assess(p).lvl];
     const g = new THREE.Group();
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(i), depthTest: false, transparent: true }));
-    sp.scale.set(1.7, 0.85, 1); sp.position.y = 1.30; sp.renderOrder = 10;   // breast height
+    sp.scale.set(LBL_W, LBL_H, 1); sp.position.y = 1.30; sp.renderOrder = 10;   // breast height
     sp.userData.idx = i; g.add(sp); sprites.push(sp);
     const line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1.30, 0)]),
@@ -2874,9 +2885,13 @@ function endAR(byUser) {
 }
 
 const _cp = new THREE.Vector3(), _sp = new THREE.Vector3();
-const LBL_W = 1.7, LBL_H = 0.85;          // label size in metres at scale 1
-const LBL_MAXW = 0.55, LBL_MAXH = 0.34;   // and never more than this share of the screen
-const LBL_MAX = 6;                        // labels on screen at once; the rest show a ring
+/* Two markers at arm's length filled two thirds of the camera view, one over
+   the other, and there was no tree left to look at. A marker says which tree
+   this is and how bad it is; the rest of the record is one press away on its
+   card. Three lines, and never more than a third of the screen. */
+const LBL_W = 1.7, LBL_H = 0.64;          // label size in metres at scale 1
+const LBL_MAXW = 0.42, LBL_MAXH = 0.17;   // and never more than this share of the screen
+const LBL_MAX = 4;                        // labels on screen at once; the rest show a ring
 
 /* Sprites are sized in metres, so a label that reads well at 10 m swallows the
    whole display once you walk up to the stem. Cap the scale by what the label
@@ -4028,6 +4043,11 @@ function closePopups(keep) {
 }
 
 function mbar(txt, buttons) {
+  /* Two bars, a menu and a photograph receipt stacked on top of each other
+     is not an instruction, it is a wall. Whatever the app has to say now
+     takes the floor, and the receipt for something that already worked
+     stands down. */
+  if (typeof shotHide === 'function') shotHide();
   $('mtxt').innerHTML = txt;
   const box = $('mbtn'); box.innerHTML = '';
   (buttons || []).forEach(b => {
@@ -5446,8 +5466,15 @@ function shotOk(tree, rec) {
   bx.onclick = shotHide; bs.appendChild(bx);
   el.appendChild(bs);
   el.style.display = 'flex';
+  /* It used to stay until it was dismissed, which meant it was still there
+     three trees later, under everything else. The picture is read back out of
+     the database and shown, which is the proof; twelve seconds is long enough
+     to see it, and Photos is always there. */
+  if (shotTimer) clearTimeout(shotTimer);
+  shotTimer = setTimeout(shotHide, 12000);
   try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
 }
+let shotTimer = null;
 function shotFail(tree, why) {
   const el = shotBox(); el.innerHTML = '';
   el.className = 'bad';
@@ -5465,7 +5492,10 @@ function shotFail(tree, why) {
   el.appendChild(bs);
   el.style.display = 'flex';
 }
-function shotHide() { const el = $('shotok'); if (el) el.style.display = 'none'; }
+function shotHide() {
+  if (shotTimer) { clearTimeout(shotTimer); shotTimer = null; }
+  const el = $('shotok'); if (el) el.style.display = 'none';
+}
 
 /* ---- direction arrows for markers outside the view ---- */
 /* One arrow per marker that exists, not per tree in the register: after a
