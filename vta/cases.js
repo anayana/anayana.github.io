@@ -62,12 +62,18 @@ const ACT_OPTS = [
    One function per shape of tree, with the finding painted on afterwards.
    Everything is in a 0..100 by 0..100 box so a case can say where its
    finding sits without knowing how big the picture will be drawn. */
-function caseSvg(c) {
+/* show: false while the learner is being asked where the finding is - the
+   ring is the answer to that question. A second ring can be passed in to
+   show where they actually pressed. */
+function caseSvg(c, show, at) {
   const mark = c.mark || {};
-  const hot = mark.x != null
+  let hot = (show !== false && mark.x != null)
     ? '<circle cx="' + mark.x + '" cy="' + mark.y + '" r="' + (mark.r || 7) +
       '" fill="none" stroke="#ffd27a" stroke-width="1.6" stroke-dasharray="3 2"/>'
     : '';
+  if (at) hot += '<circle cx="' + at.x + '" cy="' + at.y + '" r="2.2" fill="#e2704a"/>' +
+                 '<circle cx="' + at.x + '" cy="' + at.y + '" r="5" fill="none" ' +
+                 'stroke="#e2704a" stroke-width="1"/>';
   const body = {
     broad: CASE_ART.broad, conifer: CASE_ART.conifer, pollard: CASE_ART.pollard
   }[c.art || 'broad'];
@@ -626,3 +632,95 @@ const CASES = [
       en: 'Routine inspection at the normal interval. Record it too: an empty finding is a finding.' }
   }
 ];
+
+
+/* ---- the reading behind the questions ----------------------------------
+   A quiz that only marks answers teaches the answers. Each family gets a
+   page: what you are actually looking at, how it fails, what separates the
+   findings inside that family, and the mistake that is made most often.
+   Short enough to be read standing up. */
+const CASE_KNOW = {
+  fungi: {
+    de: {
+      look: 'Ein Fruchtk\u00f6rper ist das, was der Pilz nach au\u00dfen zeigt \u2013 die Arbeit passiert lange vorher im Holz. ' +
+            'Wo er sitzt, sagt mehr als was er ist: am Stammfu\u00df und im Wurzelanlauf geht es um Standsicherheit, ' +
+            'am Stamm um Bruchsicherheit.',
+      how: 'Wei\u00dff\u00e4ulen bauen Lignin ab, das Holz wird faserig und h\u00e4lt Druck schlecht. Braunf\u00e4ulen bauen Cellulose ab, ' +
+           'das Holz w\u00fcrfelt und bricht spr\u00f6de. Der Brandkrustenpilz tut beides und hinterl\u00e4sst kein Warnzeichen au\u00dfen.',
+      tell: 'Hart und mehrj\u00e4hrig (Zunder, Lackporling) gegen weich und einj\u00e4hrig (Riesenporling, Schillerporling); ' +
+            'schwarz-krustig (Brandkruste) gegen f\u00e4cherf\u00f6rmig (Riesenporling); ' +
+            'wei\u00dfe Myzelf\u00e4cher unter der Rinde: Hallimasch.',
+      miss: 'Der h\u00e4ufigste Fehler ist, vom Fruchtk\u00f6rper auf die Stufe zu schlie\u00dfen. Der Fruchtk\u00f6rper sagt, dass etwas ' +
+            'l\u00e4uft \u2013 wie weit es ist, sagt nur die Messung.'
+    },
+    en: {
+      look: 'A bracket is what the fungus shows outside; the work happened in the wood long before. Where it sits says ' +
+            'more than what it is: at the base and root flare the question is stability, on the stem it is fracture.',
+      how: 'White rots take out lignin and the wood goes fibrous and poor in compression. Brown rots take out cellulose ' +
+           'and the wood cubes and snaps. Brittle cinder does both and leaves no outward warning.',
+      tell: 'Hard and perennial (hoof fungus, Ganoderma) against soft and annual (giant polypore, Inonotus); ' +
+            'black crust (brittle cinder) against overlapping fans (giant polypore); white mycelial fans under the ' +
+            'bark mean honey fungus.',
+      miss: 'The commonest mistake is reading the level off the bracket. The bracket says something is happening; ' +
+            'how far it has got is a matter for measurement.'
+    }
+  },
+  base: {
+    de: { look: 'Der Stammfu\u00df tr\u00e4gt alles. Hier kommt jede Last an, und hier entscheidet sich, ob ein Baum steht.',
+          how: 'Der Baum antwortet auf Spannung mit Holz: Rippen, Wulste, Verdickungen. Das ist keine Krankheit, sondern eine Reaktion \u2013 ' +
+               'und ein Fingerzeig auf das, was darunter liegt.',
+          tell: 'Geschlossene Rinde \u00fcber einer Wulst hei\u00dft kompensiert. Offene H\u00f6hlung hei\u00dft messen. ' +
+                'Fehlende Wurzelanl\u00e4ufe hei\u00dfen: hier stimmt etwas an der Verankerung nicht.',
+          miss: 'Eine H\u00f6hlung wird \u00fcbersch\u00e4tzt, eine fehlende Reaktion untersch\u00e4tzt. Ein Baum, der nicht reagiert hat, ' +
+                'hat entweder nichts zu kompensieren oder keine Kraft mehr dazu.' },
+    en: { look: 'The stem base carries everything. Every load arrives here, and whether a tree stands is decided here.',
+          how: 'A tree answers stress with wood: ribs, bulges, thickening. Not a disease but a reaction, and a pointer to ' +
+               'whatever lies under it.',
+          tell: 'Closed bark over a bulge means compensated. An open cavity means measure. Missing root flares mean ' +
+                'something is wrong with the anchorage.',
+          miss: 'A cavity gets overrated and a missing reaction underrated. A tree that has not reacted either has nothing ' +
+                'to compensate or no strength left to do it.' }
+  },
+  stem: {
+    de: { look: 'Der Stamm ist ein Rohr. Ein Rohr tr\u00e4gt, solange es rundum geschlossen ist \u2013 die \u00e4u\u00dferen Fasern tragen am meisten.',
+          how: 'Ein L\u00e4ngsriss trennt das Rohr in Schalen, und zwei Schalen tragen weit weniger als ein Rohr gleicher Masse. ' +
+               'Deshalb ist ein offener Riss so viel schlimmer als eine zentrale F\u00e4ule.',
+          tell: 'Offene, aufstehende Rissr\u00e4nder gegen geschlossene, \u00fcberwallte. Frischer Schiefstand (Boden verr\u00e4t ihn) ' +
+                'gegen gewachsenen (Bogen im unteren Stamm).',
+          miss: 'Vitalit\u00e4t mit Sicherheit zu verwechseln. Ein kr\u00e4nkelnder Baum kann sicher sein, ein voll belaubter kann fallen.' },
+    en: { look: 'A stem is a tube. A tube carries as long as it is closed all round, and the outer fibres carry most.',
+          how: 'A longitudinal crack turns the tube into shells, and two shells carry far less than a tube of the same mass. ' +
+               'That is why an open crack is so much worse than a central decay.',
+          tell: 'Open, lifted crack edges against closed, occluded ones. A fresh lean (the ground gives it away) against a ' +
+                'grown-in one (a curve in the lower stem).',
+          miss: 'Confusing vitality with safety. An ailing tree can be safe; a fully leafed one can fall.' }
+  },
+  crown: {
+    de: { look: 'Die Krone ist der Hebel. Was in der Krone sitzt, wirkt am Anschluss um ein Vielfaches verst\u00e4rkt.',
+          how: 'Eingewachsene Rinde ist eine Sollbruchstelle, weil dort keine Holzverbindung besteht. Ein langer waagerechter ' +
+               'Ast bricht an seinem Anschluss, nicht in der Mitte.',
+          tell: 'Naht gegen Wulst am Zwiesel. Totast (keine Knospen, gel\u00f6ste Rinde) gegen Winterzustand. ' +
+                'Kappung (einmal, an gewachsener Krone) gegen Kopfbaum (regelm\u00e4\u00dfig, von Jugend an).',
+          miss: 'Totholz als Ma\u00df f\u00fcr Gefahr zu nehmen. Entscheidend ist der einzelne Ast \u00fcber dem Ziel, nicht der Anteil.' },
+    en: { look: 'The crown is the lever. Whatever sits in it acts on the attachment many times magnified.',
+          how: 'Included bark is a designed breaking point because there is no wood connection there. A long horizontal limb ' +
+               'breaks at its attachment, not in the middle.',
+          tell: 'Seam against ridge at a fork. A dead limb (no buds, lifting bark) against winter bareness. ' +
+                'Topping (once, on a grown crown) against pollarding (regularly, from youth).',
+          miss: 'Taking deadwood as a measure of danger. What matters is the one limb over the target, not the proportion.' }
+  },
+  root: {
+    de: { look: 'Der Wurzelteller ist das Fundament, und man sieht ihn nicht. Was man sieht, ist der Boden dar\u00fcber.',
+          how: 'Standsicherheit kommt aus dem Verbund von Wurzeln und Boden. F\u00e4llt eine Seite aus \u2013 gekappt, gef\u00e4ult, ' +
+               'verdichtet \u2013 kippt der Baum \u00fcber diese Kante.',
+          tell: 'Hebung auf einer Seite und Senkung auf der anderen: der Teller bewegt sich. Glatte Schnittfl\u00e4chen in einer ' +
+                'Linie: ein Werkzeug war da. Lichte Krone \u00fcber versiegeltem Boden: Standortfrage, keine Kronenfrage.',
+          miss: 'Den Boden nicht anzusehen. Die meisten Standsicherheitsf\u00e4lle stehen im Boden geschrieben, nicht im Stamm.' },
+    en: { look: 'The root plate is the foundation and you cannot see it. What you can see is the ground above it.',
+          how: 'Stability comes from roots and soil acting together. If one side drops out - cut, rotted, compacted - the ' +
+               'tree goes over that edge.',
+          tell: 'Raised on one side and sunken on the other: the plate is moving. Clean cut faces in a line: a tool was here. ' +
+                'A thin crown over sealed ground: a site question, not a crown question.',
+          miss: 'Not looking at the ground. Most stability cases are written in the soil, not in the stem.' }
+  }
+};

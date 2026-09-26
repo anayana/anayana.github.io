@@ -34,6 +34,29 @@ function LT(o, k) {
 function learnDe() { return (typeof uiLang === 'function' ? uiLang() : 'en') === 'de'; }
 function LX(de, en) { return learnDe() ? de : en; }
 
+/* The steps of one case. "Where is it?" is only asked where there is
+   something to point at - on the sound tree there is not, and being asked to
+   point at a defect that is not there would teach the wrong reflex. */
+function caseSteps(c) {
+  return (c && c.mark) ? ['what', 'where', 'level', 'safety', 'action']
+                       : ['what', 'level', 'safety', 'action'];
+}
+
+/* ---- when a case comes back -------------------------------------------
+   Leitner boxes. Right first time moves it up a box and out of the way for
+   longer; any mistake sends it to the bottom and it is due again today. That
+   is the whole difference between an app somebody plays once and one that
+   gets somebody through a season. */
+const LEITNER = [0, 1, 3, 7, 21, 60];   // days until the case comes back
+function learnDueDay(box) {
+  const d = new Date(Date.now() + LEITNER[Math.min(box, LEITNER.length - 1)] * 864e5);
+  return d.toISOString().slice(0, 10);
+}
+function learnDue() {
+  const s = learnState(), cs = s.cases || {}, today = learnToday();
+  return CASES.filter(c => { const r = cs[c.id]; return !r || !r.due || r.due <= today; });
+}
+
 function learnState() {
   try { return JSON.parse(lsGet(K_LEARN)) || {}; } catch (e) { return {}; }
 }
@@ -52,9 +75,11 @@ function learnSeen(id) {
 function learnRecord(id, fam, score, clean) {
   const s = learnState();
   s.cases = s.cases || {};
-  const c = s.cases[id] || { met: 0, clean: 0, best: 0 };
+  const c = s.cases[id] || { met: 0, clean: 0, best: 0, box: 0 };
   c.met++; c.best = Math.max(c.best, score); if (clean) c.clean++;
   c.at = Date.now();
+  c.box = clean ? Math.min((c.box || 0) + 1, LEITNER.length - 1) : 0;
+  c.due = learnDueDay(c.box);
   s.cases[id] = c;
   s.points = (s.points || 0) + score;
   /* The streak is days on which something was actually answered, not days
@@ -68,6 +93,8 @@ function learnRecord(id, fam, score, clean) {
   learnSave(s);
   return s;
 }
+/* A level is only a number that grows. It is here because it works. */
+function learnLevel(pts) { return 1 + Math.floor(Math.sqrt(Math.max(0, pts) / 8)); }
 function famDone(fam) {
   const s = learnState(), cs = s.cases || {};
   const all = CASES.filter(c => c.fam === fam);
@@ -147,10 +174,18 @@ function learnHome() {
     return d;
   };
   const cleanN = Object.values(s.cases || {}).filter(c => c.clean > 0).length;
-  st.appendChild(stat(s.points || 0, LX('Punkte', 'points')));
+  const due = learnDue().length;
+  st.appendChild(stat(learnLevel(s.points || 0), LX('Stufe', 'level')));
   st.appendChild(stat((s.streak || 0), LX('Tage in Folge', 'day streak')));
   st.appendChild(stat(cleanN + '/' + CASES.length, LX('Fälle sitzen', 'cases sat')));
   wrap.appendChild(st);
+
+  const dueLine = lEl('div', 'ldue' + (due ? '' : ' none'));
+  dueLine.textContent = due
+    ? LX(due + ' Fälle fällig', due + ' cases due')
+    : LX('Heute nichts fällig – alles sitzt. Üben geht trotzdem.',
+         'Nothing due today - it all sits. Practising anyway is allowed.');
+  wrap.appendChild(dueLine);
 
   const go = lEl('div', 'lrow');
   go.appendChild(lBtn('▶  ' + LX('Nächster Fall', 'Next case'), () => learnStart(learnPick()), 'p big'));
@@ -164,7 +199,7 @@ function learnHome() {
     t.innerHTML = '<span class="ls">' + b.fam.sym + '</span>' +
                   '<span class="lt">' + esc(LT(b.fam)) + '</span>' +
                   '<span class="lp">' + b.done + ' / ' + b.all + '</span>';
-    t.onclick = () => { const c = learnPick(b.fam.id); if (c) learnStart(c); };
+    t.onclick = () => learnFam(b.fam);
     fams.appendChild(t);
   });
   wrap.appendChild(fams);
@@ -190,15 +225,58 @@ function learnHome() {
   el.appendChild(wrap);
 }
 
+/* ---- a family, and what there is to know about it ---------------------
+   A quiz that only marks answers teaches the answers. This is the page that
+   makes the answers make sense, and it is one press from every family tile
+   and from every case that went wrong. */
+function learnFam(fam) {
+  const el = learnBox(); el.innerHTML = '';
+  const k = (CASE_KNOW[fam.id] || {})[learnDe() ? 'de' : 'en'] || {};
+  const wrap = lEl('div', 'lwrap');
+  wrap.appendChild(learnHead(fam.sym + '  ' + LT(fam)));
+
+  const bit = (h, t) => {
+    if (!t) return;
+    wrap.appendChild(lEl('div', 'lsec', h));
+    wrap.appendChild(lEl('p', 'lwhy', t));
+  };
+  bit(LX('Worauf du schaust', 'What you are looking at'), k.look);
+  bit(LX('Wie es versagt', 'How it fails'), k.how);
+  bit(LX('Woran du sie unterscheidest', 'How to tell them apart'), k.tell);
+  bit(LX('Der h\u00e4ufigste Fehler', 'The commonest mistake'), k.miss);
+
+  const d = famDone(fam.id);
+  wrap.appendChild(lEl('div', 'lsec', LX('F\u00e4lle', 'Cases') + ' \u00b7 ' + d.done + ' / ' + d.all));
+  const list = lEl('div', 'lmiss');
+  CASES.filter(c => c.fam === fam.id).forEach(c => {
+    const seen = learnSeen(c.id);
+    const r = lEl('button', 'lmissrow' + (seen.clean > 0 ? ' ok' : ''));
+    r.textContent = (seen.clean > 0 ? '\u2713 ' : '\u25cb ') + LT(c.what.opts[c.what.right]);
+    r.onclick = () => learnStart(c);
+    list.appendChild(r);
+  });
+  wrap.appendChild(list);
+  const row = lEl('div', 'lrow');
+  row.appendChild(lBtn('\u25b6  ' + LX('Fall aus dieser Familie', 'A case from this family'),
+                       () => { const c = learnPick(fam.id); if (c) learnStart(c); }, 'p big'));
+  wrap.appendChild(row);
+  el.appendChild(wrap);
+}
+
 /* Which case next: one that has never been sat cleanly comes first, and
    within that the one met least often. Nothing is drawn twice in a row. */
 let learnLast = null;
 function learnPick(fam) {
   const pool = CASES.filter(c => !fam || c.fam === fam);
   if (!pool.length) return null;
+  const today = learnToday();
   const scored = pool.map(c => {
     const s = learnSeen(c.id);
-    return { c: c, k: (s.clean > 0 ? 100 : 0) + s.met * 3 + (c.id === learnLast ? 50 : 0) + Math.random() };
+    const due = !s.due || s.due <= today;
+    /* due first, then never sat, then least met - and never the same case
+       twice running while there is anything else to ask */
+    return { c: c, k: (due ? 0 : 400) + (s.clean > 0 ? 100 : 0) + (s.box || 0) * 10 +
+                      s.met * 3 + (c.id === learnLast ? 50 : 0) + Math.random() };
   }).sort((a, b) => a.k - b.k);
   return scored[0].c;
 }
@@ -210,6 +288,7 @@ function learnStart(c, exam) {
   learnLast = c.id;
   learnPaint(!!exam);
 }
+let learnTapAt = null;
 function learnOpts(step, c) {
   if (step === 'what') return c.what.opts.map((o, i) => ({ v: i, label: LT(o) }));
   if (step === 'level') return LVL_OPTS.map(o => ({ v: o.v, label: LT(o) }));
@@ -219,6 +298,7 @@ function learnOpts(step, c) {
 function learnRight(step, c) { return c[step].right; }
 function learnAsk(step) {
   return { what: LX('Was siehst du?', 'What do you see?'),
+           where: LX('Wo ist es? Tippe darauf.', 'Where is it? Press on it.'),
            level: LX('Wie schwer ist das?', 'How serious is it?'),
            safety: LX('Verkehrssicherheit?', 'Traffic safety?'),
            action: LX('Was folgt daraus?', 'What happens next?') }[step];
@@ -232,25 +312,39 @@ function learnPaint(exam) {
     ? LX('Prüfung', 'Exam') + ' · ' + (learnExam.at + 1) + '/' + learnExam.list.length
     : LT(CASE_FAM.find(f => f.id === c.fam))));
 
-  const pic = lEl('div', 'lpic');
-  pic.innerHTML = caseSvg(c);
+  const step = caseSteps(c)[learnStep];
+  const asking = step === 'where';
+
+  const pic = lEl('div', 'lpic' + (asking ? ' tap' : ''));
+  pic.innerHTML = caseSvg(c, !asking);
+  if (asking) {
+    /* The picture is the answer sheet. The press is taken in the drawing's
+       own coordinates, so it does not matter how large it is drawn. */
+    pic.onclick = ev => {
+      const b = pic.getBoundingClientRect();
+      const side = Math.min(b.width, b.height);
+      const ox = b.left + (b.width - side) / 2, oy = b.top + (b.height - side) / 2;
+      learnTapAt = { x: (ev.clientX - ox) / side * 100, y: (ev.clientY - oy) / side * 100 };
+      learnAnswer(learnTapAt, exam);
+    };
+  }
   wrap.appendChild(pic);
 
   wrap.appendChild(lEl('p', 'ldesc', LT(c)));
-
-  const step = CASE_STEPS[learnStep];
   wrap.appendChild(lEl('div', 'lsec', learnAsk(step)));
 
-  const box = lEl('div', 'lopts');
-  learnOpts(step, c).forEach(o => {
-    const b = lEl('button', 'lopt', o.label);
-    b.onclick = () => learnAnswer(o.v, exam);
-    box.appendChild(b);
-  });
-  wrap.appendChild(box);
+  if (!asking) {
+    const box = lEl('div', 'lopts');
+    learnOpts(step, c).forEach(o => {
+      const b = lEl('button', 'lopt', o.label);
+      b.onclick = () => learnAnswer(o.v, exam);
+      box.appendChild(b);
+    });
+    wrap.appendChild(box);
+  }
 
   const dots = lEl('div', 'ldots');
-  CASE_STEPS.forEach((s2, i) => {
+  caseSteps(c).forEach((s2, i) => {
     dots.appendChild(lEl('span', 'ldot' + (i < learnStep ? ' did' : i === learnStep ? ' now' : '')));
   });
   wrap.appendChild(dots);
@@ -258,9 +352,16 @@ function learnPaint(exam) {
 }
 
 function learnAnswer(v, exam) {
-  const c = learnCase, step = CASE_STEPS[learnStep];
-  const right = learnRight(step, c);
-  const ok = String(v) === String(right);
+  const c = learnCase, step = caseSteps(learnCase)[learnStep];
+  let ok;
+  if (step === 'where') {
+    /* Generous on purpose: the question is whether the eye went to the right
+       part of the tree, not whether the finger is accurate to a pixel. */
+    const m = c.mark, tol = Math.max(m.r || 7, 9) * 1.6;
+    ok = Math.hypot(v.x - m.x, v.y - m.y) <= tol;
+  } else {
+    ok = String(v) === String(learnRight(step, c));
+  }
   if (ok) learnScore += 1; else learnWrong++;
   if (exam) {
     learnExam.answers.push({ id: c.id, step: step, ok: ok });
@@ -275,14 +376,17 @@ function learnWhy(step, ok, given) {
   const c = learnCase;
   const wrap = lEl('div', 'lwrap');
   wrap.appendChild(learnHead(LT(CASE_FAM.find(f => f.id === c.fam))));
-  const pic = lEl('div', 'lpic small'); pic.innerHTML = caseSvg(c);
+  /* After a press on the picture, both rings are shown: where it is, and
+     where the finger went. Seeing the gap is the lesson. */
+  const pic = lEl('div', 'lpic' + (step === 'where' ? '' : ' small'));
+  pic.innerHTML = caseSvg(c, true, step === 'where' ? learnTapAt : null);
   wrap.appendChild(pic);
 
   const head = lEl('div', 'lverdict ' + (ok ? 'ok' : 'no'));
   head.textContent = ok ? LX('Richtig', 'Right') : LX('Nicht ganz', 'Not quite');
   wrap.appendChild(head);
 
-  if (!ok) {
+  if (!ok && step !== 'where') {
     const opts = learnOpts(step, c);
     const was = opts.find(o => String(o.v) === String(learnRight(step, c)));
     const mine = opts.find(o => String(o.v) === String(given));
@@ -291,18 +395,28 @@ function learnWhy(step, ok, given) {
                      ' → <span class="good">' + esc(was ? was.label : '?') + '</span>';
     wrap.appendChild(line);
   }
-  wrap.appendChild(lEl('p', 'lwhy', LT(c[step])));
+  wrap.appendChild(lEl('p', 'lwhy', step === 'where'
+    ? LX('Der Befund sitzt im markierten Bereich. Wo etwas sitzt, entscheidet, ' +
+         'worum es geht: am Stammfu\u00df um Standsicherheit, am Stamm um Bruchsicherheit, ' +
+         'in der Krone um den Hebel.',
+         'The finding is inside the marked area. Where something sits decides what it is about: ' +
+         'stability at the base, fracture on the stem, leverage in the crown.')
+    : LT(c[step])));
 
   const row = lEl('div', 'lrow');
-  const last = learnStep >= CASE_STEPS.length - 1;
+  const last = learnStep >= caseSteps(learnCase).length - 1;
   row.appendChild(lBtn(last ? LX('Fertig', 'Finish') : LX('Weiter', 'Next'),
                        () => learnNext(false), 'p big'));
+  if (!ok) {
+    const fam = CASE_FAM.find(f => f.id === c.fam);
+    row.appendChild(lBtn(LX('Nachlesen', 'Read up'), () => learnFam(fam), 'big'));
+  }
   wrap.appendChild(row);
   learnBox().appendChild(wrap);
 }
 function learnNext(exam) {
   learnStep++;
-  if (learnStep < CASE_STEPS.length) return learnPaint(exam);
+  if (learnStep < caseSteps(learnCase).length) return learnPaint(exam);
   if (exam) return learnExamNext();
   learnDone();
 }
@@ -315,7 +429,7 @@ function learnDone() {
   const wrap = lEl('div', 'lwrap');
   wrap.appendChild(learnHead(LX('Fall abgeschlossen', 'Case done')));
   const v = lEl('div', 'lbig' + (clean ? ' ok' : ''));
-  v.textContent = learnScore + ' / ' + CASE_STEPS.length;
+  v.textContent = learnScore + ' / ' + caseSteps(learnCase).length;
   wrap.appendChild(v);
   wrap.appendChild(lEl('p', 'lwhy', clean
     ? LX('Alle vier auf Anhieb. Der Fall gilt als gesessen.',
