@@ -39,6 +39,7 @@ function gateOpen() {
   document.body.classList.add('gated');
   gatePaint();
   $('gateGo').onclick = gateGo;
+  if ($('gateLearn')) $('gateLearn').onclick = gateLearn;
   $('gateSkip').onclick = gateSkip;
   $('gatePw').onkeydown = ev => { if (ev.key === 'Enter') gateGo(); };
   $('gateKeep').onchange = () => {
@@ -211,4 +212,45 @@ function gateClose() {
   showScreen('map');
   const u = curUser();
   if (u) toast('Signed in as ' + u.name + '.');
+}
+
+/* ---- the second door ---------------------------------------------------
+   Two apps, one start screen. Field is everything this app has always been;
+   Practise is a separate thing that happens to live in the same install -
+   example trees, name the finding, say what it means, and be told why.
+
+   It is loaded here and nowhere else. Until this button is pressed, not one
+   byte of the practice app or its cases has been fetched, parsed or kept in
+   memory, so the app that goes into the wood is exactly as light as it was.
+   The practice app reads no trees and writes no trees; its progress lives
+   under its own key. */
+let learnLoading = null;
+async function gateLearn() {
+  const say = m => { if ($('gateSay')) { $('gateSay').textContent = m || ''; } };
+  try {
+    if (typeof learnOpen !== 'function') {
+      say('\u2026');
+      const v = (typeof APP_VERSION === 'string') ? ('?v=' + APP_VERSION) : '';
+      if (!learnLoading) learnLoading = (async () => {
+        await loadScriptOnce('cases.js' + v);
+        await loadScriptOnce('learn.js' + v);
+      })();
+      await learnLoading;
+    }
+    say('');
+    if (typeof learnOpen !== 'function') throw new Error('the practice files are not in this build');
+    gateHide();
+    learnOpen();
+  } catch (e) {
+    learnLoading = null;
+    say((e && e.message) || 'that did not work', true);
+  }
+}
+/* The gate goes out of sight without the app behind it starting up: the
+   practice app is not the field app with a different screen. */
+function gateHide() {
+  const el = $('gate'); if (!el) return;
+  gateUp = false;
+  el.hidden = true;
+  document.body.classList.add('gated');     // the field app stays asleep
 }
