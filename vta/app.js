@@ -4,7 +4,7 @@
    camera + compass fallback. All data stays on the device.
    ===================================================================== */
 'use strict';
-const APP_VERSION = '2.90.0';
+const APP_VERSION = '2.91.0';
 const $ = id => document.getElementById(id);
 
 /* ============================ SCHEMA ============================ */
@@ -4022,17 +4022,36 @@ function nearestTree() {
 }
 
 /* ---- measurement ---- */
+/* tip: the one thing about the method that decides whether the number is
+   worth anything, said where it is needed rather than in a manual nobody
+   opens in the rain. They are short on purpose: a sentence at arm's length
+   in daylight is read, a paragraph is not. */
 const MEAS = {
-  height:    { label: 'Tree height',      field: 'height_m',          hits: 1, aim: true },
-  crownbase: { label: 'Crown base',       field: 'crown_base_m',      hits: 1, aim: true },
-  crown:     { label: 'Crown diameter',   field: 'crown_d_m',         hits: 2, aim: 'wide' },
-  target:    { label: 'Distance to target', field: 'target_distance_m', hits: 1, aim: false },
-  stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false },
-  newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false },
-  ref:       { label: 'Reference point',  field: null,                hits: 1, aim: false },
-  stems:     { label: 'Match stems',      field: null,                hits: 9, aim: false },
-  tape:      { label: 'Tape',             field: null,                hits: 2, aim: false },
-  mark:      { label: 'Mark a defect',    field: null,                hits: 1, aim: false }
+  height:    { label: 'Tree height',      field: 'height_m',          hits: 1, aim: true,
+               tip: 'Stand about as far back as the tree is tall \u2013 around 45\u00b0 to the top. ' +
+                    'Close in, the angle runs steep and a small wobble is metres.' },
+  crownbase: { label: 'Crown base',       field: 'crown_base_m',      hits: 1, aim: true,
+               tip: 'The lowest living branch, not the lowest dead stub. Same distance as for a height.' },
+  crown:     { label: 'Crown diameter',   field: 'crown_d_m',         hits: 2, aim: 'wide',
+               tip: 'Stand far enough back that both edges are in view at once, and take the widest ' +
+                    'spread across your line of sight.' },
+  target:    { label: 'Distance to target', field: 'target_distance_m', hits: 1, aim: false,
+               tip: 'Measured from the stem to the target, not from where you happen to stand.' },
+  stem:      { label: 'Stem position',    field: null,                hits: 1, aim: false,
+               tip: 'Aim at the foot of the trunk where it meets the ground, not at the bark in front of you.' },
+  newtree:   { label: 'New tree here',    field: null,                hits: 1, aim: false,
+               tip: 'Aim at the stem foot. Anything under two metres away is placed from the ring; ' +
+                    'further off it is a guess and says so.' },
+  ref:       { label: 'Reference point',  field: null,                hits: 1, aim: false,
+               tip: 'A point whose position is known: a corner, a post, a manhole \u2013 something ' +
+                    'that will still be there next year.' },
+  stems:     { label: 'Match stems',      field: null,                hits: 9, aim: false,
+               tip: 'Three or four stems, well spread around you. Three in a row cannot fix a rotation.' },
+  tape:      { label: 'Tape',             field: null,                hits: 2, aim: false,
+               tip: 'Two points the phone can see. Over long distances the error grows with the walk ' +
+                    'between them.' },
+  mark:      { label: 'Mark a defect',    field: null,                hits: 1, aim: false,
+               tip: 'Aim at the defect itself; its height and its side of the stem are stored with it.' }
 };
 /* One panel at a time. Two of them open is two panels of reading before the
    button you wanted, and on a phone that is the whole screen. */
@@ -4344,7 +4363,9 @@ function startMeasure(kind, refArg) {
             : kind === 'ref' ? 'Aim at the point itself – or cancel and stand on it instead'
             : (kind === 'stem' || kind === 'newtree') ? 'Aim at the stem base, then tap the screen or the button'
             : 'Aim at the first point, then tap the screen or the button';
-  mbar('<b>' + cfg.label + who + '</b><br>' + ask, takeBtns());
+  mbar('<b>' + cfg.label + who + '</b><br>' + ask +
+       (cfg.tip ? '<br><span class="small">\u203a ' + esc(cfg.tip) + '</span>' : ''),
+       takeBtns());
 }
 
 /* The point used to be taken by tapping the camera view, which goes through
@@ -4496,9 +4517,12 @@ function aimTick() {
   else if (wide) say = 'holding \u2026 ' + Math.min(100, Math.round(held / AIM_HOLD * 100)) + '%';
   else {
     const h = c.y + horiz * Math.tan(el) - (base ? base.y : 0);
+    /* Said while there is still time to walk backwards, not afterwards. */
+    const steep = h > 0 && horiz > 0 && horiz < h * 0.5;
     say = deg.toFixed(0) + '\u00b0 up \u00b7 ' + h.toFixed(1) + ' m \u00b7 ' +
-          (held >= AIM_HOLD ? 'taking it' :
-           'hold still ' + Math.max(0, AIM_HOLD - held).toFixed(1) + ' s');
+          (steep ? 'steep \u2013 step back to about ' + h.toFixed(0) + ' m'
+                 : held >= AIM_HOLD ? 'taking it'
+                 : 'hold still ' + Math.max(0, AIM_HOLD - held).toFixed(1) + ' s');
   }
   if (now - aimPaintAt > AIM_PAINT && say !== aimSaid) {
     aimPaintAt = now; aimSaid = say;
@@ -4507,6 +4531,35 @@ function aimTick() {
   if (!bad && held >= AIM_HOLD) { aimStop(); mlog('held still - taking the reading itself'); safeTap(); }
 }
 
+/* Where the rule of thumb "stand about as far back as the tree is tall"
+   comes from, and how much it is actually worth - which is less than it is
+   usually made to sound, and the app should say so rather than nag.
+
+   With d the distance and h the height, the error in h per degree of
+   hand-shake is h(k + 1/k) x pi/180 where k = d/h. That is smallest at k = 1
+   - a tree height back - and it is a shallow minimum: at half a tree height
+   it is a quarter worse, at a fifth it is two and a half times worse. So the
+   note only appears when the ratio is genuinely poor, and it carries both
+   numbers rather than an instruction. The other half of the reason does not
+   fit in an equation: from a tree height back you can actually see which
+   twig is the top. */
+function aimErr(horiz, elRad) {
+  const c = Math.cos(elRad);
+  /* The floor only keeps this finite at ninety degrees. It used to sit at
+     0.05, which is cos squared of 77 degrees - so from 77 degrees upwards the
+     answer stopped growing and understated the error at exactly the angles
+     where it matters. 0.004 is 86.4 degrees, past anything anyone measures. */
+  return horiz / Math.max(0.004, c * c) * Math.PI / 180;     // metres per degree
+}
+function aimNote(horiz, elRad, h) {
+  if (!(h > 0) || !(horiz > 0) || horiz >= h * 0.5) return '';
+  const here = aimErr(horiz, elRad);
+  const back = aimErr(h, Math.PI / 4);      // from a tree height away the top is at 45 deg
+  return '<br><span class="small wa">' + horiz.toFixed(0) + ' m from a ' + h.toFixed(0) +
+         ' m tree: a degree of hand-shake is ' + here.toFixed(1) + ' m here against ' +
+         back.toFixed(1) + ' m from a tree height back \u2013 where the top is easier to ' +
+         'pick out as well.</span>';
+}
 function measureTap() {
   const m = measure; if (!m || m.done) return;
   lastTapAt = Date.now();
@@ -4623,7 +4676,8 @@ function measureTap() {
     const h = top - base.y;
     safeDraw(base, new THREE.Vector3(base.x, top, base.z), h.toFixed(1) + ' m', m.tree);
     finishMeasure(h, cfg.label + ' ' + h.toFixed(1) + ' m<br><span class="small">' +
-      horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '\u00b0 up</span>');
+      horiz.toFixed(1) + ' m from the stem, ' + (el * 180 / Math.PI).toFixed(0) + '\u00b0 up</span>' +
+      aimNote(horiz, el, h));
     return;
   }
 
@@ -5964,16 +6018,18 @@ function buildToolMenu() {
   };
 
   const m = group('Measure this tree');
-  add(m, '↕︎  Height', 'stem base, then the treetop', () => startMeasure('height'));
-  add(m, '⌀︎  DBH – walk the stem', 'all the way round, off the bark',
+  /* The second line is the one thing about the method that decides whether
+     the number is worth having - not a repeat of what the button says. */
+  add(m, '↕︎  Height', 'stand a tree height back, ≈45° up', () => startMeasure('height'));
+  add(m, '⌀︎  DBH – walk the stem', 'at 1.30 m, uphill side on a slope',
       who => startCaliper(who));
-  add(m, '◯  Crown width', 'the stem, then each edge in turn', () => startMeasure('crown'));
-  add(m, '⤴︎  Crown base', 'stem base, then the lowest live branch',
+  add(m, '◯  Crown width', 'far enough back for both edges at once', () => startMeasure('crown'));
+  add(m, '⤴︎  Crown base', 'lowest living branch, not a dead stub',
       () => startMeasure('crownbase'));
   add(m, '↔︎  Tape', 'any two points, no tree needed', () => startMeasure('tape'));
-  add(m, '◎  Stem position', 'put this tree where you are aiming',
+  add(m, '◎  Stem position', 'aim at the stem foot, not the bark in front',
       () => startMeasure('stem'));
-  add(m, '⌖  Target distance', 'to the path, the road, the building',
+  add(m, '⌖  Target distance', 'from the stem to the path or the road',
       () => startMeasure('target'));
 
   const ph = group('Photograph');
