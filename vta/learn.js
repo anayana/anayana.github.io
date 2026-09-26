@@ -192,6 +192,12 @@ function learnHome() {
   go.appendChild(lBtn('⚑  ' + LX('Prüfung', 'Exam') + ' (' + LEARN_EXAM_N + ')', learnExamStart, 'big'));
   wrap.appendChild(go);
 
+  const m = s.meas || { asked: 0, right: 0 };
+  const go2 = lEl('div', 'lrow');
+  go2.appendChild(lBtn('⚖  ' + LX('Messen & Rechnen', 'Measuring & arithmetic') +
+    (m.asked ? '  ·  ' + m.right + '/' + m.asked : ''), () => learnMeasure(), 'big'));
+  wrap.appendChild(go2);
+
   wrap.appendChild(lEl('div', 'lsec', LX('Schadensfamilien', 'Families of finding')));
   const fams = lEl('div', 'lfams');
   learnBadges().forEach(b => {
@@ -282,9 +288,11 @@ function learnPick(fam) {
 }
 
 /* ---- one case ---------------------------------------------------------- */
+/* What was answered in this case, so it can be read back as one sheet. */
+let learnLog = [];
 function learnStart(c, exam) {
   if (!c) return;
-  learnCase = c; learnStep = 0; learnScore = 0; learnWrong = 0;
+  learnCase = c; learnStep = 0; learnScore = 0; learnWrong = 0; learnLog = [];
   learnLast = c.id;
   learnPaint(!!exam);
 }
@@ -363,6 +371,7 @@ function learnAnswer(v, exam) {
     ok = String(v) === String(learnRight(step, c));
   }
   if (ok) learnScore += 1; else learnWrong++;
+  learnLog.push({ step: step, ok: ok, given: v });
   if (exam) {
     learnExam.answers.push({ id: c.id, step: step, ok: ok });
     return learnNext(exam);
@@ -431,11 +440,63 @@ function learnDone() {
   const v = lEl('div', 'lbig' + (clean ? ' ok' : ''));
   v.textContent = learnScore + ' / ' + caseSteps(learnCase).length;
   wrap.appendChild(v);
+  const n = caseSteps(c).length;
   wrap.appendChild(lEl('p', 'lwhy', clean
-    ? LX('Alle vier auf Anhieb. Der Fall gilt als gesessen.',
-         'All four first time. The case counts as sat.')
-    : LX('Der Fall kommt wieder, bis alle vier auf Anhieb sitzen.',
-         'This case will come back until all four are right first time.')));
+    ? LX('Alle ' + n + ' auf Anhieb. Der Fall gilt als gesessen und kommt erst in ' +
+         LEITNER[Math.min(learnSeen(c.id).box || 1, LEITNER.length - 1)] + ' Tagen wieder.',
+         'All ' + n + ' first time. The case counts as sat and comes back in ' +
+         LEITNER[Math.min(learnSeen(c.id).box || 1, LEITNER.length - 1)] + ' days.')
+    : LX('Der Fall ist wieder unten in der Kiste und kommt morgen erneut, bis alle ' + n +
+         ' auf Anhieb sitzen.',
+         'The case is back at the bottom of the box and returns tomorrow, until all ' + n +
+         ' are right first time.')));
+  const row = lEl('div', 'lrow');
+  row.appendChild(lBtn('▶  ' + LX('Nächster Fall', 'Next case'),
+                       () => learnStart(learnPick()), 'p big'));
+  row.appendChild(lBtn(LX('Der ganze Baum', 'The whole tree'), () => learnSheet(c), 'big'));
+  wrap.appendChild(row);
+  const row2 = lEl('div', 'lrow');
+  row2.appendChild(lBtn(LX('Übersicht', 'Overview'), learnHome, 'big'));
+  wrap.appendChild(row2);
+  el.appendChild(wrap);
+}
+
+/* ---- the case as one sheet --------------------------------------------
+   Five questions answered one after another is not how an inspection reads
+   afterwards. This is the same case written out the way a record is: the
+   finding, where it sits, what it means, what happens next - each with the
+   right answer and the reasoning behind it. It is the page a learner takes
+   to the next tree. */
+function learnSheet(c) {
+  const el = learnBox(); el.innerHTML = '';
+  const wrap = lEl('div', 'lwrap');
+  wrap.appendChild(learnHead(LX('Der ganze Baum', 'The whole tree')));
+  const pic = lEl('div', 'lpic small'); pic.innerHTML = caseSvg(c, true);
+  wrap.appendChild(pic);
+  wrap.appendChild(lEl('p', 'ldesc', LT(c)));
+
+  const head = { what: LX('Befund', 'Finding'), where: LX('Wo', 'Where'),
+                 level: LX('Stufe', 'Level'), safety: LX('Verkehrssicherheit', 'Traffic safety'),
+                 action: LX('Maßnahme', 'Action') };
+  caseSteps(c).forEach(step => {
+    const got = learnLog.find(l => l.step === step);
+    const row = lEl('div', 'lsheet' + (got && !got.ok ? ' miss' : ''));
+    const h = lEl('div', 'lsh');
+    h.appendChild(lEl('b', '', head[step]));
+    let right = '';
+    if (step === 'where') right = LX('im markierten Bereich', 'in the marked area');
+    else {
+      const o = learnOpts(step, c).find(x => String(x.v) === String(learnRight(step, c)));
+      right = o ? o.label : '';
+    }
+    h.appendChild(lEl('span', '', right));
+    row.appendChild(h);
+    row.appendChild(lEl('p', 'lwhy', step === 'where'
+      ? LX('Wo etwas sitzt, entscheidet, worum es geht.',
+           'Where something sits decides what it is about.')
+      : LT(c[step])));
+    wrap.appendChild(row);
+  });
   const row = lEl('div', 'lrow');
   row.appendChild(lBtn('▶  ' + LX('Nächster Fall', 'Next case'),
                        () => learnStart(learnPick()), 'p big'));
@@ -502,7 +563,280 @@ function learnExamDone() {
   });
   wrap.appendChild(list);
   const row = lEl('div', 'lrow');
-  row.appendChild(lBtn(LX('Übersicht', 'Overview'), learnHome, 'p big'));
+  if (pass) row.appendChild(lBtn('⚑  ' + LX('Urkunde', 'Certificate'),
+    () => learnCertShow({ day: learnToday(), right: right, of: ids.length }), 'p big'));
+  row.appendChild(lBtn(LX('Übersicht', 'Overview'), learnHome, pass ? 'big' : 'p big'));
+  wrap.appendChild(row);
+  el.appendChild(wrap);
+}
+
+/* ============================================================================
+   MESSEN & RECHNEN
+
+   Benennen ist die halbe Arbeit. Die andere Hälfte ist, eine Zahl zu
+   bekommen, die vor einem Gericht Bestand hat - und die vier Rechnungen
+   darunter sind die, die ein Kontrolleur wirklich braucht. Sie werden bei
+   jedem Aufruf neu gewürfelt, also gibt es nichts auswendig zu lernen: nur
+   den Weg.
+
+   Every exercise is generated fresh, so there is nothing to memorise - only
+   the method. The worked solution is shown afterwards whether the answer was
+   right or wrong, in the same form the field app computes it, because the
+   point is to know what the app is doing rather than to trust it.
+   ========================================================================= */
+
+const MEAS_KINDS = ['height', 'dbh', 'fall', 'eye'];
+let mExercise = null;
+
+function rnd(a, b, step) {
+  const n = a + Math.random() * (b - a);
+  return step ? Math.round(n / step) * step : n;
+}
+function learnMakeExercise(kind) {
+  const k = kind || MEAS_KINDS[Math.floor(Math.random() * MEAS_KINDS.length)];
+  if (k === 'height') {
+    const d = rnd(8, 25, 1), el = rnd(25, 55, 1), eye = 1.6;
+    const h = eye + d * Math.tan(el * Math.PI / 180);
+    return { kind: k, want: h, tol: 0.6, unit: 'm',
+      q: LX('Du stehst ' + d + ' m vom Stamm, die Augenhöhe ist ' + eye + ' m. ' +
+            'Der Sehstrahl zum Wipfel liegt ' + el + '° über der Waagerechten. Wie hoch ist der Baum?',
+            'You stand ' + d + ' m from the stem with your eye at ' + eye + ' m. The sightline to the top ' +
+            'is ' + el + '° above horizontal. How tall is the tree?'),
+      how: LX('Höhe = Augenhöhe + Distanz × tan(Winkel) = ' + eye + ' + ' + d + ' × tan(' + el +
+              '°) = ' + h.toFixed(1) + ' m.\n\nDas ist genau die Rechnung der Feld-App – mit einem ' +
+              'Unterschied: sie nimmt die waagerechte Distanz aus dem AR-Hit-Test statt aus einem Schritt-' +
+              'maß. Steht man zu nah, läuft der Winkel gegen 90° und jede Handbewegung kostet Meter. ' +
+              'Deshalb die Warnung unter 1,5 m.',
+              'Height = eye + distance x tan(angle) = ' + eye + ' + ' + d + ' x tan(' + el + ' deg) = ' +
+              h.toFixed(1) + ' m.\n\nThat is exactly what the field app computes, with one difference: it takes ' +
+              'the horizontal distance from the AR hit-test rather than from a pace. Stand too close and the ' +
+              'angle runs towards 90 degrees, where a twitch of the hand costs metres. Hence the warning under 1.5 m.'),
+      draw: { d: d, el: el } };
+  }
+  if (k === 'dbh') {
+    const u = rnd(60, 320, 1);
+    return { kind: k, want: u / Math.PI, tol: 1.5, unit: 'cm',
+      q: LX('Das Maßband zeigt einen Stammumfang von ' + u + ' cm in 1,30 m Höhe. Wie groß ist der BHD?',
+            'The tape reads a girth of ' + u + ' cm at 1.30 m. What is the DBH?'),
+      how: LX('BHD = Umfang ÷ π = ' + u + ' ÷ 3,1416 = ' + (u / Math.PI).toFixed(1) + ' cm.\n\n' +
+              'Am Hang wird 1,30 m bergseitig gemessen, bei Zwieseln unterhalb des Ansatzes, und eine ' +
+              'Verdickung genau in 1,30 m wird umgangen – gemessen wird darunter oder darüber, mit Notiz.',
+              'DBH = girth / pi = ' + u + ' / 3.1416 = ' + (u / Math.PI).toFixed(1) + ' cm.\n\nOn a slope 1.30 m ' +
+              'is taken on the uphill side, on a fork below the union, and a swelling exactly at 1.30 m is ' +
+              'avoided: measure above or below it and note that you did.') };
+  }
+  if (k === 'fall') {
+    const h = rnd(12, 28, 1), t = rnd(6, 34, 1);
+    return { kind: k, want: t <= h ? 1 : 0, tol: 0, unit: '',
+      choice: [{ v: 1, label: LX('ja, im Fallbereich', 'yes, inside it') },
+               { v: 0, label: LX('nein, außerhalb', 'no, outside it') }],
+      q: LX('Ein Baum von ' + h + ' m Höhe steht ' + t + ' m von einem Spielplatz. Liegt der Spielplatz im Fallbereich?',
+            'A tree ' + h + ' m tall stands ' + t + ' m from a playground. Is the playground inside the fall zone?'),
+      how: LX('Der Fallbereich wird als Kreis mit dem Radius der Baumhöhe angenommen: ' + h + ' m gegen ' + t +
+              ' m Abstand – ' + (t <= h ? 'innerhalb' : 'außerhalb') + '.\n\nDas ist eine grobe, bewusst ' +
+              'vorsichtige Annahme. Ein Baum fällt selten seine volle Länge weit, aber Äste fliegen, und ein ' +
+              'Stamm rollt. Die Feld-App zeichnet diesen Kreis auf Wunsch in die Kamera.',
+              'The fall zone is taken as a circle of radius equal to the tree height: ' + h + ' m against ' + t +
+              ' m - ' + (t <= h ? 'inside' : 'outside') + '.\n\nIt is a coarse and deliberately cautious ' +
+              'assumption. A tree rarely falls its full length, but limbs fly and a stem rolls. The field app ' +
+              'will draw that circle into the camera view.') };
+  }
+  const h = rnd(9, 26, .5), r = rnd(.35, .75, .05);
+  return { kind: 'eye', want: h, tol: Math.max(1.5, h * 0.12), unit: 'm',
+    q: LX('Die Figur ist 1,80 m groß. Wie hoch schätzt du den Baum?',
+          'The figure is 1.80 m tall. How tall do you make the tree?'),
+    how: LX('Der Baum ist ' + h.toFixed(1) + ' m hoch, also gut ' + Math.round(h / 1.8) +
+            ' Figuren übereinander.\n\nSchätzen ist erlaubt, wenn es als Schätzung im Protokoll steht. ' +
+            'Wer es genau braucht – und für den Fallbereich braucht man es – misst den Winkel.',
+            'The tree is ' + h.toFixed(1) + ' m, a good ' + Math.round(h / 1.8) + ' figures stacked up.\n\n' +
+            'Estimating is fine as long as the record says it was estimated. Where it has to be right - and for ' +
+            'a fall zone it does - measure the angle.'),
+    draw: { h: h, r: r } };
+}
+
+/* A drawing for the two exercises that have one. Same 0..100 box as a case. */
+function measSvg(x) {
+  const d = x.draw;
+  let art = '<rect width="100" height="100" fill="#0e1712"/><rect y="86" width="100" height="14" fill="#1b2a20"/>';
+  if (x.kind === 'height') {
+    const eyeY = 86 - 6, topY = 20;
+    art += '<path d="M78 86 L78 ' + topY + '" stroke="#3a2f22" stroke-width="3"/>' +
+           '<ellipse cx="78" cy="' + (topY + 8) + '" rx="14" ry="10" fill="#2c4a33" opacity=".85"/>' +
+           '<circle cx="20" cy="' + eyeY + '" r="2.5" fill="#cfe6d7"/>' +
+           '<path d="M20 ' + eyeY + ' L78 ' + eyeY + '" stroke="#2f6b4a" stroke-width=".8" stroke-dasharray="2 2"/>' +
+           '<path d="M20 ' + eyeY + ' L78 ' + topY + '" stroke="#ffd27a" stroke-width="1.2"/>' +
+           '<text x="46" y="' + (eyeY + 6) + '" fill="#8ea396" font-size="6" text-anchor="middle">' +
+           d.d + ' m</text>' +
+           '<text x="26" y="' + (eyeY - 4) + '" fill="#ffd27a" font-size="6">' + d.el + '°</text>';
+  } else if (x.kind === 'eye') {
+    const top = 86 - (d.h / 30) * 70;
+    art += '<path d="M62 86 L62 ' + (top + 12) + '" stroke="#3a2f22" stroke-width="3"/>' +
+           '<ellipse cx="62" cy="' + (top + 10) + '" rx="16" ry="11" fill="#2c4a33" opacity=".85"/>' +
+           '<g stroke="#cfe6d7" stroke-width="1.2" fill="none">' +
+           '<circle cx="24" cy="' + (86 - (1.8 / 30) * 70 + 1.5) + '" r="1.6"/>' +
+           '<path d="M24 ' + (86 - (1.8 / 30) * 70 + 3.2) + ' L24 ' + (86 - (1.8 / 30) * 70 * 0.45) + '"/>' +
+           '<path d="M24 86 L24 ' + (86 - (1.8 / 30) * 70 * 0.45) + '"/></g>' +
+           '<text x="30" y="83" fill="#8ea396" font-size="5">1,80 m</text>';
+  }
+  return '<svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">' +
+         art + '</svg>';
+}
+
+function learnMeasure(kind) {
+  mExercise = learnMakeExercise(kind);
+  const x = mExercise;
+  const el = learnBox(); el.innerHTML = '';
+  const wrap = lEl('div', 'lwrap');
+  wrap.appendChild(learnHead(LX('Messen & Rechnen', 'Measuring & arithmetic')));
+  if (x.draw) {
+    const pic = lEl('div', 'lpic'); pic.innerHTML = measSvg(x);
+    wrap.appendChild(pic);
+  }
+  wrap.appendChild(lEl('p', 'ldesc', x.q));
+
+  if (x.choice) {
+    const box = lEl('div', 'lopts');
+    x.choice.forEach(o => box.appendChild(lBtn(o.label, () => learnMeasWhy(o.v), 'lopt')));
+    wrap.appendChild(box);
+  } else {
+    const row = lEl('div', 'lnum');
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.inputMode = 'decimal'; inp.id = 'lmnum';
+    inp.placeholder = x.unit === 'cm' ? 'cm' : 'm';
+    inp.onkeydown = ev => { if (ev.key === 'Enter') go(); };
+    const go = () => {
+      const v = parseFloat(String(inp.value).replace(',', '.'));
+      if (!isFinite(v)) return;
+      learnMeasWhy(v);
+    };
+    row.appendChild(inp);
+    row.appendChild(lBtn(LX('Prüfen', 'Check'), go, 'p'));
+    wrap.appendChild(row);
+  }
+  const foot = lEl('div', 'lrow');
+  foot.appendChild(lBtn(LX('Andere Aufgabe', 'Another one'), () => learnMeasure(), 'big'));
+  wrap.appendChild(foot);
+  el.appendChild(wrap);
+  setTimeout(() => { const i = document.getElementById('lmnum'); if (i) i.focus(); }, 60);
+}
+
+function learnMeasWhy(given) {
+  const x = mExercise;
+  const ok = x.choice ? given === x.want : Math.abs(given - x.want) <= x.tol;
+  const s = learnState();
+  s.meas = s.meas || { asked: 0, right: 0 };
+  s.meas.asked++; if (ok) { s.meas.right++; s.points = (s.points || 0) + 1; }
+  const today = learnToday();
+  if (s.lastDay !== today) {
+    const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    s.streak = (s.lastDay === y) ? (s.streak || 0) + 1 : 1;
+    s.lastDay = today;
+  }
+  learnSave(s);
+
+  const el = learnBox(); el.innerHTML = '';
+  const wrap = lEl('div', 'lwrap');
+  wrap.appendChild(learnHead(LX('Messen & Rechnen', 'Measuring & arithmetic')));
+  wrap.appendChild(lEl('div', 'lverdict ' + (ok ? 'ok' : 'no'),
+    ok ? LX('Richtig', 'Right') : LX('Daneben', 'Off')));
+  if (!x.choice) {
+    const line = lEl('div', 'lwas');
+    line.innerHTML = '<span class="' + (ok ? 'good' : 'bad') + '">' + esc(String(given)) + '</span>' +
+      ' · ' + LX('richtig', 'correct') + ': <span class="good">' +
+      x.want.toFixed(1) + ' ' + x.unit + '</span> · ±' + x.tol.toFixed(1);
+    wrap.appendChild(line);
+  }
+  const how = lEl('p', 'lwhy'); how.style.whiteSpace = 'pre-line';
+  how.textContent = x.how;
+  wrap.appendChild(how);
+  const row = lEl('div', 'lrow');
+  row.appendChild(lBtn('▶  ' + LX('Nächste', 'Next'), () => learnMeasure(), 'p big'));
+  row.appendChild(lBtn(LX('Übersicht', 'Overview'), learnHome, 'big'));
+  wrap.appendChild(row);
+  el.appendChild(wrap);
+}
+
+/* ============================================================================
+   DIE URKUNDE
+
+   Eine bestandene Prüfung, die nur als Zeile in einer Liste steht, ist keine
+   Belohnung. Dies ist ein Bild, das man behalten und herumzeigen kann - und
+   auf dem in derselben Größe wie alles andere steht, was es nicht ist: keine
+   Qualifikation, keine Bescheinigung, keine Grundlage für eine Baumkontrolle.
+   Das ist keine Kleingedrucktes-Vorsicht, sondern der Punkt: wer
+   Verkehrssicherheit beurteilt, haftet dafür.
+
+   Drawn on a canvas and handed over as a PNG - no library, no server, and
+   nothing leaves the phone.
+   ========================================================================= */
+function learnCertCanvas(rec) {
+  const W = 1200, H = 840;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0e1712'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#2f6b4a'; g.lineWidth = 6; g.strokeRect(26, 26, W - 52, H - 52);
+  g.strokeStyle = '#1e3a2a'; g.lineWidth = 2; g.strokeRect(44, 44, W - 88, H - 88);
+
+  g.textAlign = 'center';
+  g.fillStyle = '#8fd6a8'; g.font = '600 26px system-ui,sans-serif';
+  g.fillText(LX('ÜBUNG · BAUMKONTROLLE', 'PRACTICE · TREE INSPECTION'), W / 2, 130);
+
+  g.fillStyle = '#eaf3ee'; g.font = '700 62px system-ui,sans-serif';
+  g.fillText(LX('Prüfung bestanden', 'Exam passed'), W / 2, 226);
+
+  const who = (typeof userName === 'function' && userName()) ||
+              (typeof prefs === 'function' && prefs().inspector) || '';
+  if (who) {
+    g.fillStyle = '#9fb3a6'; g.font = '24px system-ui,sans-serif';
+    g.fillText(LX('für', 'for'), W / 2, 296);
+    g.fillStyle = '#eaf3ee'; g.font = '600 44px system-ui,sans-serif';
+    g.fillText(who, W / 2, 352);
+  }
+
+  g.fillStyle = '#8fd6a8'; g.font = '700 96px system-ui,sans-serif';
+  g.fillText(rec.right + ' / ' + rec.of, W / 2, who ? 470 : 430);
+  g.fillStyle = '#9fb3a6'; g.font = '24px system-ui,sans-serif';
+  g.fillText(LX('Fälle richtig · ' + rec.day, 'cases right · ' + rec.day), W / 2, who ? 512 : 472);
+
+  /* what was covered, so the sheet says something about content */
+  const fams = CASE_FAM.map(f => LT(f)).join('  ·  ');
+  g.fillStyle = '#c2d2c7'; g.font = '22px system-ui,sans-serif';
+  g.fillText(fams, W / 2, 586);
+
+  /* and what it is not - same size, not smaller */
+  g.fillStyle = '#e2a04a'; g.font = '600 22px system-ui,sans-serif';
+  const warn = LX(
+    ['Das ist eine Übung, keine Qualifikation und keine Bescheinigung.',
+     'Wer Verkehrssicherheit beurteilt, haftet dafür und braucht eine echte Ausbildung.'],
+    ['This is practice. It is not a qualification and not a certificate.',
+     'Anyone judging traffic safety is liable for it and needs real training.']);
+  warn.forEach((l, i) => g.fillText(l, W / 2, 664 + i * 32));
+
+  g.fillStyle = '#6f8a79'; g.font = '18px system-ui,sans-serif';
+  g.fillText('VTA Field · ' + (typeof APP_VERSION === 'string' ? APP_VERSION : ''), W / 2, H - 70);
+  return c;
+}
+function learnCertShow(rec) {
+  const el = learnBox(); el.innerHTML = '';
+  const wrap = lEl('div', 'lwrap');
+  wrap.appendChild(learnHead(LX('Urkunde', 'Certificate'), learnHome));
+  const c = learnCertCanvas(rec);
+  const box = lEl('div', 'lcert');
+  const img = document.createElement('img');
+  try { img.src = c.toDataURL('image/png'); } catch (e) { img.alt = ''; }
+  box.appendChild(img);
+  wrap.appendChild(box);
+  const row = lEl('div', 'lrow');
+  row.appendChild(lBtn(LX('Bild speichern', 'Save the picture'), () => {
+    try {
+      const a = document.createElement('a');
+      a.href = c.toDataURL('image/png');
+      a.download = 'vta-uebung-' + rec.day + '.png';
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { toast(LX('Das Bild lässt sich hier nicht speichern.',
+                           'The picture cannot be saved here.')); }
+  }, 'p big'));
+  row.appendChild(lBtn(LX('Übersicht', 'Overview'), learnHome, 'big'));
   wrap.appendChild(row);
   el.appendChild(wrap);
 }
