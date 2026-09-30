@@ -1,15 +1,12 @@
+Baum
+Bäume
+Wald
+Forst
+Gehölz
 Baumkontrolle
-Verkehrssicherheit Baum
-Baumpflege
 Arboristik
-Waldschutz Schadbilder
-Waldschadensdiagnostik
-Baumkrankheiten
-Holzfäule Pilze Baum
-Forstschutz
-Baumbiologie
-Dendrologie Gehölze
-tree inspection hazard
-tree pathology decay fungi
-forest pathology
-urban tree management
+Baumpflege
+Waldschutz
+Holz Pilze Fäule
+forestry trees
+arboriculture

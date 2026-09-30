@@ -32,9 +32,10 @@ print(json.dumps({
   "size": int(sys.argv[2]),
   "query": {"bool": {"must": [{"simple_query_string": {"query": q,
                      "fields": ["name", "description", "keywords"],
-                     "default_operator": "and"}}]}},
+                     "default_operator": "or"}}]}},
   "_source": ["name", "id", "license", "provider", "creator", "keywords",
-              "inLanguage", "learningResourceType", "description"]
+              "inLanguage", "learningResourceType", "description"],
+  "track_total_hits": True
 }))' "$q" "$SIZE")
   for url in "$API" "$API2"; do
     out=$(curl -sS --max-time 45 -A "$UA" -H 'Content-Type: application/json' \
@@ -54,7 +55,10 @@ while IFS= read -r term; do
   printf '%s' "$res" | python3 -c '
 import sys, json, re
 d = json.load(sys.stdin)
+tot = d.get("hits", {}).get("total", {})
+tot = tot.get("value") if isinstance(tot, dict) else tot
 hits = d.get("hits", {}).get("hits", [])
+print("    %s in the index" % (tot if tot is not None else "?"))
 if not hits:
     print("    (nothing)")
 for h in hits:
