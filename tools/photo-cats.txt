@@ -1,0 +1,16 @@
+cavity-base|hollow trees
+soil-heave|uprooted trees
+root-cut|tree roots damage
+crack-long|cracks in trees
+included-bark|tree forks
+deadwood|dead branches
+lean-new|leaning trees
+topping|pollarded trees
+compaction|street trees tree pits
+bleeding|Aesculus hippocastanum diseases
+hazard-beam|Quercus branches
+mistletoe|Viscum album
+sound-tree|solitary trees
+ribbing|tree bark deformation
+ganoderma|Ganoderma applanatum
+armillaria|Armillaria

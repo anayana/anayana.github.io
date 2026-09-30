@@ -20,5 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Ask Commons what there is
+      - name: Ask Commons what there is, by name
         run: bash tools/photo-search.sh tools/photo-terms.txt "${{ inputs.per_term }}"
+      - name: And by category, which is what people actually curate
+        if: always()
+        run: bash tools/photo-cats.sh tools/photo-cats.txt 2 8
