@@ -1,0 +1,8 @@
+# case-ish key | taxon iNaturalist knows | how many candidates
+# Only the two cases that are an organism and still have no photograph. The
+# other eleven without a picture - included bark, a fresh lean, a topping cut -
+# are not a species and nobody tags them as one; they keep their drawings.
+ganoderma|Ganoderma applanatum|4
+ganoderma-ads|Ganoderma adspersum|3
+mistletoe|Viscum album|4
+mistletoe-pine|Viscum album austriacum|3

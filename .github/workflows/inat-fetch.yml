@@ -1,0 +1,39 @@
+name: Fetch iNaturalist candidates
+
+# The sandbox reaches no host on the internet; a runner does. This brings down
+# a few candidate photographs per case from iNaturalist, each checked on its
+# own licence, and commits them to vta/cases/cand/ on the branch it is run
+# from. Nothing reaches the app here: a human looks at every candidate and
+# tools/inat-pick.py moves the ones that are actually usable into place.
+
+on:
+  workflow_dispatch:
+    inputs:
+      picks:
+        description: which picks file to work from
+        default: tools/inat-picks.txt
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The one thing needed to turn a download into a JPEG
+        run: python3 -m pip install --quiet --disable-pip-version-check pillow
+      - name: Ask iNaturalist for candidates
+        run: bash tools/inat-fetch.sh "${{ inputs.picks }}" vta/cases/cand
+      - name: Commit the candidates for review
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vta/cases/cand || true
+          git diff --cached --quiet && { echo "nothing new"; exit 0; }
+          git commit -m "iNaturalist candidates for review, with their credits
+
+          Fetched by tools/inat-fetch.sh. Licence and author come from each
+          photograph's own record, not from the observation. Nothing is in the
+          app yet - these are candidates until somebody has looked at them."
+          git push

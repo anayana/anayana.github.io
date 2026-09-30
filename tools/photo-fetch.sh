@@ -96,19 +96,17 @@ PY
 done < "$PICKS"
 
 printf '\n}\n' >> "$tmp/credits.json"
-python3 - "$tmp/credits.json" "$OUT/credits.json" "vta/photos.js" <<'PY'
+# Only this source's credits are written here; vta/photos.js is put together
+# from all the credit files by tools/photo-merge.py, so bringing Commons
+# pictures in again cannot drop the iNaturalist ones.
+python3 - "$tmp/credits.json" "$OUT/credits.json" <<'PY'
 import json, sys
-src, dst, js = sys.argv[1:4]
+src, dst = sys.argv[1:3]
 d = json.load(open(src))
 json.dump(d, open(dst, 'w'), ensure_ascii=False, indent=1)
-with open(js, 'w', encoding='utf-8') as f:
-    f.write('/* Written by tools/photo-fetch.sh from what Wikimedia Commons said.\n'
-            '   Every picture here is somebody else\'s work: the app shows the name\n'
-            '   and the licence under it, and links the file page. Not edited by hand -\n'
-            '   if a credit is wrong here, it is wrong at the source. */\n')
-    f.write('const CASE_PHOTOS = ' + json.dumps(d, ensure_ascii=False, indent=2) + ';\n')
 print('credits written for', len(d), 'pictures')
 PY
+python3 tools/photo-merge.py vta/photos.js
 echo
 echo "kept $kept, dropped $dropped"
 ls -la "$OUT" | tail -n +2
