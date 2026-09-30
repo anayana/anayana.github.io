@@ -25,3 +25,6 @@ jobs:
       - name: And by category, which is what people actually curate
         if: always()
         run: bash tools/photo-cats.sh tools/photo-cats.txt 2 8
+      - name: And what the universities have put out openly
+        if: always()
+        run: bash tools/oer-search.sh tools/oer-terms.txt 12
