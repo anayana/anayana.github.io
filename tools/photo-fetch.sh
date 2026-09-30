@@ -69,9 +69,18 @@ for p in d.get("query", {}).get("pages", {}).values():
   # a picture, and a real one: anything under 20 kB is an error page
   sz=$(wc -c < "$tmp/$key.img")
   if [ "$sz" -lt 20000 ]; then echo "DROP $key - only $sz bytes"; dropped=$((dropped+1)); continue; fi
-  CONV=convert; command -v convert >/dev/null || CONV=magick
-  "$CONV" "$tmp/$key.img" -resize '900x900>' -strip -interlace Plane -quality 78 "$OUT/$key.jpg" \
-    || { echo "DROP $key - could not be converted"; dropped=$((dropped+1)); continue; }
+  # The API already hands over a 900 px rendering, so this only has to make it
+  # a JPEG and take the metadata off. ImageMagick is no longer on the runner
+  # image; Pillow is one pip install and does not care what came down.
+  python3 - "$tmp/$key.img" "$OUT/$key.jpg" <<'PY' || { echo "DROP $key - could not be converted"; dropped=$((dropped+1)); continue; }
+import sys
+from PIL import Image
+src, dst = sys.argv[1:3]
+im = Image.open(src)
+im = im.convert('RGB')
+im.thumbnail((900, 900))
+im.save(dst, 'JPEG', quality=78, optimize=True, progressive=True)
+PY
 
   [ $first -eq 0 ] && echo ',' >> "$tmp/credits.json"
   first=0

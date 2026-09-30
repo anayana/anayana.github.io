@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: The one thing needed to turn a download into a JPEG
+        run: python3 -m pip install --quiet --disable-pip-version-check pillow
       - name: Ask Commons for the files and who made them
         run: bash tools/photo-fetch.sh tools/photo-picks.txt
       - name: Commit what came back
