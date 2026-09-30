@@ -565,8 +565,8 @@ const CASES = [
   },
   {
     id: 'mistletoe', fam: 'crown', art: 'conifer',
-    de: 'Dichte kugelige Büsche in der Krone einer Kiefer, immergrün, im Winter deutlich sichtbar.',
-    en: 'Dense globular bushes in the crown of a pine, evergreen and obvious in winter.',
+    de: 'Gelbgrüne, dicht verzweigte Büsche zwischen den Ästen einer Kiefer – immergrün und von unten gegen den Himmel deutlich zu erkennen.',
+    en: 'Yellow-green, densely branched bushes among the limbs of a pine – evergreen, and plain to see from below against the sky.',
     draw: '<circle cx="42" cy="46" r="4" fill="#3f6b45"/><circle cx="58" cy="38" r="3.4" fill="#3f6b45"/>' +
           '<circle cx="50" cy="52" r="3" fill="#3f6b45"/>',
     mark: { x: 50, y: 45, r: 12 },
@@ -591,8 +591,8 @@ const CASES = [
   },
   {
     id: 'ganoderma', fam: 'fungi', art: 'broad',
-    de: 'Konsolenförmiger Fruchtkörper am Stammfuß mit weißer Porenschicht, die auf Druck braun anläuft.',
-    en: 'A bracket at the stem base with a white pore layer that bruises brown when pressed.',
+    de: 'Konsolenförmiger Fruchtkörper unten am Stamm, oben braun und krustig, mit dickem weißem Rand. Die Porenschicht darunter ist weiß und läuft auf Druck braun an.',
+    en: 'A bracket low on the stem, brown and crusted on top with a thick white rim. The pore layer underneath is white and bruises brown when pressed.',
     draw: P.bracket(56, 82, 1.2),
     mark: { x: 54, y: 82, r: 9 },
     what: {
@@ -747,5 +747,7 @@ const CASE_PHOTO_MARK = {
   inonotus:  { x: 45, y: 45, r: 24 },   // the bracket on the standing stem
   bleeding:  { x: 34, y: 31, r: 13 },   // the bleeding patch, above and left of centre
   fomes:     { x: 45, y: 55, r: 26 },   // the brackets on the fallen trunk
-  meripilus: { x: 48, y: 48, r: 26 }    // the rosette at the base
+  meripilus: { x: 48, y: 48, r: 26 },   // the rosette at the base
+  ganoderma: { x: 45, y: 46, r: 25 },   // the bracket on the mossy stem base
+  mistletoe: { x: 49, y: 51, r: 15 }    // the bush between the pine limbs
 };

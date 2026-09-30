@@ -47,7 +47,7 @@ function LX(de, en) { return learnDe() ? de : en; }
 function casePhoto(c) {
   const p = (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
   if (!p) return null;
-  /* The credit comes from Commons and is never touched; the mark is mine,
+  /* The credit comes from the source API and is never touched; the mark is mine,
      from looking at the picture. Two sources, kept apart. */
   const m = (typeof CASE_PHOTO_MARK !== 'undefined' && CASE_PHOTO_MARK[c.id]) || null;
   return m ? Object.assign({}, p, { mark: m }) : p;

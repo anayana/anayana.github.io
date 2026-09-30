@@ -1,5 +1,5 @@
 /* Written by tools/photo-merge.py from the credits files the
-   fetchers left behind (Wikimedia Commons 7). Every picture
+   fetchers left behind (Wikimedia Commons 7, iNaturalist 2). Every picture
    here is somebody else's work: the app shows the name and the
    licence under it and links the source page. Not edited by hand -
    if a credit is wrong here, it is wrong at the source. */
@@ -27,6 +27,13 @@ const CASE_PHOTOS = {
     "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
     "page": "https://commons.wikimedia.org/wiki/File:Echte_tonderzwam_(Fomes_fomentarius)_25-12-2020_(actm.)_05.jpg",
     "source": "Wikimedia Commons"
+  },
+  "ganoderma": {
+    "by": "Jose Gutierrez Higa",
+    "file": "iNaturalist observation 403830728 (Ganoderma adspersum)",
+    "licence": "CC BY",
+    "page": "https://www.inaturalist.org/observations/403830728",
+    "source": "iNaturalist"
   },
   "inonotus": {
     "by": "Stu's Images",
@@ -59,5 +66,12 @@ const CASE_PHOTOS = {
     "licenceUrl": "https://creativecommons.org/licenses/by/3.0",
     "page": "https://commons.wikimedia.org/wiki/File:Riesenporling-Meripilus-giganteus.jpg",
     "source": "Wikimedia Commons"
+  },
+  "mistletoe": {
+    "by": "Emil Jantke",
+    "file": "iNaturalist observation 200827927 (Kiefern-Mistel)",
+    "licence": "CC BY",
+    "page": "https://www.inaturalist.org/observations/200827927",
+    "source": "iNaturalist"
   }
 };
