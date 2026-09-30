@@ -40,42 +40,7 @@ while IFS='|' read -r key taxon want; do
       --data-urlencode 'photos=true' \
       --data-urlencode 'order_by=votes' \
       --data-urlencode 'per_page=30' \
-    | python3 - "$key" "$want" "$OUT" <<'PY'
-import json, re, sys
-key, want, out = sys.argv[1], int(sys.argv[2]), sys.argv[3]
-OK = {'cc0': 'CC0', 'cc-by': 'CC BY', 'cc-by-sa': 'CC BY-SA'}
-d = json.load(sys.stdin)
-print('    %s research-grade observations offered' % d.get('total_results', '?'))
-n = 0
-rows = []
-for o in d.get('results', []):
-    if n >= want:
-        break
-    for p in (o.get('photos') or []):
-        lic = (p.get('license_code') or '').lower()
-        if lic not in OK:
-            continue
-        url = (p.get('url') or '').replace('/square.', '/large.')
-        if not url:
-            continue
-        att = (p.get('attribution') or '').strip()
-        # "(c) Some Name, some rights reserved (CC BY)" -> "Some Name"
-        m = re.match(r'^\(c\)\s*(.+?),\s*(?:some|no|all)\s+rights', att, re.I)
-        who = (m.group(1) if m else att).strip()
-        if not who:
-            continue
-        n += 1
-        rows.append('\t'.join([key + '-' + str(n), url, OK[lic], who,
-                               o.get('uri') or '',
-                               str(o.get('id') or ''),
-                               (o.get('species_guess') or '').replace('\t', ' ')]))
-        break
-if not rows:
-    print('    nothing with a usable licence and a readable author')
-open(out + '/found.tsv', 'a', encoding='utf-8').write('\n'.join(rows) + ('\n' if rows else ''))
-for r in rows:
-    print('    ' + r.split('\t')[0] + '  ' + r.split('\t')[2] + '  ' + r.split('\t')[3])
-PY
+    | python3 tools/inat-parse.py "$key" "$want" "$OUT"
   echo
 done < "$PICKS"
 
