@@ -236,6 +236,7 @@ async function gateLearn() {
            build with no photographs in it, so a missing one is not a failure -
            the drawings carry the cases on their own. */
         try { await loadScriptOnce('photos.js' + v); } catch (e) {}
+        await loadScriptOnce('draw.js' + v);
         await loadScriptOnce('cases.js' + v);
         await loadScriptOnce('learn.js' + v);
       })();

@@ -7,15 +7,16 @@
    told the reason for each, right or wrong - the reason is the teaching, the
    score is only what keeps anyone coming back.
 
-   On the pictures. There are no photographs in here, and none are invented.
-   Every case carries a schematic drawing made in code: a trunk, a crown, a
-   root plate, and the finding marked on it where it belongs. A drawing is
-   honest about being a drawing, and it is what a textbook uses for the same
-   purpose - it shows the mechanism rather than one particular tree. A
-   photograph of the real thing beats it, and that is what the field app's
-   "keep as a teaching case" is for: your own bark, your own fruiting body,
-   with your own findings already recorded against it. Those replace the
-   drawings case by case.
+   On the pictures. Nine cases carry a photograph of the real thing, fetched
+   from Wikimedia Commons and iNaturalist with the author and the licence read
+   from the source, never assumed, and shown under the picture. The other
+   eleven carry a line drawing made in code (vta/draw.js), because what they
+   are about cannot be photographed usefully: a rib is only worth seeing next
+   to the section it belongs to, a lever is only worth seeing with the moment
+   it produces drawn under it. A drawing is honest about being a drawing, and
+   it shows the mechanism rather than one particular tree. Your own photograph
+   of your own tree beats both, and that is what the field app's "keep as a
+   teaching case" is for.
 
    On the content. Everything here is the common ground of European tree
    inspection - VTA as Mattheck set it out, the body-language-of-trees
@@ -66,22 +67,31 @@ const ACT_OPTS = [
    ring is the answer to that question. A second ring can be passed in to
    show where they actually pressed. */
 function caseSvg(c, show, at) {
+  const fig = (typeof CASE_FIG !== 'undefined' && c && CASE_FIG[c.id]) || null;
+  const paper = !!fig;
   const mark = c.mark || {};
+  const ring = paper ? '#a83f2a' : '#ffd27a';
   let hot = (show !== false && mark.x != null)
     ? '<circle cx="' + mark.x + '" cy="' + mark.y + '" r="' + (mark.r || 7) +
-      '" fill="none" stroke="#ffd27a" stroke-width="1.6" stroke-dasharray="3 2"/>'
+      '" fill="none" stroke="' + ring + '" stroke-width="1.6" stroke-dasharray="3 2"/>'
     : '';
   if (at) hot += '<circle cx="' + at.x + '" cy="' + at.y + '" r="2.2" fill="#e2704a"/>' +
                  '<circle cx="' + at.x + '" cy="' + at.y + '" r="5" fill="none" ' +
                  'stroke="#e2704a" stroke-width="1"/>';
-  const body = {
-    broad: CASE_ART.broad, conifer: CASE_ART.conifer, pollard: CASE_ART.pollard
-  }[c.art || 'broad'];
+  let body;
+  if (fig) {
+    body = '<rect width="100" height="100" fill="#f4eee2"/>' + fig(c);
+  } else {
+    /* the older schematics, kept for any case that has neither a drawing of
+       its own nor a photograph */
+    body = '<rect width="100" height="100" fill="#0e1712"/>' +
+           '<rect y="86" width="100" height="14" fill="#1b2a20"/>' +
+           ({ broad: CASE_ART.broad, conifer: CASE_ART.conifer,
+              pollard: CASE_ART.pollard }[c.art || 'broad']) + (c.draw || '');
+  }
   return '<svg viewBox="0 0 100 100" width="100%" height="100%" ' +
          'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="schematic">' +
-         '<rect width="100" height="100" fill="#0e1712"/>' +
-         '<rect y="86" width="100" height="14" fill="#1b2a20"/>' +
-         body + (c.draw ? c.draw : '') + hot + '</svg>';
+         body + hot + '</svg>';
 }
 const CASE_ART = {
   broad:
@@ -263,7 +273,7 @@ const CASES = [
     de: 'Eine längliche Wulst zieht sich über den Stammfuß, die Rinde darüber ist ungestört.',
     en: 'A long bulge runs over the stem base; the bark over it is undisturbed.',
     draw: P.bulge(46, 78) + P.bulge(48, 70),
-    mark: { x: 47, y: 74, r: 9 },
+    mark: { x: 28, y: 68, r: 9 },
     what: {
       opts: [{ de: 'Reaktionsholz über einem Defekt (Rippenbildung)', en: 'Reaction wood over a defect (ribbing)' },
              { de: 'Veredelungsstelle', en: 'Graft union' },
@@ -288,7 +298,7 @@ const CASES = [
     de: 'Offene Höhlung am Stammfuß, etwa ein Drittel des Umfangs, Ränder überwallt.',
     en: 'An open cavity at the stem base, about a third of the circumference, with callus rolls at the edges.',
     draw: P.cavity(50, 80, 5),
-    mark: { x: 50, y: 80, r: 9 },
+    mark: { x: 33, y: 78, r: 9 },
     what: {
       opts: [{ de: 'Überwallte Stammfußhöhlung', en: 'Occluding stem-base cavity' },
              { de: 'Frischer Anfahrschaden', en: 'Fresh vehicle impact' },
@@ -313,7 +323,7 @@ const CASES = [
     de: 'Auf der windabgewandten Seite ist der Boden aufgewölbt und gerissen, auf der anderen Seite eingesunken.',
     en: 'The soil is raised and cracked on the lee side and sunken on the other.',
     draw: P.soil(62, 86) + '<path d="M30 88 q8 3 14 0" stroke="#3a2b1c" stroke-width="1.6" fill="none"/>' + P.lean(9),
-    mark: { x: 66, y: 86, r: 9 },
+    mark: { x: 37, y: 81, r: 10 },
     what: {
       opts: [{ de: 'Wurzelteller in Bewegung', en: 'Root plate moving' },
              { de: 'Maulwurfshügel', en: 'Molehill' },
@@ -339,7 +349,7 @@ const CASES = [
     en: 'A service trench runs a metre and a half from the stem; roots are cut off cleanly.',
     draw: '<rect x="68" y="80" width="6" height="16" fill="#0a0806" stroke="#4a3d2c" stroke-width=".8"/>' +
           '<path d="M56 88 L68 88 M58 90 L68 90" stroke="#6b5a42" stroke-width="1.4"/>',
-    mark: { x: 70, y: 88, r: 8 },
+    mark: { x: 75, y: 50, r: 11 },
     what: {
       opts: [{ de: 'Wurzelkappung durch Grabenaushub', en: 'Root severance from a trench' },
              { de: 'Natürliche Wurzelalterung', en: 'Natural root ageing' },
@@ -364,7 +374,7 @@ const CASES = [
     de: 'Ein durchgehender Längsriss über zwei Meter Stammlänge, die Ränder stehen leicht auf.',
     en: 'A continuous longitudinal crack over two metres of stem, the edges slightly open.',
     draw: P.crack('M50 78 L49 60 L51 46'),
-    mark: { x: 50, y: 62, r: 10 },
+    mark: { x: 32, y: 63, r: 9 },
     what: {
       opts: [{ de: 'Längsriss', en: 'Longitudinal crack' },
              { de: 'Frostriss, überwallt', en: 'Frost crack, occluded' },
@@ -390,7 +400,7 @@ const CASES = [
     en: 'A fork four metres up, with bark drawn deep between the two stems as a dark seam.',
     draw: '<path d="M50 60 L40 34 M50 60 L60 34" stroke="#3a2f22" stroke-width="4"/>' +
           '<path d="M50 60 L50 44" stroke="#12100e" stroke-width="1.6"/>',
-    mark: { x: 50, y: 50, r: 8 },
+    mark: { x: 38, y: 46, r: 9 },
     what: {
       opts: [{ de: 'Zwiesel mit eingewachsener Rinde', en: 'Fork with included bark' },
              { de: 'Gesunder Zwiesel mit Astkragen', en: 'Sound fork with a branch collar' },
@@ -415,7 +425,7 @@ const CASES = [
     de: 'Mehrere starke Totäste in der Oberkrone einer Eiche über einem Gehweg.',
     en: 'Several heavy dead limbs in the upper crown of an oak over a footpath.',
     draw: P.deadwood('M50 30 L34 20 M50 26 L64 18'),
-    mark: { x: 38, y: 22, r: 9 },
+    mark: { x: 36, y: 21, r: 11 },
     what: {
       opts: [{ de: 'Totholz in der Krone', en: 'Deadwood in the crown' },
              { de: 'Winterzustand ohne Belaubung', en: 'Winter condition, no leaves' },
@@ -466,7 +476,7 @@ const CASES = [
     de: 'Alte Kappungsschnitte, darüber dichte Büschel gleichaltriger Triebe, Schnittflächen faulend.',
     en: 'Old topping cuts with dense tufts of even-aged shoots above them, the cut faces decaying.',
     draw: P.cut(38, 26) + P.cut(50, 20) + P.cut(62, 26),
-    mark: { x: 50, y: 22, r: 10 },
+    mark: { x: 32, y: 40, r: 9 },
     what: {
       opts: [{ de: 'Kappungsfolgen (Ständer mit Reiterationen)', en: 'Consequences of topping (reiteration on stubs)' },
              { de: 'Fachgerechter Kronenschnitt', en: 'Correct crown pruning' },
@@ -492,7 +502,7 @@ const CASES = [
     en: 'The rooting area is sealed on three sides; the crown is thin and shoot growth short.',
     draw: '<rect x="8" y="86" width="30" height="8" fill="#22262a"/><rect x="62" y="86" width="30" height="8" fill="#22262a"/>' +
           '<ellipse cx="50" cy="28" rx="20" ry="13" fill="#2c4a33" opacity=".45"/>',
-    mark: { x: 24, y: 88, r: 9 },
+    mark: { x: 14, y: 87, r: 9 },
     what: {
       opts: [{ de: 'Wurzelraumverlust und Verdichtung', en: 'Loss of rooting space and compaction' },
              { de: 'Trockenstress ohne Standortbezug', en: 'Drought stress unrelated to the site' },
@@ -543,7 +553,7 @@ const CASES = [
     en: 'A horizontal limb twelve metres long over a car park, with no visible defect.',
     draw: '<path d="M50 44 L86 44" stroke="#3a2f22" stroke-width="3.4"/>' +
           '<rect x="66" y="80" width="18" height="7" rx="2" fill="#22303a"/>',
-    mark: { x: 80, y: 44, r: 8 },
+    mark: { x: 70, y: 40, r: 10 },
     what: {
       opts: [{ de: 'Langer Kragarm mit hohem Eigengewicht', en: 'Long cantilever carrying its own weight' },
              { de: 'Sturmschaden', en: 'Storm damage' },
