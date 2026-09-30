@@ -34,12 +34,65 @@ function LT(o, k) {
 function learnDe() { return (typeof uiLang === 'function' ? uiLang() : 'en') === 'de'; }
 function LX(de, en) { return learnDe() ? de : en; }
 
+/* ---- a photograph where there is one, a drawing where there is not -----
+   The drawings show the mechanism, which is what a textbook does and what
+   nobody can get wrong. A photograph shows the thing, which is what the eye
+   has to learn. Where a picture has been brought in, it is used - and it is
+   somebody else's work, so the credit and the licence are under it, always,
+   not on a page nobody opens.
+
+   The mark for "where is it?" belongs to the picture it was set on. A photo
+   without one is not asked that question, because the schematic's
+   coordinates mean nothing on a photograph. */
+function casePhoto(c) {
+  return (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
+}
+function casePicture(c, show, at) {
+  const ph = casePhoto(c);
+  if (!ph) return caseSvg(c, show, at);
+  const m = ph.mark;
+  let rings = '';
+  if (show !== false && m) rings += '<circle cx="' + m.x + '" cy="' + m.y + '" r="' +
+    (m.r || 9) + '" fill="none" stroke="#ffd27a" stroke-width="1.6" stroke-dasharray="3 2"/>';
+  if (at) rings += '<circle cx="' + at.x + '" cy="' + at.y + '" r="2.2" fill="#e2704a"/>' +
+    '<circle cx="' + at.x + '" cy="' + at.y + '" r="5" fill="none" stroke="#e2704a" stroke-width="1"/>';
+  return '<img src="cases/' + c.id + '.jpg" alt="" loading="lazy">' +
+         (rings ? '<svg viewBox="0 0 100 100" class="lover" preserveAspectRatio="none" ' +
+                  'xmlns="http://www.w3.org/2000/svg">' + rings + '</svg>' : '');
+}
+function caseCredit(c) {
+  const ph = casePhoto(c);
+  if (!ph) return null;
+  const d = lEl('div', 'lcred');
+  const a = document.createElement('a');
+  a.href = ph.page || '#'; a.target = '_blank'; a.rel = 'noopener';
+  a.textContent = (ph.by || '?') + ' \u00b7 ' + (ph.licence || '?');
+  d.appendChild(document.createTextNode(LX('Foto: ', 'Photograph: ')));
+  d.appendChild(a);
+  return d;
+}
+function casePicBox(c, cls, show, at) {
+  const box = lEl('div', 'lpicwrap');
+  const pic = lEl('div', 'lpic' + (cls ? ' ' + cls : ''));
+  pic.innerHTML = casePicture(c, show, at);
+  box.appendChild(pic);
+  const cr = caseCredit(c);
+  if (cr) box.appendChild(cr);
+  return box;
+}
+
 /* The steps of one case. "Where is it?" is only asked where there is
    something to point at - on the sound tree there is not, and being asked to
    point at a defect that is not there would teach the wrong reflex. */
 function caseSteps(c) {
-  return (c && c.mark) ? ['what', 'where', 'level', 'safety', 'action']
-                       : ['what', 'level', 'safety', 'action'];
+  const ph = (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
+  const hasMark = ph ? !!ph.mark : !!(c && c.mark);
+  return hasMark ? ['what', 'where', 'level', 'safety', 'action']
+                 : ['what', 'level', 'safety', 'action'];
+}
+function caseMark(c) {
+  const ph = (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
+  return (ph && ph.mark) || (c && c.mark) || null;
 }
 
 /* ---- when a case comes back -------------------------------------------
@@ -323,8 +376,8 @@ function learnPaint(exam) {
   const step = caseSteps(c)[learnStep];
   const asking = step === 'where';
 
-  const pic = lEl('div', 'lpic' + (asking ? ' tap' : ''));
-  pic.innerHTML = caseSvg(c, !asking);
+  const box = casePicBox(c, asking ? 'tap' : '', !asking);
+  const pic = box.querySelector('.lpic');
   if (asking) {
     /* The picture is the answer sheet. The press is taken in the drawing's
        own coordinates, so it does not matter how large it is drawn. */
@@ -336,7 +389,7 @@ function learnPaint(exam) {
       learnAnswer(learnTapAt, exam);
     };
   }
-  wrap.appendChild(pic);
+  wrap.appendChild(box);
 
   wrap.appendChild(lEl('p', 'ldesc', LT(c)));
   wrap.appendChild(lEl('div', 'lsec', learnAsk(step)));
@@ -365,7 +418,7 @@ function learnAnswer(v, exam) {
   if (step === 'where') {
     /* Generous on purpose: the question is whether the eye went to the right
        part of the tree, not whether the finger is accurate to a pixel. */
-    const m = c.mark, tol = Math.max(m.r || 7, 9) * 1.6;
+    const m = caseMark(c), tol = Math.max(m.r || 7, 9) * 1.6;
     ok = Math.hypot(v.x - m.x, v.y - m.y) <= tol;
   } else {
     ok = String(v) === String(learnRight(step, c));
@@ -387,9 +440,8 @@ function learnWhy(step, ok, given) {
   wrap.appendChild(learnHead(LT(CASE_FAM.find(f => f.id === c.fam))));
   /* After a press on the picture, both rings are shown: where it is, and
      where the finger went. Seeing the gap is the lesson. */
-  const pic = lEl('div', 'lpic' + (step === 'where' ? '' : ' small'));
-  pic.innerHTML = caseSvg(c, true, step === 'where' ? learnTapAt : null);
-  wrap.appendChild(pic);
+  wrap.appendChild(casePicBox(c, step === 'where' ? '' : 'small', true,
+                              step === 'where' ? learnTapAt : null));
 
   const head = lEl('div', 'lverdict ' + (ok ? 'ok' : 'no'));
   head.textContent = ok ? LX('Richtig', 'Right') : LX('Nicht ganz', 'Not quite');
@@ -471,8 +523,7 @@ function learnSheet(c) {
   const el = learnBox(); el.innerHTML = '';
   const wrap = lEl('div', 'lwrap');
   wrap.appendChild(learnHead(LX('Der ganze Baum', 'The whole tree')));
-  const pic = lEl('div', 'lpic small'); pic.innerHTML = caseSvg(c, true);
-  wrap.appendChild(pic);
+  wrap.appendChild(casePicBox(c, 'small', true));
   wrap.appendChild(lEl('p', 'ldesc', LT(c)));
 
   const head = { what: LX('Befund', 'Finding'), where: LX('Wo', 'Where'),

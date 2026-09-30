@@ -1,0 +1,8 @@
+# case key | the Commons file, exactly as the API named it
+kretzschmaria|File:Kretzschmaria deusta 83142374.jpg
+meripilus|File:Riesenporling-Meripilus-giganteus.jpg
+armillaria|File:Rhizomorphs (thick fungal threads) of Armillaria mellea - geograph.org.uk - 933530.jpg
+fomes|File:Echte tonderzwam (Fomes fomentarius) 25-12-2020 (actm.) 05.jpg
+inonotus|File:Inonotus hispidus, UK.jpg
+bleeding|File:Aesculus hippocastanum PICT3572.jpg
+lean-new|File:"Падающий" лес.jpg

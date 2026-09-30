@@ -1,0 +1,32 @@
+name: Fetch the picked photographs
+
+# Brings in the files listed in tools/photo-picks.txt, at 900 px, with the
+# author and licence read from the Commons API rather than assumed - and
+# commits them. Nothing is written for a file whose author or licence cannot
+# be read, and nothing under an NC or ND licence.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ask Commons for the files and who made them
+        run: bash tools/photo-fetch.sh tools/photo-picks.txt
+      - name: Commit what came back
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vta/cases vta/photos.js || true
+          git diff --cached --quiet && { echo "nothing new"; exit 0; }
+          git commit -m "Teaching photographs from Wikimedia Commons, with their credits
+
+          Fetched by tools/photo-fetch.sh. Author and licence come from the
+          Commons API, not from a guess, and vta/photos.js is written from that
+          answer so the app can show the credit under every picture."
+          git push

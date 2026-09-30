@@ -69,7 +69,8 @@ for p in d.get("query", {}).get("pages", {}).values():
   # a picture, and a real one: anything under 20 kB is an error page
   sz=$(wc -c < "$tmp/$key.img")
   if [ "$sz" -lt 20000 ]; then echo "DROP $key - only $sz bytes"; dropped=$((dropped+1)); continue; fi
-  convert "$tmp/$key.img" -resize '900x900>' -strip -interlace Plane -quality 78 "$OUT/$key.jpg" \
+  CONV=convert; command -v convert >/dev/null || CONV=magick
+  "$CONV" "$tmp/$key.img" -resize '900x900>' -strip -interlace Plane -quality 78 "$OUT/$key.jpg" \
     || { echo "DROP $key - could not be converted"; dropped=$((dropped+1)); continue; }
 
   [ $first -eq 0 ] && echo ',' >> "$tmp/credits.json"
@@ -86,8 +87,19 @@ PY
 done < "$PICKS"
 
 printf '\n}\n' >> "$tmp/credits.json"
-python3 -c 'import json,sys;json.load(open(sys.argv[1]));print("credits.json is valid")' "$tmp/credits.json" \
-  && cp "$tmp/credits.json" "$OUT/credits.json"
+python3 - "$tmp/credits.json" "$OUT/credits.json" "vta/photos.js" <<'PY'
+import json, sys
+src, dst, js = sys.argv[1:4]
+d = json.load(open(src))
+json.dump(d, open(dst, 'w'), ensure_ascii=False, indent=1)
+with open(js, 'w', encoding='utf-8') as f:
+    f.write('/* Written by tools/photo-fetch.sh from what Wikimedia Commons said.\n'
+            '   Every picture here is somebody else\'s work: the app shows the name\n'
+            '   and the licence under it, and links the file page. Not edited by hand -\n'
+            '   if a credit is wrong here, it is wrong at the source. */\n')
+    f.write('const CASE_PHOTOS = ' + json.dumps(d, ensure_ascii=False, indent=2) + ';\n')
+print('credits written for', len(d), 'pictures')
+PY
 echo
 echo "kept $kept, dropped $dropped"
 ls -la "$OUT" | tail -n +2
