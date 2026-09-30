@@ -1,0 +1,11 @@
+# case key | the organism, because that is what iNaturalist indexes
+kretzschmaria|Kretzschmaria deusta
+meripilus|Meripilus giganteus
+armillaria|Armillaria mellea
+fomes|Fomes fomentarius
+inonotus|Inonotus hispidus
+ganoderma|Ganoderma applanatum
+mistletoe|Viscum album
+laetiporus|Laetiporus sulphureus
+rigidoporus|Rigidoporus ulmarius
+pholiota|Pholiota squarrosa

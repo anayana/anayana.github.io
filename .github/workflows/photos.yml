@@ -28,3 +28,6 @@ jobs:
       - name: And what the universities have put out openly
         if: always()
         run: bash tools/oer-search.sh tools/oer-terms.txt 12
+      - name: And the one source that really has pictures of this
+        if: always()
+        run: bash tools/inat-search.sh tools/inat-terms.txt 8
