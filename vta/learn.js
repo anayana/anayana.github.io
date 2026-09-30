@@ -45,7 +45,12 @@ function LX(de, en) { return learnDe() ? de : en; }
    without one is not asked that question, because the schematic's
    coordinates mean nothing on a photograph. */
 function casePhoto(c) {
-  return (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
+  const p = (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
+  if (!p) return null;
+  /* The credit comes from Commons and is never touched; the mark is mine,
+     from looking at the picture. Two sources, kept apart. */
+  const m = (typeof CASE_PHOTO_MARK !== 'undefined' && CASE_PHOTO_MARK[c.id]) || null;
+  return m ? Object.assign({}, p, { mark: m }) : p;
 }
 function casePicture(c, show, at) {
   const ph = casePhoto(c);
@@ -73,7 +78,9 @@ function caseCredit(c) {
 }
 function casePicBox(c, cls, show, at) {
   const box = lEl('div', 'lpicwrap');
-  const pic = lEl('div', 'lpic' + (cls ? ' ' + cls : ''));
+  /* A photograph keeps its own shape: the mark is given in per cent of the
+     frame, and a square crop would move everything it points at. */
+  const pic = lEl('div', 'lpic' + (casePhoto(c) ? ' photo' : '') + (cls ? ' ' + cls : ''));
   pic.innerHTML = casePicture(c, show, at);
   box.appendChild(pic);
   const cr = caseCredit(c);
@@ -85,13 +92,13 @@ function casePicBox(c, cls, show, at) {
    something to point at - on the sound tree there is not, and being asked to
    point at a defect that is not there would teach the wrong reflex. */
 function caseSteps(c) {
-  const ph = (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
+  const ph = (typeof casePhoto === 'function') ? casePhoto(c) : null;
   const hasMark = ph ? !!ph.mark : !!(c && c.mark);
   return hasMark ? ['what', 'where', 'level', 'safety', 'action']
                  : ['what', 'level', 'safety', 'action'];
 }
 function caseMark(c) {
-  const ph = (typeof CASE_PHOTOS !== 'undefined' && c && CASE_PHOTOS[c.id]) || null;
+  const ph = casePhoto(c);
   return (ph && ph.mark) || (c && c.mark) || null;
 }
 

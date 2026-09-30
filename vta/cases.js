@@ -127,8 +127,11 @@ const P = {
 const CASES = [
   {
     id: 'kretzschmaria', fam: 'fungi', art: 'broad',
-    de: 'Schwarze, verkrustete Beläge am Stammfuß einer alten Linde, stellenweise silbergrau berandet.',
-    en: 'Black crust-like sheets at the base of an old lime, edged silver-grey in places.',
+    de: 'Grauwei\u00dfe, krustige Bel\u00e4ge mit wei\u00dfem Rand \u00fcber Holz und Moos am Stammfu\u00df. ' +
+        'Das ist die Nebenfruchtform im Fr\u00fchjahr; im Sommer wird daraus die schwarze, wie ' +
+        'verkohlt wirkende Kruste',
+    en: 'Grey-white crusts with a white margin over wood and moss at the stem base. This is the ' +
+        'spring form; by summer it becomes the black, burnt-looking crust',
     draw: P.crust(46, 84) + P.crust(58, 85),
     mark: { x: 50, y: 84, r: 9 },
     what: {
@@ -177,8 +180,10 @@ const CASES = [
   },
   {
     id: 'armillaria', fam: 'fungi', art: 'conifer',
-    de: 'Honiggelbe Pilzbüschel am Stammfuß einer Fichte, darunter unter der Rinde weiße Myzelfächer.',
-    en: 'Honey-coloured tufts at the foot of a spruce, with white mycelial fans under the bark.',
+    de: 'Schwarze, schnursohlenartige Str\u00e4nge auf entrindetem Holz. Die H\u00fcte stehen ' +
+        'daneben oder gar nicht \u2013 das hier ist das Merkmal, das z\u00e4hlt',
+    en: 'Black bootlace-like strands over debarked wood. The caps may be beside it or absent: ' +
+        'this is the feature that decides it',
     draw: '<circle cx="44" cy="84" r="2.6" fill="#c9a24a"/><circle cx="48" cy="86" r="2.2" fill="#c9a24a"/>' +
           '<circle cx="53" cy="84" r="2.4" fill="#c9a24a"/><circle cx="57" cy="86" r="2" fill="#c9a24a"/>',
     mark: { x: 50, y: 85, r: 9 },
@@ -203,8 +208,10 @@ const CASES = [
   },
   {
     id: 'fomes', fam: 'fungi', art: 'broad',
-    de: 'Hufförmiger, harter, grau gezonter Fruchtkörper in vier Metern Höhe am Stamm einer Buche.',
-    en: 'A hard, hoof-shaped, grey-zoned bracket four metres up the stem of a beech.',
+    de: 'Harte, huff\u00f6rmige, grau gezonte Fruchtk\u00f6rper an einem Buchenstamm \u2013 hier an einem ' +
+        'bereits liegenden. An einem stehenden Stamm ist derselbe Pilz eine ganz andere Frage',
+    en: 'Hard, hoof-shaped, grey-zoned brackets on a beech trunk \u2013 here on one already down. ' +
+        'On a standing stem the same fungus is a quite different question',
     draw: P.bracket(46, 52, 1.1),
     mark: { x: 44, y: 51, r: 8 },
     what: {
@@ -430,8 +437,9 @@ const CASES = [
   },
   {
     id: 'lean-new', fam: 'stem', art: 'conifer',
-    de: 'Eine Fichte steht acht Grad schief, der Stammfuß zeigt keinen Bogen, der Boden ist intakt.',
-    en: 'A spruce leans eight degrees, the base shows no curve and the ground is intact.',
+    de: 'Ein ganzer Kiefernbestand steht schief, die unteren Stammteile sind gebogen, ' +
+        'der Boden ist ungest\u00f6rt',
+    en: 'A whole stand of pines leaning, the lower stems curved, the ground undisturbed',
     draw: P.lean(8),
     mark: { x: 50, y: 70, r: 10 },
     what: {
@@ -723,4 +731,21 @@ const CASE_KNOW = {
                 'A thin crown over sealed ground: a site question, not a crown question.',
           miss: 'Not looking at the ground. Most stability cases are written in the soil, not in the stem.' }
   }
+};
+
+
+/* ---- where the finding sits in each photograph -------------------------
+   photos.js is written by the fetch script from what Commons said, and is
+   not edited by hand. These are mine: every picture was looked at before it
+   was used, and this is where the finding is in it, in per cent of the frame.
+
+   Only a picture with the finding somewhere IN it gets one. Where the finding
+   fills the frame - a mat of rhizomorphs, a crust across a whole stump, a
+   stand of leaning trees - there is nothing to point at, and asking "where is
+   it?" would train a reflex rather than an eye. Those cases skip the question. */
+const CASE_PHOTO_MARK = {
+  inonotus:  { x: 45, y: 45, r: 24 },   // the bracket on the standing stem
+  bleeding:  { x: 34, y: 31, r: 13 },   // the bleeding patch, above and left of centre
+  fomes:     { x: 45, y: 55, r: 26 },   // the brackets on the fallen trunk
+  meripilus: { x: 48, y: 48, r: 26 }    // the rosette at the base
 };

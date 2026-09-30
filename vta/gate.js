@@ -232,6 +232,10 @@ async function gateLearn() {
       say('\u2026');
       const v = (typeof APP_VERSION === 'string') ? ('?v=' + APP_VERSION) : '';
       if (!learnLoading) learnLoading = (async () => {
+        /* The credits are written by the fetch script and may not exist in a
+           build with no photographs in it, so a missing one is not a failure -
+           the drawings carry the cases on their own. */
+        try { await loadScriptOnce('photos.js' + v); } catch (e) {}
         await loadScriptOnce('cases.js' + v);
         await loadScriptOnce('learn.js' + v);
       })();
