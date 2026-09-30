@@ -1,0 +1,24 @@
+name: Find teaching photographs
+
+# The development sandbox cannot reach any host on the internet; a runner can.
+# This asks Wikimedia Commons what pictures of each tree defect exist and under
+# what licence, and prints the ones that may be shipped. It downloads nothing:
+# a human picks from the report, and photo-fetch.sh brings those in.
+
+on:
+  workflow_dispatch:
+    inputs:
+      per_term:
+        description: how many hits per search term
+        default: '6'
+
+permissions:
+  contents: read
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ask Commons what there is
+        run: bash tools/photo-search.sh tools/photo-terms.txt "${{ inputs.per_term }}"

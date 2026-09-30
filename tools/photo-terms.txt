@@ -1,0 +1,21 @@
+# case key | what to search Wikimedia Commons for
+kretzschmaria|Kretzschmaria deusta
+meripilus|Meripilus giganteus
+armillaria|Armillaria mellea tree base
+fomes|Fomes fomentarius trunk
+inonotus|Inonotus hispidus tree
+ganoderma|Ganoderma applanatum tree base
+ribbing|tree trunk reaction wood bulge
+cavity-base|tree trunk cavity hollow base
+soil-heave|tree root plate uprooted lifted soil
+root-cut|tree roots severed trench construction
+crack-long|tree trunk longitudinal crack
+included-bark|tree included bark fork codominant
+deadwood|dead branches tree crown
+lean-new|leaning tree trunk
+topping|tree topping pollarding cuts
+compaction|tree pit paved soil sealed urban
+bleeding|Aesculus bleeding canker bark
+hazard-beam|long horizontal branch oak limb
+mistletoe|Viscum album pine crown
+sound-tree|healthy mature tree solitary
