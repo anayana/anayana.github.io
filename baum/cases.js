@@ -73,7 +73,8 @@ function caseSvg(c, show, at) {
   const ring = paper ? '#a83f2a' : '#ffd27a';
   let hot = (show !== false && mark.x != null)
     ? '<circle cx="' + mark.x + '" cy="' + mark.y + '" r="' + (mark.r || 7) +
-      '" fill="none" stroke="' + ring + '" stroke-width="1.6" stroke-dasharray="3 2"/>'
+      '" fill="none" stroke="' + ring + '" stroke-width="1.3" ' +
+      'stroke-dasharray="4 2.8" stroke-linecap="round"/>'
     : '';
   if (at) hot += '<circle cx="' + at.x + '" cy="' + at.y + '" r="2.2" fill="#e2704a"/>' +
                  '<circle cx="' + at.x + '" cy="' + at.y + '" r="5" fill="none" ' +

@@ -1,365 +1,489 @@
 /* ============================================================================
    THE DRAWINGS
 
-   A schematic in this app is a line drawing on paper, in the idiom a textbook
-   of tree mechanics uses: one ink weight for the tree, a lighter one for
-   hatching, one accent for the finding, and a section beside the tree whenever
-   the thing that matters is inside the wood. Force is drawn as an arrow, a
-   lever as the beam it is, decay as a hatched core with the sound wall left
-   white. That is the point of a drawing over a photograph: it shows why the
-   tree is in trouble, not merely that it is.
+   A schematic here is a pen drawing on paper, in the idiom a book of tree
+   mechanics uses: the tree as a filled silhouette with its bark drawn in, the
+   foliage scalloped rather than outlined as a cloud, one accent colour for the
+   finding and nothing else, an arrow wherever a load acts, and a magnified
+   circle beside the tree whenever what matters is inside the wood.
+
+   Everything is drawn from a few parts - a trunk that tapers and flares, a
+   limb that thins towards its tip, foliage, bark, grass, a section - so a new
+   case needs a composition, not a new drawing style. Every part takes a seed
+   and its wobble is worked out from that seed, so a figure is drawn the same
+   way every time it is asked for.
 
    These are drawn here, from the mechanics. Claus Mattheck's own figures are
-   his work and are not copied, traced or adapted - what is taken from him is
+   his work and none is copied, traced or adapted; what is taken from him is
    the teaching habit that every finding gets a section and every load gets an
    arrow, which belongs to everybody.
 
    No words are drawn. The app is bilingual and a label would have to be
-   translated inside the picture; the only letters used are t and R, which are
-   the same in both languages and are what the residual wall is called.
+   translated inside the picture; the only letters are t and R, which are the
+   same in both languages and are what the residual wall is called.
 
    Everything lives in a 0..100 by 0..100 box. Ground is at y = 86.
    ========================================================================= */
 
-const DINK   = '#2b2621';   /* the pen */
-const DSOFT  = '#8d8578';   /* hatching, ground, anything secondary */
+const DINK   = '#2f2a24';   /* the pen */
+const DHAIR  = '#7b7264';   /* bark, veins, anything drawn inside a shape */
+const DSOFT  = '#a49a8b';   /* hatching and whatever is only context */
 const DPAPER = '#f4eee2';
-const DACC   = '#a83f2a';   /* the finding, and nothing else */
+const DWOOD  = '#e7dcc8';   /* the tone inside a trunk */
+const DLEAF  = '#e2dcc9';   /* the tone inside foliage */
+const DACC   = '#a4402b';   /* the finding, and nothing else */
 const DGND   = 86;
 
 let dUid = 0;
 const uid = p => p + (++dUid);
+/* one seeded stream per part, so a drawing never changes between two renders */
+const nse = seed => { let s = (seed || 1) * 7919 % 2147483647;
+  return () => (s = (s * 48271) % 2147483647) / 2147483647; };
+const rn = n => Math.round(n * 100) / 100;
 
 /* ---- the pen ----------------------------------------------------------- */
 function ln(d, w, col) {
   return '<path d="' + d + '" fill="none" stroke="' + (col || DINK) + '" stroke-width="' +
          (w || 1.1) + '" stroke-linecap="round" stroke-linejoin="round"/>';
 }
-function fill(d, col, w, edge) {
-  return '<path d="' + d + '" fill="' + col + '" stroke="' + (edge || 'none') +
-         '" stroke-width="' + (w || 0) + '"/>';
+function sh(d, f, w, col) {   /* a filled shape with an outline: a silhouette */
+  return '<path d="' + d + '" fill="' + (f || DPAPER) + '" stroke="' + (col || DINK) +
+         '" stroke-width="' + (w == null ? 1.2 : w) + '" stroke-linejoin="round"/>';
 }
 function txt(x, y, s, size, col) {
   return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 5) + '" fill="' +
          (col || DINK) + '" font-family="Georgia,serif" font-style="italic" ' +
          'text-anchor="middle">' + s + '</text>';
 }
+/* a run of points turned into a line that bends rather than breaks */
+function smooth(p, close) {
+  if (p.length < 3) return 'M' + p.map(q => rn(q[0]) + ' ' + rn(q[1])).join(' L');
+  let d = 'M' + rn(p[0][0]) + ' ' + rn(p[0][1]);
+  for (let i = 1; i < p.length - 1; i++)
+    d += ' Q' + rn(p[i][0]) + ' ' + rn(p[i][1]) + ' ' +
+         rn((p[i][0] + p[i + 1][0]) / 2) + ' ' + rn((p[i][1] + p[i + 1][1]) / 2);
+  const l = p[p.length - 1];
+  return d + ' L' + rn(l[0]) + ' ' + rn(l[1]) + (close ? ' Z' : '');
+}
 
 /* an arrow that means a force: a shaft and a solid head */
 function arrow(x1, y1, x2, y2, w, col) {
-  const a = Math.atan2(y2 - y1, x2 - x1), h = 3.4 * (w || 1);
+  const a = Math.atan2(y2 - y1, x2 - x1), h = 3.6 * (w || 1);
   const bx = x2 - Math.cos(a) * h, by = y2 - Math.sin(a) * h;
-  const p = (dx, dy) => (bx + Math.cos(a + dx) * dy) + ' ' + (by + Math.sin(a + dx) * dy);
-  return ln('M' + x1 + ' ' + y1 + ' L' + bx + ' ' + by, 1.2 * (w || 1), col || DINK) +
-         fill('M' + x2 + ' ' + y2 + ' L' + p(Math.PI / 2, h * 0.42) + ' L' +
-              p(-Math.PI / 2, h * 0.42) + ' Z', col || DINK);
+  const p = (d, r) => rn(bx + Math.cos(a + d) * r) + ' ' + rn(by + Math.sin(a + d) * r);
+  return ln('M' + rn(x1) + ' ' + rn(y1) + ' L' + rn(bx) + ' ' + rn(by), 1.25 * (w || 1), col || DINK) +
+         '<path d="M' + rn(x2) + ' ' + rn(y2) + ' L' + p(Math.PI / 2, h * 0.4) + ' L' +
+         p(-Math.PI / 2, h * 0.4) + ' Z" fill="' + (col || DINK) + '"/>';
 }
-
-/* parallel strokes inside any shape - asphalt, a trench, rotten wood */
+/* an arrow bent round a circle: torsion */
+function twist(cx, cy, r, a0, a1, col) {
+  const A = a0 * Math.PI / 180, B = a1 * Math.PI / 180, t = B + 0.16;
+  return ln('M' + rn(cx + Math.cos(A) * r) + ' ' + rn(cy + Math.sin(A) * r) + ' A' + r + ' ' + r +
+            ' 0 0 1 ' + rn(cx + Math.cos(B) * r) + ' ' + rn(cy + Math.sin(B) * r), 1, col || DSOFT) +
+         arrow(cx + Math.cos(B) * r, cy + Math.sin(B) * r,
+               cx + Math.cos(t) * r, cy + Math.sin(t) * r, 0.7, col || DSOFT);
+}
+/* parallel strokes inside a shape - asphalt, a trench, rotten wood */
 function hatched(d, step, ang, col, back) {
   const id = uid('h');
   let g = '<clipPath id="' + id + '"><path d="' + d + '"/></clipPath>' +
-          (back ? fill(d, back) : '') + '<g clip-path="url(#' + id + ')">';
+          (back ? '<path d="' + d + '" fill="' + back + '"/>' : '') +
+          '<g clip-path="url(#' + id + ')">';
   const s = step || 3.2, t = (ang == null ? -45 : ang) * Math.PI / 180;
-  const dx = Math.cos(t) * 160, dy = Math.sin(t) * 160;
-  for (let k = -160; k < 160; k += s) {
+  const dx = Math.cos(t) * 170, dy = Math.sin(t) * 170;
+  for (let k = -170; k < 170; k += s) {
     const ox = -Math.sin(t) * k, oy = Math.cos(t) * k;
-    g += ln('M' + (50 + ox - dx / 2) + ' ' + (50 + oy - dy / 2) + ' L' +
-            (50 + ox + dx / 2) + ' ' + (50 + oy + dy / 2), 0.5, col || DSOFT);
+    g += ln('M' + rn(50 + ox - dx / 2) + ' ' + rn(50 + oy - dy / 2) + ' L' +
+            rn(50 + ox + dx / 2) + ' ' + rn(50 + oy + dy / 2), 0.45, col || DSOFT);
   }
   return g + '</g>' + ln(d, 0.8, col || DSOFT);
 }
 
 /* ---- the ground -------------------------------------------------------- */
-function ground(y, x0, x1) {
-  y = y == null ? DGND : y; x0 = x0 == null ? 4 : x0; x1 = x1 == null ? 96 : x1;
-  let s = ln('M' + x0 + ' ' + y + ' L' + x1 + ' ' + y, 1.1);
-  for (let x = x0 + 1; x < x1; x += 4.5) s += ln('M' + x + ' ' + y + ' L' + (x - 2.6) + ' ' + (y + 2.8), 0.6, DSOFT);
+function ground(y, x0, x1, seed) {
+  y = y == null ? DGND : y; x0 = x0 == null ? 3 : x0; x1 = x1 == null ? 97 : x1;
+  const rnd = nse(seed || 11);
+  const pts = []; for (let x = x0; x <= x1; x += 6) pts.push([x, y + (rnd() - 0.5) * 0.7]);
+  pts.push([x1, y]);
+  let s = ln(smooth(pts), 1.25);
+  for (let x = x0 + 2; x < x1; x += 4.6) {     /* grass, not hatching */
+    const h = 1.6 + rnd() * 2.2, t = (rnd() - 0.5) * 2;
+    s += ln('M' + rn(x) + ' ' + rn(y) + ' Q' + rn(x + t * 0.4) + ' ' + rn(y - h * 0.6) + ' ' +
+            rn(x + t) + ' ' + rn(y - h), 0.55, DSOFT);
+  }
   return s;
 }
 
 /* ---- the tree ---------------------------------------------------------- */
-/* A stem that is thicker at the bottom and flares into the ground, because
-   that is the shape the load makes. lean tips the whole thing about its base. */
-function stem(o) {
+/* A stem is a silhouette, not two lines: thick at the ground, flaring into it,
+   thinning upward, with the bark drawn in afterwards. */
+function trunkPath(o) {
   o = o || {};
-  const b = o.base == null ? DGND : o.base, top = o.top == null ? 40 : o.top;
-  const hw = o.hw == null ? 6.2 : o.hw, tw = o.tw == null ? 4.2 : o.tw, cx = o.cx == null ? 50 : o.cx;
-  const fl = o.flare == null ? 7 : o.flare;
-  const L = 'M' + (cx - hw - fl) + ' ' + b +
-            ' C' + (cx - hw - 1.5) + ' ' + (b - 4) + ' ' + (cx - hw) + ' ' + (b - 8) + ' ' +
-            (cx - hw + 0.4) + ' ' + (b - 12) +
-            ' L' + (cx - tw) + ' ' + top;
-  const R = 'M' + (cx + hw + fl) + ' ' + b +
-            ' C' + (cx + hw + 1.5) + ' ' + (b - 4) + ' ' + (cx + hw) + ' ' + (b - 8) + ' ' +
-            (cx + hw - 0.4) + ' ' + (b - 12) +
-            ' L' + (cx + tw) + ' ' + top;
-  return ln(L) + ln(R);
+  const cx = o.cx == null ? 50 : o.cx, base = o.base == null ? DGND : o.base;
+  const top = o.top == null ? 42 : o.top;
+  const hwB = o.hw == null ? 5.4 : o.hw, hwT = o.tw == null ? 3 : o.tw;
+  const flare = o.flare == null ? 6 : o.flare, fH = o.flareH == null ? 13 : o.flareH;
+  const bend = o.bend || 0, rnd = nse(o.seed || 3), N = 14;
+  const L = [], R = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, y = base - (base - top) * t;
+    let hw = hwB + (hwT - hwB) * Math.pow(t, 0.7);
+    hw += flare * Math.pow(Math.max(0, 1 - (base - y) / fH), 2.8);
+    const x = cx + bend * Math.pow(t, 1.7), j = (rnd() - 0.5) * 0.45;
+    /* a rib is wood laid on one side only, so it swells one outline */
+    const swell = k => k ? k.amp * Math.exp(-Math.pow((t - k.at) / k.w, 2)) : 0;
+    L.push([x - hw - swell(o.ribL) + j, y]); R.push([x + hw + swell(o.ribR) + j * 0.6, y]);
+  }
+  return { d: smooth(L) + ' ' + smooth(R.slice().reverse()).replace('M', 'L') + ' Z',
+           L: L, R: R, cx: cx, top: top, base: base,
+           topHw: hwT, topX: cx + bend };
 }
-
-/* a crown as a run of lobes - loose, closed, never a circle */
-function crown(cx, cy, rx, ry, n, seed) {
-  n = n || 13; let d = '', s = seed || 1;
-  const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
-  for (let i = 0; i <= n; i++) {
-    const a = Math.PI * 2 * i / n - Math.PI / 2;
-    const r = 0.86 + rnd() * 0.3;
-    const x = cx + Math.cos(a) * rx * r, y = cy + Math.sin(a) * ry * r;
-    if (!i) d = 'M' + x + ' ' + y;
-    else {
-      const am = a - Math.PI / n, rm = 1.12;
-      d += ' Q' + (cx + Math.cos(am) * rx * rm) + ' ' + (cy + Math.sin(am) * ry * rm) +
-           ' ' + x + ' ' + y;
+function bark(t, seed, dense) {
+  const rnd = nse(seed || 5); let s = '';
+  const n = dense || 7;
+  for (let k = 0; k < n; k++) {
+    const i0 = 1 + Math.floor(rnd() * (t.L.length - 5)), len = 2 + Math.floor(rnd() * 4);
+    const f = 0.18 + rnd() * 0.64, p = [];
+    for (let i = i0; i < Math.min(t.L.length, i0 + len); i++)
+      p.push([t.L[i][0] + (t.R[i][0] - t.L[i][0]) * f + (rnd() - 0.5) * 0.5, t.L[i][1]]);
+    if (p.length > 1) s += ln(smooth(p), 0.45, DHAIR);
+  }
+  return s;
+}
+function trunk(o) {
+  const t = trunkPath(o);
+  return { svg: sh(t.d, o && o.fill || DWOOD, (o && o.w) || 1.25) + bark(t, (o && o.seed) || 5,
+                   (o && o.bark) || 7), t: t };
+}
+/* a limb: thick where it leaves the stem, thin at its tip */
+function limb(x1, y1, x2, y2, w1, w2, bow, seed, col, edge) {
+  const a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a), ny = Math.cos(a);
+  const mx = (x1 + x2) / 2 + nx * (bow || 0), my = (y1 + y2) / 2 + ny * (bow || 0);
+  const p = (x, y, w, s) => rn(x + nx * w * s) + ' ' + rn(y + ny * w * s);
+  return sh('M' + p(x1, y1, w1, 1) + ' Q' + p(mx, my, (w1 + w2) / 2, 1) + ' ' + p(x2, y2, w2, 1) +
+            ' L' + p(x2, y2, w2, -1) + ' Q' + p(mx, my, (w1 + w2) / 2, -1) + ' ' +
+            p(x1, y1, w1, -1) + ' Z', col || DWOOD, edge ? 1.5 : 1.05, edge || DINK);
+}
+/* foliage: a scalloped edge, a light tone inside, and a little shade under it */
+function foliage(cx, cy, rx, ry, seed, opts) {
+  opts = opts || {};
+  const rnd = nse(seed || 7), N = opts.n || 17, pts = [];
+  for (let i = 0; i < N; i++) {
+    const a = Math.PI * 2 * i / N - Math.PI / 2, r = 0.87 + rnd() * 0.26;
+    pts.push([cx + Math.cos(a) * rx * r, cy + Math.sin(a) * ry * r]);
+  }
+  const chord = 2 * Math.min(rx, ry) * Math.sin(Math.PI / N);
+  let d = 'M' + rn(pts[0][0]) + ' ' + rn(pts[0][1]);
+  for (let i = 1; i <= N; i++) {
+    const p = pts[i % N], r = chord * (0.62 + rnd() * 0.3);
+    d += ' A' + rn(r) + ' ' + rn(r) + ' 0 0 1 ' + rn(p[0]) + ' ' + rn(p[1]);
+  }
+  let s = sh(d + ' Z', opts.fill || DLEAF, 1.05);
+  if (opts.shade !== false) {                 /* a few scallops inside, low down */
+    for (let k = 0; k < (opts.thin ? 2 : 5); k++) {
+      const a = Math.PI * (0.18 + rnd() * 0.64), r = 0.34 + rnd() * 0.36;
+      const x = cx + Math.cos(a) * rx * r, y = cy + Math.sin(a) * ry * r;
+      const w = chord * (0.5 + rnd() * 0.4);
+      s += ln('M' + rn(x - w) + ' ' + rn(y) + ' A' + rn(w) + ' ' + rn(w) + ' 0 0 0 ' +
+              rn(x + w) + ' ' + rn(y), 0.5, DHAIR);
     }
   }
-  return ln(d + ' Z', 1);
+  return s;
 }
 
-/* the limbs that hold that crown up */
-function limbs(cx, top, spread, up) {
-  return ln('M' + cx + ' ' + (top + 6) + ' C' + (cx - 3) + ' ' + (top - 2) + ' ' +
-            (cx - spread * 0.7) + ' ' + (top - up * 0.5) + ' ' + (cx - spread) + ' ' + (top - up), 1.1) +
-         ln('M' + cx + ' ' + (top + 8) + ' C' + (cx + 3) + ' ' + (top) + ' ' +
-            (cx + spread * 0.7) + ' ' + (top - up * 0.4) + ' ' + (cx + spread) + ' ' + (top - up * 0.8), 1.1) +
-         ln('M' + cx + ' ' + (top + 4) + ' L' + (cx + 1) + ' ' + (top - up * 1.1), 1.1);
-}
-
+/* a whole broadleaf: foliage behind, stem and limbs in front of it */
 function broadleaf(o) {
   o = o || {};
-  const cx = o.cx == null ? 50 : o.cx;
-  return crown(cx, o.cy == null ? 28 : o.cy, o.rx == null ? 24 : o.rx, o.ry == null ? 19 : o.ry,
-               13, o.seed || 7) +
-         limbs(cx, o.top == null ? 40 : o.top, 15, 14) +
-         stem(o);
+  const cx = o.cx == null ? 50 : o.cx, top = o.top == null ? 46 : o.top;
+  const rx = o.rx == null ? 24 : o.rx, ry = o.ry == null ? 19 : o.ry;
+  const cy = o.cy == null ? 30 : o.cy, seed = o.seed || 7;
+  const t = trunk({ cx: cx, top: top, base: o.base, hw: o.hw, tw: o.tw, flare: o.flare,
+                    bend: o.bend, seed: seed, bark: o.bark });
+  const tx = t.t.topX, w = t.t.topHw;
+  return limb(tx, top + 5, tx - rx * 0.6, cy + ry * 0.5, w * 0.8, 0.7, -rx * 0.1, seed + 1) +
+         limb(tx, top + 7, tx + rx * 0.62, cy + ry * 0.42, w * 0.85, 0.7, rx * 0.11, seed + 2) +
+         limb(tx, top + 3, tx + rx * 0.1, cy - ry * 0.2, w * 0.7, 0.6, rx * 0.05, seed + 3) +
+         t.svg +
+         foliage(cx, cy, rx, ry, seed, { thin: o.thin, fill: o.leaf, n: o.n });
 }
 function conifer(o) {
   o = o || {};
-  const cx = o.cx == null ? 50 : o.cx, b = o.base == null ? DGND : o.base;
-  let s = stem({ cx: cx, base: b, top: o.top == null ? 14 : o.top, hw: 4, tw: 1.2, flare: 5 });
-  for (let i = 0; i < 7; i++) {
-    const y = 22 + i * 8.5, w = 5 + i * 3.6;
-    s += ln('M' + (cx - 1) + ' ' + y + ' L' + (cx - w) + ' ' + (y + 7) +
-            ' M' + (cx + 1) + ' ' + y + ' L' + (cx + w) + ' ' + (y + 7), 1);
+  const cx = o.cx == null ? 50 : o.cx, base = o.base == null ? DGND : o.base;
+  const t = trunk({ cx: cx, base: base, top: o.top == null ? 12 : o.top, hw: 4.4, tw: 1,
+                    flare: 4.4, seed: o.seed || 9 });
+  let s = t.svg;
+  const rnd = nse(o.seed || 9);
+  for (let i = 0; i < 8; i++) {
+    const y = 20 + i * 8, w = 4 + i * 3.4 + rnd() * 1.4;
+    s += ln('M' + rn(cx - 1) + ' ' + rn(y) + ' Q' + rn(cx - w * 0.6) + ' ' + rn(y + 2) + ' ' +
+            rn(cx - w) + ' ' + rn(y + 7) + ' M' + rn(cx + 1) + ' ' + rn(y) + ' Q' +
+            rn(cx + w * 0.6) + ' ' + rn(y + 2) + ' ' + rn(cx + w) + ' ' + rn(y + 7), 0.9);
   }
   return s;
 }
 
 /* a person, for scale and to say who is standing underneath */
 function human(x, yb, h) {
-  h = h || 11;
-  return ln('M' + x + ' ' + (yb - h * 0.62) + ' L' + x + ' ' + (yb - h * 0.28), 1) +
-         '<circle cx="' + x + '" cy="' + (yb - h * 0.78) + '" r="' + (h * 0.14) +
-         '" fill="none" stroke="' + DINK + '" stroke-width="1"/>' +
-         ln('M' + (x - h * 0.17) + ' ' + (yb - h * 0.5) + ' L' + (x + h * 0.17) + ' ' + (yb - h * 0.46), 1) +
-         ln('M' + x + ' ' + (yb - h * 0.28) + ' L' + (x - h * 0.15) + ' ' + yb +
-            ' M' + x + ' ' + (yb - h * 0.28) + ' L' + (x + h * 0.15) + ' ' + yb, 1);
+  h = h || 12;
+  return ln('M' + x + ' ' + rn(yb - h * 0.6) + ' L' + x + ' ' + rn(yb - h * 0.3), 1.1) +
+         '<circle cx="' + x + '" cy="' + rn(yb - h * 0.76) + '" r="' + rn(h * 0.13) +
+         '" fill="' + DPAPER + '" stroke="' + DINK + '" stroke-width="1"/>' +
+         ln('M' + rn(x - h * 0.16) + ' ' + rn(yb - h * 0.5) + ' L' + rn(x + h * 0.16) + ' ' +
+            rn(yb - h * 0.45), 1) +
+         ln('M' + x + ' ' + rn(yb - h * 0.3) + ' L' + rn(x - h * 0.14) + ' ' + yb +
+            ' M' + x + ' ' + rn(yb - h * 0.3) + ' L' + rn(x + h * 0.14) + ' ' + yb, 1);
+}
+
+/* ---- the magnifier ------------------------------------------------------
+   A detail lifted out of the tree and drawn bigger, with a thin double ring
+   and a leader back to the place it came from - the habit that makes a
+   textbook figure readable. */
+function lens(cx, cy, r, inner, from) {
+  const id = uid('L');
+  let s = '';
+  if (from) s += ln('M' + from[0] + ' ' + from[1] + ' L' + rn(cx - r * 0.82) + ' ' +
+                    rn(cy + r * 0.5), 0.6, DSOFT) +
+                 '<circle cx="' + from[0] + '" cy="' + from[1] + '" r="1.1" fill="' + DSOFT + '"/>';
+  return s + '<clipPath id="' + id + '"><circle cx="' + cx + '" cy="' + cy + '" r="' + r +
+    '"/></clipPath><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + DPAPER + '"/>' +
+    '<g clip-path="url(#' + id + ')">' + inner + '</g>' +
+    '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + DINK +
+    '" stroke-width="1.3"/>' +
+    '<circle cx="' + cx + '" cy="' + cy + '" r="' + rn(r + 1.4) + '" fill="none" stroke="' +
+    DSOFT + '" stroke-width="0.5"/>';
 }
 
 /* ---- the section, which is where tree inspection actually happens -------
-   A stem seen from above: the sound wall left white, the decayed core
-   hatched, and the wall thickness called t against the radius R. open is the
-   part of the circumference that is missing altogether, in degrees. */
+   A stem seen from above: sound wood left light, the decayed core hatched,
+   the wall thickness called t against the radius R. open is the part of the
+   circumference missing altogether, in degrees; off moves the core away from
+   the middle, which is what a rib or a one-sided wound leaves behind. */
 function section(cx, cy, r, o) {
   o = o || {};
-  const wall = o.t == null ? r * 0.35 : o.t;
+  const wall = o.t == null ? r * 0.34 : o.t, off = o.off || 0;
   const open = o.open || 0, a0 = (o.at == null ? 90 : o.at) * Math.PI / 180;
-  let s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + DPAPER +
-          '" stroke="' + DINK + '" stroke-width="1.1"/>';
-  if (o.rot !== false) {
-    const ri = r - wall;
-    s += hatched('M' + (cx - ri) + ' ' + cy + ' a' + ri + ' ' + ri + ' 0 1 0 ' + (ri * 2) + ' 0' +
-                 ' a' + ri + ' ' + ri + ' 0 1 0 ' + (-ri * 2) + ' 0 Z', 2.6, -45, DSOFT);
-  }
-  if (open > 0) {   /* a hole in the wall: the paper shows through */
+  const ri = r - wall;
+  let s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + DWOOD +
+          '" stroke="' + DINK + '" stroke-width="1.3"/>' +
+          '<circle cx="' + cx + '" cy="' + cy + '" r="' + rn(r - 0.9) + '" fill="none" stroke="' +
+          DHAIR + '" stroke-width="0.45"/>';
+  if (o.rot !== false)
+    s += hatched('M' + rn(cx + off - ri) + ' ' + cy + ' a' + rn(ri) + ' ' + rn(ri) + ' 0 1 0 ' +
+                 rn(ri * 2) + ' 0 a' + rn(ri) + ' ' + rn(ri) + ' 0 1 0 ' + rn(-ri * 2) + ' 0 Z',
+                 2.4, -45, DSOFT, DPAPER);
+  if (open > 0) {
     const h = open * Math.PI / 360;
-    const x1 = cx + Math.cos(a0 - h) * (r + 0.6), y1 = cy + Math.sin(a0 - h) * (r + 0.6);
-    const x2 = cx + Math.cos(a0 + h) * (r + 0.6), y2 = cy + Math.sin(a0 + h) * (r + 0.6);
-    s += fill('M' + cx + ' ' + cy + ' L' + x1 + ' ' + y1 + ' A' + (r + 0.6) + ' ' + (r + 0.6) +
-              ' 0 ' + (open > 180 ? 1 : 0) + ' 1 ' + x2 + ' ' + y2 + ' Z', DPAPER) +
-         ln('M' + x1 + ' ' + y1 + ' L' + cx + ' ' + cy + ' L' + x2 + ' ' + y2, 1.1, DACC);
+    const x1 = cx + Math.cos(a0 - h) * (r + 0.7), y1 = cy + Math.sin(a0 - h) * (r + 0.7);
+    const x2 = cx + Math.cos(a0 + h) * (r + 0.7), y2 = cy + Math.sin(a0 + h) * (r + 0.7);
+    s += '<path d="M' + cx + ' ' + cy + ' L' + rn(x1) + ' ' + rn(y1) + ' A' + rn(r + 0.7) + ' ' +
+         rn(r + 0.7) + ' 0 ' + (open > 180 ? 1 : 0) + ' 1 ' + rn(x2) + ' ' + rn(y2) +
+         ' Z" fill="' + DPAPER + '"/>' +
+         ln('M' + rn(x1) + ' ' + rn(y1) + ' L' + cx + ' ' + cy + ' L' + rn(x2) + ' ' + rn(y2), 1.5, DACC);
   }
-  if (o.dim !== false) {   /* t across the wall, R across the stem */
-    const ax = cx, ay = cy - r;
-    s += arrow(ax, ay - 5.5, ax, ay, 0.62) + arrow(ax, ay + wall + 5.5, ax, ay + wall, 0.62) +
-         txt(ax + 4.6, ay + wall * 0.5 + 1.6, 't', 5.2) +
-         ln('M' + cx + ' ' + cy + ' L' + (cx + r) + ' ' + cy, 0.6, DSOFT) +
-         txt(cx + r * 0.55, cy - 1.6, 'R', 5.2, DSOFT);
+  if (o.dim !== false) {
+    const ax = cx + off, ay = cy - r;
+    s += arrow(ax, ay - 5.5, ax, ay, 0.6) + arrow(ax, ay + wall + 5.5, ax, ay + wall, 0.6) +
+         txt(ax + 4.4, rn(ay + wall * 0.5 + 1.7), 't', 5) +
+         ln('M' + cx + ' ' + cy + ' L' + rn(cx + r) + ' ' + cy, 0.5, DSOFT) +
+         txt(rn(cx + r * 0.55), rn(cy - 1.7), 'R', 5, DSOFT);
   }
   return s;
 }
-
-/* a half shell: what is left of a tube once it is split down its length */
+/* what is left of a tube once it is split down its length */
 function halfShell(cx, cy, r, turn) {
-  const t = (turn || 0) * Math.PI / 180;
-  const p = (a, rr) => (cx + Math.cos(a + t) * rr) + ' ' + (cy + Math.sin(a + t) * rr);
-  const ri = r * 0.72;
-  return ln('M' + p(-Math.PI / 2, r) + ' A' + r + ' ' + r + ' 0 0 1 ' + p(Math.PI / 2, r) +
+  const t = (turn || 0) * Math.PI / 180, ri = r * 0.7;
+  const p = (a, rr) => rn(cx + Math.cos(a + t) * rr) + ' ' + rn(cy + Math.sin(a + t) * rr);
+  return sh('M' + p(-Math.PI / 2, r) + ' A' + r + ' ' + r + ' 0 0 1 ' + p(Math.PI / 2, r) +
             ' L' + p(Math.PI / 2, ri) + ' A' + ri + ' ' + ri + ' 0 0 0 ' + p(-Math.PI / 2, ri) +
-            ' Z', 1.1);
+            ' Z', DWOOD, 1.2);
 }
-/* an arrow bent round a circle: torsion */
-function twist(cx, cy, r, a0, a1) {
-  const A = a0 * Math.PI / 180, B = a1 * Math.PI / 180;
-  const x1 = cx + Math.cos(A) * r, y1 = cy + Math.sin(A) * r;
-  const x2 = cx + Math.cos(B) * r, y2 = cy + Math.sin(B) * r;
-  const tip = B + 0.14;
-  return ln('M' + x1 + ' ' + y1 + ' A' + r + ' ' + r + ' 0 0 1 ' + x2 + ' ' + y2, 1, DSOFT) +
-         arrow(x2, y2, cx + Math.cos(tip) * r, cy + Math.sin(tip) * r, 0.75, DSOFT);
+
+/* a leader from a detail to the circle it is drawn bigger in */
+function lead(x1, y1, x2, y2) {
+  return ln('M' + x1 + ' ' + y1 + ' L' + x2 + ' ' + y2, 0.55, DSOFT) +
+         '<circle cx="' + x1 + '" cy="' + y1 + '" r="1.2" fill="' + DSOFT + '"/>';
+}
+function ring(cx, cy, r) {
+  return '<circle cx="' + cx + '" cy="' + cy + '" r="' + rn(r) + '" fill="none" stroke="' +
+         DSOFT + '" stroke-width="0.5"/>';
 }
 
 /* ---- one figure per case ------------------------------------------------
    Each says something a photograph cannot: where the load goes, what the
    section looks like, how long the lever is. The finding is the only thing in
-   the accent colour, so it can be found without being labelled. */
+   the accent colour, so it can be found without being named. */
 const CASE_FIG = {
 
   /* the reference tree: even crown, closed bark, flares all round, and the
      load running straight down through sound wood */
   'sound-tree': () =>
-    broadleaf({ cx: 50, cy: 30, rx: 23, ry: 18, top: 42 }) +
-    ln('M46.8 46 C45.6 60 44 72 41 84', 0.7, DSOFT) +
-    ln('M53.2 46 C54.4 60 56 72 59 84', 0.7, DSOFT) +
-    ln('M50 46 L50 84', 0.7, DSOFT) +
-    arrow(50, 10, 50, 18, 0.8, DSOFT) +
+    broadleaf({ cx: 50, cy: 32, rx: 26, ry: 21, top: 48, hw: 6, tw: 3.4, seed: 7, bark: 9 }) +
+    ln('M46.6 52 C45.4 62 44.2 72 42.4 83', 0.5, DHAIR) +
+    ln('M53.4 52 C54.6 62 55.8 72 57.6 83', 0.5, DHAIR) +
+    arrow(50, 6, 50, 13, 0.8, DSOFT) +
     ground(),
 
   /* a rib is the tree's own answer to a hollow: it lays wood on exactly where
-     the bending is, and the section shows what wall it has managed to keep */
+     it is being bent, and the section shows the wall it has kept */
   ribbing: () =>
-    crown(34, 26, 17, 14, 13, 7) + limbs(34, 44, 12, 12) +
-    ln('M40.2 86 C40.6 82 40.4 78 40 74 L39.4 56 L38.2 44', 1.1) +
-    ln('M29.8 44 L28.8 57', 1.1) +
-    ln('M28.8 57 C24.6 62 23.8 68 26.2 74 C27.4 78 27.8 82 27.6 86', 1.9, DACC) +
-    ln('M30.4 58 C27 63 26.4 68 28.4 74 C29.4 78 29.6 82 29.4 86', 0.8, DACC) +
-    ln('M41 86 C45.6 84.6 48.6 84 52 83.6 M26.8 86 C22.4 84.6 19.4 84 16 83.6', 1.1) +
-    arrow(12, 60, 20.6, 65, 0.9) +
-    '<ellipse cx="74" cy="30" rx="15.5" ry="12.5" fill="' + DPAPER + '" stroke="' + DINK +
-      '" stroke-width="1.1"/>' +
-    hatched('M68.6 31 a9.4 8 0 1 0 18.8 0 a9.4 8 0 1 0 -18.8 0 Z', 2.6, -45, DSOFT) +
-    ln('M59.2 35 A15.5 12.5 0 0 1 64.6 19.4', 2.4, DACC) +
-    arrow(52, 40, 59, 34, 0.7) +
+    broadleaf({ cx: 30, cy: 26, rx: 16, ry: 14, top: 46, hw: 5.4, tw: 3.2, seed: 13,
+                ribL: { at: 0.28, w: 0.22, amp: 3.4 } }) +
+    ln('M25.4 80.6 C22.8 74 23 67.4 25.6 61.6', 1.7, DACC) +
+    ln('M27.4 80 C25.2 74 25.4 68 27.6 62.6', 0.7, DACC) +
+    arrow(8, 60, 18.4, 66, 0.9) +
+    lead(24.6, 71, 60, 43) +
+    '<g transform="translate(74 30) scale(1.16 1) translate(-74 -30)">' +
+      section(74, 30, 15.5, { t: 3.4, off: 3.6, dim: false }) + '</g>' +
+    ln('M56.4 36.6 A18 15.5 0 0 1 61.6 18.6', 2.4, DACC) +
+    ring(74, 30, 17.6) +
     ground(),
 
-  'cavity-base': () =>
-    crown(34, 26, 17, 14, 13, 3) + limbs(34, 44, 12, 12) + stem({ cx: 34, top: 44 }) +
-    hatched('M30 86 C27 79.6 27.4 73.4 30.6 69.4 C34.2 69.6 37 74 37 80.4 C37 83 36.4 85 35.6 86 Z',
-            1.5, -45, DINK, DPAPER) +
-    ln('M30 86 C27 79.6 27.4 73.4 30.6 69.4 C34.2 69.6 37 74 37 80.4 C37 83 36.4 85 35.6 86', 1.5, DACC) +
-    ln('M28 86 C25 79.4 25.6 72.6 29.4 67.8', 1.6) +
-    ln('M39.2 86 C39.6 79.4 38.2 73 34.2 68.2', 1.6) +
-    section(74, 58, 14, { t: 4.2, open: 120, at: 250 }) +
-    ground(),
-
-  'soil-heave': () =>
-    arrow(2, 20, 20, 24, 1.1) + arrow(4, 31, 20, 34, 0.85) + arrow(6, 42, 20, 44, 0.7) +
-    '<g transform="rotate(10 56 86)">' +
-      broadleaf({ cx: 56, cy: 30, rx: 20, ry: 16, top: 42 }) + '</g>' +
-    ground(86, 4, 18) +
-    ln('M18 86 C23 74.6 33 71.4 44 75.4', 2.1, DACC) +
-    ln('M24.6 77.4 L23 86.6 M30.6 73.6 L30 83 M36.6 73 L37.6 81.4 M41.4 75 L43 81', 1.1, DACC) +
-    ln('M66 82 C74 86.6 80 90 84 90.6 L96 90.6', 1.3) +
-    ln('M68 87.4 C76 91 84 92.6 94 93', 0.7, DSOFT) +
-    '<g stroke-dasharray="3 2.4">' +
-      ln('M20 87 C30 99.4 74 99.4 86 89.4', 1, DSOFT) + '</g>' +
-    arrow(88, 78, 84, 86, 0.8, DSOFT),
-
-  'root-cut': () => {
-    let s = '<g stroke-dasharray="3 2.6">' +
-      '<circle cx="42" cy="50" r="32" fill="none" stroke="' + DSOFT + '" stroke-width="0.9"/></g>';
-    for (let i = 0; i < 12; i++) {
-      const a = Math.PI * 2 * i / 12 + 0.26;
-      const x = 42 + Math.cos(a) * 31, y = 50 + Math.sin(a) * 31;
-      const cut = x > 68;
-      const k = cut ? (68 - 42) / (x - 42) : 1;
-      s += ln('M' + (42 + Math.cos(a) * 6.6) + ' ' + (50 + Math.sin(a) * 6.6) +
-              ' Q' + (42 + Math.cos(a + 0.34) * 19 * k) + ' ' + (50 + Math.sin(a + 0.34) * 19 * k) +
-              ' ' + (42 + (x - 42) * k) + ' ' + (50 + (y - 50) * k), cut ? 1.4 : 1,
-              cut ? DACC : DINK);
-    }
-    return s +
-      '<circle cx="42" cy="50" r="6.8" fill="' + DPAPER + '" stroke="' + DINK + '" stroke-width="1.3"/>' +
-      hatched('M69 8 L82 8 L82 92 L69 92 Z', 3, -45, DSOFT) +
-      ln('M69 8 L69 92', 1.5, DACC) +
-      arrow(97, 50, 88, 50, 1) + arrow(97, 34, 88, 34, 0.75) + arrow(97, 66, 88, 66, 0.75);
+  /* an opening at the base. The wall is what is left, the rolled lips say the
+     tree has been holding this for years, and a third of the ring is gone */
+  'cavity-base': () => {
+    const cav = 'M28.6 86 C25.4 79.4 25.8 72.6 29.2 68.2 C33.2 68.6 36.2 73.4 36.2 80.2 ' +
+                'C36.2 82.8 35.6 85 34.8 86 Z';
+    return broadleaf({ cx: 31, cy: 26, rx: 16, ry: 14, top: 46, hw: 5.6, tw: 3.2, seed: 21 }) +
+      hatched(cav, 1.4, -45, DINK, '#efe7d8') + ln(cav, 1.6, DACC) +
+      ln('M26.6 86 C23.4 79 24 71.6 28.2 66.4', 1.6) +
+      ln('M38.4 86 C38.8 78.6 37.2 71.8 32.8 66.6', 1.6) +
+      lead(32, 77, 58, 58) +
+      section(75, 56, 16, { t: 5, open: 118, at: 250 }) + ring(75, 56, 18) +
+      ground();
   },
 
-  /* one closed tube carries; two half shells slide past each other */
+  /* the plate is turning: on the windward side the soil lifts and tears,
+     on the other side it settles */
+  'soil-heave': () =>
+    arrow(2, 18, 21, 22, 1.1) + arrow(4, 30, 21, 33, 0.85) + arrow(6, 42, 21, 44, 0.7) +
+    '<g transform="rotate(10 58 86)">' +
+      broadleaf({ cx: 58, cy: 30, rx: 21, ry: 17, top: 44, hw: 5.6, tw: 3.2, seed: 5 }) + '</g>' +
+    ground(86, 3, 17) +
+    ln('M17 86 C22.6 73.6 34 70.4 46 75 C52 77.4 56 80 60 82', 2.1, DACC) +
+    ln('M23.4 77 L21.6 87 M29.6 72.6 L28.8 83.4 M36 71.6 L37 81.6 M42 73.6 L43.6 80.6', 1.1, DACC) +
+    ln('M60 82 C70 87 78 90.4 84 91 L97 91', 1.4) +
+    ln('M66 87.4 C76 91.4 86 93 96 93.4', 0.6, DSOFT) +
+    '<g stroke-dasharray="3 2.4">' + ln('M19 87 C31 100.6 78 100 90 88.6', 1, DSOFT) + '</g>' +
+    arrow(92, 76, 88, 85, 0.8, DSOFT),
+
+  'root-cut': () => {
+    let s = '<g stroke-dasharray="3.4 3">' +
+      '<circle cx="40" cy="50" r="33" fill="none" stroke="' + DSOFT + '" stroke-width="0.9"/></g>';
+    const rnd = nse(4);
+    for (let i = 0; i < 8; i++) {
+      const a = Math.PI * 2 * i / 8 + 0.34 + (rnd() - 0.5) * 0.3;
+      const len = 27 + rnd() * 6;
+      const x = 40 + Math.cos(a) * len, y = 50 + Math.sin(a) * len;
+      const cut = x > 66, k = cut ? (66 - 40) / (x - 40) : 1;
+      const ex = 40 + (x - 40) * k, ey = 50 + (y - 50) * k;
+      const bow = (rnd() - 0.45) * 13;
+      s += limb(40 + Math.cos(a) * 5.6, 50 + Math.sin(a) * 5.6, ex, ey, 2.8, 0.5, bow, i);
+      const mx = 40 + (ex - 40) * 0.6, my = 50 + (ey - 50) * 0.6;
+      const b = a + (rnd() < 0.5 ? 0.5 : -0.5), bl = len * 0.34;
+      const bxx = mx + Math.cos(b) * bl, byy = my + Math.sin(b) * bl;
+      if (bxx < 65) s += limb(mx, my, bxx, byy, 1.1, 0.35, 0, i + 30);
+      if (cut) s += ln('M' + rn(ex - Math.sin(a) * 2) + ' ' + rn(ey + Math.cos(a) * 2) +
+                       ' L' + rn(ex + Math.sin(a) * 2) + ' ' + rn(ey - Math.cos(a) * 2), 1.8, DACC);
+    }
+    return s +
+      '<circle cx="40" cy="50" r="7.6" fill="' + DWOOD + '" stroke="' + DINK + '" stroke-width="1.3"/>' +
+      '<circle cx="40" cy="50" r="4.8" fill="none" stroke="' + DHAIR + '" stroke-width="0.5"/>' +
+      '<circle cx="40" cy="50" r="2.4" fill="none" stroke="' + DHAIR + '" stroke-width="0.5"/>' +
+      hatched('M67 6 L80 6 L80 94 L67 94 Z', 2.8, -45, DSOFT) +
+      ln('M67 6 L67 94', 1.6, DACC) +
+      arrow(97, 50, 88, 50, 1) + arrow(97, 32, 88, 32, 0.75) + arrow(97, 68, 88, 68, 0.75);
+  },
+
   'crack-long': () =>
-    crown(32, 26, 16, 13, 13, 5) + limbs(32, 44, 11, 12) + stem({ cx: 32, top: 44 }) +
-    ln('M31 82 C30 70 31.4 58 30.6 46', 1.7, DACC) +
-    ln('M33.6 80 C32.6 68 34 58 33.2 47', 0.9, DACC) +
-    '<circle cx="76" cy="24" r="11" fill="' + DPAPER + '" stroke="' + DINK + '" stroke-width="1.1"/>' +
-    '<circle cx="76" cy="24" r="7.4" fill="none" stroke="' + DINK + '" stroke-width="0.7"/>' +
-    twist(76, 24, 14.6, -150, -30) +
-    halfShell(72.4, 62, 11, 180) + halfShell(79.6, 65, 11, 0) +
-    ln('M76 50.6 L76 57 M76 70 L76 76.4', 1.7, DACC) +
-    arrow(68, 76, 71.6, 80, 0.7, DSOFT) + arrow(88, 51, 84.4, 47, 0.7, DSOFT) +
+    broadleaf({ cx: 30, cy: 26, rx: 16, ry: 14, top: 46, hw: 5.6, tw: 3.2, seed: 33 }) +
+    ln('M29.4 82 C28.4 70 30 58 29 47', 1.8, DACC) +
+    ln('M31.8 80.6 C30.8 69 32.4 58 31.4 48', 0.8, DACC) +
+    lead(30, 64, 60, 62) +
+    lens(76, 26, 13, '<circle cx="76" cy="26" r="12.6" fill="' + DWOOD + '"/>' +
+         '<circle cx="76" cy="26" r="8.4" fill="' + DPAPER + '" stroke="' + DHAIR +
+         '" stroke-width="0.6"/>') +
+    twist(76, 26, 16.6, -145, -35) +
+    lens(76, 64, 14,
+         halfShell(72.6, 62, 11.4, 180) + halfShell(80, 66, 11.4, 0) +
+         ln('M76.2 50 L76.2 57.4 M76.2 70.6 L76.2 78', 1.6, DACC)) +
+    arrow(66.6, 78, 70.6, 82, 0.7, DSOFT) + arrow(89, 52, 85, 48, 0.7, DSOFT) +
     ground(),
 
-  'included-bark': () =>
-    crown(22, 24, 13, 11, 11, 5) + crown(50, 22, 13, 11, 11, 9) +
-    ln('M30 86 C31.6 76 33.4 66 35 58 L25 34', 1.2) +
-    ln('M39 56 L31 34', 1.2) +
-    ln('M46 86 C44.4 76 42.6 66 41 58 L50 32', 1.2) +
-    ln('M37 56 L45 32', 1.2) +
-    ln('M29 86 C24.4 84.4 21.4 84 18 83.6 M47 86 C51.6 84.4 54.6 84 58 83.6', 1.2) +
-    ln('M38 32 L38 56', 1.8, DACC) +
-    '<circle cx="70" cy="34" r="7.4" fill="' + DPAPER + '" stroke="' + DINK + '" stroke-width="1.1"/>' +
-    '<circle cx="85" cy="34" r="7.4" fill="' + DPAPER + '" stroke="' + DINK + '" stroke-width="1.1"/>' +
-    ln('M77.5 26.4 L77.5 41.6', 1.8, DACC) +
-    arrow(64, 48, 69, 42, 0.7, DSOFT) + arrow(91, 48, 86, 42, 0.7, DSOFT) +
-    ground(),
+  /* the two stems never grew together: bark runs down between them, and the
+     section shows there is nothing holding across the seam */
+  'included-bark': () => {
+    const stemA = trunk({ cx: 26, top: 34, hw: 4.6, tw: 2.6, flare: 5, bend: -9, seed: 17 });
+    const stemB = trunk({ cx: 44, top: 32, hw: 4.6, tw: 2.6, flare: 5, bend: 8, seed: 19 });
+    return foliage(15, 24, 13, 11, 5) + foliage(54, 20, 13, 11, 9) +
+      stemA.svg + stemB.svg +
+      sh('M30 86 C31.6 74 33.6 64 35 56 L40 56 C41.4 64 43.4 74 45 86 Z', DWOOD, 1.25) +
+      ln('M37.6 32 C37.2 42 37.4 50 37.6 57', 1.9, DACC) +
+      lead(37.6, 46, 62, 36) +
+      lens(76, 32, 14,
+        '<circle cx="70.4" cy="32" r="7.6" fill="' + DWOOD + '" stroke="' + DINK +
+        '" stroke-width="1.2"/><circle cx="82" cy="32" r="7.6" fill="' + DWOOD +
+        '" stroke="' + DINK + '" stroke-width="1.2"/>' +
+        ln('M76.2 24 L76.2 40', 1.9, DACC)) +
+      arrow(66, 50, 71, 43, 0.7, DSOFT) + arrow(88, 50, 83, 43, 0.7, DSOFT) +
+      ground();
+  },
 
   /* dead limbs in the top of the crown, and a path underneath */
   deadwood: () =>
-    crown(50, 30, 22, 16, 13, 11) + limbs(50, 44, 15, 13) + stem({ top: 44 }) +
-    ln('M47 38 L40 26 L31 14 M40 26 L35 15 M35 20 L26 12', 1.2, DACC) +
-    ln('M53 34 L64 20 L73 12 M64 20 L67 10', 1.2, DACC) +
-    ln('M51 40 L62 33 L74 30 M62 33 L65 26', 1.2, DACC) +
-    hatched('M4 88 L96 88 L96 95 L4 95 Z', 4, -45, DSOFT) +
-    ground() + human(76, 88, 13),
+    broadleaf({ cx: 50, cy: 32, rx: 24, ry: 19, top: 48, hw: 6, tw: 3.4, seed: 29 }) +
+    limb(47, 44, 33, 18, 2.4, 0.6, -2.4, 51, DPAPER, DACC) +
+    limb(37, 30, 29, 16, 1.2, 0.4, 1.2, 52, DPAPER, DACC) +
+    limb(53, 42, 70, 17, 2.4, 0.6, 2.4, 53, DPAPER, DACC) +
+    limb(62, 27, 67, 13, 1.2, 0.4, -1.2, 54, DPAPER, DACC) +
+    limb(52, 47, 75, 37, 2.2, 0.5, 2.6, 55, DPAPER, DACC) +
+    limb(67, 41, 76, 31, 1, 0.35, -1, 56, DPAPER, DACC) +
+    hatched('M3 88 L97 88 L97 95 L3 95 Z', 3.6, -45, DSOFT) +
+    ground(86, 3, 97) + human(80, 88, 13),
 
   topping: () => {
-    let s = stem({ cx: 32, top: 50, hw: 7, tw: 6 }) +
-      hatched('M26.4 44 C26 48 26 52 26.4 56 L37.6 56 C38 52 38 48 37.6 44 Z', 2.2, -45, DSOFT) +
-      '<ellipse cx="32" cy="43.4" rx="6" ry="2.4" fill="' + DPAPER + '" stroke="' + DACC +
+    const t = trunk({ cx: 30, top: 48, hw: 6.6, tw: 5.6, flare: 6.4, seed: 23, bark: 9 });
+    const rnd = nse(31);
+    let s = t.svg +
+      hatched('M24.6 46 C24.2 50 24.2 56 24.8 62 L35.4 62 C36 56 36 50 35.6 46 Z', 2, -45, DSOFT) +
+      '<ellipse cx="30" cy="45.6" rx="5.8" ry="2.3" fill="' + DPAPER + '" stroke="' + DACC +
       '" stroke-width="1.8"/>';
-    for (let i = 0; i < 11; i++) {
-      const x = 26.8 + i * 1.04, sp = (i - 5) * 2.8;
-      s += ln('M' + x + ' 43 C' + (x + sp * 0.4) + ' 35 ' + (x + sp * 0.85) + ' 28 ' +
-              (x + sp * 1.35) + ' 19', 0.9);
+    for (let i = 0; i < 16; i++) {
+      const x = 24.9 + (i % 8) * 1.46, sp = (i - 7.5) * 2.1 + (rnd() - 0.5) * 2.4;
+      const ty = 14 + rnd() * 9;
+      s += ln('M' + rn(x) + ' 45 Q' + rn(x + sp * 0.5) + ' ' + rn((45 + ty) / 2) + ' ' +
+              rn(x + sp * 1.2) + ' ' + rn(ty), 0.8);
     }
     return s +
-      section(74, 54, 14, { t: 3, dim: false }) +
-      ln('M70.6 40.6 C68.6 34 67.4 29 67.4 23 M77.4 40.6 C79.4 34.6 80.6 30 81 25', 1.1) +
-      ln('M63 43 A14 14 0 0 1 85 43', 1.8, DACC) +
-      arrow(52, 34, 60, 42, 0.7, DSOFT) +
+      lead(30, 52, 60, 54) +
+      section(76, 54, 16, { t: 3.2, dim: false }) + ring(76, 54, 18) +
+      ln('M62.2 48.6 A16 16 0 0 1 89.8 48.6', 2, DACC) +
       ground();
   },
 
   compaction: () =>
-    crown(38, 30, 15, 13, 15, 23) + limbs(38, 46, 11, 12) +
-    stem({ cx: 38, top: 46, hw: 5.4, tw: 4 }) +
-    ln('M27 25 L25 21 M32 18 L31 14 M45 20 L47 16 M50 28 L54 26 M42 16 L43 12', 0.9, DSOFT) +
-    hatched('M4 86 L22 86 L22 92 L4 92 Z', 3, -45, DSOFT) +
-    hatched('M54 86 L96 86 L96 92 L54 92 Z', 3, -45, DSOFT) +
-    hatched('M4 95.5 L96 95.5 L96 100 L4 100 Z', 3, -45, DSOFT) +
-    ln('M4 86 L22 86 M54 86 L96 86 M4 95.5 L96 95.5', 1.6, DACC) +
-    ground(86, 22, 54) +
+    broadleaf({ cx: 38, cy: 30, rx: 14, ry: 12, top: 48, hw: 5.4, tw: 3.2, seed: 41,
+                thin: true, n: 21 }) +
+    ln('M26 27 L23.6 22.6 M31 18.6 L30 14.4 M45 21 L47.4 16.6 M50 30.6 L54 28 M41 16.6 L42 12.4',
+       0.85, DSOFT) +
+    hatched('M3 85.4 L21 85.4 L21 91.4 L3 91.4 Z', 2.8, -45, DSOFT) +
+    hatched('M55 85.4 L97 85.4 L97 91.4 L55 91.4 Z', 2.8, -45, DSOFT) +
+    hatched('M3 94 L97 94 L97 99 L3 99 Z', 2.8, -45, DSOFT) +
+    ln('M3 85.4 L21 85.4 M55 85.4 L97 85.4 M3 94 L97 94', 1.7, DACC) +
+    ground(86, 21, 55) +
     '<g stroke-dasharray="3 2.4">' +
-      ln('M25 87.4 C29.6 91.4 33.6 92.6 38 92.6 C42.4 92.6 46.4 91.4 51 87.4', 1.2, DACC) + '</g>',
+      ln('M23.6 87.4 C28.6 91.4 33.4 92.6 38 92.6 C42.6 92.6 47.4 91.4 52.4 87.4', 1.2, DACC) + '</g>',
 
   'hazard-beam': () =>
-    crown(20, 28, 14, 12, 11, 17) + limbs(20, 44, 9, 11) +
-    stem({ cx: 20, top: 44, hw: 5.4, tw: 4 }) +
-    ln('M23 44 C40 40.6 62 39.6 92 39.4', 2.6, DACC) +
-    ln('M44 40.6 C48 36.6 52 35 56 34.6 M64 39.8 C68 35.6 72 34.4 76 34', 1, DACC) +
-    ln('M84 39.6 C87 36.6 90 35.6 93 35.4', 1, DACC) +
-    arrow(92, 26, 92, 37, 1) +
-    hatched('M24 47 L92 42 L92 44.6 L24 62 Z', 3, -45, DSOFT) +
-    fill('M58 84 L63 76 L80 76 L86 84 Z', DPAPER, 1.1, DINK) +
-    ln('M66 76 L66 84', 0.7, DSOFT) +
-    '<circle cx="65" cy="84" r="2.8" fill="none" stroke="' + DINK + '" stroke-width="1.1"/>' +
-    '<circle cx="80" cy="84" r="2.8" fill="none" stroke="' + DINK + '" stroke-width="1.1"/>' +
-    ground()
+    broadleaf({ cx: 20, cy: 28, rx: 14, ry: 13, top: 46, hw: 5.4, tw: 3.4, seed: 37 }) +
+    limb(23, 46, 93, 39.4, 3.6, 1.5, -1.8, 2, '#f1ded6', DACC) +
+    ln('M45 40.6 C49 35.6 53 33.6 57 33 M65 38.6 C69 33.6 73 32 77 31.4 ' +
+       'M84 38 C87 34.6 90 33.4 93 33', 1, DACC) +
+    arrow(92, 22, 92, 35, 1) +
+    hatched('M25 50 L93 43 L93 45.4 L25 66 Z', 2.6, -45, DSOFT) +
+    sh('M56 84 L61 75.6 L79 75.6 L85 84 Z', DPAPER, 1.2) +
+    ln('M65 76 L65 84', 0.6, DHAIR) +
+    '<circle cx="63" cy="84" r="2.9" fill="' + DPAPER + '" stroke="' + DINK + '" stroke-width="1.2"/>' +
+    '<circle cx="79" cy="84" r="2.9" fill="' + DPAPER + '" stroke="' + DINK + '" stroke-width="1.2"/>' +
+    ground(),
+
 };
