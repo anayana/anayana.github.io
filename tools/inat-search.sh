@@ -38,15 +38,22 @@ while IFS='|' read -r key taxon; do
 import sys, json
 d = json.load(sys.stdin)
 print("    %s research-grade observations with a usable licence" % d.get("total_results", "?"))
+OK_LIC = {"cc0", "cc-by", "cc-by-sa"}
 for o in d.get("results", []):
-    for p in (o.get("photos") or [])[:1]:
+    # photo_license filters the OBSERVATION, not each picture: an observation
+    # can qualify on its second photograph while its first is all rights
+    # reserved. One of those was in the first report. Every picture is checked
+    # on its own licence here.
+    for p in (o.get("photos") or []):
+        lic = (p.get("license_code") or "").lower()
+        if lic not in OK_LIC:
+            continue
         url = (p.get("url") or "").replace("/square.", "/large.")
-        print("    OK  %-10s %-34s %s" % (
-            (p.get("license_code") or "?").upper(),
-            (p.get("attribution") or "?")[:34],
-            url))
+        print("    OK  %-10s %-34s %s" % (lic.upper(),
+                                          (p.get("attribution") or "?")[:34], url))
         print("        %s   %s" % ((o.get("species_guess") or "?")[:30],
                                    o.get("uri") or ""))
+        break
 ' 2>/dev/null || echo "    (no answer)"
   echo
 done < "$TERMS"
