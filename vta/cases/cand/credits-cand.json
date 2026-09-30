@@ -1,1 +1,86 @@
-{}
+{
+ "ganoderma-1": {
+  "file": "iNaturalist observation 172338137 (artist's bracket)",
+  "licence": "CC BY",
+  "by": "Aaron Liston",
+  "page": "https://www.inaturalist.org/observations/172338137"
+ },
+ "ganoderma-2": {
+  "file": "iNaturalist observation 117775372 (Ganoderma applanatum)",
+  "licence": "CC BY-SA",
+  "by": "Rand Workman",
+  "page": "https://www.inaturalist.org/observations/117775372"
+ },
+ "ganoderma-3": {
+  "file": "iNaturalist observation 32037929 (artist's bracket)",
+  "licence": "CC0",
+  "by": "Jason Youth",
+  "page": "https://www.inaturalist.org/observations/32037929"
+ },
+ "ganoderma-4": {
+  "file": "iNaturalist observation 135388973 (artist's bracket)",
+  "licence": "CC BY",
+  "by": "bogsuckers",
+  "page": "https://www.inaturalist.org/observations/135388973"
+ },
+ "ganoderma-ads-1": {
+  "file": "iNaturalist observation 340595402 (Wulstiger Lackporling)",
+  "licence": "CC0",
+  "by": "T. Pedro Hafermann",
+  "page": "https://www.inaturalist.org/observations/340595402"
+ },
+ "ganoderma-ads-2": {
+  "file": "iNaturalist observation 320404591 (Ganoderma adspersum)",
+  "licence": "CC BY",
+  "by": "Dr. Nasser Halaweh",
+  "page": "https://www.inaturalist.org/observations/320404591"
+ },
+ "ganoderma-ads-3": {
+  "file": "iNaturalist observation 403830728 (Ganoderma adspersum)",
+  "licence": "CC BY",
+  "by": "Jose Gutierrez Higa",
+  "page": "https://www.inaturalist.org/observations/403830728"
+ },
+ "mistletoe-1": {
+  "file": "iNaturalist observation 20234595 (European mistletoe)",
+  "licence": "CC BY",
+  "by": "Laura J. Costello",
+  "page": "https://www.inaturalist.org/observations/20234595"
+ },
+ "mistletoe-2": {
+  "file": "iNaturalist observation 254421636 (Viscum album album)",
+  "licence": "CC BY",
+  "by": "Cenaida",
+  "page": "https://www.inaturalist.org/observations/254421636"
+ },
+ "mistletoe-3": {
+  "file": "iNaturalist observation 348769808 (jemioła pospolita)",
+  "licence": "CC BY",
+  "by": "Maciej Boenisch",
+  "page": "https://www.inaturalist.org/observations/348769808"
+ },
+ "mistletoe-4": {
+  "file": "iNaturalist observation 340420429 (Fir Mistletoe)",
+  "licence": "CC0",
+  "by": "Mirko Ubović",
+  "page": "https://www.inaturalist.org/observations/340420429"
+ },
+ "mistletoe-pine-1": {
+  "file": "iNaturalist observation 39647008 (Pine Mistletoe)",
+  "licence": "CC BY",
+  "by": "Patrick Hacker",
+  "page": "https://www.inaturalist.org/observations/39647008"
+ },
+ "mistletoe-pine-2": {
+  "file": "iNaturalist observation 39647013 (Pine Mistletoe)",
+  "licence": "CC BY",
+  "by": "Patrick Hacker",
+  "page": "https://www.inaturalist.org/observations/39647013"
+ },
+ "mistletoe-pine-3": {
+  "file": "iNaturalist observation 200827927 (Kiefern-Mistel)",
+  "licence": "CC BY",
+  "by": "Emil Jantke",
+  "page": "https://www.inaturalist.org/observations/200827927"
+ }
+}
