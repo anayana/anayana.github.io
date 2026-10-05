@@ -6,8 +6,8 @@
 <!-- Solange markierte Platzhalter (class="ph") auf der Seite stehen, soll keine
      Suchmaschine sie aufnehmen. Nach dem Ausfüllen diese Zeile löschen. -->
 <meta name="robots" content="noindex, nofollow">
-<title>Schlüsseldienst – Notdienst nachts & am Wochenende</title>
-<meta name="description" content="Schlüssel-Notdienst nachts, am Wochenende und an Feiertagen: Türöffnung zum Festpreis, Schlosstausch, abgebrochene Schlüssel.">
+<title>Preise – Schlüssel-Notdienst</title>
+<meta name="description" content="Transparente Endpreise für Türöffnung und Schlosstausch – ohne Nacht- oder Wochenendzuschläge.">
 <script>
   // Hell/Dunkel sofort setzen, bevor die Seite gezeichnet wird (Details in site.js)
   (function () {
@@ -37,9 +37,9 @@
       <span><b><span class="ph">[Firmenname]</span></b><small>Schlüssel-Notdienst <span class="ph">[Ort]</span></small></span>
     </a>
     <nav class="nav" id="nav" aria-label="Hauptmenü">
-      <a href="index.html" aria-current="page">Startseite</a>
+      <a href="index.html">Startseite</a>
       <a href="leistungen.html">Leistungen</a>
-      <a href="preise.html">Preise</a>
+      <a href="preise.html" aria-current="page">Preise</a>
       <a href="kontakt.html">Kontakt</a>
     </nav>
     <button class="theme" type="button" aria-label="Darstellung umschalten">
@@ -55,73 +55,37 @@
 </header>
 
 <main id="inhalt">
-<section class="hero" style="background-image:url('images/hero.jpg')">
+<div class="pagehead">
   <div class="wrap">
-    <div class="kicker">Schlüssel-Notdienst <span class="ph">[Ort]</span></div>
-    <h1>Ausgesperrt? Wir helfen nachts und am Wochenende.</h1>
-    <p>Türöffnung, abgebrochene Schlüssel, Schlosstausch – in <span class="ph">[Ort]</span> und Umgebung.
-      Den Festpreis nennen wir Ihnen am Telefon, bevor wir losfahren.</p>
-    <div class="btns">
-      <a class="btn" href="tel:+490000000000">Anrufen: <span class="ph">[Telefonnummer]</span></a>
-      <a class="btn ghost" href="preise.html">Preise ansehen</a>
-    </div>
-  </div>
-</section>
-
-<div class="wrap">
-  <div class="facts">
-    <div><strong>Festpreis vorab</strong><span>Sie wissen vor der Anfahrt, was es kostet.</span></div>
-    <div><strong>Keine Zuschläge</strong><span>Unsere Preise gelten schon für Nacht und Wochenende.</span></div>
-    <div><strong>Mit Rechnung</strong><span>Sie bezahlen den vereinbarten Betrag – mit Beleg.</span></div>
+    <h1>Preise</h1>
+    <p>Unsere Preise sind Endpreise inklusive Umsatzsteuer und gelten bereits für Nacht, Wochenende und Feiertag.</p>
   </div>
 </div>
 
 <section class="section">
-  <div class="wrap">
-    <h2>Unsere Leistungen</h2>
-    <p class="intro">Wir sind ein reiner Notdienst – für die Zeiten, in denen andere Betriebe geschlossen haben.</p>
-    <div class="cols3">
-      <article class="teaser">
-        <img src="images/tuer.jpg" alt="Hand steckt einen Schlüssel ins Türschloss" width="600" height="400" loading="lazy">
-        <h3>Türöffnung</h3>
-        <p>Tür zugefallen oder abgeschlossen? Wir öffnen fachgerecht – zugefallene Türen in aller Regel ohne Schaden.</p>
-        <a class="more" href="leistungen.html#tueroeffnung">Mehr erfahren</a>
-      </article>
-      <article class="teaser">
-        <img src="images/schluessel.jpg" alt="Sicherheitsschlüssel am Schlüsselring" width="600" height="400" loading="lazy">
-        <h3>Abgebrochener Schlüssel</h3>
-        <p>Wir holen den abgebrochenen Teil aus dem Schloss und machen es wieder gangbar.</p>
-        <a class="more" href="leistungen.html#schluessel">Mehr erfahren</a>
-      </article>
-      <article class="teaser">
-        <img src="images/zylinder.jpg" alt="Verschiedene Schließzylinder" width="600" height="400" loading="lazy">
-        <h3>Schloss tauschen</h3>
-        <p>Nach Schlüsselverlust oder Einbruch setzen wir noch in derselben Nacht einen neuen Zylinder ein.</p>
-        <a class="more" href="leistungen.html#zylinder">Mehr erfahren</a>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section alt">
   <div class="wrap split">
     <div>
-      <h2>Ihr Notdienst in <span class="ph">[Ort]</span></h2>
-      <p>Eine zugefallene Tür passiert selten zu Bürozeiten. Deshalb sind wir genau dann für Sie da, wenn andere
-        Feierabend haben: werktags von 18 bis 8 Uhr, am Wochenende durchgehend und an Feiertagen.</p>
-      <p>Bei uns gibt es keine bösen Überraschungen. Sie erfahren den Preis am Telefon, wir öffnen nur bei
-        nachgewiesener Berechtigung, und Sie bekommen immer eine ordentliche Rechnung.</p>
-      <p><a class="more" href="kontakt.html">Einsatzgebiet und Ablauf</a></p>
+      <table class="prices">
+        <thead><tr><th scope="col">Leistung</th><th scope="col">Endpreis</th></tr></thead>
+        <tbody>
+          <tr><td>Öffnung einer zugefallenen Tür<small>Festpreis, inkl. Anfahrt im Einsatzgebiet</small></td><td><span class="ph">[Preis]</span> €</td></tr>
+          <tr><td>Öffnung einer abgeschlossenen Tür<small>Festpreis, inkl. Anfahrt im Einsatzgebiet</small></td><td><span class="ph">[Preis]</span> €</td></tr>
+          <tr><td>Abgebrochenen Schlüssel entfernen<small>Festpreis, inkl. Anfahrt im Einsatzgebiet</small></td><td><span class="ph">[Preis]</span> €</td></tr>
+          <tr><td>Einbau eines neuen Schließzylinders<small>Arbeitsleistung; der Zylinder kommt hinzu – Preis nennen wir vorher</small></td><td><span class="ph">[Preis]</span> €</td></tr>
+          <tr><td>Anfahrt ohne Auftrag<small>wenn Sie den Einsatz erst vor Ort absagen</small></td><td><span class="ph">[Preis]</span> €</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">Alle Preise in Euro, inklusive gesetzlicher Umsatzsteuer. Zahlung <span class="ph">[bar oder mit Karte]</span>.
+        Sie erhalten immer eine Rechnung.</p>
     </div>
     <aside class="box">
-      <h3>Erreichbarkeit</h3>
-      <table class="hours">
-        <tr><th>Mo – Fr</th><td>18:00 – 8:00 Uhr</td></tr>
-        <tr><th>Wochenende</th><td>Fr 18:00 – Mo 8:00 Uhr</td></tr>
-        <tr><th>Feiertage</th><td>ganztägig</td></tr>
-      </table>
-      <p class="muted" style="margin:0"><span class="state" hidden></span></p>
-      <a class="tel" href="tel:+490000000000"><span class="ph">[Telefonnummer]</span></a>
+      <h3>So erkennen Sie einen seriösen Schlüsseldienst</h3>
+      <ul class="checklist">
+        <li>Er nennt den Preis vor der Anfahrt.</li>
+        <li>Er verlangt keine überraschenden Zuschläge.</li>
+        <li>Er prüft, ob Sie zur Wohnung gehören.</li>
+        <li>Er stellt eine Rechnung mit Anschrift aus.</li>
+      </ul>
     </aside>
   </div>
 </section>

@@ -1,25 +1,72 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="light" data-mode="auto">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Solange markierte Platzhalter (class="ph") auf der Seite stehen, soll keine
+     Suchmaschine sie aufnehmen. Nach dem Ausfüllen diese Zeile löschen. -->
 <meta name="robots" content="noindex, nofollow">
-<title>Impressum – Notfall-Schlüsseldienst</title>
-<meta name="theme-color" content="#0b1220">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230b1220'/%3E%3Ccircle cx='9' cy='9' r='4' fill='none' stroke='%23ffb020' stroke-width='2'/%3E%3Cpath d='M12 12l7 7m-3-3l2-2m-4 0l2-2' stroke='%23ffb020' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>Impressum – Schlüssel-Notdienst</title>
+<meta name="description" content="Impressum">
+<script>
+  // Hell/Dunkel sofort setzen, bevor die Seite gezeichnet wird (Details in site.js)
+  (function () {
+    var m = "auto"; try { m = localStorage.getItem("theme") || "auto"; } catch (e) {}
+    var h = new Date().getHours(), d = document.documentElement;
+    d.setAttribute("data-mode", m);
+    d.setAttribute("data-theme", m === "auto" ? (h >= 7 && h < 19 ? "light" : "dark") : m);
+  })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%23f2b705'/%3E%3Cg fill='none' stroke='%2315130c' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='9' cy='9' r='4'/%3E%3Cpath d='M12 12l7 7m-3-3l2-2m-4 0l2-2'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
 
-<main id="inhalt" class="legal">
+<div class="topbar">
   <div class="wrap">
-    <a class="back" href="./">← Zur Startseite</a>
-    <h1>Impressum</h1>
+    <span class="hide-s">Notdienst: Mo–Fr 18–8 Uhr · Sa, So &amp; Feiertage durchgehend</span>
+    <span><span class="state" hidden></span> &nbsp; <a href="tel:+490000000000">Tel. <span class="ph">[Telefonnummer]</span></a></span>
+  </div>
+</div>
 
-    <h2>Angaben gemäß § 5 DDG</h2>
+<header class="header">
+  <div class="wrap">
+    <a class="logo" href="index.html">
+      <span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="8" cy="8" r="5"/><path d="M11.5 11.5L21 21M17.5 17.5l2-2M14.5 14.5l2-2"/></g></svg></span>
+      <span><b><span class="ph">[Firmenname]</span></b><small>Schlüssel-Notdienst <span class="ph">[Ort]</span></small></span>
+    </a>
+    <nav class="nav" id="nav" aria-label="Hauptmenü">
+      <a href="index.html">Startseite</a>
+      <a href="leistungen.html">Leistungen</a>
+      <a href="preise.html">Preise</a>
+      <a href="kontakt.html">Kontakt</a>
+    </nav>
+    <button class="theme" type="button" aria-label="Darstellung umschalten">
+      <svg class="i-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+      <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span class="lbl">Automatisch</span>
+    </button>
+    <button class="menu" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menü">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="inhalt">
+<div class="pagehead">
+  <div class="wrap">
+    <h1>Impressum</h1>
+    <p>Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG)</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="wrap legal">
+    <h2 style="margin-top:0">Anbieter</h2>
     <address>
-      <span class="ph">[Firmenname, ggf. mit Rechtsform]</span><br>
+      <span class="ph">[Firmenname]</span><br>
       Inhaber: <span class="ph">[Vor- und Nachname]</span><br>
       <span class="ph">[Straße und Hausnummer]</span><br>
       <span class="ph">[PLZ Ort]</span><br>
@@ -27,35 +74,80 @@
     </address>
 
     <h2>Kontakt</h2>
-    <p>
-      Telefon: <a href="tel:+490000000000"><span class="ph">[Telefonnummer]</span></a><br>
-      E-Mail: <a href="mailto:kontakt@example.org"><span class="ph">[E-Mail-Adresse]</span></a>
-    </p>
+    <p>Telefon: <a href="tel:+490000000000"><span class="ph">[Telefonnummer]</span></a><br>
+      E-Mail: <a href="mailto:kontakt@example.org"><span class="ph">[E-Mail-Adresse]</span></a></p>
 
-    <!-- Nur angeben, wenn vorhanden – sonst den ganzen Abschnitt löschen. -->
+    <!-- Nur angeben, wenn vorhanden – sonst den Abschnitt löschen. -->
     <h2>Umsatzsteuer-ID</h2>
-    <p>Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:<br>
-      <span class="ph">[DE000000000]</span></p>
+    <p>Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz: <span class="ph">[DE000000000]</span></p>
 
-    <!-- Nur angeben, wenn der Betrieb in die Handwerksrolle bzw. das Verzeichnis
-         handwerksähnlicher Gewerbe eingetragen ist – sonst löschen. -->
+    <!-- Nur angeben, wenn der Betrieb bei der Handwerkskammer eingetragen ist – sonst löschen. -->
     <h2>Handwerkskammer</h2>
     <p>Eingetragen bei der <span class="ph">[Name und Anschrift der Handwerkskammer]</span>.</p>
 
     <h2>Verbraucherstreitbeilegung</h2>
     <p>Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer
       Verbraucherschlichtungsstelle teilzunehmen.</p>
+
+    <h2>Bildnachweise</h2>
+    <ul class="credits">
+      <li>Startseite oben: „Key hanging from a door lock at an entrance near a building“ von Shixart1985,
+        <a href="https://commons.wikimedia.org/wiki/File:Key_hanging_from_a_door_lock_at_an_entrance_near_a_building.jpg" rel="noopener">Wikimedia Commons</a>,
+        Lizenz <a href="https://creativecommons.org/licenses/by/2.0/deed.de" rel="noopener">CC BY 2.0</a>, Ausschnitt.</li>
+      <li>Türöffnung: „Closeup of a man's hand inserting a key into the door lock of a gate“ von Shixart1985,
+        <a href="https://commons.wikimedia.org/wiki/File:Closeup_of_a_man%27s_hand_inserting_a_key_into_the_door_lock_of_a_gate.jpg" rel="noopener">Wikimedia Commons</a>,
+        Lizenz <a href="https://creativecommons.org/licenses/by/2.0/deed.de" rel="noopener">CC BY 2.0</a>, Ausschnitt.</li>
+      <li>Abgebrochener Schlüssel: „Door key for lock type BKS Janus on keyring“ von Pittigrilli,
+        <a href="https://commons.wikimedia.org/wiki/File:Door_key_for_lock_type_BKS_Janus_on_keyring.jpg" rel="noopener">Wikimedia Commons</a>,
+        Lizenz <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de" rel="noopener">CC BY-SA 4.0</a>, verkleinert.</li>
+      <li>Schloss tauschen: „Industry smart lock cylinder“ von Chole Wu,
+        <a href="https://commons.wikimedia.org/wiki/File:Industry_smart_lock_cylinder.jpg" rel="noopener">Wikimedia Commons</a>,
+        Lizenz <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de" rel="noopener">CC BY-SA 4.0</a>, Ausschnitt.</li>
+    </ul>
   </div>
+</section>
 </main>
 
-<footer>
+<footer class="footer">
   <div class="wrap">
-    <span>© 2026 <span class="ph">[Firmenname]</span></span>
-    <nav aria-label="Rechtliches">
-      <a href="impressum.html" aria-current="page">Impressum</a>
-      <a href="datenschutz.html">Datenschutz</a>
-    </nav>
+    <div class="cols">
+      <div>
+        <h4><span class="ph">[Firmenname]</span></h4>
+        <address>
+          <span class="ph">[Straße und Hausnummer]</span><br>
+          <span class="ph">[PLZ Ort]</span><br>
+          Tel. <a href="tel:+490000000000"><span class="ph">[Telefonnummer]</span></a><br>
+          <a href="mailto:kontakt@example.org"><span class="ph">[E-Mail-Adresse]</span></a>
+        </address>
+      </div>
+      <div>
+        <h4>Notdienstzeiten</h4>
+        <ul>
+          <li>Mo–Fr: 18:00 – 8:00 Uhr</li>
+          <li>Wochenende: Fr 18:00 – Mo 8:00 Uhr</li>
+          <li>Feiertage: ganztägig</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Seiten</h4>
+        <ul>
+          <li><a href="leistungen.html">Leistungen</a></li>
+          <li><a href="preise.html">Preise</a></li>
+          <li><a href="kontakt.html">Kontakt &amp; Einsatzgebiet</a></li>
+          <li><a href="impressum.html">Impressum</a></li>
+          <li><a href="datenschutz.html">Datenschutz</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="base">
+      <span>© <span class="year">2026</span> <span class="ph">[Firmenname]</span></span>
+      <span><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a></span>
+    </div>
   </div>
 </footer>
+
+<div class="callbar"><a class="btn" href="tel:+490000000000">Jetzt anrufen</a></div>
+
+<script src="site.js"></script>
 </body>
 </html>

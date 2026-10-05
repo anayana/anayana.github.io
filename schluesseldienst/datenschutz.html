@@ -1,25 +1,72 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="light" data-mode="auto">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Solange markierte Platzhalter (class="ph") auf der Seite stehen, soll keine
+     Suchmaschine sie aufnehmen. Nach dem Ausfüllen diese Zeile löschen. -->
 <meta name="robots" content="noindex, nofollow">
-<title>Datenschutz – Notfall-Schlüsseldienst</title>
-<meta name="theme-color" content="#0b1220">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230b1220'/%3E%3Ccircle cx='9' cy='9' r='4' fill='none' stroke='%23ffb020' stroke-width='2'/%3E%3Cpath d='M12 12l7 7m-3-3l2-2m-4 0l2-2' stroke='%23ffb020' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>Datenschutz – Schlüssel-Notdienst</title>
+<meta name="description" content="Datenschutzerklärung">
+<script>
+  // Hell/Dunkel sofort setzen, bevor die Seite gezeichnet wird (Details in site.js)
+  (function () {
+    var m = "auto"; try { m = localStorage.getItem("theme") || "auto"; } catch (e) {}
+    var h = new Date().getHours(), d = document.documentElement;
+    d.setAttribute("data-mode", m);
+    d.setAttribute("data-theme", m === "auto" ? (h >= 7 && h < 19 ? "light" : "dark") : m);
+  })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%23f2b705'/%3E%3Cg fill='none' stroke='%2315130c' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='9' cy='9' r='4'/%3E%3Cpath d='M12 12l7 7m-3-3l2-2m-4 0l2-2'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
 
-<main id="inhalt" class="legal">
+<div class="topbar">
   <div class="wrap">
-    <a class="back" href="./">← Zur Startseite</a>
-    <h1>Datenschutzerklärung</h1>
+    <span class="hide-s">Notdienst: Mo–Fr 18–8 Uhr · Sa, So &amp; Feiertage durchgehend</span>
+    <span><span class="state" hidden></span> &nbsp; <a href="tel:+490000000000">Tel. <span class="ph">[Telefonnummer]</span></a></span>
+  </div>
+</div>
 
-    <p>Wir nehmen den Schutz Ihrer Daten ernst und erheben so wenig wie möglich. Diese Website verwendet
-      <strong>keine Cookies, kein Tracking, keine Analyse-Werkzeuge und keine Inhalte von Drittanbietern</strong>
-      (keine eingebundenen Schriften, Karten oder Videos).</p>
+<header class="header">
+  <div class="wrap">
+    <a class="logo" href="index.html">
+      <span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="8" cy="8" r="5"/><path d="M11.5 11.5L21 21M17.5 17.5l2-2M14.5 14.5l2-2"/></g></svg></span>
+      <span><b><span class="ph">[Firmenname]</span></b><small>Schlüssel-Notdienst <span class="ph">[Ort]</span></small></span>
+    </a>
+    <nav class="nav" id="nav" aria-label="Hauptmenü">
+      <a href="index.html">Startseite</a>
+      <a href="leistungen.html">Leistungen</a>
+      <a href="preise.html">Preise</a>
+      <a href="kontakt.html">Kontakt</a>
+    </nav>
+    <button class="theme" type="button" aria-label="Darstellung umschalten">
+      <svg class="i-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+      <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span class="lbl">Automatisch</span>
+    </button>
+    <button class="menu" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menü">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="inhalt">
+<div class="pagehead">
+  <div class="wrap">
+    <h1>Datenschutzerklärung</h1>
+    <p>Wir erheben so wenig Daten wie möglich.</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="wrap legal">
+    <p>Diese Website verwendet <strong>keine Cookies, kein Tracking, keine Analyse-Werkzeuge und keine Inhalte
+      von Drittanbietern</strong> (keine eingebundenen Schriften, Karten oder Videos). Alle Bilder liegen auf
+      demselben Server wie die Seite.</p>
 
     <h2>1. Verantwortlicher</h2>
     <p>Verantwortlich im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:</p>
@@ -37,26 +84,29 @@
       Das ist erforderlich, um die Website auszuliefern und vor Missbrauch zu schützen.</p>
     <p>Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und zuverlässigen Bereitstellung der Website
       (Art. 6 Abs. 1 lit. f DSGVO). Dabei können Daten in die USA übermittelt werden. GitHub ist nach dem
-      EU-US Data Privacy Framework zertifiziert; für die USA besteht insoweit ein Angemessenheitsbeschluss der
-      EU-Kommission (Art. 45 DSGVO). Weitere Informationen finden Sie in der
+      EU-US Data Privacy Framework zertifiziert; insoweit besteht ein Angemessenheitsbeschluss der EU-Kommission
+      (Art. 45 DSGVO). Näheres in der
       <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">Datenschutzerklärung von GitHub</a>.
       Wir selbst haben keinen Zugriff auf diese Protokolle.</p>
 
     <h2>3. Kontakt per Telefon oder E-Mail</h2>
     <p>Wenn Sie uns anrufen oder schreiben, verarbeiten wir die Angaben, die Sie uns dabei machen – etwa Name,
-      Telefonnummer, Einsatzort und Ihr Anliegen –, um Ihren Auftrag anzunehmen und auszuführen.
-      Rechtsgrundlage ist die Durchführung vorvertraglicher Maßnahmen bzw. die Erfüllung des Vertrags
+      Telefonnummer, Einsatzort und Ihr Anliegen –, um Ihren Auftrag anzunehmen und auszuführen
       (Art. 6 Abs. 1 lit. b DSGVO).</p>
     <p>Vor einer Türöffnung lassen wir uns Ihre Berechtigung nachweisen, in der Regel durch einen Blick in den
-      Personalausweis. Das dient dem Schutz vor unberechtigten Öffnungen (Art. 6 Abs. 1 lit. f DSGVO).
+      Ausweis. Das dient dem Schutz vor unberechtigten Öffnungen (Art. 6 Abs. 1 lit. f DSGVO).
       Eine Kopie des Ausweises fertigen wir nicht an.</p>
-    <p>Wir löschen Ihre Angaben, sobald sie nicht mehr benötigt werden. Rechnungen und die zugehörigen Angaben
-      bewahren wir so lange auf, wie es die handels- und steuerrechtlichen Aufbewahrungspflichten vorschreiben
-      (Art. 6 Abs. 1 lit. c DSGVO).</p>
+    <p>Wir löschen Ihre Angaben, sobald sie nicht mehr benötigt werden. Rechnungen bewahren wir so lange auf,
+      wie es die handels- und steuerrechtlichen Aufbewahrungspflichten vorschreiben (Art. 6 Abs. 1 lit. c DSGVO).</p>
 
-    <h2>4. Anzeige „Jetzt erreichbar“</h2>
-    <p>Die Anzeige auf der Startseite berechnet Ihr Browser selbst aus der aktuellen Uhrzeit. Dabei werden keine Daten
-      an uns oder an Dritte gesendet und nichts auf Ihrem Gerät gespeichert.</p>
+    <h2>4. Hell/Dunkel-Einstellung</h2>
+    <p>Wenn Sie über den Schalter oben die helle oder dunkle Darstellung wählen, merkt sich Ihr Browser diese Wahl
+      im lokalen Speicher (localStorage), damit sie beim nächsten Seitenaufruf erhalten bleibt. Diese Information
+      verlässt Ihr Gerät nicht und wird nicht an uns übertragen. Die Speicherung ist für diese von Ihnen
+      ausdrücklich gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Wählen Sie
+      „Automatisch“, wird der Eintrag gelöscht; Sie können ihn auch über die Browser-Einstellungen entfernen.</p>
+    <p>Die Anzeige „Jetzt erreichbar“ und die automatische Hell/Dunkel-Umschaltung berechnet Ihr Browser selbst aus
+      der Uhrzeit. Dabei werden keine Daten gesendet.</p>
 
     <h2>5. Ihre Rechte</h2>
     <p>Sie haben jederzeit das Recht auf</p>
@@ -68,7 +118,7 @@
       <li><strong>Widerspruch</strong> gegen eine Verarbeitung, die auf unserem berechtigten Interesse beruht,
         aus Gründen, die sich aus Ihrer besonderen Situation ergeben (Art. 21 DSGVO).</li>
     </ul>
-    <p>Wenden Sie sich dazu einfach an die oben genannten Kontaktdaten. Außerdem können Sie sich bei einer
+    <p>Wenden Sie sich dazu an die oben genannten Kontaktdaten. Außerdem können Sie sich bei einer
       Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO), etwa bei der Behörde Ihres Wohnorts oder der für uns
       zuständigen <span class="ph">[Landesdatenschutzbehörde des Bundeslands]</span>.</p>
 
@@ -77,18 +127,51 @@
       den Einsatzort und einen Berechtigungsnachweis – ohne diese Angaben können wir nicht tätig werden.
       Eine automatisierte Entscheidungsfindung oder Profilbildung findet nicht statt.</p>
 
-    <p class="note">Stand: Oktober 2026</p>
+    <p class="muted">Stand: Oktober 2026</p>
   </div>
+</section>
 </main>
 
-<footer>
+<footer class="footer">
   <div class="wrap">
-    <span>© 2026 <span class="ph">[Firmenname]</span></span>
-    <nav aria-label="Rechtliches">
-      <a href="impressum.html">Impressum</a>
-      <a href="datenschutz.html" aria-current="page">Datenschutz</a>
-    </nav>
+    <div class="cols">
+      <div>
+        <h4><span class="ph">[Firmenname]</span></h4>
+        <address>
+          <span class="ph">[Straße und Hausnummer]</span><br>
+          <span class="ph">[PLZ Ort]</span><br>
+          Tel. <a href="tel:+490000000000"><span class="ph">[Telefonnummer]</span></a><br>
+          <a href="mailto:kontakt@example.org"><span class="ph">[E-Mail-Adresse]</span></a>
+        </address>
+      </div>
+      <div>
+        <h4>Notdienstzeiten</h4>
+        <ul>
+          <li>Mo–Fr: 18:00 – 8:00 Uhr</li>
+          <li>Wochenende: Fr 18:00 – Mo 8:00 Uhr</li>
+          <li>Feiertage: ganztägig</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Seiten</h4>
+        <ul>
+          <li><a href="leistungen.html">Leistungen</a></li>
+          <li><a href="preise.html">Preise</a></li>
+          <li><a href="kontakt.html">Kontakt &amp; Einsatzgebiet</a></li>
+          <li><a href="impressum.html">Impressum</a></li>
+          <li><a href="datenschutz.html">Datenschutz</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="base">
+      <span>© <span class="year">2026</span> <span class="ph">[Firmenname]</span></span>
+      <span><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a></span>
+    </div>
   </div>
 </footer>
+
+<div class="callbar"><a class="btn" href="tel:+490000000000">Jetzt anrufen</a></div>
+
+<script src="site.js"></script>
 </body>
 </html>
