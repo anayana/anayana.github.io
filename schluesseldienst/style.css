@@ -22,7 +22,7 @@ html[data-theme="light"] {
   --top-text: #d3dbe6;
   --top-link: #ffb3b5;
   --hero-fallback: #2a313a;
-  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 8px 24px rgba(16, 24, 40, .06);
+  --shadow: none;
   color-scheme: light;
 }
 
@@ -91,19 +91,19 @@ p { margin: 0 0 1em; }
 .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--head); margin-right: auto; }
 .logo:hover { color: var(--head); }
 .logo img { height: 56px; width: auto; flex: none; }
-html[data-theme="dark"] .logo img { background: #fff; border-radius: 6px; padding: 3px 5px; }
+html[data-theme="dark"] .logo img { background: #fff; border-radius: 0; padding: 3px 5px; }
 .logo b { display: block; font-size: 25px; font-weight: 900; line-height: 1; letter-spacing: 1.5px; text-transform: uppercase; }
 .logo small { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; letter-spacing: 2.4px; text-transform: uppercase; color: var(--red); }
 @media (max-width: 480px) { .logo img { height: 42px; } .logo b { font-size: 21px; } .logo small { font-size: 9.5px; letter-spacing: 1.8px; } }
 
 .nav { display: flex; gap: 4px; }
-.nav a { padding: 8px 12px; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 4px; }
+.nav a { padding: 8px 12px; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 0; }
 .nav a:hover { background: var(--bg-alt); color: var(--text); }
 .nav a[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--blue); border-radius: 0; }
 
 .theme {
   display: inline-flex; align-items: center; gap: 6px; background: none; color: var(--text);
-  border: 1px solid var(--line); border-radius: 4px; padding: 7px 10px; font: inherit; font-size: 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 0; padding: 7px 10px; font: inherit; font-size: 14px; cursor: pointer;
 }
 .theme:hover { background: var(--bg-alt); }
 .theme svg { width: 18px; height: 18px; }
@@ -111,7 +111,7 @@ html[data-theme="dark"] .logo img { background: #fff; border-radius: 6px; paddin
 html[data-theme="dark"] .theme .i-sun { display: block; }
 html[data-theme="dark"] .theme .i-moon { display: none; }
 
-.menu { display: none; background: none; border: 1px solid var(--line); border-radius: 4px; padding: 8px; color: var(--text); cursor: pointer; }
+.menu { display: none; background: none; border: 1px solid var(--line); border-radius: 0; padding: 8px; color: var(--text); cursor: pointer; }
 .menu svg { width: 22px; height: 22px; display: block; }
 
 @media (max-width: 880px) {
@@ -127,7 +127,7 @@ html[data-theme="dark"] .theme .i-moon { display: none; }
 
 /* ---------- Knöpfe ---------- */
 .btn {
-  display: inline-block; padding: 13px 22px; border-radius: 4px; font-weight: 700; text-decoration: none;
+  display: inline-block; padding: 13px 22px; border-radius: 0; font-weight: 700; text-decoration: none;
   background: var(--red); color: #fff; border: 2px solid var(--red);
 }
 .btn:hover { background: var(--red-dark); border-color: var(--red-dark); color: #fff; }
@@ -160,7 +160,7 @@ html[data-theme="dark"] .theme .i-moon { display: none; }
 .section .intro { color: var(--muted); max-width: 720px; margin-bottom: 32px; }
 
 .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
-.card { background: var(--bg); border: 1px solid var(--line); border-top: 4px solid var(--blue); border-radius: 8px; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+.card { background: var(--bg); border: 1px solid var(--line); border-top: 4px solid var(--blue); border-radius: 0; display: flex; flex-direction: column; box-shadow: var(--shadow); }
 .card-body { padding: 26px 28px 28px; display: flex; flex-direction: column; flex: 1; }
 .card-body p { color: var(--muted); flex: 1; }
 .card-body .more { align-self: flex-start; }
@@ -168,7 +168,7 @@ html[data-theme="dark"] .theme .i-moon { display: none; }
 .more:hover { color: var(--blue-dark); background: var(--blue-soft); }
 
 .split { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: start; }
-.box { border: 1px solid var(--line); border-top: 4px solid var(--blue); background: var(--bg); padding: 26px 28px; border-radius: 8px; box-shadow: var(--shadow); }
+.box { border: 1px solid var(--line); border-top: 4px solid var(--blue); background: var(--bg); padding: 26px 28px; border-radius: 0; box-shadow: var(--shadow); }
 .box h3 { margin-bottom: 12px; }
 .box .tel { font-size: 24px; font-weight: 800; text-decoration: none; color: var(--red); display: inline-block; margin: 6px 0 4px; }
 
