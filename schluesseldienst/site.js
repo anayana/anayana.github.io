@@ -1,37 +1,27 @@
 // Schlüsseldienst – kleine Helfer für alle Seiten:
 // Hell/Dunkel umschalten, Menü auf dem Handy, Anzeige „Jetzt erreichbar“.
-// Gespeichert wird nur die Hell/Dunkel-Wahl, und nur im eigenen Browser.
+// Gespeichert wird nur die Wahl „Dunkel“, und nur im eigenen Browser.
 (function () {
   var html = document.documentElement;
 
   // ---------- Hell / Dunkel ----------
-  // "auto": tagsüber (TAG_AB bis NACHT_AB Uhr) hell, sonst dunkel.
-  var TAG_AB = 7, NACHT_AB = 19;
-  var MODI = ["auto", "light", "dark"];
-  var NAMEN = { auto: "Automatisch", light: "Hell", dark: "Dunkel" };
-
-  function anwenden(modus) {
-    var h = new Date().getHours();
-    html.setAttribute("data-mode", modus);
-    html.setAttribute("data-theme", modus === "auto" ? (h >= TAG_AB && h < NACHT_AB ? "light" : "dark") : modus);
+  // Standard ist hell. Wer auf „Dunkel“ schaltet, dem merkt sich der Browser das.
+  function anwenden(thema) {
+    html.setAttribute("data-theme", thema);
     var knopf = document.querySelector(".theme");
     if (knopf) {
-      knopf.querySelector(".lbl").textContent = NAMEN[modus];
-      knopf.setAttribute("aria-label", "Darstellung: " + NAMEN[modus] + " – umschalten");
+      var ziel = thema === "dark" ? "Hell" : "Dunkel";
+      knopf.querySelector(".lbl").textContent = ziel;
+      knopf.setAttribute("aria-label", "Auf " + ziel + " umschalten");
     }
   }
 
-  function gespeichert() {
-    try { return localStorage.getItem("theme") || "auto"; } catch (e) { return "auto"; }
-  }
-
-  var modus = gespeichert();
-  anwenden(modus);
+  anwenden(html.getAttribute("data-theme") === "dark" ? "dark" : "light");
   var knopf = document.querySelector(".theme");
   if (knopf) knopf.addEventListener("click", function () {
-    modus = MODI[(MODI.indexOf(modus) + 1) % MODI.length];
-    try { modus === "auto" ? localStorage.removeItem("theme") : localStorage.setItem("theme", modus); } catch (e) {}
-    anwenden(modus);
+    var neu = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    try { neu === "dark" ? localStorage.setItem("theme", "dark") : localStorage.removeItem("theme"); } catch (e) {}
+    anwenden(neu);
   });
 
   // ---------- Menü auf dem Handy ----------
@@ -75,7 +65,6 @@
   }
 
   function aktualisieren() {
-    if (modus === "auto") anwenden("auto");
     if (!window.Intl) return;
     var offen = erreichbar();
     document.querySelectorAll(".state").forEach(function (el) {

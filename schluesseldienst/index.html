@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de" data-theme="light" data-mode="auto">
+<html lang="de" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,14 +11,12 @@
 <script>
   // Hell/Dunkel sofort setzen, bevor die Seite gezeichnet wird (Details in site.js)
   (function () {
-    var m = "auto"; try { m = localStorage.getItem("theme") || "auto"; } catch (e) {}
-    var h = new Date().getHours(), d = document.documentElement;
-    d.setAttribute("data-mode", m);
-    d.setAttribute("data-theme", m === "auto" ? (h >= 7 && h < 19 ? "light" : "dark") : m);
+    var t = null; try { t = localStorage.getItem("theme"); } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light");
   })();
 </script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%23f2b705'/%3E%3Cg fill='none' stroke='%2315130c' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='9' cy='9' r='4'/%3E%3Cpath d='M12 12l7 7m-3-3l2-2m-4 0l2-2'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
@@ -43,10 +41,9 @@
       <a href="kontakt.html">Kontakt</a>
     </nav>
     <button class="theme" type="button" aria-label="Darstellung umschalten">
-      <svg class="i-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg>
       <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
       <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-      <span class="lbl">Automatisch</span>
+      <span class="lbl">Dunkel</span>
     </button>
     <button class="menu" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menü">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -55,49 +52,57 @@
 </header>
 
 <main id="inhalt">
-<section class="hero" style="background-image:url('images/hero.jpg')">
-  <div class="wrap">
-    <div class="kicker">Schlüssel-Notdienst <span class="ph">[Ort]</span></div>
-    <h1>Ausgesperrt? Wir helfen nachts und am Wochenende.</h1>
-    <p>Türöffnung, abgebrochene Schlüssel, Schlosstausch – in <span class="ph">[Ort]</span> und Umgebung.
-      Den Festpreis nennen wir Ihnen am Telefon, bevor wir losfahren.</p>
-    <div class="btns">
-      <a class="btn" href="tel:+490000000000">Anrufen: <span class="ph">[Telefonnummer]</span></a>
-      <a class="btn ghost" href="preise.html">Preise ansehen</a>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <div class="kicker">Schlüssel-Notdienst <span class="ph">[Ort]</span></div>
+      <h1>Ausgesperrt? Wir helfen nachts und am Wochenende.</h1>
+      <p class="lead">Türöffnung, abgebrochene Schlüssel und Schlosstausch in <span class="ph">[Ort]</span> und Umgebung.
+        Den Festpreis nennen wir Ihnen am Telefon, bevor wir losfahren.</p>
+      <div class="btns">
+        <a class="btn" href="tel:+490000000000">Anrufen: <span class="ph">[Telefonnummer]</span></a>
+        <a class="btn outline" href="preise.html">Preise ansehen</a>
+      </div>
+      <ul class="ticks">
+        <li>Festpreis vorab</li>
+        <li>Keine Nacht- und Wochenendzuschläge</li>
+        <li>Immer mit Rechnung</li>
+      </ul>
+    </div>
+    <div class="hero-pic">
+      <img src="images/hero.jpg" alt="Schlüssel steckt im Schloss einer Haustür" width="1920" height="1080">
     </div>
   </div>
 </section>
-
-<div class="wrap">
-  <div class="facts">
-    <div><strong>Festpreis vorab</strong><span>Sie wissen vor der Anfahrt, was es kostet.</span></div>
-    <div><strong>Keine Zuschläge</strong><span>Unsere Preise gelten schon für Nacht und Wochenende.</span></div>
-    <div><strong>Mit Rechnung</strong><span>Sie bezahlen den vereinbarten Betrag – mit Beleg.</span></div>
-  </div>
-</div>
 
 <section class="section">
   <div class="wrap">
     <h2>Unsere Leistungen</h2>
     <p class="intro">Wir sind ein reiner Notdienst – für die Zeiten, in denen andere Betriebe geschlossen haben.</p>
     <div class="cols3">
-      <article class="teaser">
+      <article class="card">
         <img src="images/tuer.jpg" alt="Hand steckt einen Schlüssel ins Türschloss" width="600" height="400" loading="lazy">
-        <h3>Türöffnung</h3>
-        <p>Tür zugefallen oder abgeschlossen? Wir öffnen fachgerecht – zugefallene Türen in aller Regel ohne Schaden.</p>
-        <a class="more" href="leistungen.html#tueroeffnung">Mehr erfahren</a>
+        <div class="card-body">
+          <h3>Türöffnung</h3>
+          <p>Tür zugefallen oder abgeschlossen? Wir öffnen fachgerecht – zugefallene Türen in aller Regel ohne Schaden.</p>
+          <a class="more" href="leistungen.html#tueroeffnung">Mehr erfahren</a>
+        </div>
       </article>
-      <article class="teaser">
+      <article class="card">
         <img src="images/schluessel.jpg" alt="Sicherheitsschlüssel am Schlüsselring" width="600" height="400" loading="lazy">
-        <h3>Abgebrochener Schlüssel</h3>
-        <p>Wir holen den abgebrochenen Teil aus dem Schloss und machen es wieder gangbar.</p>
-        <a class="more" href="leistungen.html#schluessel">Mehr erfahren</a>
+        <div class="card-body">
+          <h3>Abgebrochener Schlüssel</h3>
+          <p>Wir holen den abgebrochenen Teil aus dem Schloss und machen es wieder gangbar.</p>
+          <a class="more" href="leistungen.html#schluessel">Mehr erfahren</a>
+        </div>
       </article>
-      <article class="teaser">
+      <article class="card">
         <img src="images/zylinder.jpg" alt="Verschiedene Schließzylinder" width="600" height="400" loading="lazy">
-        <h3>Schloss tauschen</h3>
-        <p>Nach Schlüsselverlust oder Einbruch setzen wir noch in derselben Nacht einen neuen Zylinder ein.</p>
-        <a class="more" href="leistungen.html#zylinder">Mehr erfahren</a>
+        <div class="card-body">
+          <h3>Schloss tauschen</h3>
+          <p>Nach Schlüsselverlust oder Einbruch setzen wir noch in derselben Nacht einen neuen Zylinder ein.</p>
+          <a class="more" href="leistungen.html#zylinder">Mehr erfahren</a>
+        </div>
       </article>
     </div>
   </div>
@@ -177,6 +182,6 @@
 
 <div class="callbar"><a class="btn" href="tel:+490000000000">Jetzt anrufen</a></div>
 
-<script src="site.js"></script>
+<script src="site.js?v=3"></script>
 </body>
 </html>
