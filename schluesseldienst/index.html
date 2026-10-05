@@ -16,7 +16,7 @@
   })();
 </script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%23f2b705'/%3E%3Cg fill='none' stroke='%2315130c' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='9' cy='9' r='4'/%3E%3Cpath d='M12 12l7 7m-3-3l2-2m-4 0l2-2'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
@@ -69,9 +69,16 @@
         <li>Immer mit Rechnung</li>
       </ul>
     </div>
-    <div class="hero-pic">
-      <img src="images/hero.jpg" alt="Schlüssel steckt im Schloss einer Haustür" width="1920" height="1080">
-    </div>
+    <aside class="box hero-box">
+      <h3>Notruf</h3>
+      <a class="tel" href="tel:+490000000000"><span class="ph">[Telefonnummer]</span></a>
+      <p class="muted"><span class="state" hidden></span></p>
+      <table class="hours">
+        <tr><th>Mo – Fr</th><td>18:00 – 8:00 Uhr</td></tr>
+        <tr><th>Wochenende</th><td>Fr 18:00 – Mo 8:00 Uhr</td></tr>
+        <tr><th>Feiertage</th><td>ganztägig</td></tr>
+      </table>
+    </aside>
   </div>
 </section>
 
@@ -81,7 +88,6 @@
     <p class="intro">Wir sind ein reiner Notdienst – für die Zeiten, in denen andere Betriebe geschlossen haben.</p>
     <div class="cols3">
       <article class="card">
-        <img src="images/tuer.jpg" alt="Hand steckt einen Schlüssel ins Türschloss" width="600" height="400" loading="lazy">
         <div class="card-body">
           <h3>Türöffnung</h3>
           <p>Tür zugefallen oder abgeschlossen? Wir öffnen fachgerecht – zugefallene Türen in aller Regel ohne Schaden.</p>
@@ -89,7 +95,6 @@
         </div>
       </article>
       <article class="card">
-        <img src="images/schluessel.jpg" alt="Sicherheitsschlüssel am Schlüsselring" width="600" height="400" loading="lazy">
         <div class="card-body">
           <h3>Abgebrochener Schlüssel</h3>
           <p>Wir holen den abgebrochenen Teil aus dem Schloss und machen es wieder gangbar.</p>
@@ -97,7 +102,6 @@
         </div>
       </article>
       <article class="card">
-        <img src="images/zylinder.jpg" alt="Verschiedene Schließzylinder" width="600" height="400" loading="lazy">
         <div class="card-body">
           <h3>Schloss tauschen</h3>
           <p>Nach Schlüsselverlust oder Einbruch setzen wir noch in derselben Nacht einen neuen Zylinder ein.</p>
@@ -119,14 +123,13 @@
       <p><a class="more" href="kontakt.html">Einsatzgebiet und Ablauf</a></p>
     </div>
     <aside class="box">
-      <h3>Erreichbarkeit</h3>
-      <table class="hours">
-        <tr><th>Mo – Fr</th><td>18:00 – 8:00 Uhr</td></tr>
-        <tr><th>Wochenende</th><td>Fr 18:00 – Mo 8:00 Uhr</td></tr>
-        <tr><th>Feiertage</th><td>ganztägig</td></tr>
-      </table>
-      <p class="muted" style="margin:0"><span class="state" hidden></span></p>
-      <a class="tel" href="tel:+490000000000"><span class="ph">[Telefonnummer]</span></a>
+      <h3>So läuft ein Einsatz ab</h3>
+      <ol class="steps">
+        <li>Sie rufen an und sagen, was passiert ist.</li>
+        <li>Wir nennen Festpreis und Ankunftszeit.</li>
+        <li>Vor Ort zeigen Sie Ihren Ausweis.</li>
+        <li>Wir öffnen, Sie erhalten eine Rechnung.</li>
+      </ol>
     </aside>
   </div>
 </section>
@@ -182,6 +185,6 @@
 
 <div class="callbar"><a class="btn" href="tel:+490000000000">Jetzt anrufen</a></div>
 
-<script src="site.js?v=3"></script>
+<script src="site.js?v=4"></script>
 </body>
 </html>
