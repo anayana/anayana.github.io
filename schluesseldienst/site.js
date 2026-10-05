@@ -35,9 +35,9 @@
   // Gerechnet wird mit deutscher Zeit. Werktags ab ABENDS bis MORGENS Uhr,
   // Sa/So und Feiertage ganztägig.
   var ABENDS = 18, MORGENS = 8;
-  // Landesfeiertage hier ergänzen: feste Tage als "MM-TT" (z. B. "01-06"),
-  // bewegliche als Abstand zu Ostersonntag (z. B. 60 = Fronleichnam).
-  var LAND_FEST = [], LAND_OSTERN = [];
+  // Dazu die Feiertage in Baden-Württemberg: Heilige Drei Könige, Allerheiligen
+  // (fest, "MM-TT") und Fronleichnam (60 Tage nach Ostersonntag).
+  var LAND_FEST = ["01-06", "11-01"], LAND_OSTERN = [60];
   var BUND_FEST = ["01-01", "05-01", "10-03", "12-25", "12-26"];
   var BUND_OSTERN = [-2, 1, 39, 50];
 
