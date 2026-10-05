@@ -16,6 +16,7 @@ project:
     - vta-repair.html      # outside vta/, so no worker of the app can intercept it
     - baum/                # a clean copy of the app at a path with no history
     - companions/
+    - schluesseldienst/    # a standalone site, copied as it is
 
 website:
   title: "A. Naya"
