@@ -140,7 +140,10 @@ html[data-theme="dark"] .theme .i-moon { display: none; }
 .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; padding: 64px 0 72px; }
 .hero .kicker { text-transform: uppercase; letter-spacing: 2.2px; font-size: 13px; font-weight: 800; color: var(--red); margin-bottom: 14px; display: inline-flex; align-items: center; gap: 12px; }
 .hero .kicker::before, .hero .kicker::after { content: ""; width: 24px; height: 2px; background: var(--head); }
-.hero h1 { max-width: 560px; }
+.hero h1 { max-width: 560px; font-size: clamp(36px, 5.4vw, 56px); line-height: 1.1; }
+.hero h1 .accent { color: var(--red); white-space: nowrap; }
+@media (max-width: 480px) { .hero .kicker { font-size: 11px; letter-spacing: 1.4px; gap: 8px; } .hero .kicker::before, .hero .kicker::after { width: 14px; } }
+.hero .lead strong { color: var(--head); }
 .hero .lead { font-size: 19px; color: var(--muted); max-width: 540px; margin-bottom: 28px; }
 .ticks { list-style: none; padding: 0; margin: 28px 0 0; display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 15px; font-weight: 600; }
 .ticks li { display: flex; align-items: center; gap: 8px; }
