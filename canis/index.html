@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Canis Memoria – Hundeskelett lernen</title>
+<meta name="description" content="Memory, Zeige-Quiz und Begriffstafel fuer die lateinischen Knochennamen am Hundeskelett.">
+<link rel="icon" href="/assets/favicon.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=Archivo:wght@400;500;600&display=swap">
+<style>
+/* Layout: anatomische Lerntafel - Kopf, Modusreiter, darunter je Modus ein Panel (Memory-Raster / grosse Skelettafel / Begriffsliste) */
+:root{
+  --paper:#eceee7; --panel:#f8f9f4; --sunk:#e3e6dd;
+  --ink:#16201d; --ink-soft:#5b6762; --line:#d1d6cb;
+  --bone:#e4dcc6; --bone-line:#8a8169;
+  --accent:#0d6e72; --accent-ghost:rgba(13,110,114,.3); --accent-weak:#dbe8e7;
+  --on-accent:#f8f9f4;
+  --good:#2f6b46; --bad:#9d3a2b;
+  --font-display:"Spectral",Georgia,"Times New Roman",serif;
+  --font-ui:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#141918; --panel:#1b2222; --sunk:#111616;
+  --ink:#e7ebe7; --ink-soft:#97a5a0; --line:#2c3535;
+  --bone:#b9b09a; --bone-line:#6a6354;
+  --accent:#5fcfd0; --accent-ghost:rgba(95,207,208,.3); --accent-weak:#12383a;
+  --on-accent:#0e1514;
+  --good:#6cc08a; --bad:#e08271;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --paper:#141918; --panel:#1b2222; --sunk:#111616;
+  --ink:#e7ebe7; --ink-soft:#97a5a0; --line:#2c3535;
+  --bone:#b9b09a; --bone-line:#6a6354;
+  --accent:#5fcfd0; --accent-ghost:rgba(95,207,208,.3); --accent-weak:#12383a;
+  --on-accent:#0e1514;
+  --good:#6cc08a; --bad:#e08271;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-ui);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(30px,7vw,46px);line-height:1.04}
+.eyebrow{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.lede{margin:12px 0 0;max-width:62ch;color:var(--ink-soft);font-size:15px}
+
+.tabs{display:flex;gap:2px;margin-top:20px;flex-wrap:wrap}
+.tab{appearance:none;border:1px solid var(--line);border-bottom-color:transparent;background:transparent;color:var(--ink-soft);
+  font:inherit;font-size:13px;font-weight:500;padding:9px 15px;border-radius:var(--r) var(--r) 0 0;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:inset 0 2px 0 var(--accent)}
+.tab:hover{color:var(--ink)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:0 var(--r) var(--r) var(--r);padding:18px}
+
+.bar{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;padding-bottom:16px;border-bottom:1px solid var(--line)}
+label.fld{display:flex;flex-direction:column;gap:4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+select{font:inherit;font-size:14px;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:7px;padding:7px 9px}
+.btn{font:inherit;font-size:14px;font-weight:500;padding:8px 16px;border-radius:7px;border:1px solid var(--accent);
+  background:var(--accent);color:var(--on-accent);cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stats{display:flex;gap:16px;margin-left:auto;flex-wrap:wrap;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+.stats b{display:block;font-family:var(--font-display);font-size:21px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink);font-variant-numeric:tabular-nums}
+
+.mgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-top:18px}
+@media(min-width:800px){.mgrid{grid-template-columns:minmax(0,1fr) 258px}}
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;min-width:0}
+.card{appearance:none;border:0;padding:0;background:none;cursor:pointer;perspective:800px;border-radius:var(--r)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.card .inner{position:relative;display:block;width:100%;aspect-ratio:1.59/1;transform-style:preserve-3d;transition:transform .42s cubic-bezier(.4,.08,.2,1)}
+.card.up .inner,.card.done .inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;border:1px solid var(--line);border-radius:var(--r);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--panel)}
+.face.back{background:repeating-linear-gradient(135deg,transparent 0 7px,var(--sunk) 7px 14px),var(--panel)}
+.face.front{transform:rotateY(180deg);padding:3px;flex-direction:column;gap:1px}
+.card.done .face{border-color:var(--accent);background:var(--accent-weak)}
+.card.miss .face{border-color:var(--bad)}
+.card[disabled]{cursor:default}
+.paw{width:26%;max-width:30px;opacity:.5;fill:var(--accent)}
+.card .la{font-family:var(--font-display);font-weight:600;font-size:clamp(12px,2.9vw,16px);line-height:1.12;text-align:center;padding:0 4px;overflow-wrap:break-word}
+.card .cat{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);text-align:center}
+
+.skel{width:100%;height:100%;display:block;max-width:100%}
+.bn{--bf:var(--bone);--bs:var(--bone-line)}
+.bn .f{fill:var(--bf);stroke:var(--bs);stroke-width:1.3;stroke-linejoin:round}
+.bn .so{fill:none;stroke:var(--bs);stroke-width:5.4;stroke-linecap:round}
+.bn .si{fill:none;stroke:var(--bf);stroke-width:3.6;stroke-linecap:round}
+.bn .ring{fill:none;stroke:var(--bs);stroke-width:2.8}
+.bn.on{--bf:var(--accent);--bs:var(--accent)}
+.ground{fill:none;stroke:var(--line);stroke-width:1.6;stroke-dasharray:3 6}
+.hit *{fill:transparent;stroke:transparent;stroke-width:6;pointer-events:all}
+.tgt{cursor:pointer}
+.tgt:hover .bn{--bf:var(--accent-ghost);--bs:var(--accent)}
+.tgt.good .bn{--bf:var(--good);--bs:var(--good)}
+.tgt.bad .bn{--bf:var(--bad);--bs:var(--bad)}
+.tgt.reveal .bn{--bf:var(--accent);--bs:var(--accent)}
+.q-done .tgt{cursor:default;pointer-events:none}
+
+.found h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);font-family:var(--font-ui);font-weight:600}
+.found ol{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
+.found li{border-left:2px solid var(--accent);padding:1px 0 1px 10px}
+.found .la{font-family:var(--font-display);font-size:16px;font-weight:600}
+.found .de{font-size:13px;color:var(--ink)}
+.found .nt{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.found .empty{font-size:13px;color:var(--ink-soft);border:1px dashed var(--line);padding:10px;border-radius:7px}
+.win{margin-top:16px;border:1px solid var(--accent);background:var(--accent-weak);border-radius:var(--r);padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.win p{margin:0;font-family:var(--font-display);font-size:18px}
+.win span{font-size:13px;color:var(--ink-soft)}
+
+.qgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}
+@media(min-width:760px){.qgrid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}}
+.stage{background:var(--sunk);border:1px solid var(--line);border-radius:var(--r);padding:6px}
+.ask{font-family:var(--font-display);font-size:clamp(20px,4.4vw,28px);font-weight:600;margin:0;line-height:1.1}
+.askde{color:var(--ink-soft);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:5px 0 0}
+.verdict{margin:14px 0 0;font-size:14px;min-height:5em;border-left:2px solid var(--line);padding-left:11px;color:var(--ink-soft)}
+.verdict.ok{border-color:var(--good)}
+.verdict.no{border-color:var(--bad)}
+.verdict b{font-family:var(--font-display);font-size:15px;color:var(--ink)}
+.verdict .mark{font-weight:600}
+.verdict.ok .mark{color:var(--good)}
+.verdict.no .mark{color:var(--bad)}
+.verdict .nt{font-size:13px;margin-top:3px}
+.pips{display:flex;gap:4px;margin-top:14px;flex-wrap:wrap}
+.pip{width:13px;height:13px;border-radius:50%;border:1px solid var(--line);background:var(--sunk)}
+.pip.ok{background:var(--good);border-color:var(--good)}
+.pip.no{background:var(--bad);border-color:var(--bad)}
+
+.tgroup{margin-top:22px}
+.tgroup h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-ui);color:var(--accent)}
+.tlist{display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));gap:12px;margin-top:11px}
+.tcard{display:grid;grid-template-columns:124px minmax(0,1fr);gap:11px;align-items:center;border:1px solid var(--line);border-radius:var(--r);padding:9px}
+.tcard .thumb{background:var(--sunk);border-radius:7px;padding:2px}
+.tcard .la{font-family:var(--font-display);font-size:17px;font-weight:600;line-height:1.15}
+.tcard .de{font-size:13px}
+.tcard .nt{font-size:12px;color:var(--ink-soft);margin-top:3px}
+footer{margin-top:26px;font-size:12px;color:var(--ink-soft);max-width:68ch}
+@media (prefers-reduced-motion:reduce){.card .inner{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="eyebrow">Nomina Anatomica Veterinaria</p>
+  <h1>Canis Memoria</h1>
+  <p class="lede">Das Hundeskelett im Seitenriss, Knochen f&uuml;r Knochen: Memory mit Bild-und-Begriff-Paaren, ein Zeige-Quiz am Skelett und 28 lateinische Begriffe zum Nachschlagen.</p>
+  <nav class="tabs" role="tablist" aria-label="Modus">
+    <button class="tab" role="tab" id="tab-memory" aria-selected="true" aria-controls="panel-memory">Memory</button>
+    <button class="tab" role="tab" id="tab-zeigen" aria-selected="false" aria-controls="panel-zeigen">Zeige-Quiz</button>
+    <button class="tab" role="tab" id="tab-begriffe" aria-selected="false" aria-controls="panel-begriffe">Begriffe</button>
+  </nav>
+</header>
+
+<main>
+<section class="panel" id="panel-memory" role="tabpanel" aria-labelledby="tab-memory">
+  <div class="bar">
+    <label class="fld" for="m-cat">Region
+      <select id="m-cat">
+        <option value="alle">Alles gemischt</option>
+        <option value="kopf">Kopf &amp; Hals</option>
+        <option value="rumpf">Rumpf &amp; Rute</option>
+        <option value="vorne">Vordergliedma&szlig;e</option>
+        <option value="hinten">Hintergliedma&szlig;e</option>
+      </select>
+    </label>
+    <label class="fld" for="m-pairs">Paare
+      <select id="m-pairs"><option>6</option><option selected>8</option><option>12</option></select>
+    </label>
+    <button class="btn" id="m-new" type="button">Neues Spiel</button>
+    <div class="stats">
+      <span>Z&uuml;ge <b id="m-moves">0</b></span>
+      <span>Paare <b id="m-found">0/8</b></span>
+      <span>Zeit <b id="m-time">0:00</b></span>
+      <span>Best <b id="m-best">&ndash;</b></span>
+    </div>
+  </div>
+  <div id="m-win" class="win" hidden></div>
+  <div class="mgrid">
+    <div id="m-board" class="board"></div>
+    <aside class="found">
+      <h2>Gefundene Paare</h2>
+      <ol id="m-log"></ol>
+    </aside>
+  </div>
+</section>
+
+<section class="panel" id="panel-zeigen" role="tabpanel" aria-labelledby="tab-zeigen" hidden>
+  <div class="bar">
+    <label class="fld" for="q-cat">Region
+      <select id="q-cat">
+        <option value="alle">Alles gemischt</option>
+        <option value="kopf">Kopf &amp; Hals</option>
+        <option value="rumpf">Rumpf &amp; Rute</option>
+        <option value="vorne">Vordergliedma&szlig;e</option>
+        <option value="hinten">Hintergliedma&szlig;e</option>
+      </select>
+    </label>
+    <button class="btn" id="q-new" type="button">Neue Runde</button>
+    <div class="stats">
+      <span>Frage <b id="q-no">1/12</b></span>
+      <span>Richtig <b id="q-score">0</b></span>
+      <span>Serie <b id="q-streak">0</b></span>
+    </div>
+  </div>
+  <div class="qgrid">
+    <div class="stage" id="q-stage"></div>
+    <div>
+      <p class="eyebrow">Zeig am Skelett</p>
+      <p class="ask" id="q-ask">&nbsp;</p>
+      <p class="askde" id="q-hint">&nbsp;</p>
+      <div class="verdict" id="q-verdict">Klicke den Knochen an, den der lateinische Begriff bezeichnet.</div>
+      <div class="pips" id="q-pips"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="panel-begriffe" role="tabpanel" aria-labelledby="tab-begriffe" hidden>
+  <p class="lede" style="margin-top:2px">28 Knochen und Knochengruppen nach Region, jeweils im Skelett hervorgehoben. Die Namen folgen der Nomina Anatomica Veterinaria, wie sie in Anatomie, Befund und R&ouml;ntgenbericht verwendet werden.</p>
+  <div id="t-all"></div>
+</section>
+</main>
+
+<footer>
+  Schematischer Seitenriss: 13 Rippenpaare, sieben Hals- und sieben Lendenwirbel, 13 Brustwirbel, deren Dornforts&auml;tze den Widerrist bilden. Das Schulterblatt h&auml;ngt nur in Muskeln &ndash; ein Schl&uuml;sselbein hat der Hund nicht.
+</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+function $(id){return document.getElementById(id);}
+function n(v){return Math.round(v*10)/10;}
+
+/* ---------- Skelett: Geometrie ---------- */
+var VB="16 72 424 266";
+
+function bz(p,t){var m=1-t;return [m*m*m*p[0][0]+3*m*m*t*p[1][0]+3*m*t*t*p[2][0]+t*t*t*p[3][0],
+  m*m*m*p[0][1]+3*m*m*t*p[1][1]+3*m*t*t*p[2][1]+t*t*t*p[3][1]];}
+function bzd(p,t){var m=1-t;return [3*m*m*(p[1][0]-p[0][0])+6*m*t*(p[2][0]-p[1][0])+3*t*t*(p[3][0]-p[2][0]),
+  3*m*m*(p[1][1]-p[0][1])+6*m*t*(p[2][1]-p[1][1])+3*t*t*(p[3][1]-p[2][1])];}
+
+/* Roehrenknochen: runde Gelenkenden, in der Mitte eingeschnuerter Schaft */
+function bone(x1,y1,x2,y2,re,rm){
+  var dx=x2-x1,dy=y2-y1,L=Math.sqrt(dx*dx+dy*dy)||1,ux=dx/L,uy=dy/L,px=-uy,py=ux,k=1.34;
+  var mx=(x1+x2)/2,my=(y1+y2)/2,o=2*rm-re;
+  var a1x=x1+px*re,a1y=y1+py*re,a2x=x2+px*re,a2y=y2+py*re;
+  var b2x=x2-px*re,b2y=y2-py*re,b1x=x1-px*re,b1y=y1-py*re;
+  return '<path class="f" d="M'+n(a1x)+' '+n(a1y)+
+    'Q'+n(mx+px*o)+' '+n(my+py*o)+' '+n(a2x)+' '+n(a2y)+
+    'C'+n(a2x+ux*re*k)+' '+n(a2y+uy*re*k)+' '+n(b2x+ux*re*k)+' '+n(b2y+uy*re*k)+' '+n(b2x)+' '+n(b2y)+
+    'Q'+n(mx-px*o)+' '+n(my-py*o)+' '+n(b1x)+' '+n(b1y)+
+    'C'+n(b1x-ux*re*k)+' '+n(b1y-uy*re*k)+' '+n(a1x-ux*re*k)+' '+n(a1y-uy*re*k)+' '+n(a1x)+' '+n(a1y)+'Z"/>';
+}
+/* Band: flacher Knochen als Streifen mit Kontur (Rippe, Dornfortsatz) */
+function band(d){return '<path class="so" d="'+d+'"/><path class="si" d="'+d+'"/>';}
+/* Wirbelkette entlang einer Kurve */
+function vert(p,count,r0,r1,wm,hm){
+  var s="";
+  for(var i=0;i<count;i++){
+    var t=count===1?0:i/(count-1),pt=bz(p,t),d=bzd(p,t),r=r0+(r1-r0)*t;
+    var a=Math.atan2(d[1],d[0])*180/Math.PI;
+    s+='<rect class="f" x="'+n(pt[0]-r*wm)+'" y="'+n(pt[1]-r*hm)+'" width="'+n(r*2*wm)+'" height="'+n(r*2*hm)+
+       '" rx="'+n(r*0.45)+'" transform="rotate('+n(a)+' '+n(pt[0])+' '+n(pt[1])+')"/>';
+  }
+  return s;
+}
+
+var NECK=[[158,158],[168,184],[188,182],[200,156]];
+var SP_T=[[200,152],[232,145],[266,144],[298,147]];
+var SP_L=[[298,147],[316,147],[334,150],[350,156]];
+var TAIL=[[374,162],[398,146],[416,118],[414,86]];
+var RIB_D=[[202,151],[232,145],[264,144],[296,147]];
+var RIB_V=[[190,228],[212,258],[266,248],[300,192]];
+var STERN=[[178,228],[198,242],[228,248],[252,250]];
+
+var P={};
+/* Kopf */
+P.cranium='<path class="f" d="M83 113C89 103 99 99 112 100C126 101 135 110 137 120C139 130 133 139 123 139C113 139 101 134 93 127C87 122 83 118 83 113Z"/>'+
+  band("M86 138C96 150 112 152 125 141");
+P.maxilla='<path class="f" d="M30 122C44 117 62 113 80 111L84 142L40 150C32 149 28 136 30 122Z"/>'+
+  '<path class="f" d="M40 150L46 149L43 158Z"/><path class="f" d="M52 148L58 147L55 153Z"/>'+
+  '<path class="f" d="M62 147L68 146L65 152Z"/><path class="f" d="M72 145L78 144L75 150Z"/>';
+P.mandibula='<path class="f" d="M36 152L98 157C106 157 112 152 116 145L122 133L129 137L123 152C119 160 110 164 98 163L39 161C33 160 31 153 36 152Z"/>';
+P.orbita='<circle class="ring" cx="90" cy="124" r="8"/>';
+P.atlas='<path class="f" d="M138 142C146 138 156 141 158 148C160 155 153 161 145 159C139 157 136 149 138 142Z"/>';
+P.cervicales=vert(NECK,6,5.4,6.2,1.05,.95);
+/* Rumpf */
+(function(){
+  var s=vert(SP_T,13,5.6,5.2,1.05,.95);
+  for(var i=0;i<13;i++){
+    var t=i/12,pt=bz(SP_T,t),len=Math.max(13,36-Math.abs(i-2)*2.2),lean=i<10?7-0.5*i:-4;
+    s+=band("M"+n(pt[0])+" "+n(pt[1]-3)+"L"+n(pt[0]+lean)+" "+n(pt[1]-len));
+  }
+  P.thoracicae=s;
+  var l=vert(SP_L,7,6.2,6.6,1.05,.95);
+  for(var j=0;j<7;j++){
+    var tj=j/6,pj=bz(SP_L,tj);
+    l+=band("M"+n(pj[0])+" "+n(pj[1]-3)+"L"+n(pj[0]-6)+" "+n(pj[1]-17));
+  }
+  P.lumbales=l;
+  var r="";
+  for(var k=0;k<13;k++){
+    var tk=k/12,d=bz(RIB_D,tk),v=bz(RIB_V,tk),bf=1-Math.abs(tk-0.42)*0.8;
+    r+=band("M"+n(d[0])+" "+n(d[1])+"C"+n(d[0]-20*bf)+" "+n(d[1]+30*bf)+" "+n(v[0]-16*bf)+" "+n(v[1]-44*bf)+" "+n(v[0])+" "+n(v[1]));
+  }
+  P.costae=r;
+})();
+P.sternum=vert(STERN,8,4.4,3.4,1.5,.72);
+P.sacrum='<path class="f" d="M350 149C358 147 368 151 375 158C379 163 375 169 369 168L353 164C348 162 347 153 350 149Z"/>';
+P.caudales=vert(TAIL,12,5.2,1.9,1.1,.95);
+P.pelvis='<path class="f" d="M327 133C338 129 346 139 350 151L362 177C372 173 388 175 392 183C394 191 384 196 374 192L358 194C348 192 344 182 342 172L324 145Z"/>'+
+  '<circle class="ring" cx="362" cy="187" r="6"/>';
+/* Vordergliedmasse */
+P.scapula='<path class="f" d="M208 122C219 116 233 119 242 129L226 194C222 203 211 203 207 194L200 139Z"/>'+
+  band("M223 127L214 190");
+P.humerus=bone(214,204,238,244,7,4);
+P.ulna=bone(248,235,238,282,5,2.8);
+P.radius=bone(236,246,228,286,5.5,3.2);
+P.carpus='<rect class="f" x="221" y="287" width="13" height="5.4" rx="2.2"/>'+
+  '<rect class="f" x="222" y="293" width="12" height="5.2" rx="2.2"/>';
+P.metacarpus=bone(226,299,228,309,3.4,2.4)+bone(231,299,234,309,3.4,2.4);
+P.phalangesManus=bone(227,310,235,318,2.9,2)+bone(232,310,242,317,2.9,2)+bone(236,309,247,314,2.7,1.9);
+/* Hintergliedmasse */
+P.femur=bone(362,190,332,240,7.5,4.2);
+P.patella='<ellipse class="f" cx="325" cy="236" rx="5.4" ry="4.2" transform="rotate(-20 325 236)"/>';
+P.tibia=bone(334,244,358,284,6.4,3.4);
+P.fibula=bone(343,248,364,280,3,1.6);
+P.calcaneus=bone(357,290,369,271,4.6,3);
+P.tarsus='<rect class="f" x="350" y="288" width="13" height="5.4" rx="2.2"/>'+
+  '<rect class="f" x="350" y="294" width="12" height="5.2" rx="2.2"/>';
+P.metatarsus=bone(354,300,351,310,3.4,2.4)+bone(359,300,357,310,3.4,2.4);
+P.phalangesPedis=bone(352,311,360,318,2.9,2)+bone(357,311,367,317,2.9,2)+bone(361,310,372,314,2.7,1.9);
+
+/* Zeichenreihenfolge: hinten liegende Teile zuerst, kleine Knochen zuletzt */
+var IDS=["costae","sternum","thoracicae","lumbales","caudales","cervicales","atlas",
+  "cranium","maxilla","mandibula","orbita","pelvis","sacrum","femur","tibia","fibula",
+  "phalangesPedis","calcaneus","tarsus","metatarsus","patella",
+  "scapula","humerus","ulna","radius","phalangesManus","carpus","metacarpus"];
+var GROUND='<path class="ground" d="M168 321L402 321"/>';
+
+function skelSVG(hl){
+  var s="";
+  IDS.forEach(function(id){s+='<g class="bn'+(id===hl?" on":"")+'">'+P[id]+"</g>";});
+  return '<svg class="skel" viewBox="'+VB+'" aria-hidden="true">'+GROUND+s+"</svg>";
+}
+function skelQuizSVG(){
+  var s="";
+  IDS.forEach(function(id){
+    s+='<g class="tgt" data-id="'+id+'"><g class="hit">'+P[id]+'</g><g class="bn">'+P[id]+"</g></g>";
+  });
+  return '<svg class="skel" id="q-svg" viewBox="'+VB+'" role="img" aria-label="Hundeskelett im Seitenriss, Knochen anklickbar">'+
+    GROUND+s+"</svg>";
+}
+var PAW='<svg class="paw" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="21.5" rx="8" ry="6.4"/>'+
+  '<ellipse cx="6.6" cy="13" rx="3.3" ry="4.3"/><ellipse cx="12.8" cy="8.4" rx="3.3" ry="4.6"/>'+
+  '<ellipse cx="19.2" cy="8.4" rx="3.3" ry="4.6"/><ellipse cx="25.4" cy="13" rx="3.3" ry="4.3"/></svg>';
+
+/* ---------- Begriffe ---------- */
+var TERMS=[
+  {id:"cranium",la:"Cranium",de:"Hirnschädel",cat:"kopf",nt:"Die Schädelkapsel, die das Gehirn umschließt."},
+  {id:"maxilla",la:"Maxilla",de:"Oberkiefer",cat:"kopf",nt:"Oberkieferbein, trägt die oberen Backenzähne."},
+  {id:"mandibula",la:"Mandibula",de:"Unterkiefer",cat:"kopf",nt:"Der einzige bewegliche Schädelknochen."},
+  {id:"orbita",la:"Orbita",de:"Augenhöhle",cat:"kopf",nt:"Beim Hund nach hinten offen und nur von einem Band geschlossen."},
+  {id:"atlas",la:"Atlas",de:"erster Halswirbel",cat:"kopf",nt:"Trägt den Schädel; das Nicken findet zwischen Schädel und Atlas statt."},
+  {id:"cervicales",la:"Vertebrae cervicales",de:"Halswirbel",cat:"kopf",nt:"Sieben Stück – wie bei fast allen Säugetieren, auch bei der Giraffe."},
+  {id:"thoracicae",la:"Vertebrae thoracicae",de:"Brustwirbel",cat:"rumpf",nt:"13 Stück; ihre langen Dornfortsätze bilden den Widerrist."},
+  {id:"costae",la:"Costae",de:"Rippen",cat:"rumpf",nt:"13 Paare, davon neun mit knorpeliger Verbindung zum Brustbein."},
+  {id:"sternum",la:"Sternum",de:"Brustbein",cat:"rumpf",nt:"Acht Sternebrae hintereinander, vorn das Manubrium."},
+  {id:"lumbales",la:"Vertebrae lumbales",de:"Lendenwirbel",cat:"rumpf",nt:"Sieben kräftige Wirbel zwischen Brustkorb und Kreuzbein."},
+  {id:"sacrum",la:"Os sacrum",de:"Kreuzbein",cat:"rumpf",nt:"Drei verschmolzene Wirbel, fest mit dem Becken verbunden."},
+  {id:"pelvis",la:"Pelvis",de:"Becken",cat:"rumpf",nt:"Aus Darmbein (Ilium), Sitzbein (Ischium) und Schambein (Pubis)."},
+  {id:"caudales",la:"Vertebrae caudales",de:"Schwanzwirbel",cat:"rumpf",nt:"20 bis 23 Stück, nach hinten immer kleiner werdend."},
+  {id:"scapula",la:"Scapula",de:"Schulterblatt",cat:"vorne",nt:"Hängt nur in Muskeln – ein Schlüsselbein hat der Hund nicht."},
+  {id:"humerus",la:"Humerus",de:"Oberarmbein",cat:"vorne",nt:"Zwischen Schultergelenk und Ellbogengelenk."},
+  {id:"radius",la:"Radius",de:"Speiche",cat:"vorne",nt:"Der vordere Unterarmknochen, trägt das meiste Gewicht."},
+  {id:"ulna",la:"Ulna",de:"Elle",cat:"vorne",nt:"Hinterer Unterarmknochen; ihr Fortsatz Olecranon bildet den Ellbogenhöcker."},
+  {id:"carpus",la:"Carpus",de:"Vorderfußwurzel",cat:"vorne",nt:"Sieben kleine Knochen in zwei Reihen, das Karpalgelenk."},
+  {id:"metacarpus",la:"Metacarpus",de:"Vordermittelfuß",cat:"vorne",nt:"Fünf Mittelfußknochen, der erste stark verkleinert."},
+  {id:"phalangesManus",la:"Phalanges manus",de:"Zehenknochen vorn",cat:"vorne",nt:"Drei Glieder je Zehe; das letzte trägt die Kralle."},
+  {id:"femur",la:"Femur",de:"Oberschenkelbein",cat:"hinten",nt:"Längster Röhrenknochen, im Hüftgelenk eingelenkt."},
+  {id:"patella",la:"Patella",de:"Kniescheibe",cat:"hinten",nt:"Sesambein in der Sehne des Musculus quadriceps."},
+  {id:"tibia",la:"Tibia",de:"Schienbein",cat:"hinten",nt:"Der kräftige, tragende Unterschenkelknochen."},
+  {id:"fibula",la:"Fibula",de:"Wadenbein",cat:"hinten",nt:"Dünner Knochen neben der Tibia, trägt kaum Gewicht."},
+  {id:"calcaneus",la:"Calcaneus",de:"Fersenbein",cat:"hinten",nt:"Sein Höcker ist der Ansatz der Achillessehne."},
+  {id:"tarsus",la:"Tarsus",de:"Sprunggelenk",cat:"hinten",nt:"Sieben Fußwurzelknochen; das Fersenbein gehört dazu."},
+  {id:"metatarsus",la:"Metatarsus",de:"Hintermittelfuß",cat:"hinten",nt:"Vier tragende Mittelfußknochen."},
+  {id:"phalangesPedis",la:"Phalanges pedis",de:"Zehenknochen hinten",cat:"hinten",nt:"Meist vier Zehen; Afterkrallen fehlen häufig."}
+];
+var BY={},CATS={kopf:"Kopf & Hals",rumpf:"Rumpf & Rute",vorne:"Vordergliedmaße",hinten:"Hintergliedmaße"};
+TERMS.forEach(function(t){BY[t.id]=t;});
+var INSIDE={cranium:["orbita"],tarsus:["calcaneus"]};
+
+var LS={
+  get:function(k,d){try{var v=localStorage.getItem("cm:"+k);return v===null?d:JSON.parse(v);}catch(e){return d;}},
+  set:function(k,v){try{localStorage.setItem("cm:"+k,JSON.stringify(v));}catch(e){}}
+};
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function pool(cat){return cat==="alle"?TERMS.slice():TERMS.filter(function(t){return t.cat===cat;});}
+function mmss(s){var m=Math.floor(s/60),r=s%60;return m+":"+(r<10?"0":"")+r;}
+
+/* ---------- Reiter ---------- */
+var MODES=["memory","zeigen","begriffe"];
+function setMode(m,push){
+  if(MODES.indexOf(m)<0)m="memory";
+  MODES.forEach(function(k){
+    $("tab-"+k).setAttribute("aria-selected",k===m?"true":"false");
+    $("panel-"+k).hidden=(k!==m);
+  });
+  if(push){try{history.replaceState(null,"","#"+m);}catch(e){}}
+  if(m==="zeigen"&&!quiz.started)newRound();
+}
+MODES.forEach(function(k){$("tab-"+k).addEventListener("click",function(){setMode(k,true);});});
+
+/* ---------- Memory ---------- */
+var mem={cards:[],open:[],busy:false,moves:0,found:0,pairs:8,cat:"alle",t0:0,timer:null};
+function bestKey(){return "best:"+mem.cat+":"+mem.pairs;}
+function showBest(){var b=LS.get(bestKey(),null);$("m-best").textContent=b?mmss(b):"–";}
+function stopTimer(){if(mem.timer){clearInterval(mem.timer);mem.timer=null;}}
+function tick(){$("m-time").textContent=mmss(Math.round((Date.now()-mem.t0)/1000));}
+
+function newGame(){
+  stopTimer();
+  mem.cat=$("m-cat").value;
+  mem.pairs=parseInt($("m-pairs").value,10);
+  LS.set("cat",mem.cat);LS.set("pairs",mem.pairs);
+  var p=shuffle(pool(mem.cat));
+  p=p.slice(0,Math.min(mem.pairs,p.length));
+  mem.pairs=p.length;
+  mem.cards=[];
+  p.forEach(function(t){mem.cards.push({t:t,side:"img"});mem.cards.push({t:t,side:"word"});});
+  shuffle(mem.cards);
+  mem.open=[];mem.busy=false;mem.moves=0;mem.found=0;mem.t0=0;
+  $("m-moves").textContent="0";
+  $("m-found").textContent="0/"+mem.pairs;
+  $("m-time").textContent="0:00";
+  $("m-win").hidden=true;
+  $("m-log").innerHTML='<li class="empty">Noch kein Paar gefunden. Dreh ein Skelett auf und daneben den passenden lateinischen Begriff.</li>';
+  showBest();
+  var b=$("m-board");
+  b.innerHTML="";
+  mem.cards.forEach(function(c,i){
+    var btn=document.createElement("button");
+    btn.className="card";btn.type="button";
+    btn.setAttribute("aria-label","Karte "+(i+1)+", verdeckt");
+    btn.innerHTML='<span class="inner"><span class="face back">'+PAW+'</span><span class="face front">'+
+      (c.side==="img"?skelSVG(c.t.id):'<span class="la">'+c.t.la+'</span><span class="cat">'+CATS[c.t.cat]+"</span>")+
+      "</span></span>";
+    btn.addEventListener("click",function(){flip(i);});
+    b.appendChild(btn);
+  });
+  layoutBoard();
+}
+function layoutBoard(){
+  var b=$("m-board"),cnt=mem.cards.length,w=b.clientWidth||400;
+  var d=cnt===12?[6,4,3]:cnt===16?[8,4]:[8,6,4],c=d[d.length-1];
+  for(var i=0;i<d.length;i++){if((w-(d[i]-1)*9)/d[i]>=96){c=d[i];break;}}
+  b.style.gridTemplateColumns="repeat("+c+",minmax(0,1fr))";
+}
+window.addEventListener("resize",function(){if(mem.cards.length)layoutBoard();});
+function cardEl(i){return $("m-board").children[i];}
+function flip(i){
+  if(mem.busy)return;
+  var c=mem.cards[i],el=cardEl(i);
+  if(c.done||el.classList.contains("up"))return;
+  if(!mem.t0){mem.t0=Date.now();mem.timer=setInterval(tick,500);}
+  el.classList.add("up");
+  el.setAttribute("aria-label",(c.side==="img"?"Skelett: ":"Begriff: ")+c.t.la);
+  mem.open.push(i);
+  if(mem.open.length<2)return;
+  mem.moves++;
+  $("m-moves").textContent=mem.moves;
+  var a=mem.open[0],b=mem.open[1];
+  if(mem.cards[a].t.id===mem.cards[b].t.id&&mem.cards[a].side!==mem.cards[b].side){
+    mem.cards[a].done=true;mem.cards[b].done=true;
+    cardEl(a).classList.add("done");cardEl(b).classList.add("done");
+    cardEl(a).disabled=true;cardEl(b).disabled=true;
+    mem.open=[];mem.found++;
+    $("m-found").textContent=mem.found+"/"+mem.pairs;
+    logPair(mem.cards[a].t);
+    if(mem.found===mem.pairs)finish();
+  }else{
+    mem.busy=true;
+    cardEl(a).classList.add("miss");cardEl(b).classList.add("miss");
+    setTimeout(function(){
+      [a,b].forEach(function(k){
+        var e=cardEl(k);
+        e.classList.remove("up","miss");
+        e.setAttribute("aria-label","Karte "+(k+1)+", verdeckt");
+      });
+      mem.open=[];mem.busy=false;
+    },900);
+  }
+}
+function logPair(t){
+  var ol=$("m-log");
+  if(ol.querySelector(".empty"))ol.innerHTML="";
+  var li=document.createElement("li");
+  li.innerHTML='<div><span class="la">'+t.la+'</span> <span class="de">– '+t.de+'</span></div><div class="nt">'+t.nt+"</div>";
+  ol.insertBefore(li,ol.firstChild);
+}
+function finish(){
+  stopTimer();
+  var secs=Math.round((Date.now()-mem.t0)/1000);
+  $("m-time").textContent=mmss(secs);
+  var b=LS.get(bestKey(),null),rec=(b===null||secs<b);
+  if(rec)LS.set(bestKey(),secs);
+  showBest();
+  var w=$("m-win");
+  w.innerHTML='<p>Alle '+mem.pairs+' Paare gefunden.</p><span>'+mem.moves+" Züge · "+mmss(secs)+
+    (rec?" · neue Bestzeit":"")+'</span><button class="btn ghost" id="m-again" type="button">Nochmal</button>';
+  w.hidden=false;
+  $("m-again").addEventListener("click",newGame);
+}
+$("m-new").addEventListener("click",newGame);
+$("m-cat").addEventListener("change",newGame);
+$("m-pairs").addEventListener("change",newGame);
+
+/* ---------- Zeige-Quiz ---------- */
+var quiz={list:[],i:0,score:0,streak:0,started:false,locked:false};
+function newRound(){
+  var p=pool($("q-cat").value);
+  quiz.list=shuffle(p).slice(0,Math.min(12,p.length));
+  quiz.i=0;quiz.score=0;quiz.streak=0;quiz.started=true;quiz.locked=false;
+  $("q-score").textContent="0";
+  $("q-streak").textContent="0";
+  $("q-stage").innerHTML=skelQuizSVG();
+  $("q-svg").addEventListener("click",onStageClick);
+  var pips="";
+  for(var k=0;k<quiz.list.length;k++)pips+='<span class="pip" data-k="'+k+'"></span>';
+  $("q-pips").innerHTML=pips;
+  $("q-verdict").className="verdict";
+  $("q-verdict").textContent="Klicke den Knochen an, den der lateinische Begriff bezeichnet.";
+  askNext();
+}
+function askNext(){
+  var t=quiz.list[quiz.i];
+  $("q-no").textContent=(quiz.i+1)+"/"+quiz.list.length;
+  $("q-ask").textContent=t.la;
+  $("q-hint").textContent=CATS[t.cat];
+  var g=$("q-stage").querySelectorAll(".tgt");
+  for(var i=0;i<g.length;i++)g[i].classList.remove("good","bad","reveal");
+  $("q-stage").classList.remove("q-done");
+}
+function onStageClick(ev){
+  if(quiz.locked)return;
+  var g=ev.target.closest?ev.target.closest(".tgt"):null;
+  if(!g)return;
+  var picked=g.getAttribute("data-id"),t=quiz.list[quiz.i];
+  var part=(INSIDE[t.id]||[]).indexOf(picked)>=0,ok=(picked===t.id||part);
+  quiz.locked=true;
+  $("q-stage").classList.add("q-done");
+  var v=$("q-verdict");
+  if(ok){
+    g.classList.add("good");
+    quiz.score++;quiz.streak++;
+    v.className="verdict ok";
+    v.innerHTML='<span class="mark">Richtig.</span> '+(part?BY[picked].la+" gehört zum ":"")+"<b>"+t.la+"</b> – "+t.de+
+      '<div class="nt">'+t.nt+"</div>";
+  }else{
+    g.classList.add("bad");
+    var right=$("q-stage").querySelector('.tgt[data-id="'+t.id+'"]');
+    if(right)right.classList.add("reveal");
+    quiz.streak=0;
+    v.className="verdict no";
+    v.innerHTML='<span class="mark">Daneben.</span> Angeklickt war <b>'+BY[picked].la+"</b>, "+BY[picked].de+
+      '. <div class="nt"><b>'+t.la+"</b> ist "+t.de+" – jetzt türkis markiert. "+t.nt+"</div>";
+  }
+  $("q-score").textContent=quiz.score;
+  $("q-streak").textContent=quiz.streak;
+  var pip=$("q-pips").querySelector('.pip[data-k="'+quiz.i+'"]');
+  if(pip)pip.classList.add(ok?"ok":"no");
+  setTimeout(function(){
+    quiz.i++;
+    if(quiz.i>=quiz.list.length){
+      $("q-ask").textContent="Runde fertig";
+      $("q-hint").textContent=quiz.score+" von "+quiz.list.length+" richtig";
+      $("q-no").textContent=quiz.list.length+"/"+quiz.list.length;
+      quiz.started=false;
+    }else{
+      quiz.locked=false;
+      askNext();
+    }
+  },ok?1500:2900);
+}
+$("q-new").addEventListener("click",newRound);
+$("q-cat").addEventListener("change",newRound);
+
+/* ---------- Begriffstafel ---------- */
+(function(){
+  var html="";
+  Object.keys(CATS).forEach(function(c){
+    html+='<div class="tgroup"><h2>'+CATS[c]+'</h2><div class="tlist">';
+    TERMS.filter(function(t){return t.cat===c;}).forEach(function(t){
+      html+='<div class="tcard"><div class="thumb">'+skelSVG(t.id)+'</div><div>'+
+        '<div class="la">'+t.la+'</div><div class="de">'+t.de+'</div><div class="nt">'+t.nt+"</div></div></div>";
+    });
+    html+="</div></div>";
+  });
+  $("t-all").innerHTML=html;
+})();
+
+var sc=LS.get("cat","alle"),sp=LS.get("pairs",8);
+$("m-cat").value=sc;$("q-cat").value=sc;$("m-pairs").value=String(sp);
+newGame();
+setMode((location.hash||"").replace("#",""),false);
+})();
+</script>
+</body>
+</html>

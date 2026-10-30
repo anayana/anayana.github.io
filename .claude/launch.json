@@ -48,6 +48,18 @@
                                                    "C:/Users/Admin/R/PersPage/companions"
                                                ],
                                "port":  8791
+                           },
+                           {
+                               "name":  "canis",
+                               "runtimeExecutable":  "C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe",
+                               "runtimeArgs":  [
+                                                   "-m",
+                                                   "http.server",
+                                                   "8792",
+                                                   "--directory",
+                                                   "C:/Users/Admin/R/PersPage/canis"
+                                               ],
+                               "port":  8792
                            }
                        ]
 }

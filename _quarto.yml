@@ -17,6 +17,7 @@ project:
     - baum/                # a clean copy of the app at a path with no history
     - companions/
     - schluesseldienst/    # a standalone site, copied as it is
+    - canis/
 
 website:
   title: "A. Naya"
