@@ -65,18 +65,20 @@ textarea{width:100%;height:180px;font-family:var(--mono);font-size:10.5px;backgr
   border:1px solid var(--rule);padding:8px;resize:vertical}
 .note{font-size:11.5px;color:var(--ink2)}
 :focus-visible{outline:2px solid var(--dim);outline-offset:2px}
-/* Zeichnungs-Stile: reine Strichzeichnung, Linienbreiten nach Bedeutung */
-.frm{fill:none;stroke:var(--ink);stroke-width:.022}
-.gl{fill:none;stroke:var(--ink);stroke-width:.03}
-.cut{fill:none;stroke:var(--ink);stroke-width:.026;stroke-linejoin:miter}
-.view{fill:none;stroke:var(--ink);stroke-width:.016;stroke-linejoin:miter}
+/* Zeichnungs-Stile */
+.frm{fill:none;stroke:var(--ink);stroke-width:.02}
+.gl{fill:none;stroke:var(--ink);stroke-width:.028}
+.cut{fill:none;stroke:var(--ink);stroke-width:.024;stroke-linejoin:miter}
+.solid{fill:var(--ink);stroke:var(--ink);stroke-width:.02}
+.view{fill:none;stroke:var(--ink);stroke-width:.015;stroke-linejoin:miter}
 .fine{fill:none;stroke:var(--ink);stroke-width:.009}
-.hatch{fill:none;stroke:var(--ink);stroke-width:.007;opacity:.75}
+.hatch{fill:none;stroke:var(--ink);stroke-width:.007;opacity:.7}
 .axis{fill:none;stroke:var(--constr);stroke-width:.008;stroke-dasharray:.4 .1 .07 .1;opacity:.85}
 .cs{fill:none;stroke:var(--constr);stroke-width:.009;opacity:.8}
 .lr{fill:none;stroke:var(--clear);stroke-width:.018;stroke-dasharray:.3 .09 .06 .09}
-.lrf{fill:var(--clear);opacity:.07;stroke:none}
+.lrf{fill:var(--clear);opacity:.08;stroke:none}
 .car{fill:none;stroke:var(--clear);stroke-width:.011;stroke-dasharray:.12 .07}
+.env{fill:none;stroke:var(--clear);stroke-width:.012;opacity:.75}
 .dm{fill:none;stroke:var(--dim);stroke-width:.011}
 .dmw{fill:none;stroke:var(--dim);stroke-width:.007;opacity:.8}
 text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
@@ -85,9 +87,7 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
 .tlb{fill:var(--ink);font-size:.145px}
 .tlr{fill:var(--clear);font-size:.15px}
 .ttl{fill:var(--ink);font-size:.19px;letter-spacing:.05em}
-.tsm{fill:var(--ink2);font-size:.15px;letter-spacing:.04em}
-.hdl{fill:var(--sheet);stroke:var(--dim);stroke-width:.018;cursor:grab}
-.hdl:hover{fill:var(--dim)}
+.tsm{fill:var(--ink2);font-size:.145px;letter-spacing:.04em}
 </style>
 
 <div class="wrap">
@@ -102,19 +102,19 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
   <div class="rail">
     <div class="card">
       <h2>Forderung</h2>
-      <div class="row"><label for="lb">&Uuml;berdachte Breite</label><input type="number" id="lb" step="0.05" min="2" max="8">
+      <div class="row"><label for="lb">Breite unter Dach</label><input type="number" id="lb" step="0.05" min="2" max="8">
         <input type="range" id="lb_r" step="0.05" min="2" max="8"><div class="sub" id="lb_s"></div></div>
       <div class="row"><label for="lh">Lichte H&ouml;he</label><input type="number" id="lh" step="0.05" min="2.5" max="7">
         <input type="range" id="lh_r" step="0.05" min="2.5" max="7"><div class="sub" id="lh_s"></div></div>
-      <p class="note" style="margin:2px 0 9px">Der Pr&uuml;fk&ouml;rper wird dort eingesetzt, wo das Dach
-        &uuml;ber der lichten H&ouml;he liegt und keine St&uuml;tze steht &ndash; nicht zwangsl&auml;ufig im Feld.</p>
+      <p class="note" style="margin:2px 0 9px">Die freie H&ouml;he wird unter <em>allen</em> Bauteilen gemessen
+        &ndash; Sparren, Pfetten, Streben. Der Pr&uuml;fk&ouml;rper wird mittig in das breiteste freie Fenster gesetzt.</p>
       <div class="btns"><button id="fit" class="primary">Dach danach ausrichten</button></div>
     </div>
 
     <div class="card">
       <h2>Dach</h2>
-      <div class="row"><label for="Lf">Flache Seite ab First</label><input type="number" id="Lf" step="0.05" min="2" max="9">
-        <input type="range" id="Lf_r" step="0.05" min="2" max="9"><div class="sub" id="Lf_s"></div></div>
+      <div class="row"><label for="Lf">Flache Seite ab First</label><input type="number" id="Lf" step="0.05" min="2.5" max="9">
+        <input type="range" id="Lf_r" step="0.05" min="2.5" max="9"><div class="sub" id="Lf_s"></div></div>
       <div class="row"><label for="T">Traufh&ouml;he UK Sparren</label><input type="number" id="T" step="0.05" min="2" max="6">
         <input type="range" id="T_r" step="0.05" min="2" max="6"><div class="sub" id="T_s"></div></div>
       <div class="row"><label for="ue">&Uuml;berstand &uuml;ber St&auml;nder</label><input type="number" id="ue" step="0.01" min="0.05" max="1.5">
@@ -128,8 +128,10 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
 
     <div class="card">
       <h2>Holz</h2>
-      <div class="row"><label for="sp">Sparren H&ouml;he</label><input type="number" id="sp" step="0.01" min="0.1" max="0.3">
+      <div class="row"><label for="sp">Sparren</label><input type="number" id="sp" step="0.01" min="0.1" max="0.3">
         <input type="range" id="sp_r" step="0.01" min="0.1" max="0.3"><div class="sub" id="sp_s"></div></div>
+      <div class="row"><label for="kbl">Strebe Traufseite</label><input type="number" id="kbl" step="0.05" min="0.6" max="3">
+        <input type="range" id="kbl_r" step="0.05" min="0.6" max="3"><div class="sub" id="kbl_s"></div></div>
       <div class="row"><label for="w">St&auml;nder au&szlig;en</label><input type="number" id="w" step="0.01" min="0.1" max="0.35">
         <input type="range" id="w_r" step="0.01" min="0.1" max="0.35"><div class="sub" id="w_s"></div></div>
       <div class="row"><label for="wm">Mittelst&auml;nder</label><input type="number" id="wm" step="0.01" min="0.12" max="0.45">
@@ -144,6 +146,7 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
       <h2>Ebenen</h2>
       <div class="chk"><input type="checkbox" id="ly_dim"><label for="ly_dim">Bema&szlig;ung</label></div>
       <div class="chk"><input type="checkbox" id="ly_clear"><label for="ly_clear">Lichtraum und Pr&uuml;fk&ouml;rper</label></div>
+      <div class="chk"><input type="checkbox" id="ly_env"><label for="ly_env">freie H&ouml;he als Linie</label></div>
       <div class="chk"><input type="checkbox" id="ly_axis"><label for="ly_axis">Achsen</label></div>
       <div class="chk"><input type="checkbox" id="ly_phi"><label for="ly_phi">&phi;-Konstruktion</label></div>
       <div class="chk"><input type="checkbox" id="ly_txt"><label for="ly_txt">Bauteilbeschriftung</label></div>
@@ -159,32 +162,28 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
 <div class="info">
   <div class="card">
     <h2>Lichtraum</h2>
-    <p>Gefordert ist eine <strong>&uuml;berdachte</strong> Fl&auml;che von 3,50&nbsp;m Breite mit 4,20&nbsp;m
-      lichter H&ouml;he. Ma&szlig;gebend ist deshalb nicht der St&auml;nderabstand, sondern die Zone, in der die
-      Sparrenunterkante &uuml;ber 4,20&nbsp;m liegt und keine St&uuml;tze steht.</p>
-    <p>Diese Zone ist im Blatt als Band bei 4,20&nbsp;m eingetragen. Der Pr&uuml;fk&ouml;rper sitzt darin,
-      gegen den Mittelst&auml;nder gestellt &ndash; dort ist das Dach am h&ouml;chsten.</p>
+    <p>Die freie H&ouml;he ist die Unterkante des <em>tiefsten</em> Bauteils an jeder Stelle: Sparren,
+      Pfette, Strebe oder Pfettenkopf. Daraus entsteht eine Einh&uuml;llende, im Blatt als d&uuml;nne Linie
+      eingetragen.</p>
+    <p>Das Programm sucht darin das breiteste Fenster, in dem die Einh&uuml;llende &uuml;ber der lichten
+      H&ouml;he liegt und kein St&auml;nder steht, und setzt den Pr&uuml;fk&ouml;rper mittig hinein. Er steht damit
+      unter dem Dach, nicht an einem Pfosten.</p>
   </div>
   <div class="card">
-    <h2>Dach und Teilung</h2>
-    <p>Asymmetrisches Dach nach altem Vorbild: Mittelst&auml;nder unter der Firstpfette, lange flache
-      Seite &uuml;ber dem Einstellplatz, kurze steile Seite frei auskragend.</p>
+    <h2>Binder</h2>
+    <p>Aufbau wie in der historischen Zeichnung: Au&szlig;enst&auml;nder mit Traufpfette, Strebe von dort
+      auf die Mittelpfette, Mittelst&auml;nder bis unter die Firstpfette, Strebe nach au&szlig;en auf die
+      Kragpfette der steilen Seite.</p>
+    <p>Die flache Dachfl&auml;che liegt damit auf drei Pfetten, die steile auf zwei &ndash; und der Kragarm
+      h&auml;ngt nicht am First, sondern steht auf der abgestrebten Kragpfette.</p>
+  </div>
+  <div class="card">
+    <h2>Teilung und Tragwerk</h2>
     <ul>
-      <li>Neigungen <strong>tan = 1/&phi;</strong> (31,7&deg;) und <strong>tan = &phi;</strong> (58,3&deg;)
-        &ndash; zusammen genau 90&deg;, die Dachfl&auml;chen stehen am First senkrecht aufeinander.</li>
-      <li>Beide Traufen auf gleicher H&ouml;he, daraus folgt
-        <strong>flache : steile Seite = &phi;&sup2;</strong>.</li>
+      <li>Neigungen tan = 1/&phi; und tan = &phi; &ndash; zusammen 90&deg;</li>
+      <li>Traufen gleich hoch &rarr; flache : steile Seite = &phi;&sup2;</li>
     </ul>
-  </div>
-  <div class="card">
-    <h2>Tragwerk</h2>
-    <p>Die Firstpfette liegt auf dem Mittelst&auml;nder, die Traufpfette auf dem Au&szlig;enst&auml;nder.
-      Beide Sparrenlagen sind damit Einfeldtr&auml;ger &ndash; es entsteht kein Horizontalschub, der
-      Einstellplatz bleibt ohne Zugbalken frei.</p>
-    <div class="kv" id="kv2"></div>
-    <p style="margin-top:9px">Der Kragarm der steilen Seite h&auml;ngt nicht frei am First: eine Strebe aus
-      dem Mittelst&auml;nder tr&auml;gt die Kragpfette, der Sparren wird dort zum Zweifeldtr&auml;ger mit kurzer
-      Konsole.</p>
+    <div class="kv" id="kv2" style="margin-top:8px"></div>
   </div>
 </div>
 
@@ -199,7 +198,7 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
         <option value="1000">DXF in mm</option><option value="1">DXF in m</option></select>
     </div>
     <p class="note">DXF&nbsp;R12, Ebenen GELAENDE, GRUENDUNG, HOLZ_ANSICHT, HOLZ_SCHNITT, DACHHAUT,
-      LICHTRAUM, BEMASSUNG, ACHSEN, TEXT. Text kopieren und als <code>remise-profil.dxf</code> speichern.</p>
+      LICHTRAUM, BEMASSUNG, ACHSEN, TEXT.</p>
     <textarea id="out" spellcheck="false" readonly aria-label="Exporttext"></textarea>
   </div>
 </details>
@@ -209,33 +208,70 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
 "use strict";
 var PHI=(1+Math.sqrt(5))/2, D2R=Math.PI/180;
 
-var DEF={lb:3.50,lh:4.20,Lf:5.25,T:3.20,ue:0.30,gn:true,a1:31.7,a2:58.3,
-  sp:0.18,w:0.16,wm:0.24,sk:0.45,fd:0.80,
-  ly_dim:true,ly_clear:true,ly_axis:true,ly_phi:true,ly_txt:true};
+var DEF={lb:3.50,lh:4.20,Lf:5.25,T:3.95,ue:0.35,gn:true,a1:31.7,a2:58.3,
+  sp:0.20,kbl:0.90,w:0.18,wm:0.26,sk:0.45,fd:0.80,
+  ly_dim:true,ly_clear:true,ly_env:true,ly_axis:true,ly_phi:true,ly_txt:true};
 var P=Object.assign({},DEF);
 
-/* ============ Geometrie ============ */
+var PF=0.16, PFF=0.20, PFK=0.14, STR=0.14, DH=0.08;
+
+/* ============ Geometrie und Binder ============ */
 function geom(P){
   var t1=P.gn?1/PHI:Math.tan(P.a1*D2R);
   var t2=P.gn?PHI:Math.tan(P.a2*D2R);
   var al1=Math.atan(t1)/D2R, al2=Math.atan(t2)/D2R;
-  var Lf=P.Lf, k=Lf*t1/t2;                 // Traufen gleich hoch
-  var F=P.T+t1*Lf;                          // UK Sparren am First
-  var xE1=-Lf, xE2=k;                       // Traufpunkte
-  var axA=-(Lf-P.ue);                       // Achse Außenständer
+  var Lf=P.Lf, k=Lf*t1/t2;
+  var F=P.T+t1*Lf;
+  var xE1=-Lf, xE2=k, axA=-(Lf-P.ue);
   function uk(x){return x<=0?F+t1*x:F-t2*x;}
   var dv1=P.sp/Math.cos(al1*D2R), dv2=P.sp/Math.cos(al2*D2R);
-  var xs=(dv2-dv1)/(t1+t2), ys=F+dv1+t1*xs; // Firstpunkt der Sparrenoberkanten
-  /* überdachte Zone mit UK ≥ lh, ohne Stütze */
-  var xa=-Lf+(P.lh-P.T)/t1;                 // flache Seite erreicht lh
-  var xb=(F-P.lh)/t2;                       // steile Seite fällt unter lh
-  var bandL=Math.max(0,(-P.wm/2)-xa), bandR=Math.max(0,xb-P.wm/2);
-  var useL=bandL>=bandR;
-  var band=useL?bandL:bandR;
-  var boxX=useL?(-P.wm/2-Math.min(P.lb,bandL)):(P.wm/2);
-  return {t1:t1,t2:t2,al1:al1,al2:al2,Lf:Lf,k:k,F:F,xE1:xE1,xE2:xE2,axA:axA,uk:uk,
-    dv1:dv1,dv2:dv2,xs:xs,ys:ys,xa:xa,xb:xb,band:band,bandL:bandL,bandR:bandR,
-    useL:useL,boxX:boxX,H:ys+0.08,B:Lf+k};
+  var xs=(dv2-dv1)/(t1+t2), ys=F+dv1+t1*xs;
+
+  /* Pfetten und Ständer */
+  var pTr={x:axA,y:uk(axA)-PF,h:PF,b:PF+0.04};          // Traufpfette
+  var xM=axA+P.kbl, pMi={x:xM,y:uk(xM)-PF,h:PF,b:PF+0.04};   // Mittelpfette
+  var pFi={x:0,y:F-PFF,h:PFF,b:PFF+0.04};                // Firstpfette
+  var xK=Math.min(k*0.58,k-0.3), pKr={x:xK,y:uk(xK)-PFK,h:PFK,b:PFK+0.04}; // Kragpfette
+  var postA={x:axA,w:P.w,top:pTr.y};
+  var postM={x:0,w:P.wm,top:pFi.y};
+
+  /* Streben */
+  var sA={a:{x:axA+P.w/2,y:pTr.y-0.70},b:{x:xM,y:pMi.y}};          // Traufseite
+  var sK={a:{x:P.wm/2,y:Math.max(P.lh+0.28,pKr.y-(xK-P.wm/2))},b:{x:xK,y:pKr.y}};
+  var sH={a:{x:-P.wm/2,y:Math.max(P.lh+0.28,uk(-1.55)-1.3)},b:{x:-1.55,y:uk(-1.55)}};
+
+  /* Einhüllende der freien Höhe */
+  function seg(s){
+    return {x1:Math.min(s.a.x,s.b.x),x2:Math.max(s.a.x,s.b.x),f:function(x){
+      var t=(x-s.a.x)/(s.b.x-s.a.x);return s.a.y+t*(s.b.y-s.a.y)-STR/2;}};
+  }
+  var obs=[seg(sA),seg(sK),seg(sH)];
+  [pTr,pMi,pFi,pKr].forEach(function(p){
+    obs.push({x1:p.x-p.b/2,x2:p.x+p.b/2,f:function(){return p.y;}});
+  });
+  function free(x){
+    var y=uk(x);
+    obs.forEach(function(o){if(x>=o.x1&&x<=o.x2)y=Math.min(y,o.f(x));});
+    return y;
+  }
+  function blocked(x){
+    return (x>=postA.x-postA.w/2-0.02&&x<=postA.x+postA.w/2+0.02)||
+           (x>=postM.x-postM.w/2-0.02&&x<=postM.x+postM.w/2+0.02);
+  }
+  /* breitestes Fenster mit free >= lh */
+  var st=0.01, bestA=0, bestB=0, curA=null, x;
+  for(x=xE1;x<=xE2+1e-9;x+=st){
+    var okx=(free(x)>=P.lh)&&!blocked(x);
+    if(okx){if(curA===null)curA=x;}
+    else{if(curA!==null){if(x-curA>bestB-bestA){bestA=curA;bestB=x;}curA=null;}}
+  }
+  if(curA!==null&&xE2-curA>bestB-bestA){bestA=curA;bestB=xE2;}
+  var win=bestB-bestA, boxW=Math.min(P.lb,win), boxX=bestA+(win-boxW)/2;
+
+  return {t1:t1,t2:t2,al1:al1,al2:al2,Lf:Lf,k:k,F:F,xE1:xE1,xE2:xE2,axA:axA,uk:uk,free:free,
+    dv1:dv1,dv2:dv2,xs:xs,ys:ys,pTr:pTr,pMi:pMi,pFi:pFi,pKr:pKr,postA:postA,postM:postM,
+    sA:sA,sK:sK,sH:sH,winA:bestA,winB:bestB,win:win,boxX:boxX,boxW:boxW,
+    H:ys+DH,B:Lf+k};
 }
 
 /* ============ Zeichen-Hilfen ============ */
@@ -252,16 +288,12 @@ function tx(x,y,s,c,anch,rot){
   return '<text class="'+c+'" x="'+X(x)+'" y="'+Y(y)+'" text-anchor="'+(anch||"middle")+'"'+
     (rot?' transform="rotate('+rot+' '+X(x)+' '+Y(y)+')"':"")+'>'+esc(s)+'</text>';
 }
-/* Holz im Schnitt: Rechteck mit Diagonalkreuz */
-function cutTimber(x,y,w,h){
-  return re(x,y,w,h,"cut")+ln(x,y,x+w,y+h,"fine")+ln(x,y+h,x+w,y,"fine");
-}
-/* Stab in Ansicht, rechtwinklig abgeschnitten */
-function member(ax,ay,bx,by,t){
-  var dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy);
+function pfette(p){return re(p.x-p.b/2,p.y,p.b,p.h,"solid");}
+function member(a,b,t){
+  var dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
   if(L<1e-6)return "";
   var nx=-dy/L*t/2, ny=dx/L*t/2;
-  return pl([{x:ax+nx,y:ay+ny},{x:bx+nx,y:by+ny},{x:bx-nx,y:by-ny},{x:ax-nx,y:ay-ny}],"view",true);
+  return pl([{x:a.x+nx,y:a.y+ny},{x:b.x+nx,y:b.y+ny},{x:b.x-nx,y:b.y-ny},{x:a.x-nx,y:a.y-ny}],"view",true);
 }
 function tick(x,y){var q=0.06;return ln(x-q,y-q,x+q,y+q,"dm");}
 function dimH(x1,x2,y,label,rY1,rY2){
@@ -285,113 +317,104 @@ var VB={x:0,y:0,w:1,h:1}, G=null;
 function build(){
   G=geom(P);
   var g=G, o=[], v, i;
-  var minx=g.xE1-2.45, maxx=g.xE2+2.35, miny=-Math.max(2.95,P.fd+2.15), maxy=g.H+1.05;
+  var minx=g.xE1-2.5, maxx=g.xE2+2.4, miny=-Math.max(2.95,P.fd+2.15), maxy=g.H+1.05;
   VB={x:minx,y:-maxy,w:maxx-minx,h:maxy-miny};
   var fr={x:minx+0.18,y:miny+0.18,w:(maxx-minx)-0.36,h:(maxy-miny)-0.36};
 
-  var pf=0.16, pfF=0.18, pfK=0.14;          // Pfettenhöhen
-  var topA=g.uk(g.axA)-pf;                   // OK Außenständer
-  var str=0.13;                              // Streben
-  /* Strebe steile Seite */
-  var kpX=Math.min(g.k*0.62,g.k-0.25), kpY=g.uk(kpX);
-  var stA={x:P.wm/2,y:kpY-pfK-(kpX-P.wm/2)};
-  /* Kopfband flache Seite am Mittelständer */
-  var kbL=Math.min(0.85,(Math.abs(g.axA)-P.wm/2)*0.3);
-  /* Kopfband am Außenständer */
-  var kbA=Math.min(0.7,(topA-P.sk)*0.35);
-
-  /* ---------- Achsen ---------- */
+  /* Achsen */
   if(P.ly_axis){
-    o.push(ln(0,-0.62,0,g.H+0.75,"axis"));
-    o.push(ln(g.axA,-0.62,g.axA,topA+0.4,"axis"));
-    o.push(tx(0,g.H+0.9,"Firstachse","tcs","middle"));
+    o.push(ln(0,-0.62,0,g.H+0.72,"axis"));
+    o.push(ln(g.axA,-0.62,g.axA,g.postA.top+0.4,"axis"));
+    o.push(tx(0,g.H+0.86,"Firstachse","tcs","middle"));
     o.push(tx(g.axA,-0.52,"Ständerachse","tcs","middle"));
   }
 
-  /* ---------- φ-Konstruktion ---------- */
+  /* φ-Konstruktion */
   if(P.ly_phi){
     o.push(pl([{x:g.xE1,y:P.T},{x:0,y:g.F},{x:g.xE2,y:P.T}],"cs",true));
-    o.push(tx(g.xE1+0.1,P.T+0.16,"Dachdreieck  "+nf(g.Lf)+" : "+nf(g.k)+" = "+nf(g.Lf/g.k)+" ≈ φ²","tcs","start"));
-    o.push(tx(0.14,g.F+0.2,nf1(g.al1+g.al2)+"° am First","tcs","start"));
+    o.push(tx(g.xE1+0.1,P.T+0.16,nf(g.Lf)+" : "+nf(g.k)+" = "+nf(g.Lf/g.k)+" ≈ φ²","tcs","start"));
+    o.push(tx(0.14,g.F+0.18,nf1(g.al1+g.al2)+"°","tcs","start"));
   }
 
-  /* ---------- Gelände ---------- */
+  /* Gelände */
   o.push(ln(minx+0.45,0,maxx-0.45,0,"gl"));
   var hat=[];
   for(v=minx+0.6;v<maxx-0.45;v+=0.2)hat.push(ln(v,0,v-0.12,-0.12,"hatch"));
   o.push("<g>"+hat.join("")+"</g>");
 
-  /* ---------- Gründung, Sockel, Ständer ---------- */
-  function stiel(cx,bw,top,label){
-    var sw=bw+0.18, fw=bw+0.46;
+  /* Gründung, Sockel, Ständer */
+  [[g.postA,P.w],[g.postM,P.wm]].forEach(function(e){
+    var ps=e[0], bw=e[1], cx=ps.x, sw=bw+0.18, fw=bw+0.46, fh=[];
     o.push(re(cx-fw/2,-P.fd,fw,P.fd,"cut"));
-    var fh=[];
-    for(i=1;i<6;i++)fh.push(ln(cx-fw/2,-P.fd*i/6,cx-fw/2+0.18,-P.fd*i/6+0.18,"hatch"));
+    for(i=1;i<6;i++)fh.push(ln(cx-fw/2,-P.fd*i/6,cx-fw/2+0.16,-P.fd*i/6+0.16,"hatch"));
     o.push("<g>"+fh.join("")+"</g>");
     o.push(pl([{x:cx-sw/2,y:0},{x:cx+sw/2,y:0},{x:cx+sw/2-0.03,y:P.sk},{x:cx-sw/2+0.03,y:P.sk}],"cut",true));
     o.push(ln(cx-sw/2+0.05,P.sk*0.55,cx+sw/2-0.05,P.sk*0.55,"hatch"));
-    o.push(re(cx-bw/2,P.sk,bw,top-P.sk,"view"));
-  }
-  stiel(g.axA,P.w,topA);
-  stiel(0,P.wm,g.F-pfF);
+    o.push(re(cx-bw/2,P.sk,bw,ps.top-P.sk,"view"));
+  });
 
-  /* ---------- Pfetten (Holz im Schnitt) ---------- */
-  o.push(cutTimber(-pfF/2-0.02,g.F-pfF,pfF+0.04,pfF));                 // Firstpfette
-  o.push(cutTimber(g.axA-pf/2-0.02,topA,pf+0.04,pf));                  // Traufpfette
-  o.push(cutTimber(kpX-pfK/2,kpY-pfK,pfK,pfK));                        // Kragpfette
+  /* Streben */
+  o.push(member(g.sA.a,g.sA.b,STR));
+  o.push(member(g.sK.a,g.sK.b,STR));
+  o.push(member(g.sH.a,g.sH.b,STR));
 
-  /* ---------- Streben und Kopfbänder ---------- */
-  o.push(member(stA.x,stA.y,kpX,kpY-pfK,str));
-  if(kbL>0.3)o.push(member(-P.wm/2,g.uk(-kbL)-kbL,-kbL,g.uk(-kbL),str));
-  if(kbA>0.25)o.push(member(g.axA+P.w/2,topA-kbA,g.axA+P.w/2+kbA,g.uk(g.axA+P.w/2+kbA),str));
+  /* Pfetten */
+  o.push(pfette(g.pTr),pfette(g.pMi),pfette(g.pFi),pfette(g.pKr));
 
-  /* ---------- Sparren ---------- */
+  /* Sparren */
   o.push(pl([{x:g.xE1,y:P.T},{x:0,y:g.F},{x:g.xs,y:g.ys},{x:g.xE1,y:P.T+g.dv1}],"cut",true));
   o.push(pl([{x:g.xE2,y:P.T},{x:0,y:g.F},{x:g.xs,y:g.ys},{x:g.xE2,y:P.T+g.dv2}],"cut",true));
+  o.push(ln(g.xE1,P.T+g.dv1+DH,g.xs,g.ys+DH,"view"));
+  o.push(ln(g.xE2,P.T+g.dv2+DH,g.xs,g.ys+DH,"view"));
 
-  /* ---------- Aufschiebling und Dachhaut ---------- */
-  var dh=0.08;
-  function haut(x1,y1,x2,y2){ return ln(x1,y1+dh,x2,y2+dh,"view"); }
-  o.push(haut(g.xE1,P.T+g.dv1,g.xs,g.ys));
-  o.push(haut(g.xE2,P.T+g.dv2,g.xs,g.ys));
+  /* Aufschieblinge und Rinnen */
   [[g.xE1,-1,g.dv1],[g.xE2,1,g.dv2]].forEach(function(e){
     var xe=e[0], sg=e[1], dvv=e[2], L=0.55;
-    var xi=xe-sg*L, yi=g.uk(xi)+dvv+dh, ye=g.uk(xe)+dvv+dh;
+    var xi=xe-sg*L, yi=g.uk(xi)+dvv+DH, ye=g.uk(xe)+dvv+DH;
     o.push(pl([{x:xi,y:yi},{x:xe,y:ye},{x:xe,y:ye+0.09}],"view",true));
     o.push(ln(xe,g.uk(xe),xe,ye+0.09,"view"));
     o.push('<path class="fine" d="M '+X(xe-sg*0.17)+" "+Y(g.uk(xe)-0.04)+" a 0.085 0.085 0 1 "+(sg>0?"0":"1")+" "+fx(sg*0.17)+" 0"+'"/>');
   });
 
-  /* ---------- Lichtraum ---------- */
-  if(P.ly_clear){
-    var bw2=Math.min(P.lb,g.band);
-    o.push(re(g.boxX,0,bw2,P.lh,"lrf"),re(g.boxX,0,bw2,P.lh,"lr"));
-    o.push(ln(g.xa,P.lh,g.xb,P.lh,"lr"));
-    var cw=Math.min(2.55,Math.max(0.5,bw2-0.2));
-    o.push(re(g.boxX+(bw2-cw)/2,0,cw,4.0,"car"));
-    o.push(tx(g.boxX+bw2/2,0.14,"Prüfkörper 2,55 × 4,00","tlr","middle"));
-    o.push(tx(g.boxX+0.1,P.lh-0.26,"überdacht "+nf(bw2)+" × "+nf(P.lh),"tlr","start"));
+  /* freie Höhe als Einhüllende */
+  if(P.ly_env){
+    var env=[], st=0.04;
+    for(v=g.xE1;v<=g.xE2+1e-9;v+=st)env.push({x:v,y:Math.min(g.free(v),g.H)});
+    o.push(pl(env,"env"));
+    o.push(tx(g.xE2-0.1,g.free(g.xE2*0.75)+0.14,"freie Höhe","tlr","end"));
   }
 
-  /* ---------- Beschriftung ---------- */
+  /* Lichtraum */
+  if(P.ly_clear){
+    o.push(re(g.boxX,0,g.boxW,P.lh,"lrf"),re(g.boxX,0,g.boxW,P.lh,"lr"));
+    var cw=Math.min(2.55,Math.max(0.5,g.boxW-0.2));
+    o.push(re(g.boxX+(g.boxW-cw)/2,0,cw,4.0,"car"));
+    o.push(tx(g.boxX+g.boxW/2,0.14,"Prüfkörper 2,55 × 4,00","tlr","middle"));
+    o.push(ln(g.winA,P.lh,g.winB,P.lh,"lr"));
+  }
+
+  /* Beschriftung */
   if(P.ly_txt){
     function leader(x,y,tx2,ty,t,anch){
-      o.push(ln(x,y,tx2,ty,"fine"),ln(tx2,ty,tx2+(anch==="end"?-0.22:0.22),ty,"fine"));
-      o.push(tx(tx2+(anch==="end"?-0.28:0.28),ty-0.05,t,"tlb",anch==="end"?"end":"start"));
+      o.push(ln(x,y,tx2,ty,"fine"),ln(tx2,ty,tx2+(anch==="end"?-0.2:0.2),ty,"fine"));
+      o.push(tx(tx2+(anch==="end"?-0.26:0.26),ty-0.05,t,"tlb",anch==="end"?"end":"start"));
     }
-    leader(0,g.F-pfF/2,0.75,g.F+0.5,"Firstpfette 14/18");
-    leader(g.axA,topA+pf/2,g.axA-0.8,topA+0.78,"Traufpfette 14/16","end");
-    leader(kpX,kpY-pfK/2,kpX+0.5,kpY+0.55,"Kragpfette 12/14");
-    leader((stA.x+kpX)/2,(stA.y+kpY)/2,kpX+0.35,kpY-1.0,"Strebe 12/14");
-    leader(0,g.F*0.33,0.62,g.F*0.33,"Mittelständer "+Math.round(P.wm*100)+"/"+Math.round(P.wm*100));
-    leader(g.axA,(P.sk+topA)/2,g.axA-0.8,(P.sk+topA)/2,"Ständer "+Math.round(P.w*100)+"/"+Math.round(P.w*100),"end");
-    leader(g.axA,P.sk*0.5,g.axA-0.8,P.sk*0.5-0.1,"Sockelstein","end");
-    leader(g.xE1*0.55,g.uk(g.xE1*0.55)+g.dv1/2,g.xE1*0.55+0.1,g.uk(g.xE1*0.55)+1.0,
+    leader(0,g.pFi.y+PFF/2,0.8,g.F+0.45,"Firstpfette 16/20");
+    leader(g.pMi.x,g.pMi.y+PF/2,g.pMi.x+0.3,g.pMi.y+0.95,"Mittelpfette 14/16");
+    leader(g.axA,g.pTr.y+PF/2,g.axA-0.75,g.pTr.y+0.75,"Traufpfette 14/16","end");
+    leader(g.pKr.x,g.pKr.y+PFK/2,g.pKr.x+0.42,g.pKr.y+0.62,"Kragpfette 12/14");
+    leader((g.sA.a.x+g.sA.b.x)/2,(g.sA.a.y+g.sA.b.y)/2,g.sA.b.x+0.15,g.sA.a.y-0.55,"Strebe 12/14");
+    leader((g.sK.a.x+g.sK.b.x)/2,(g.sK.a.y+g.sK.b.y)/2,g.pKr.x+0.3,g.sK.a.y-0.5,"Strebe 12/14");
+    leader(0,g.F*0.3,0.62,g.F*0.3,"Mittelständer "+Math.round(P.wm*100)+"/"+Math.round(P.wm*100));
+    leader(g.axA,(P.sk+g.postA.top)/2,g.axA-0.75,(P.sk+g.postA.top)/2,
+      "Ständer "+Math.round(P.w*100)+"/"+Math.round(P.w*100),"end");
+    leader(g.axA,P.sk*0.5,g.axA-0.75,P.sk*0.5-0.08,"Sockelstein","end");
+    leader(g.xE1*0.72,g.uk(g.xE1*0.72)+g.dv1/2,g.xE1*0.72+0.15,g.uk(g.xE1*0.72)+0.95,
       "Sparren "+Math.round(P.sp*100)+" hoch, Ziegel auf Lattung");
-    leader(g.xE2-0.2,P.T+g.dv2+dh+0.05,g.xE2+0.5,P.T+1.0,"Aufschiebling, Rinne");
+    leader(g.xE2-0.18,P.T+g.dv2+DH+0.04,g.xE2+0.45,P.T+0.95,"Aufschiebling, Rinne");
   }
 
-  /* ---------- Bemaßung ---------- */
+  /* Bemaßung */
   if(P.ly_dim){
     var dy=-0.95, dy2=-1.5;
     o.push(dimH(g.xE1,g.axA,dy,nf(P.ue),0,0));
@@ -400,11 +423,12 @@ function build(){
     o.push(dimH(g.xE1,g.xE2,dy2,nf(g.B),dy,dy));
     o.push(dimV(0,P.T,g.xE1-0.72,nf(P.T),g.xE1,g.xE1));
     o.push(dimV(0,g.F,g.xE1-1.3,nf(g.F),g.xE1,0));
-    o.push(dimV(0,P.lh,g.xE2+0.72,nf(P.lh),g.xb,g.xE2));
-    o.push(dimH(g.boxX,g.boxX+Math.min(P.lb,g.band),P.lh+0.3,nf(Math.min(P.lb,g.band))+" überdacht",P.lh,P.lh));
+    o.push(dimV(0,P.lh,g.xE2+0.72,nf(P.lh),g.winB,g.xE2));
+    o.push(dimH(g.boxX,g.boxX+g.boxW,P.lh+0.32,nf(g.boxW)+" unter Dach",P.lh,P.lh));
+    o.push(dimH(g.winA,g.winB,P.lh+0.78,nf(g.win)+" frei",P.lh+0.32,P.lh+0.32));
   }
 
-  /* ---------- Rahmen und Schriftfeld ---------- */
+  /* Rahmen und Schriftfeld */
   o.push(re(fr.x,fr.y,fr.w,fr.h,"frm"));
   var tbw=3.5, tbh=0.95, tbx=fr.x+fr.w-tbw-0.08, tby=fr.y+0.08;
   o.push(re(tbx,tby,tbw,tbh,"frm"));
@@ -416,9 +440,6 @@ function build(){
   o.push(tx(tbx+2.22,tby+0.34,"Vorentwurf","tsm","start"));
   o.push(tx(tbx+2.22,tby+0.12,"Blatt 1 / Profil","tsm","start"));
 
-  /* ---------- Griffe ---------- */
-  o.push('<circle class="hdl" id="h_e" cx="'+X(g.xE1)+'" cy="'+Y(P.T)+'" r="0.09"><title>Traufe und Länge der flachen Seite ziehen</title></circle>');
-
   document.getElementById("dwg").innerHTML=
     '<svg viewBox="'+fx(VB.x)+" "+fx(VB.y)+" "+fx(VB.w)+" "+fx(VB.h)+'" id="svg" role="img" '+
     'aria-label="Binderschnitt der Remise">'+o.join("\n")+"</svg>";
@@ -426,41 +447,44 @@ function build(){
 }
 
 function readouts(){
-  var g=G, okW=g.band>=P.lb-0.005, okH=true;
-  function dv(x,t){return nf(x)+(Math.abs(x/t-1)<0.006?"  ✓":"");}
+  var g=G, okW=g.win>=P.lb-0.005;
   var rows=[
     ["hd","Forderung"],
-    ["&uuml;berdachte Breite bei "+nf(P.lh),'<span class="'+(okW?"ok":"bad")+'">'+nf(g.band)+" m "+(okW?"✓":"✗")+"</span>"],
-    ["Zone",g.useL?"flache Seite":"steile Seite"],
-    ["Zone von / bis",nf(g.useL?g.xa:P.wm/2)+" / "+nf(g.useL?-P.wm/2:g.xb)],
+    ["freies Fenster bei "+nf(P.lh),'<span class="'+(okW?"ok":"bad")+'">'+nf(g.win)+" m "+(okW?"✓":"✗")+"</span>"],
+    ["Pr&uuml;fk&ouml;rper von / bis",nf(g.boxX)+" / "+nf(g.boxX+g.boxW)],
+    ["Abstand zum Mittelst&auml;nder",nf(Math.abs(0-P.wm/2-(g.boxX+g.boxW)))],
+    ["Abstand zum St&auml;nder",nf(Math.abs(g.boxX-(g.axA+P.w/2)))],
     ["hd","Dach"],
-    ["Neigungen",nf1(g.al1)+"° / "+nf1(g.al2)+"°"],
-    ["Summe",nf1(g.al1+g.al2)+"°"],
-    ["flach : steil",dv(g.Lf/g.k,PHI*PHI)+"  (φ²)"],
+    ["Neigungen",nf1(g.al1)+"° / "+nf1(g.al2)+"° = "+nf1(g.al1+g.al2)+"°"],
+    ["flach : steil",nf(g.Lf/g.k)+(Math.abs(g.Lf/g.k/(PHI*PHI)-1)<0.006?"  ✓ φ²":"")],
     ["First UK / OK",nf(g.F)+" / "+nf(g.H)],
     ["Traufen UK",nf(P.T)],
     ["Gesamtbreite",nf(g.B)],
     ["hd","Holz"],
-    ["Mittelständer",nf(g.F-0.18-P.sk)+" m"],
-    ["Außenständer",nf(g.uk(g.axA)-0.16-P.sk)+" m"],
-    ["Sparren flach / steil",nf(g.Lf/Math.cos(g.al1*D2R))+" / "+nf(g.k/Math.cos(g.al2*D2R))]
+    ["Mittelständer",nf(g.postM.top-P.sk)+" m"],
+    ["Außenständer",nf(g.postA.top-P.sk)+" m"],
+    ["Sparrenfelder flach",nf(Math.abs(g.pMi.x-g.axA)/Math.cos(g.al1*D2R))+" / "+
+      nf(Math.abs(g.pMi.x)/Math.cos(g.al1*D2R))],
+    ["Kragarm ab Kragpfette",nf((g.k-g.pKr.x)/Math.cos(g.al2*D2R))]
   ];
   document.getElementById("kv").innerHTML=rows.map(function(r){
     return r[0]==="hd"?'<span class="hd">'+r[1]+"</span>":"<span>"+r[0]+"</span><span>"+r[1]+"</span>";
   }).join("");
 
-  var q=2.2, k=g.k, kst=k*0.38;
+  var q=2.2, f1=Math.abs(g.pMi.x-g.axA), f2=Math.abs(g.pMi.x), kc=g.k-g.pKr.x;
   document.getElementById("kv2").innerHTML=[
     ["Last q (Dach + Schnee)",nf1(q)+" kN/m²"],
-    ["Sparren flache Seite",nf1(q*g.Lf*g.Lf/8)+" kNm/m"],
-    ["Kragarm ab Kragpfette",nf1(q*kst*kst/2)+" kNm/m"],
-    ["Auflast Mittelständer",nf1(q*(k+g.Lf/2))+" kN/m"]
+    ["größtes Sparrenfeld",nf(Math.max(f1,f2))+" m"],
+    ["Feldmoment",nf1(q*Math.max(f1,f2)*Math.max(f1,f2)/8)+" kNm/m"],
+    ["Kragmoment",nf1(q*kc*kc/2)+" kNm/m"],
+    ["Auflast Mittelständer",nf1(q*(g.k+Math.abs(g.pMi.x)/2))+" kN/m"]
   ].map(function(r){return "<span>"+r[0]+"</span><span>"+r[1]+"</span>";}).join("");
 }
 
 /* ============ Steuerung ============ */
-var NUM=[["lb",2],["lh",2],["Lf",2],["T",2],["ue",2],["a1",1],["a2",1],["sp",2],["w",2],["wm",2],["sk",2],["fd",2]];
-var LAYERS=["ly_dim","ly_clear","ly_axis","ly_phi","ly_txt"];
+var NUM=[["lb",2],["lh",2],["Lf",2],["T",2],["ue",2],["a1",1],["a2",1],["sp",2],["kbl",2],
+         ["w",2],["wm",2],["sk",2],["fd",2]];
+var LAYERS=["ly_dim","ly_clear","ly_env","ly_axis","ly_phi","ly_txt"];
 
 function syncUI(){
   if(G&&P.gn){P.a1=Math.round(G.al1*10)/10;P.a2=Math.round(G.al2*10)/10;}
@@ -472,7 +496,7 @@ function syncUI(){
       if(id==="a1"||id==="a2")sb.textContent="Grad";
       else if(id==="lb")sb.textContent="gefordert 3,50";
       else if(id==="lh")sb.textContent="gefordert 4,20";
-      else if(id==="sp")sb.textContent="Sparrenhöhe";
+      else if(id==="kbl")sb.textContent="Abstand Trauf–Mittelpfette";
       else sb.textContent="m";
     }
   });
@@ -499,35 +523,15 @@ LAYERS.forEach(function(k){
   document.getElementById(k).addEventListener("change",function(e){P[k]=e.target.checked;build();});
 });
 document.getElementById("fit").addEventListener("click",function(){
-  var g=geom(P);
-  P.Lf=Math.min(9,Math.ceil((P.lb+P.wm/2+(P.lh-P.T)/g.t1)*100)/100);
+  /* flache Seite so lang, dass das freie Fenster lb + 2 x 0,30 misst */
+  var want=P.lb+0.8, i, g;
+  for(i=0;i<40;i++){
+    g=geom(P);
+    if(Math.abs(g.win-want)<0.01)break;
+    P.Lf=Math.min(9,Math.max(2.5,Math.round((P.Lf+(want-g.win))*100)/100));
+  }
   build();syncUI();
 });
-
-/* Griff */
-var drag=null;
-function toWorld(ev){
-  var svg=document.getElementById("svg");
-  if(!svg)return null;
-  var r=svg.getBoundingClientRect();
-  var sc=Math.min(r.width/VB.w,r.height/VB.h);
-  var ox=r.left+(r.width-VB.w*sc)/2, oy=r.top+(r.height-VB.h*sc)/2;
-  return {x:VB.x+(ev.clientX-ox)/sc, y:-(VB.y+(ev.clientY-oy)/sc)};
-}
-document.getElementById("dwg").addEventListener("pointerdown",function(ev){
-  if(!ev.target||ev.target.id!=="h_e")return;
-  ev.preventDefault();drag=1;
-});
-window.addEventListener("pointermove",function(ev){
-  if(!drag)return;
-  var w=toWorld(ev);if(!w)return;
-  ev.preventDefault();
-  P.Lf=Math.min(9,Math.max(2,Math.round(-w.x*20)/20));
-  P.T=Math.min(6,Math.max(2,Math.round(w.y*20)/20));
-  build();syncUI();
-},{passive:false});
-window.addEventListener("pointerup",function(){drag=null;});
-window.addEventListener("pointercancel",function(){drag=null;});
 
 /* ============ Export ============ */
 function dxf(S){
@@ -542,10 +546,10 @@ function dxf(S){
   }
   function rect(ly,x,y,w,h){poly(ly,[{x:x,y:y},{x:x+w,y:y},{x:x+w,y:y+h},{x:x,y:y+h}],true);}
   function text(ly,x,y,h,s){put("0","TEXT","8",ly,"10",n(x),"20",n(y),"30","0.0","40",n(h),"1",s);}
-  function mem(ly,ax,ay,bx,by,t){
-    var dx=bx-ax,dy=by-ay,Ln=Math.hypot(dx,dy);if(Ln<1e-6)return;
+  function mem(ly,a,b,t){
+    var dx=b.x-a.x,dy=b.y-a.y,Ln=Math.hypot(dx,dy);if(Ln<1e-6)return;
     var nx=-dy/Ln*t/2, ny=dx/Ln*t/2;
-    poly(ly,[{x:ax+nx,y:ay+ny},{x:bx+nx,y:by+ny},{x:bx-nx,y:by-ny},{x:ax-nx,y:ay-ny}],true);
+    poly(ly,[{x:a.x+nx,y:a.y+ny},{x:b.x+nx,y:b.y+ny},{x:b.x-nx,y:b.y-ny},{x:a.x-nx,y:a.y-ny}],true);
   }
   var layers=[["GELAENDE",8],["GRUENDUNG",7],["HOLZ_ANSICHT",3],["HOLZ_SCHNITT",7],["DACHHAUT",1],
               ["LICHTRAUM",2],["BEMASSUNG",4],["ACHSEN",6],["TEXT",4]];
@@ -554,39 +558,31 @@ function dxf(S){
   layers.forEach(function(l){put("0","LAYER","2",l[0],"70","0","62",String(l[1]),"6","CONTINUOUS");});
   put("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
 
-  var pf=0.16, pfF=0.18, pfK=0.14, str=0.13, dh=0.08;
-  var topA=g.uk(g.axA)-pf;
-  var kpX=Math.min(g.k*0.62,g.k-0.25), kpY=g.uk(kpX);
-  var stA={x:P.wm/2,y:kpY-pfK-(kpX-P.wm/2)};
   line("GELAENDE",g.xE1-2,0,g.xE2+2,0);
-  [[g.axA,P.w,topA],[0,P.wm,g.F-pfF]].forEach(function(e){
-    var cx=e[0], bw=e[1], top=e[2], sw=bw+0.18, fw=bw+0.46;
+  [[g.postA,P.w],[g.postM,P.wm]].forEach(function(e){
+    var ps=e[0], bw=e[1], cx=ps.x, sw=bw+0.18, fw=bw+0.46;
     rect("GRUENDUNG",cx-fw/2,-P.fd,fw,P.fd);
     poly("GRUENDUNG",[{x:cx-sw/2,y:0},{x:cx+sw/2,y:0},{x:cx+sw/2-0.03,y:P.sk},{x:cx-sw/2+0.03,y:P.sk}],true);
-    rect("HOLZ_ANSICHT",cx-bw/2,P.sk,bw,top-P.sk);
+    rect("HOLZ_ANSICHT",cx-bw/2,P.sk,bw,ps.top-P.sk);
   });
-  [[-pfF/2-0.02,g.F-pfF,pfF+0.04,pfF],[g.axA-pf/2-0.02,topA,pf+0.04,pf],[kpX-pfK/2,kpY-pfK,pfK,pfK]]
-    .forEach(function(r){
-      rect("HOLZ_SCHNITT",r[0],r[1],r[2],r[3]);
-      line("HOLZ_SCHNITT",r[0],r[1],r[0]+r[2],r[1]+r[3]);
-      line("HOLZ_SCHNITT",r[0],r[1]+r[3],r[0]+r[2],r[1]);
-    });
-  mem("HOLZ_ANSICHT",stA.x,stA.y,kpX,kpY-pfK,str);
-  var kbL=Math.min(0.85,(Math.abs(g.axA)-P.wm/2)*0.3);
-  if(kbL>0.3)mem("HOLZ_ANSICHT",-P.wm/2,g.uk(-kbL)-kbL,-kbL,g.uk(-kbL),str);
-  var kbA=Math.min(0.7,(topA-P.sk)*0.35);
-  if(kbA>0.25)mem("HOLZ_ANSICHT",g.axA+P.w/2,topA-kbA,g.axA+P.w/2+kbA,g.uk(g.axA+P.w/2+kbA),str);
+  mem("HOLZ_ANSICHT",g.sA.a,g.sA.b,STR);
+  mem("HOLZ_ANSICHT",g.sK.a,g.sK.b,STR);
+  mem("HOLZ_ANSICHT",g.sH.a,g.sH.b,STR);
+  [g.pTr,g.pMi,g.pFi,g.pKr].forEach(function(p){
+    rect("HOLZ_SCHNITT",p.x-p.b/2,p.y,p.b,p.h);
+    line("HOLZ_SCHNITT",p.x-p.b/2,p.y,p.x+p.b/2,p.y+p.h);
+    line("HOLZ_SCHNITT",p.x-p.b/2,p.y+p.h,p.x+p.b/2,p.y);
+  });
   poly("HOLZ_ANSICHT",[{x:g.xE1,y:P.T},{x:0,y:g.F},{x:g.xs,y:g.ys},{x:g.xE1,y:P.T+g.dv1}],true);
   poly("HOLZ_ANSICHT",[{x:g.xE2,y:P.T},{x:0,y:g.F},{x:g.xs,y:g.ys},{x:g.xE2,y:P.T+g.dv2}],true);
-  line("DACHHAUT",g.xE1,P.T+g.dv1+dh,g.xs,g.ys+dh);
-  line("DACHHAUT",g.xE2,P.T+g.dv2+dh,g.xs,g.ys+dh);
-  var bw2=Math.min(P.lb,g.band);
-  rect("LICHTRAUM",g.boxX,0,bw2,P.lh);
-  line("LICHTRAUM",g.xa,P.lh,g.xb,P.lh);
-  var cw=Math.min(2.55,Math.max(0.5,bw2-0.2));
-  rect("LICHTRAUM",g.boxX+(bw2-cw)/2,0,cw,4.0);
-  line("ACHSEN",0,-0.55,0,g.H+0.75);
-  line("ACHSEN",g.axA,-0.55,g.axA,topA+0.45);
+  line("DACHHAUT",g.xE1,P.T+g.dv1+DH,g.xs,g.ys+DH);
+  line("DACHHAUT",g.xE2,P.T+g.dv2+DH,g.xs,g.ys+DH);
+  rect("LICHTRAUM",g.boxX,0,g.boxW,P.lh);
+  var cw=Math.min(2.55,Math.max(0.5,g.boxW-0.2));
+  rect("LICHTRAUM",g.boxX+(g.boxW-cw)/2,0,cw,4.0);
+  line("LICHTRAUM",g.winA,P.lh,g.winB,P.lh);
+  line("ACHSEN",0,-0.62,0,g.H+0.72);
+  line("ACHSEN",g.axA,-0.62,g.axA,g.postA.top+0.4);
   function dh2(xa,xb,y,s){
     line("BEMASSUNG",xa,y,xb,y);line("BEMASSUNG",xa,y-0.06,xa,y+0.06);line("BEMASSUNG",xb,y-0.06,xb,y+0.06);
     text("TEXT",(xa+xb)/2-0.2,y+0.08,0.16,s);
@@ -596,18 +592,17 @@ function dxf(S){
     text("TEXT",x+0.08,(ya+yb)/2,0.16,s);
   }
   dh2(g.xE1,g.axA,-0.95,nf(P.ue));dh2(g.axA,0,-0.95,nf(-g.axA));dh2(0,g.xE2,-0.95,nf(g.k));
-  dh2(g.xE1,g.xE2,-1.5,nf(g.B));dh2(g.boxX,g.boxX+bw2,P.lh+0.3,nf(bw2)+" ueberdacht");
+  dh2(g.xE1,g.xE2,-1.5,nf(g.B));
+  dh2(g.boxX,g.boxX+g.boxW,P.lh+0.32,nf(g.boxW)+" unter Dach");
   dv2(0,P.T,g.xE1-0.72,nf(P.T));dv2(0,g.F,g.xE1-1.3,nf(g.F));dv2(0,P.lh,g.xE2+0.72,nf(P.lh));
-  text("TEXT",g.xE1,g.H+1.1,0.26,"REMISE - BINDERSCHNITT A-A   M 1:50   Masse in m");
-  text("TEXT",g.xE1,g.H+0.78,0.16,"Neigungen "+nf1(g.al1)+" / "+nf1(g.al2)+" Grad, Summe 90 Grad");
+  text("TEXT",g.xE1,g.H+0.95,0.24,"REMISE - BINDERSCHNITT A-A   M 1:50   Masse in m");
+  text("TEXT",g.xE1,g.H+0.62,0.16,"Neigungen "+nf1(g.al1)+" / "+nf1(g.al2)+" Grad");
   put("0","ENDSEC","0","EOF");
   return L.join("\r\n")+"\r\n";
 }
 function svgOut(){
   var s=document.getElementById("svg").cloneNode(true);
-  Array.prototype.forEach.call(s.querySelectorAll(".hdl"),function(e){e.remove();});
-  var css=document.getElementById("dstyle").textContent.split("/* Zeichnungs-Stile")[1]||"";
-  css=css.substring(css.indexOf("*/")+2);
+  var css=document.getElementById("dstyle").textContent.split("/* Zeichnungs-Stile */")[1]||"";
   css=css.replace(/var\(--ink2\)/g,"#5b656d").replace(/var\(--ink\)/g,"#15181b")
          .replace(/var\(--constr\)/g,"#a8503a").replace(/var\(--dim\)/g,"#2a6775")
          .replace(/var\(--clear\)/g,"#9c7415").replace(/var\(--sheet\)/g,"#fcfbf7");
