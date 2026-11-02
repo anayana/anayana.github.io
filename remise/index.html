@@ -7,18 +7,20 @@
 :root{
   --paper:#edeae3; --sheet:#fbfaf6; --ink:#171b1e; --ink2:#5b656d; --rule:#cac4b8;
   --constr:#a8503a; --dim:#2a6775; --clear:#9c7415; --solid:#2b3236; --fill:#dcd7cb;
-  --holz:#cfc2a8; --panel:#f4f2ec; --field:#fffefa; --ok:#2f6b3f; --bad:#9c2b24;
+  --holz:#cdbe9f; --ziegel:#b5603f; --panel:#f4f2ec; --field:#fffefa; --ok:#2f6b3f; --bad:#9c2b24;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
   --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --paper:#101315; --sheet:#181c1f; --ink:#e7e3d9; --ink2:#98a1a8; --rule:#394046;
   --constr:#e08a69; --dim:#6cbdcc; --clear:#e3b445; --solid:#c9cfd3; --fill:#2b3236;
-  --holz:#3b3a33; --panel:#1c2124; --field:#121618; --ok:#79c08c; --bad:#e58b83; color-scheme:dark}}
+  --holz:#4a4435; --ziegel:#d9795a; --panel:#1c2124; --field:#121618; --ok:#79c08c; --bad:#e58b83;
+  color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#101315; --sheet:#181c1f; --ink:#e7e3d9; --ink2:#98a1a8; --rule:#394046;
   --constr:#e08a69; --dim:#6cbdcc; --clear:#e3b445; --solid:#c9cfd3; --fill:#2b3236;
-  --holz:#3b3a33; --panel:#1c2124; --field:#121618; --ok:#79c08c; --bad:#e58b83; color-scheme:dark}
+  --holz:#4a4435; --ziegel:#d9795a; --panel:#1c2124; --field:#121618; --ok:#79c08c; --bad:#e58b83;
+  color-scheme:dark}
 
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
 .wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -53,7 +55,6 @@ button,select{font-family:var(--sans);font-size:12.5px;padding:7px 11px;backgrou
 button:hover{border-color:var(--dim);color:var(--dim)}
 button.primary{background:var(--solid);color:var(--sheet);border-color:var(--solid)}
 button.primary:hover{opacity:.86;color:var(--sheet)}
-button.mini{padding:4px 8px;font-size:11.5px}
 .btns{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
 .kv{font-family:var(--mono);font-size:11.5px;display:grid;grid-template-columns:1fr auto;gap:3px 10px}
 .kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
@@ -73,33 +74,33 @@ textarea{width:100%;height:180px;font-family:var(--mono);font-size:10.5px;backgr
 .note{font-size:11.5px;color:var(--ink2)}
 :focus-visible{outline:2px solid var(--dim);outline-offset:2px}
 /* Zeichnungs-Stile */
-.gl{fill:none;stroke:var(--ink);stroke-width:.04}
-.bt{fill:var(--fill);stroke:var(--solid);stroke-width:.028}
-.hz{fill:var(--holz);stroke:var(--solid);stroke-width:.026}
-.bt2{fill:none;stroke:var(--solid);stroke-width:.016}
-.rf{fill:var(--fill);stroke:var(--solid);stroke-width:.03}
-.lr{fill:none;stroke:var(--clear);stroke-width:.022;stroke-dasharray:.34 .1 .07 .1}
+.gl{fill:none;stroke:var(--ink);stroke-width:.035}
+.bt{fill:var(--fill);stroke:var(--solid);stroke-width:.024}
+.hz{fill:var(--holz);stroke:var(--solid);stroke-width:.022}
+.zg{fill:var(--ziegel);stroke:var(--solid);stroke-width:.022;opacity:.9}
+.bt2{fill:none;stroke:var(--solid);stroke-width:.014}
+.lr{fill:none;stroke:var(--clear);stroke-width:.02;stroke-dasharray:.3 .09 .06 .09}
 .lrf{fill:var(--clear);opacity:.085;stroke:none}
-.car{fill:none;stroke:var(--clear);stroke-width:.014;stroke-dasharray:.14 .09}
-.cs{fill:none;stroke:var(--constr);stroke-width:.011;opacity:.85}
-.csd{fill:none;stroke:var(--constr);stroke-width:.013;stroke-dasharray:.3 .1 .06 .1;opacity:.9}
-.grd{fill:none;stroke:var(--constr);stroke-width:.007;opacity:.3}
-.dm{fill:none;stroke:var(--dim);stroke-width:.013}
-.dmw{fill:none;stroke:var(--dim);stroke-width:.008;opacity:.75}
-.axc{fill:none;stroke:var(--dim);stroke-width:.01;stroke-dasharray:.3 .09 .06 .09}
+.car{fill:none;stroke:var(--clear);stroke-width:.013;stroke-dasharray:.13 .08}
+.cs{fill:none;stroke:var(--constr);stroke-width:.01;opacity:.85}
+.csd{fill:none;stroke:var(--constr);stroke-width:.012;stroke-dasharray:.26 .09 .05 .09;opacity:.9}
+.grd{fill:none;stroke:var(--constr);stroke-width:.006;opacity:.3}
+.dm{fill:none;stroke:var(--dim);stroke-width:.012}
+.dmw{fill:none;stroke:var(--dim);stroke-width:.007;opacity:.75}
+.axc{fill:none;stroke:var(--dim);stroke-width:.009;stroke-dasharray:.26 .08 .05 .08}
 text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
-.tdim{fill:var(--dim);font-size:.2px}
-.tcs{fill:var(--constr);font-size:.175px}
-.tlb{fill:var(--ink);font-size:.175px}
-.tlr{fill:var(--clear);font-size:.175px}
-.hdl{fill:var(--sheet);stroke:var(--dim);stroke-width:.022;cursor:grab}
+.tdim{fill:var(--dim);font-size:.175px}
+.tcs{fill:var(--constr);font-size:.155px}
+.tlb{fill:var(--ink);font-size:.155px}
+.tlr{fill:var(--clear);font-size:.155px}
+.hdl{fill:var(--sheet);stroke:var(--dim);stroke-width:.02;cursor:grab}
 .hdl:hover{fill:var(--dim)}
 </style>
 
 <div class="wrap">
 <header>
   <h1>Remise &middot; Profil</h1>
-  <span class="meta">Vorentwurf &middot; Schnitt A&ndash;A &middot; Ma&szlig;e in Metern &middot; Satteldach, r&uuml;ckseitig abgeschnitten &middot; Neigung und Teilung nach Fibonacci</span>
+  <span class="meta">Vorentwurf &middot; Querschnitt &middot; Ma&szlig;e in Metern &middot; Offener St&auml;nderbau, Satteldach mit weit vorkragender Traufe</span>
 </header>
 
 <main>
@@ -111,43 +112,42 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
   <div class="rail">
     <div class="card">
       <h2>Ma&szlig;ordnung</h2>
-      <div class="row"><label for="a">Modul a</label><input type="number" id="a" step="0.05" min="0.35" max="1.1">
-        <input type="range" id="a_r" step="0.05" min="0.35" max="1.1"><div class="sub" id="a_s"></div></div>
+      <div class="row"><label for="a">Modul a</label><input type="number" id="a" step="0.005" min="0.3" max="0.9">
+        <input type="range" id="a_r" step="0.005" min="0.3" max="0.9"><div class="sub" id="a_s"></div></div>
       <div class="btns"><button id="reset" class="primary">Fibonacci-Reset</button></div>
+      <p class="note" style="margin:9px 0 0">a = 0,525 setzt die Durchfahrt 4,20 auf 8a &ndash; damit liegt die
+        ganze Kette 3a / 5a / 8a / 13a im halben Querschnitt.</p>
+    </div>
+
+    <div class="card">
+      <h2>Querschnitt</h2>
+      <div class="row"><label for="lh">Durchfahrtsh&ouml;he (UK Traufe)</label><input type="number" id="lh" step="0.05" min="2.5" max="7">
+        <input type="range" id="lh_r" step="0.05" min="2.5" max="7"><div class="sub" id="lh_s"></div></div>
+      <div class="row"><label for="ax">St&auml;nderachse ab Mitte</label><input type="number" id="ax" step="0.025" min="1.2" max="5">
+        <input type="range" id="ax_r" step="0.025" min="1.2" max="5"><div class="sub" id="ax_s"></div></div>
+      <div class="row"><label for="ue">Dach&uuml;berstand ab Achse</label><input type="number" id="ue" step="0.025" min="0.2" max="3">
+        <input type="range" id="ue_r" step="0.025" min="0.2" max="3"><div class="sub" id="ue_s"></div></div>
+      <div class="row"><label for="w">St&auml;nder</label><input type="number" id="w" step="0.01" min="0.1" max="0.4">
+        <input type="range" id="w_r" step="0.01" min="0.1" max="0.4"><div class="sub" id="w_s"></div></div>
+      <div class="row"><label for="fd">Fundamenttiefe</label><input type="number" id="fd" step="0.05" min="0.3" max="1.5">
+        <input type="range" id="fd_r" step="0.05" min="0.3" max="1.5"><div class="sub" id="fd_s"></div></div>
     </div>
 
     <div class="card">
       <h2>Dach</h2>
       <div class="wide"><label for="pitch">Neigung</label>
         <select id="pitch">
-          <option value="0.625">5 : 8 &ndash; Fibonacci (32,0&deg;)</option>
-          <option value="0.61538">8 : 13 &ndash; Fibonacci (31,6&deg;)</option>
+          <option value="0.625">5 : 8 &ndash; Fibonacci (32,0&deg;), First 13a</option>
           <option value="0.61803">1 : &phi; &ndash; goldene Neigung (31,7&deg;)</option>
           <option value="1">1 : 1 (45,0&deg;)</option>
           <option value="1.6">8 : 5 &ndash; Fibonacci (58,0&deg;)</option>
-          <option value="1.61803">&phi; : 1 &ndash; goldene Neigung (58,3&deg;)</option>
-          <option value="fit">First auf 13a einrasten</option>
+          <option value="1.625">13 : 8 &ndash; Fibonacci (58,4&deg;), First 21a</option>
           <option value="frei">frei</option>
         </select></div>
-      <div class="row"><label for="al">Neigung frei</label><input type="number" id="al" step="0.5" min="8" max="70">
-        <input type="range" id="al_r" step="0.5" min="8" max="70"><div class="sub" id="al_s"></div></div>
-      <div class="row"><label for="d">Dachaufbau d</label><input type="number" id="d" step="0.01" min="0.1" max="0.7">
-        <input type="range" id="d_r" step="0.01" min="0.1" max="0.7"><div class="sub" id="d_s"></div></div>
-    </div>
-
-    <div class="card">
-      <h2>Lichtraum &amp; Auskragung</h2>
-      <div class="row"><label for="th">Traufh&ouml;he OK</label><input type="number" id="th" step="0.05" min="3" max="9">
-        <input type="range" id="th_r" step="0.05" min="3" max="9"><div class="sub" id="th_s"></div></div>
-      <div class="btns" style="margin:-4px 0 11px"><button id="to420" class="mini">lichte H&ouml;he auf 4,20 setzen</button></div>
-      <div class="row"><label for="k">Auskragung = lichte Breite</label><input type="number" id="k" step="0.05" min="2" max="7">
-        <input type="range" id="k_r" step="0.05" min="2" max="7"><div class="sub" id="k_s"></div></div>
-      <div class="row"><label for="rb">R&uuml;ckbau (Ger&auml;teraum)</label><input type="number" id="rb" step="0.05" min="0.8" max="5">
-        <input type="range" id="rb_r" step="0.05" min="0.8" max="5"><div class="sub" id="rb_s"></div></div>
-      <div class="row"><label for="w">St&auml;nder / Wand</label><input type="number" id="w" step="0.01" min="0.12" max="0.6">
-        <input type="range" id="w_r" step="0.01" min="0.12" max="0.6"><div class="sub" id="w_s"></div></div>
-      <div class="row"><label for="fd">Fundamenttiefe</label><input type="number" id="fd" step="0.05" min="0.3" max="1.5">
-        <input type="range" id="fd_r" step="0.05" min="0.3" max="1.5"><div class="sub" id="fd_s"></div></div>
+      <div class="row"><label for="al">Neigung frei</label><input type="number" id="al" step="0.5" min="15" max="70">
+        <input type="range" id="al_r" step="0.5" min="15" max="70"><div class="sub" id="al_s"></div></div>
+      <div class="row"><label for="d">Sparren + Deckung</label><input type="number" id="d" step="0.01" min="0.12" max="0.5">
+        <input type="range" id="d_r" step="0.01" min="0.12" max="0.5"><div class="sub" id="d_s"></div></div>
     </div>
 
     <div class="card">
@@ -155,9 +155,9 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
       <div class="chk"><input type="checkbox" id="ly_dim"><label for="ly_dim">Bema&szlig;ung</label></div>
       <div class="chk"><input type="checkbox" id="ly_clear"><label for="ly_clear">Lichtraumprofil</label></div>
       <div class="chk"><input type="checkbox" id="ly_car"><label for="ly_car">Pr&uuml;fk&ouml;rper 2,55 &times; 4,00</label></div>
-      <div class="chk"><input type="checkbox" id="ly_fib"><label for="ly_fib">Fibonacci-Teilung der H&uuml;lle</label></div>
-      <div class="chk"><input type="checkbox" id="ly_phi"><label for="ly_phi">&phi;-Teilungslinien</label></div>
+      <div class="chk"><input type="checkbox" id="ly_fib"><label for="ly_fib">Fibonacci-Teilung (halber Schnitt)</label></div>
       <div class="chk"><input type="checkbox" id="ly_grid"><label for="ly_grid">Modulraster a</label></div>
+      <div class="chk"><input type="checkbox" id="ly_wall"><label for="ly_wall">R&uuml;ckwand mit Bretterschalung</label></div>
       <div class="chk"><input type="checkbox" id="ly_txt"><label for="ly_txt">Bauteilbeschriftung</label></div>
     </div>
 
@@ -171,33 +171,33 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
 <div class="info">
   <div class="card">
     <h2>Proportion</h2>
-    <p>Alle Ma&szlig;e sind Vielfache des Moduls <code>a</code>. Mit <code>a&nbsp;=&nbsp;0,70&nbsp;m</code> liegt
-      jede Kante auf dem Fibonacci-Raster:</p>
+    <p>Der halbe Querschnitt ist ein goldenes Rechteck: <strong>8a breit, 13a hoch</strong>. Seine
+      Fibonacci-Teilung trifft genau die beiden Linien, die den Bau festlegen:</p>
     <ul>
-      <li>R&uuml;ckbau <strong>3a</strong> : Auskragung <strong>5a</strong> &asymp; &phi;</li>
-      <li>Gesamttiefe <strong>8a = 5,60</strong> (3a + 5a)</li>
-      <li>Traufe OK <strong>8a = 5,60</strong> : First OK <strong>13a = 9,10</strong> &asymp; &phi;</li>
-      <li>Dachneigung <strong>5 : 8</strong> = 32,0&deg; &ndash; der Anstieg 5a liegt &uuml;ber der Tiefe 8a</li>
-      <li>H&uuml;lle <strong>8a &times; 13a</strong> = goldenes Rechteck</li>
+      <li>erstes Quadrat 8a &times; 8a &rarr; waagerecht bei <strong>8a = 4,20</strong> = Traufh&ouml;he</li>
+      <li>n&auml;chstes Quadrat 5a &times; 5a &rarr; senkrecht bei <strong>5a = 2,63</strong> = St&auml;nderachse</li>
+      <li>Rest 3a &rarr; <strong>Dach&uuml;berstand 1,58</strong>, also 5a + 3a = 8a</li>
+      <li>Firsth&ouml;he <strong>13a = 6,83</strong>, Neigung <strong>5 : 8</strong> = 32,0&deg;</li>
     </ul>
-    <p>Die St&uuml;tzenachse teilt die Tiefe im goldenen Schnitt, die Traufe teilt die H&ouml;he im goldenen
-      Schnitt. Beides sind gerade Linien des Rasters, keine Figur auf dem Dach.</p>
+    <p>Traufe : First = 8 : 13 und Achse : &Uuml;berstand = 5 : 3 &ndash; beides der goldene Schnitt, beides
+      gerade Linien im Raster.</p>
   </div>
   <div class="card">
-    <h2>Dachform</h2>
-    <p>Satteldach, r&uuml;ckseitig abgeschnitten: der First sitzt &uuml;ber der R&uuml;ckwand, die Fl&auml;che
-      f&auml;llt in einer Ebene nach vorn &uuml;ber den Einstellplatz und kragt &uuml;ber die St&uuml;tzenreihe hinaus.
-      Hinten schlie&szlig;t die Dachfl&auml;che senkrecht mit der Wandflucht ab.</p>
-    <p>Die lichte H&ouml;he wird am Kragende gemessen &ndash; dem tiefsten Punkt. Nach hinten steigt die
-      Unterkante an, der Lichtraum ist damit &uuml;ber die ganze Durchfahrt eingehalten.</p>
+    <h2>Bauform</h2>
+    <p>Offener St&auml;nderbau nach altem Vorbild: zwei Reihen Holzst&auml;nder auf Sockeln, l&auml;ngs
+      verbunden durch das R&auml;hm, quer durch den Bundbalken, ausgesteift mit Kopfb&auml;ndern.
+      Dar&uuml;ber Sparren mit Kehlbalken, gedeckt mit Ziegeln.</p>
+    <p>Die Sparren kragen &uuml;ber die St&auml;nderreihe hinaus &ndash; das ist die weite Traufe, die den
+      offenen Einstellplatz trocken h&auml;lt. Weil die Durchfahrt an der Traufkante gemessen wird,
+      bestimmt sie die H&ouml;he des ganzen Baus.</p>
   </div>
   <div class="card">
     <h2>Tragwerk &ndash; &Uuml;berschlag</h2>
     <p class="note">Keine Statik, nur Gr&ouml;&szlig;enordnung f&uuml;r den Entwurf.</p>
     <div class="kv" id="kv2"></div>
-    <p style="margin-top:9px">Der Sparren liegt als Kragarm auf zwei Pfetten. Weil die Auskragung l&auml;nger ist
-      als das R&uuml;ckfeld, hebt es die R&uuml;ckwand an: dort geh&ouml;rt ein Zuganker ins Fundament,
-      nicht nur Auflast.</p>
+    <p style="margin-top:9px">Der Sparren liegt als Kragarm auf dem R&auml;hm. Der &Uuml;berstand bleibt
+      deutlich k&uuml;rzer als das Feld zum First, das Kragmoment ist damit klein &ndash; der Bau tr&auml;gt sich
+      mit den Querschnitten, die auf den Fotos zu sehen sind.</p>
   </div>
 </div>
 
@@ -211,7 +211,7 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
       <select id="unit" aria-label="Einheit im DXF">
         <option value="1000">DXF in mm</option><option value="1">DXF in m</option></select>
     </div>
-    <p class="note">DXF&nbsp;R12 mit den Ebenen GELAENDE, BAUTEIL, HOLZ, DACH, LICHTRAUM, BEMASSUNG,
+    <p class="note">DXF&nbsp;R12 mit den Ebenen GELAENDE, BAUTEIL, HOLZ, DECKUNG, LICHTRAUM, BEMASSUNG,
       KONSTRUKTION, TEXT. Text kopieren und als <code>remise-profil.dxf</code> speichern &ndash; &ouml;ffnet in
       AutoCAD, BricsCAD, LibreCAD, ArchiCAD, Rhino, FreeCAD oder QCAD.</p>
     <textarea id="out" spellcheck="false" readonly aria-label="Exporttext"></textarea>
@@ -223,26 +223,30 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
 "use strict";
 var PHI=(1+Math.sqrt(5))/2, D2R=Math.PI/180;
 
-var DEF={a:0.70,th:5.60,k:3.50,rb:2.10,pitch:"0.625",al:32.0,d:0.35,w:0.35,fd:0.80,
-  ly_dim:true,ly_clear:true,ly_car:true,ly_fib:true,ly_phi:true,ly_grid:false,ly_txt:true};
+var DEF={a:0.525,lh:4.20,ax:2.625,ue:1.575,w:0.18,fd:0.80,pitch:"0.625",al:32.0,d:0.26,
+  ly_dim:true,ly_clear:true,ly_car:true,ly_fib:true,ly_grid:false,ly_wall:false,ly_txt:true};
 var P=Object.assign({},DEF);
 
-/* ============ Geometrie: gerade Dachebene ============ */
-function slope(P,T){
+/* ============ Geometrie: symmetrisches Satteldach ============ */
+function tanOf(P){
   if(P.pitch==="frei")return Math.tan(P.al*D2R);
-  if(P.pitch==="fit")return Math.max(0.05,(13*P.a-P.th)/T);
   return parseFloat(P.pitch);
 }
 function geom(P){
-  var x0=-P.rb, x1=P.k, T=P.rb+P.k;
-  var tn=slope(P,T), al=Math.atan(tn)/D2R, ca=Math.cos(al*D2R);
-  var dv=P.d/ca;                               // senkrecht gemessene Dachdicke
-  var okTip=P.th, ukTip=P.th-dv;               // Traufe am Kragende
-  var okRidge=P.th+T*tn, ukRidge=okRidge-dv;   // First an der Rückwand
-  function yUK(x){return ukTip+(x1-x)*tn;}
-  function yOK(x){return okTip+(x1-x)*tn;}
-  return {x0:x0,x1:x1,T:T,tn:tn,al:al,dv:dv,okTip:okTip,ukTip:ukTip,
-    okRidge:okRidge,ukRidge:ukRidge,H:okRidge,yUK:yUK,yOK:yOK};
+  var hw=P.ax+P.ue;                     // halbe Dachbreite ab Firstachse
+  var tn=tanOf(P), al=Math.atan(tn)/D2R, ca=Math.cos(al*D2R);
+  var dv=P.d/ca;                        // senkrecht gemessene Dachdicke
+  var ukEave=P.lh, okEave=P.lh+dv;      // Traufkante
+  var ukRidge=P.lh+hw*tn, okRidge=ukRidge+dv;
+  function yUK(x){return P.lh+(hw-Math.abs(x))*tn;}
+  var rh=0.17, bh=0.22;                 // Rähm, Bundbalken
+  var ukPost=yUK(P.ax);                 // Sparrenunterkante über der Achse
+  var bbTop=ukPost, bbBot=ukPost-bh;    // Bundbalken
+  var raTop=bbBot, raBot=bbBot-rh;      // Rähm
+  var postTop=raBot;
+  return {hw:hw,tn:tn,al:al,dv:dv,ukEave:ukEave,okEave:okEave,ukRidge:ukRidge,okRidge:okRidge,
+    yUK:yUK,rh:rh,bh:bh,ukPost:ukPost,bbTop:bbTop,bbBot:bbBot,raTop:raTop,raBot:raBot,
+    postTop:postTop,H:okRidge};
 }
 
 /* ============ Zeichen-Hilfen ============ */
@@ -259,25 +263,25 @@ function tx(x,y,s,c,anch,rot){
   return '<text class="'+c+'" x="'+X(x)+'" y="'+Y(y)+'" text-anchor="'+(anch||"middle")+'"'+
     (rot?' transform="rotate('+rot+' '+X(x)+' '+Y(y)+')"':"")+'>'+esc(s)+'</text>';
 }
-function tick(x,y){var s=0.075;return ln(x-s,y-s,x+s,y+s,"dm");}
+function tick(x,y){var s=0.07;return ln(x-s,y-s,x+s,y+s,"dm");}
 function dimH(x1,x2,y,label,rY1,rY2){
   var o=[];
-  if(rY1!==undefined)o.push(ln(x1,rY1,x1,y+0.1,"dmw"));
-  if(rY2!==undefined)o.push(ln(x2,rY2,x2,y+0.1,"dmw"));
-  o.push(ln(x1,y,x2,y,"dm"),tick(x1,y),tick(x2,y),tx((x1+x2)/2,y+0.085,label,"tdim","middle"));
+  if(rY1!==undefined)o.push(ln(x1,rY1,x1,y+0.09,"dmw"));
+  if(rY2!==undefined)o.push(ln(x2,rY2,x2,y+0.09,"dmw"));
+  o.push(ln(x1,y,x2,y,"dm"),tick(x1,y),tick(x2,y),tx((x1+x2)/2,y+0.075,label,"tdim","middle"));
   return o.join("");
 }
 function dimV(y1,y2,x,label,rX1,rX2){
   var o=[];
-  if(rX1!==undefined)o.push(ln(rX1,y1,x+0.1,y1,"dmw"));
-  if(rX2!==undefined)o.push(ln(rX2,y2,x+0.1,y2,"dmw"));
-  o.push(ln(x,y1,x,y2,"dm"),tick(x,y1),tick(x,y2),tx(x-0.085,(y1+y2)/2,label,"tdim","middle",-90));
+  if(rX1!==undefined)o.push(ln(rX1,y1,x+0.09,y1,"dmw"));
+  if(rX2!==undefined)o.push(ln(rX2,y2,x+0.09,y2,"dmw"));
+  o.push(ln(x,y1,x,y2,"dm"),tick(x,y1),tick(x,y2),tx(x-0.075,(y1+y2)/2,label,"tdim","middle",-90));
   return o.join("");
 }
 function fibSquares(x0,y0,w,h,n){
   var sides=["bottom","left","top","right"], i=(h>=w)?0:1, r={x:x0,y:y0,w:w,h:h}, out=[], s, side, q, sq;
   for(s=0;s<n;s++){
-    if(r.w<0.03||r.h<0.03)break;
+    if(r.w<0.02||r.h<0.02)break;
     side=sides[i%4];i++;q=Math.min(r.w,r.h);
     if(side==="bottom"){sq={x:r.x,y:r.y,w:q,h:q};r={x:r.x,y:r.y+q,w:r.w,h:r.h-q};}
     else if(side==="left"){sq={x:r.x,y:r.y,w:q,h:q};r={x:r.x+q,y:r.y,w:r.w-q,h:r.h};}
@@ -293,174 +297,199 @@ var VB={x:0,y:0,w:1,h:1}, G=null;
 
 function build(){
   G=geom(P);
-  var g=G, o=[], v;
-  var x0=g.x0, x1=g.x1, H=g.H, sock=0.15;
-  var minx=x0-2.35, maxx=x1+2.1, miny=-Math.max(1.85,P.fd+1.05), maxy=H+1.15;
+  var g=G, o=[], v, s;
+  var hw=g.hw, H=g.H, sock=0.18;
+  var minx=-hw-2.0, maxx=hw+2.0, miny=-Math.max(2.05,P.fd+1.25), maxy=H+1.1;
   VB={x:minx,y:-maxy,w:maxx-minx,h:maxy-miny};
 
-  /* --- Konstruktionsebenen --- */
+  /* --- Konstruktion --- */
   if(P.ly_grid){
     var gr=[];
-    for(v=x0;v<=x1+1e-6;v+=P.a)gr.push(ln(v,0,v,H,"grd"));
-    for(v=0;v<=H+1e-6;v+=P.a)gr.push(ln(x0,v,x1,v,"grd"));
+    for(v=0;v<=hw+1e-6;v+=P.a){gr.push(ln(v,0,v,g.yUK(v),"grd"));gr.push(ln(-v,0,-v,g.yUK(v),"grd"));}
+    for(v=0;v<=g.ukRidge+1e-6;v+=P.a)gr.push(ln(-hw,v,hw,v,"grd"));
     o.push("<g>"+gr.join("")+"</g>");
   }
   if(P.ly_fib){
-    o.push("<g>"+fibSquares(x0,0,x1-x0,H,8).map(function(s){return re(s.x,s.y,s.w,s.h,"cs");}).join("")+
-      re(x0,0,x1-x0,H,"cs")+"</g>");
-    o.push(tx(x0+0.02,H+0.76,"Hülle "+nf(x1-x0)+" × "+nf(H)+"  =  "+nf1((x1-x0)/P.a)+"a × "+nf1(H/P.a)+"a","tcs","start"));
-    o.push(tx(x0+0.02,H+0.52,"Teilung "+nf(H/(x1-x0))+" ≈ φ = 1,618","tcs","start"));
-  }
-  if(P.ly_phi){
-    o.push(ln(0,-0.3,0,H+0.3,"csd"));
-    o.push(ln(x0-0.3,P.th,x1+0.3,P.th,"csd"));
-    o.push(tx(0.12,H+0.12,"φ-Teilung der Tiefe   "+nf1(P.rb/P.a)+"a : "+nf1(P.k/P.a)+"a","tcs","start"));
-    o.push(tx(x0-0.34,P.th+0.1,"φ-Teilung der Höhe   "+nf1(P.th/P.a)+"a : "+nf1((H-P.th)/P.a)+"a","tcs","end"));
+    o.push("<g>"+fibSquares(0,0,hw,g.ukRidge,8).map(function(q){return re(q.x,q.y,q.w,q.h,"cs");}).join("")+
+      re(0,0,hw,g.ukRidge,"cs")+"</g>");
+    o.push(ln(0,-0.25,0,H+0.5,"csd"));
+    o.push(tx(-hw,-1.62,"halber Schnitt "+nf(hw)+" × "+nf(g.ukRidge)+"  =  "+
+      nf1(hw/P.a)+"a × "+nf1(g.ukRidge/P.a)+"a","tcs","start"));
+    o.push(tx(-hw,-1.86,"Teilung "+nf(g.ukRidge/hw)+" ≈ φ   ·   Quadrat 8a → Traufe, Quadrat 5a → Ständerachse","tcs","start"));
+    o.push(tx(0.1,H+0.52,"Firstachse","tcs","start"));
   }
 
   /* --- Gelände --- */
-  o.push(ln(minx+0.12,0,maxx-0.12,0,"gl"));
+  o.push(ln(minx+0.1,0,maxx-0.1,0,"gl"));
   var hat=[];
-  for(v=minx+0.26;v<maxx-0.12;v+=0.26)hat.push(ln(v,0,v-0.17,-0.17,"bt2"));
+  for(v=minx+0.22;v<maxx-0.1;v+=0.22)hat.push(ln(v,0,v-0.14,-0.14,"bt2"));
   o.push('<g opacity="0.5">'+hat.join("")+"</g>");
-  o.push(tx(maxx-0.16,0.1,"GOK ±0,00","tlb","end"));
+  o.push(tx(maxx-0.14,0.09,"GOK ±0,00","tlb","end"));
 
   /* --- Lichtraum + Prüfkörper --- */
+  var lb=2*P.ax-P.w;
   if(P.ly_clear){
-    o.push(re(0,0,P.k,g.ukTip,"lrf"),re(0,0,P.k,g.ukTip,"lr"));
-    o.push(tx(0.14,g.ukTip-0.3,"Lichtraum "+nf(P.k)+" × "+nf(g.ukTip),"tlr","start"));
+    o.push(re(-lb/2,0,lb,P.lh,"lrf"),re(-lb/2,0,lb,P.lh,"lr"));
+    o.push(tx(-lb/2+0.12,P.lh-0.26,"Lichtraum "+nf(lb)+" × "+nf(P.lh),"tlr","start"));
   }
   if(P.ly_car){
-    var cwv=Math.min(2.55,Math.max(0.4,P.k-0.1));
-    o.push(re(P.k/2-cwv/2,0,cwv,4.0,"car"));
-    o.push(tx(P.k/2,0.17,"Prüfkörper 2,55 × 4,00","tlr","middle"));
+    var cwv=Math.min(2.55,Math.max(0.4,lb-0.1));
+    o.push(re(-cwv/2,0,cwv,4.0,"car"));
+    o.push(tx(0,0.15,"Prüfkörper 2,55 × 4,00","tlr","middle"));
   }
 
-  /* --- Fundamente und Sockel --- */
-  o.push(re(x0-0.14,-P.fd,P.w+0.38,P.fd,"bt"));
-  o.push(re(-P.w-0.14,-P.fd,P.w+0.38,P.fd,"bt"));
-  o.push(re(-P.w-0.05,0,P.w+0.1,sock,"bt"));
+  /* --- Fundamente, Sockel, Ständer --- */
+  [-1,1].forEach(function(sg){
+    var cx=sg*P.ax;
+    o.push(re(cx-P.w/2-0.16,-P.fd,P.w+0.32,P.fd,"bt"));
+    o.push(re(cx-P.w/2-0.05,0,P.w+0.1,sock,"bt"));
+    o.push(re(cx-P.w/2,sock,P.w,g.postTop-sock,"hz"));
+    o.push(re(cx-P.w/2-0.02,g.raBot,P.w+0.04,g.rh,"hz"));
+  });
 
-  /* --- Rähm auf Wand und Ständer, Ständer darunter --- */
-  var pf=P.w+0.06, ph=0.22;
-  var cW=x0+P.w/2, cS=-P.w/2;
-  var topW=g.yUK(cW)-ph, topS=g.yUK(cS)-ph;
-  o.push(re(x0,0,P.w,topW,"bt"));
-  o.push(re(-P.w,sock,P.w,topS-sock,"hz"));
-  o.push(re(cW-pf/2,topW,pf,ph,"hz"));
-  o.push(re(cS-pf/2,topS,pf,ph,"hz"));
+  /* --- Bundbalken --- */
+  o.push(re(-P.ax-P.w/2-0.02,g.bbBot,2*P.ax+P.w+0.04,g.bh,"hz"));
 
-  /* --- Kopfband --- */
-  var kb=Math.min(0.9,(P.rb-P.w)*0.75);
+  /* --- Kopfbänder --- */
+  var kb=Math.min(0.85,(2*P.ax-P.w)*0.22,g.bbBot-P.lh-0.02);
   if(kb>0.25){
-    o.push(pl([{x:-P.w,y:topS-kb},{x:-P.w-kb,y:topS},
-      {x:-P.w-kb-0.085,y:topS-0.085},{x:-P.w-0.085,y:topS-kb-0.085}],"hz",true));
+    [-1,1].forEach(function(sg){
+      var px=sg*(P.ax-P.w/2), bx=sg*(P.ax-P.w/2-kb);
+      o.push(pl([{x:px,y:g.bbBot-kb},{x:bx,y:g.bbBot},{x:bx+sg*0.1,y:g.bbBot-0.1},
+        {x:px,y:g.bbBot-kb-0.1}],"hz",true));
+    });
   }
 
-  /* --- Dachebene --- */
-  o.push(pl([{x:x0,y:g.ukRidge},{x:x0,y:g.okRidge},{x:x1,y:g.okTip},{x:x1,y:g.ukTip}],"rf",true));
-  o.push(ln(x0,g.okRidge-0.07,x1,g.okTip-0.07,"bt2"));
+  /* --- Rückwand --- */
+  if(P.ly_wall){
+    o.push(re(-P.ax-P.w/2,sock,0.06,g.postTop-sock,"hz"));
+    var br=[];
+    for(v=sock+0.3;v<g.postTop;v+=0.3)br.push(ln(-P.ax-P.w/2,v,-P.ax-P.w/2+0.06,v,"bt2"));
+    o.push("<g>"+br.join("")+"</g>");
+  }
 
-  /* --- Rinne am Kragende --- */
-  o.push('<path class="bt2" d="M '+X(x1-0.22)+" "+Y(g.ukTip-0.04)+" a 0.11 0.11 0 1 0 0.22 0"+'"/>');
+  /* --- Sparren beidseitig --- */
+  [-1,1].forEach(function(sg){
+    o.push(pl([{x:sg*hw,y:g.ukEave},{x:0,y:g.ukRidge},{x:0,y:g.okRidge},{x:sg*hw,y:g.okEave}],"zg",true));
+  });
+  /* Ziegelstriche */
+  var tl=[];
+  for(v=0.3;v<hw;v+=0.3){
+    var yy=g.yUK(v)+g.dv;
+    tl.push(ln(v,yy,v-0.05,yy-0.09,"bt2"));
+    tl.push(ln(-v,yy,-v+0.05,yy-0.09,"bt2"));
+  }
+  o.push('<g opacity="0.45">'+tl.join("")+"</g>");
+
+  /* --- Kehlbalken im goldenen Schnitt der Sparrenhöhe --- */
+  var kyy=g.ukEave+(g.ukRidge-g.ukEave)*0.618;
+  var kx=(g.ukRidge-kyy)/g.tn;
+  o.push(re(-kx,kyy-0.1,2*kx,0.2,"hz"));
+
+  /* --- Rinnen --- */
+  [-1,1].forEach(function(sg){
+    o.push('<path class="bt2" d="M '+X(sg*hw-0.1)+" "+Y(g.ukEave-0.03)+" a 0.1 0.1 0 1 0 0.2 0"+'"/>');
+  });
 
   /* --- Beschriftung --- */
   if(P.ly_txt){
-    var lab=function(x,y,s,anch){o.push(tx(x,y,s,"tlb",anch||"start"));};
-    lab(x0+P.w+0.12,g.okRidge+0.14,"First OK "+nf(H));
-    lab(x1+0.12,g.okTip+0.14,"Traufe OK "+nf(P.th));
-    lab((x0+P.w-P.w)/2,-0.42,"Geräteraum","middle");
-    lab(P.k/2,-0.42,"Einstellplatz, frei auskragend","middle");
-    lab(x0+P.w+0.14,2.6,"Rückwand");
-    lab(-P.w-0.14,2.0,"Ständer","end");
-    lab(cS-pf/2-0.12,topS+ph/2,"Rähm","end");
-    if(kb>0.25)lab(-P.w-kb-0.2,topS-0.42,"Kopfband","end");
-    lab(x1+0.12,g.ukTip-0.55,"Rinne");
+    var lab=function(x,y,t,anch){o.push(tx(x,y,t,"tlb",anch||"start"));};
+    lab(0.12,g.okRidge+0.16,"First OK "+nf(H));
+    lab(hw+0.12,g.okEave+0.14,"Traufe OK "+nf(g.okEave));
+    lab(hw+0.12,g.ukEave-0.22,"UK "+nf(P.lh)+" = Durchfahrt");
+    lab(-hw-0.12,g.ukEave-0.22,"Rinne","end");
+    lab(0.9,g.bbBot-0.2,"Bundbalken");
+    lab(-P.ax-P.w/2-0.1,g.raBot+g.rh/2,"Rähm","end");
+    lab(P.ax+P.w/2+0.1,g.postTop*0.55,"Ständer");
+    lab(P.ax+P.w/2+0.1,sock+0.1,"Sockel");
+    lab(-kx+0.15,kyy-0.33,"Kehlbalken");
+    if(kb>0.25)lab(-P.ax-P.w/2-0.1,g.bbBot-kb+0.02,"Kopfband","end");
+    lab(0,-0.4,"offener Einstellplatz","middle");
   }
 
   /* --- Steigungsdreieck --- */
-  var sx=x0+(x1-x0)*0.42, sy=g.yOK(sx), run=Math.min(1.6,(x1-x0)*0.3), rise=run*g.tn;
-  o.push(pl([{x:sx,y:sy},{x:sx+run,y:sy},{x:sx+run,y:sy-rise}],"dm"));
-  o.push(tx(sx+run/2,sy+0.08,"8","tdim","middle"));
-  o.push(tx(sx+run+0.1,sy-rise/2,nf1(g.tn*8),"tdim","start"));
-  o.push(tx(sx+run+0.1,sy+0.12,nf1(g.al)+"°","tdim","start"));
+  var sx=hw*0.45, sy=g.yUK(sx)+g.dv, run=Math.min(1.2,hw*0.3), rise=run*g.tn;
+  o.push(pl([{x:sx,y:sy},{x:sx+run,y:sy-rise},{x:sx+run,y:sy}],"dm"));
+  o.push(tx(sx+run/2,sy-rise-0.22,nf1(g.al)+"°","tdim","middle"));
+  o.push(tx(sx+run/2,sy+0.07,"8","tdim","middle"));
+  o.push(tx(sx+run+0.08,sy-rise/2,nf1(g.tn*8),"tdim","start"));
 
   /* --- Bemaßung --- */
   if(P.ly_dim){
-    o.push(dimH(x0,0,-0.82,nf(P.rb),0,0));
-    o.push(dimH(0,x1,-0.82,nf(P.k),0,0));
-    o.push(dimH(x0,x1,-1.38,nf(x1-x0),-0.82,-0.82));
-    o.push(dimV(0,H,x0-0.88,nf(H),x0,x0));
-    o.push(dimV(0,g.ukTip,x1+1.15,nf(g.ukTip),x1,x1));
-    o.push(dimV(-P.fd,0,x0-1.52,nf(P.fd),x0-0.14,x0-0.14));
-    var mx=x0+(x1-x0)*0.72, muk=g.yUK(mx), mok=g.yOK(mx);
-    o.push(ln(mx,muk,mx,mok,"dm"),tick(mx,muk),tick(mx,mok));
-    o.push(ln(mx,mok,mx+0.7,mok+0.7,"dmw"));
-    o.push(tx(mx+0.76,mok+0.74,"Dachaufbau "+nf(P.d),"tdim","start"));
+    o.push(dimH(-hw,-P.ax,-0.75,nf(P.ue),0,0));
+    o.push(dimH(-P.ax,P.ax,-0.75,nf(2*P.ax),0,0));
+    o.push(dimH(P.ax,hw,-0.75,nf(P.ue),0,0));
+    o.push(dimH(-hw,hw,-1.25,nf(2*hw),-0.75,-0.75));
+    o.push(dimV(0,P.lh,-hw-0.62,nf(P.lh),-hw,-hw));
+    o.push(dimV(0,H,-hw-1.2,nf(H),-hw,0));
+    o.push(dimV(-P.fd,0,hw+1.15,nf(P.fd),P.ax+P.w/2,P.ax+P.w/2));
+    o.push(dimH(-lb/2,lb/2,1.5,nf(lb)+" lichte Breite",0,0));
   }
 
   /* --- Griffe --- */
-  o.push('<circle class="hdl" id="h_tip" cx="'+X(x1)+'" cy="'+Y(g.ukTip)+'" r="0.115"><title>Kragende ziehen</title></circle>');
-  o.push('<circle class="hdl" id="h_rb" cx="'+X(x0)+'" cy="'+Y(0)+'" r="0.115"><title>Rückbau ziehen</title></circle>');
+  o.push('<circle class="hdl" id="h_eave" cx="'+X(hw)+'" cy="'+Y(P.lh)+'" r="0.1"><title>Traufe ziehen</title></circle>');
+  o.push('<circle class="hdl" id="h_post" cx="'+X(P.ax)+'" cy="'+Y(sock)+'" r="0.1"><title>Ständerachse ziehen</title></circle>');
 
   document.getElementById("dwg").innerHTML=
     '<svg viewBox="'+fx(VB.x)+" "+fx(VB.y)+" "+fx(VB.w)+" "+fx(VB.h)+'" id="svg" role="img" '+
-    'aria-label="Profilschnitt der Remise mit abgeschnittenem Satteldach">'+o.join("\n")+"</svg>";
+    'aria-label="Querschnitt der Remise: offener Ständerbau mit Satteldach">'+o.join("\n")+"</svg>";
   readouts();
 }
 
 function readouts(){
-  var g=G, T=g.x1-g.x0, H=g.H;
-  var okH=g.ukTip>=4.199, okW=P.k>=3.499;
+  var g=G, lb=2*P.ax-P.w, H=g.H, hw=g.hw;
+  var okH=P.lh>=4.199, okW=lb>=3.499;
   function mods(v){return nf1(v/P.a)+"a";}
   var rows=[
     ["hd","Vorgaben"],
-    ["Durchfahrtshöhe",'<span class="'+(okH?"ok":"bad")+'">'+nf(g.ukTip)+" m "+(okH?"✓":"✗ < 4,20")+"</span>"],
-    ["Lichte Breite",'<span class="'+(okW?"ok":"bad")+'">'+nf(P.k)+" m "+(okW?"✓":"✗ < 3,50")+"</span>"],
-    ["hd","Hülle"],
-    ["Gesamthöhe",nf(H)+" m = "+mods(H)],
-    ["Gesamttiefe",nf(T)+" m = "+mods(T)],
-    ["Höhe : Tiefe",nf(H/T)+"  (φ = 1,62)"],
-    ["Traufe : First",nf(H/P.th)+"  (φ = 1,62)"],
-    ["Rückbau : Auskragung",nf(P.k/P.rb)+"  (φ = 1,62)"],
-    ["hd","Dach"],
+    ["Durchfahrtshöhe",'<span class="'+(okH?"ok":"bad")+'">'+nf(P.lh)+" m "+(okH?"✓":"✗ < 4,20")+"</span>"],
+    ["Lichte Breite",'<span class="'+(okW?"ok":"bad")+'">'+nf(lb)+" m "+(okW?"✓":"✗ < 3,50")+"</span>"],
+    ["hd","Halber Schnitt"],
+    ["Breite ab Firstachse",nf(hw)+" m = "+mods(hw)],
+    ["Firsthöhe UK",nf(g.ukRidge)+" m = "+mods(g.ukRidge)],
+    ["Teilung",nf(g.ukRidge/hw)+"  (φ = 1,62)"],
+    ["Achse : Überstand",nf(P.ax/P.ue)+"  (φ = 1,62)"],
+    ["Traufe : First",nf(g.ukRidge/P.lh)+"  (φ = 1,62)"],
+    ["hd","Bau"],
+    ["Gesamtbreite Dach",nf(2*hw)+" m = "+mods(2*hw)],
+    ["Gesamthöhe OK",nf(H)+" m"],
+    ["Ständerhöhe",nf(g.postTop-0.18)+" m"],
     ["Neigung",nf1(g.al)+"°  =  "+nf(g.tn*8)+" : 8"],
-    ["Sparrenlänge",nf(T/Math.cos(g.al*D2R))+" m"],
-    ["Dachdicke senkrecht",nf(g.dv)+" m"]
+    ["Sparrenlänge",nf(hw/Math.cos(g.al*D2R))+" m"]
   ];
   document.getElementById("kv").innerHTML=rows.map(function(r){
     return r[0]==="hd"?'<span class="hd">'+r[1]+"</span>":"<span>"+r[0]+"</span><span>"+r[1]+"</span>";
   }).join("");
 
-  var q=2.2, b=Math.max(P.rb-P.w,0.2), kc=P.k+P.w/2;
-  var Rb=q*(b*b-kc*kc)/(2*b), M=q*kc*kc/2, Rs=q*(b+kc)-Rb;
+  var q=2.2, kc=P.ue, fd2=P.ax;
+  var M=q*kc*kc/2, Rp=q*(kc+fd2/2);
   document.getElementById("kv2").innerHTML=[
     ["Last q (Dach + Schnee)",nf1(q)+" kN/m²"],
-    ["Rückfeld : Kragarm",nf(b)+" : "+nf(kc)+" m"],
-    ["Kragmoment über Ständer",nf1(M)+" kNm/m"],
-    ["Auflager Ständer",nf1(Rs)+" kN/m"],
-    ["Rückwand",(Rb<0?nf1(-Rb)+" kN/m Zug":nf1(Rb)+" kN/m Druck")]
+    ["Feld : Kragarm",nf(fd2)+" : "+nf(kc)+" m"],
+    ["Kragmoment am Rähm",nf1(M)+" kNm/m"],
+    ["Auflast je Ständerreihe",nf1(Rp)+" kN/m"],
+    ["Horizontalschub First",nf1(q*fd2*fd2/(2*(g.ukRidge-g.ukPost)))+" kN/m"]
   ].map(function(r){return "<span>"+r[0]+"</span><span>"+r[1]+"</span>";}).join("");
 
   document.getElementById("sb1").textContent="a = "+nf(P.a)+" m   ·   M 1:50 (A3)   ·   Maße in m";
-  document.getElementById("sb2").textContent="UK Dach "+nf(g.ukTip)+" m am Kragende → "+nf(g.ukRidge)+
-    " m am First · Neigung "+nf1(g.al)+"°";
+  document.getElementById("sb2").textContent="Traufe "+nf(P.lh)+" · First UK "+nf(g.ukRidge)+
+    " · Neigung "+nf1(g.al)+"° · Dach "+nf(2*hw)+" m breit";
 }
 
 /* ============ Steuerung ============ */
-var NUM=[["a",2],["th",2],["k",2],["rb",2],["al",1],["d",2],["w",2],["fd",2]];
-var LAYERS=["ly_dim","ly_clear","ly_car","ly_fib","ly_phi","ly_grid","ly_txt"];
+var NUM=[["a",3],["lh",2],["ax",3],["ue",3],["w",2],["fd",2],["al",1],["d",2]];
+var LAYERS=["ly_dim","ly_clear","ly_car","ly_fib","ly_grid","ly_wall","ly_txt"];
 
 function syncUI(){
   if(G)P.al=Math.round(G.al*10)/10;
   NUM.forEach(function(p){
     var id=p[0], el=document.getElementById(id), rg=document.getElementById(id+"_r"),
-        s=document.getElementById(id+"_s");
+        sb=document.getElementById(id+"_s");
     el.value=P[id].toFixed(p[1]);rg.value=P[id];
-    if(s){
-      if(id==="al")s.textContent="Grad";
-      else if(id==="a")s.textContent="Fib: "+[2,3,5,8,13].map(function(f){return nf(f*P.a);}).join(" / ");
-      else s.textContent=nf1(P[id]/P.a)+" × a";
+    if(sb){
+      if(id==="al")sb.textContent="Grad";
+      else if(id==="a")sb.textContent="Fib: "+[3,5,8,13].map(function(f){return nf(f*P.a);}).join(" / ");
+      else sb.textContent=nf1(P[id]/P.a)+" × a";
     }
   });
   var frei=(P.pitch==="frei");
@@ -480,19 +509,14 @@ NUM.forEach(function(p){
   document.getElementById(id).addEventListener("change",function(e){upd(id,parseFloat(e.target.value.replace(",",".")));});
   document.getElementById(id+"_r").addEventListener("input",function(e){upd(id,parseFloat(e.target.value));});
 });
-document.getElementById("pitch").addEventListener("change",function(e){
-  P.pitch=e.target.value;build();syncUI();
-});
-document.getElementById("to420").addEventListener("click",function(){
-  P.th=Math.ceil((4.20+G.dv)*100)/100;build();syncUI();
-});
+document.getElementById("pitch").addEventListener("change",function(e){P.pitch=e.target.value;build();syncUI();});
 LAYERS.forEach(function(k){
   document.getElementById(k).addEventListener("change",function(e){P[k]=e.target.checked;build();});
 });
 document.getElementById("reset").addEventListener("click",function(){
   var a=P.a, keep={};
   LAYERS.forEach(function(k){keep[k]=P[k];});
-  P=Object.assign({},DEF,{a:a,th:8*a,k:5*a,rb:3*a,d:a/2,w:a/2,pitch:"0.625"},keep);
+  P=Object.assign({},DEF,{a:a,lh:8*a,ax:5*a,ue:3*a,d:a/2,w:Math.round(a/3*100)/100,pitch:"0.625"},keep);
   build();syncUI();
 });
 
@@ -508,19 +532,19 @@ function toWorld(ev){
 }
 document.getElementById("dwg").addEventListener("pointerdown",function(ev){
   var id=ev.target&&ev.target.id;
-  if(id!=="h_tip"&&id!=="h_rb")return;
+  if(id!=="h_eave"&&id!=="h_post")return;
   ev.preventDefault();drag=id;
 });
 window.addEventListener("pointermove",function(ev){
   if(!drag)return;
   var w=toWorld(ev);if(!w)return;
   ev.preventDefault();
-  var snap=function(v){return Math.round(v*20)/20;};
-  if(drag==="h_tip"){
-    P.k=Math.min(7,Math.max(2,snap(w.x)));
-    P.th=Math.min(9,Math.max(3,snap(w.y+G.dv)));
+  var snap=function(v){return Math.round(v*40)/40;};
+  if(drag==="h_eave"){
+    P.ue=Math.min(3,Math.max(0.2,snap(Math.abs(w.x)-P.ax)));
+    P.lh=Math.min(7,Math.max(2.5,Math.round(w.y*20)/20));
   }else{
-    P.rb=Math.min(5,Math.max(0.8,snap(-w.x)));
+    P.ax=Math.min(5,Math.max(1.2,snap(Math.abs(w.x))));
   }
   build();syncUI();
 },{passive:false});
@@ -529,7 +553,7 @@ window.addEventListener("pointercancel",function(){drag=null;});
 
 /* ============ Export ============ */
 function dxf(S){
-  var g=G, L=[], sock=0.15;
+  var g=G, L=[], sock=0.18, hw=g.hw, H=g.H;
   function put(){for(var i=0;i<arguments.length;i++)L.push(arguments[i]);}
   function n(v){return (v*S).toFixed(4);}
   function line(ly,x1,y1,x2,y2){put("0","LINE","8",ly,"10",n(x1),"20",n(y1),"30","0.0","11",n(x2),"21",n(y2),"31","0.0");}
@@ -540,47 +564,51 @@ function dxf(S){
   }
   function rect(ly,x,y,w,h){poly(ly,[{x:x,y:y},{x:x+w,y:y},{x:x+w,y:y+h},{x:x,y:y+h}],true);}
   function text(ly,x,y,h,s){put("0","TEXT","8",ly,"10",n(x),"20",n(y),"30","0.0","40",n(h),"1",s);}
-  var layers=[["GELAENDE",8],["BAUTEIL",7],["HOLZ",3],["DACH",7],["LICHTRAUM",2],
-              ["BEMASSUNG",4],["KONSTRUKTION",1],["TEXT",4]];
+  var layers=[["GELAENDE",8],["BAUTEIL",7],["HOLZ",3],["DECKUNG",1],["LICHTRAUM",2],
+              ["BEMASSUNG",4],["KONSTRUKTION",6],["TEXT",4]];
   put("0","SECTION","2","HEADER","9","$INSUNITS","70",S===1000?"4":"6","0","ENDSEC");
   put("0","SECTION","2","TABLES","0","TABLE","2","LAYER","70",String(layers.length));
   layers.forEach(function(l){put("0","LAYER","2",l[0],"70","0","62",String(l[1]),"6","CONTINUOUS");});
   put("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
 
-  var x0=g.x0, x1=g.x1, H=g.H, pf=P.w+0.06, ph=0.22;
-  var cW=x0+P.w/2, cS=-P.w/2, topW=g.yUK(cW)-ph, topS=g.yUK(cS)-ph;
-  line("GELAENDE",x0-2,0,x1+2,0);
-  rect("BAUTEIL",x0-0.14,-P.fd,P.w+0.38,P.fd);
-  rect("BAUTEIL",-P.w-0.14,-P.fd,P.w+0.38,P.fd);
-  rect("BAUTEIL",-P.w-0.05,0,P.w+0.1,sock);
-  rect("BAUTEIL",x0,0,P.w,topW);
-  rect("HOLZ",-P.w,sock,P.w,topS-sock);
-  rect("HOLZ",cW-pf/2,topW,pf,ph);
-  rect("HOLZ",cS-pf/2,topS,pf,ph);
-  var kb=Math.min(0.9,(P.rb-P.w)*0.75);
-  if(kb>0.25)poly("HOLZ",[{x:-P.w,y:topS-kb},{x:-P.w-kb,y:topS},
-    {x:-P.w-kb-0.085,y:topS-0.085},{x:-P.w-0.085,y:topS-kb-0.085}],true);
-  poly("DACH",[{x:x0,y:g.ukRidge},{x:x0,y:g.okRidge},{x:x1,y:g.okTip},{x:x1,y:g.ukTip}],true);
-  rect("LICHTRAUM",0,0,P.k,g.ukTip);
-  var cwv=Math.min(2.55,Math.max(0.4,P.k-0.1));
-  rect("LICHTRAUM",P.k/2-cwv/2,0,cwv,4.0);
-  fibSquares(x0,0,x1-x0,H,8).forEach(function(s){rect("KONSTRUKTION",s.x,s.y,s.w,s.h);});
-  rect("KONSTRUKTION",x0,0,x1-x0,H);
-  line("KONSTRUKTION",0,-0.3,0,H+0.3);
-  line("KONSTRUKTION",x0-0.3,P.th,x1+0.3,P.th);
+  line("GELAENDE",-hw-2,0,hw+2,0);
+  [-1,1].forEach(function(sg){
+    var cx=sg*P.ax;
+    rect("BAUTEIL",cx-P.w/2-0.16,-P.fd,P.w+0.32,P.fd);
+    rect("BAUTEIL",cx-P.w/2-0.05,0,P.w+0.1,sock);
+    rect("HOLZ",cx-P.w/2,sock,P.w,g.postTop-sock);
+    rect("HOLZ",cx-P.w/2-0.02,g.raBot,P.w+0.04,g.rh);
+    poly("DECKUNG",[{x:sg*hw,y:g.ukEave},{x:0,y:g.ukRidge},{x:0,y:g.okRidge},{x:sg*hw,y:g.okEave}],true);
+  });
+  rect("HOLZ",-P.ax-P.w/2-0.02,g.bbBot,2*P.ax+P.w+0.04,g.bh);
+  var kb=Math.min(0.85,(2*P.ax-P.w)*0.22,g.bbBot-P.lh-0.02);
+  if(kb>0.25)[-1,1].forEach(function(sg){
+    var px=sg*(P.ax-P.w/2), bx=sg*(P.ax-P.w/2-kb);
+    poly("HOLZ",[{x:px,y:g.bbBot-kb},{x:bx,y:g.bbBot},{x:bx+sg*0.1,y:g.bbBot-0.1},
+      {x:px,y:g.bbBot-kb-0.1}],true);
+  });
+  var kyy=g.ukEave+(g.ukRidge-g.ukEave)*0.618, kx=(g.ukRidge-kyy)/g.tn;
+  rect("HOLZ",-kx,kyy-0.1,2*kx,0.2);
+  var lb=2*P.ax-P.w;
+  rect("LICHTRAUM",-lb/2,0,lb,P.lh);
+  var cwv=Math.min(2.55,Math.max(0.4,lb-0.1));
+  rect("LICHTRAUM",-cwv/2,0,cwv,4.0);
+  fibSquares(0,0,hw,g.ukRidge,8).forEach(function(q){rect("KONSTRUKTION",q.x,q.y,q.w,q.h);});
+  rect("KONSTRUKTION",0,0,hw,g.ukRidge);
+  line("KONSTRUKTION",0,-0.25,0,H+0.5);
   function dh(xa,xb,y,s){
-    line("BEMASSUNG",xa,y,xb,y);line("BEMASSUNG",xa,y-0.08,xa,y+0.08);line("BEMASSUNG",xb,y-0.08,xb,y+0.08);
-    text("TEXT",(xa+xb)/2-0.25,y+0.1,0.2,s);
+    line("BEMASSUNG",xa,y,xb,y);line("BEMASSUNG",xa,y-0.07,xa,y+0.07);line("BEMASSUNG",xb,y-0.07,xb,y+0.07);
+    text("TEXT",(xa+xb)/2-0.22,y+0.09,0.18,s);
   }
   function dv2(ya,yb,x,s){
-    line("BEMASSUNG",x,ya,x,yb);line("BEMASSUNG",x-0.08,ya,x+0.08,ya);line("BEMASSUNG",x-0.08,yb,x+0.08,yb);
-    text("TEXT",x+0.1,(ya+yb)/2,0.2,s);
+    line("BEMASSUNG",x,ya,x,yb);line("BEMASSUNG",x-0.07,ya,x+0.07,ya);line("BEMASSUNG",x-0.07,yb,x+0.07,yb);
+    text("TEXT",x+0.09,(ya+yb)/2,0.18,s);
   }
-  dh(x0,0,-0.82,nf(P.rb));dh(0,x1,-0.82,nf(P.k));dh(x0,x1,-1.38,nf(x1-x0));
-  dv2(0,H,x0-0.88,nf(H));dv2(0,g.ukTip,x1+0.62,nf(g.ukTip));dv2(0,P.th,x1+1.5,nf(P.th));
-  dv2(-P.fd,0,x0-1.52,nf(P.fd));
-  text("TEXT",x0,H+0.55,0.26,"REMISE - PROFIL  M 1:50  Masse in m");
-  text("TEXT",x0,H+0.2,0.2,"Satteldach rueckseitig abgeschnitten, Neigung "+nf1(g.al)+" Grad, Modul a = "+nf(P.a)+" m");
+  dh(-hw,-P.ax,-0.75,nf(P.ue));dh(-P.ax,P.ax,-0.75,nf(2*P.ax));dh(P.ax,hw,-0.75,nf(P.ue));
+  dh(-hw,hw,-1.25,nf(2*hw));dh(-lb/2,lb/2,1.5,nf(lb));
+  dv2(0,P.lh,-hw-0.62,nf(P.lh));dv2(0,H,-hw-1.2,nf(H));dv2(-P.fd,0,hw+1.15,nf(P.fd));
+  text("TEXT",-hw,H+0.55,0.24,"REMISE - QUERSCHNITT  M 1:50  Masse in m");
+  text("TEXT",-hw,H+0.22,0.18,"Offener Staenderbau, Satteldach "+nf1(g.al)+" Grad, Modul a = "+nf(P.a)+" m");
   put("0","ENDSEC","0","EOF");
   return L.join("\r\n")+"\r\n";
 }
@@ -589,9 +617,10 @@ function svgOut(){
   Array.prototype.forEach.call(s.querySelectorAll(".hdl"),function(e){e.remove();});
   var css=document.getElementById("dstyle").textContent.split("/* Zeichnungs-Stile */")[1]||"";
   css=css.replace(/var\(--ink2?\)/g,"#171b1e").replace(/var\(--solid\)/g,"#2b3236")
-         .replace(/var\(--fill\)/g,"#dcd7cb").replace(/var\(--holz\)/g,"#cfc2a8")
-         .replace(/var\(--constr\)/g,"#a8503a").replace(/var\(--dim\)/g,"#2a6775")
-         .replace(/var\(--clear\)/g,"#9c7415").replace(/var\(--sheet\)/g,"#fbfaf6");
+         .replace(/var\(--fill\)/g,"#dcd7cb").replace(/var\(--holz\)/g,"#cdbe9f")
+         .replace(/var\(--ziegel\)/g,"#b5603f").replace(/var\(--constr\)/g,"#a8503a")
+         .replace(/var\(--dim\)/g,"#2a6775").replace(/var\(--clear\)/g,"#9c7415")
+         .replace(/var\(--sheet\)/g,"#fbfaf6");
   return '<?xml version="1.0" encoding="UTF-8"?>\n'+
     s.outerHTML.replace("<svg",'<svg xmlns="http://www.w3.org/2000/svg"')
       .replace(">","><style>"+css+"</style>");
