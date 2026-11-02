@@ -18,6 +18,7 @@ project:
     - companions/
     - schluesseldienst/    # a standalone site, copied as it is
     - canis/
+    - remise/
 
 website:
   title: "A. Naya"

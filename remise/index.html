@@ -1,0 +1,617 @@
+<title>Remise Profilschnitt</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style id="dstyle">
+/* Layout: Zeichenblatt links, Parameterleiste rechts; unter 980px gestapelt */
+:root{
+  --paper:#edeae3; --sheet:#fbfaf6; --ink:#171b1e; --ink2:#5b656d; --rule:#cac4b8;
+  --constr:#a8503a; --dim:#2a6775; --clear:#9c7415; --solid:#2b3236; --fill:#dcd7cb;
+  --panel:#f4f2ec; --field:#fffefa; --ok:#2f6b3f; --bad:#9c2b24;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#101315; --sheet:#181c1f; --ink:#e7e3d9; --ink2:#98a1a8; --rule:#394046;
+  --constr:#e08a69; --dim:#6cbdcc; --clear:#e3b445; --solid:#c9cfd3; --fill:#2b3236;
+  --panel:#1c2124; --field:#121618; --ok:#79c08c; --bad:#e58b83; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#101315; --sheet:#181c1f; --ink:#e7e3d9; --ink2:#98a1a8; --rule:#394046;
+  --constr:#e08a69; --dim:#6cbdcc; --clear:#e3b445; --solid:#c9cfd3; --fill:#2b3236;
+  --panel:#1c2124; --field:#121618; --ok:#79c08c; --bad:#e58b83; color-scheme:dark}
+
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:22px 40px;max-width:1500px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;border-bottom:1px solid var(--rule);
+  padding-bottom:10px;margin-bottom:18px}
+h1{font-size:19px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin:0}
+.meta{font-family:var(--mono);font-size:11.5px;color:var(--ink2);letter-spacing:.05em}
+main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+@media (max-width:980px){main{grid-template-columns:minmax(0,1fr)}}
+.sheet{background:var(--sheet);border:1px solid var(--rule);min-width:0;overflow:hidden}
+.sheet svg{display:block;width:100%;height:auto;max-height:min(86vh,1000px);touch-action:none}
+.sheetbar{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--rule);
+  padding:7px 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);letter-spacing:.05em;flex-wrap:wrap}
+.rail{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--rule);padding:13px 14px;min-width:0}
+.card h2{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);margin:0 0 10px}
+.row{display:grid;grid-template-columns:1fr 72px;gap:5px 10px;align-items:center;margin-bottom:10px}
+.row label{font-size:12.5px;min-width:0}
+.row .sub{grid-column:1/-1;font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+.row input[type=number]{width:100%;font-family:var(--mono);font-size:12px;padding:3px 5px;background:var(--field);
+  color:var(--ink);border:1px solid var(--rule);border-radius:0}
+.row input[type=range]{grid-column:1/-1;width:100%;margin:2px 0 0;accent-color:var(--dim)}
+.chk{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:7px}
+.chk input{accent-color:var(--dim);flex:none}
+button,select{font-family:var(--sans);font-size:12.5px;padding:7px 11px;background:var(--field);color:var(--ink);
+  border:1px solid var(--rule);cursor:pointer}
+button:hover{border-color:var(--dim);color:var(--dim)}
+button.primary{background:var(--solid);color:var(--sheet);border-color:var(--solid)}
+button.primary:hover{opacity:.86;color:var(--sheet)}
+.btns{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.kv{font-family:var(--mono);font-size:11.5px;display:grid;grid-template-columns:1fr auto;gap:3px 10px}
+.kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+.kv .hd{grid-column:1/-1;color:var(--ink2);letter-spacing:.08em;margin-top:7px}
+.kv .hd:first-child{margin-top:0}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px;margin-top:20px}
+.info p{margin:0 0 8px}
+.info ul{margin:0;padding-left:17px}
+.info li{margin-bottom:4px}
+code{font-family:var(--mono);font-size:.93em}
+details{margin-top:16px;border:1px solid var(--rule);background:var(--panel)}
+summary{padding:10px 13px;cursor:pointer;font-size:12.5px;font-weight:500}
+.exp{padding:0 13px 13px;display:flex;flex-direction:column;gap:9px}
+textarea{width:100%;height:180px;font-family:var(--mono);font-size:10.5px;background:var(--field);color:var(--ink);
+  border:1px solid var(--rule);padding:8px;resize:vertical}
+.note{font-size:11.5px;color:var(--ink2)}
+:focus-visible{outline:2px solid var(--dim);outline-offset:2px}
+/* Zeichnungs-Stile */
+.gl{fill:none;stroke:var(--ink);stroke-width:.04}
+.bt{fill:var(--fill);stroke:var(--solid);stroke-width:.028}
+.bt2{fill:none;stroke:var(--solid);stroke-width:.018}
+.rf{fill:var(--fill);stroke:var(--solid);stroke-width:.03}
+.lr{fill:none;stroke:var(--clear);stroke-width:.022;stroke-dasharray:.34 .1 .07 .1}
+.lrf{fill:var(--clear);opacity:.085;stroke:none}
+.car{fill:none;stroke:var(--clear);stroke-width:.014;stroke-dasharray:.14 .09}
+.cs{fill:none;stroke:var(--constr);stroke-width:.011;opacity:.85}
+.csd{fill:none;stroke:var(--constr);stroke-width:.011;stroke-dasharray:.16 .1;opacity:.8}
+.grd{fill:none;stroke:var(--constr);stroke-width:.007;opacity:.3}
+.dm{fill:none;stroke:var(--dim);stroke-width:.013}
+.dmw{fill:none;stroke:var(--dim);stroke-width:.008;opacity:.75}
+.axc{fill:none;stroke:var(--dim);stroke-width:.01;stroke-dasharray:.3 .09 .06 .09}
+text{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:var(--ink)}
+.tdim{fill:var(--dim);font-size:.2px}
+.tcs{fill:var(--constr);font-size:.175px}
+.tlb{fill:var(--ink);font-size:.185px}
+.tlr{fill:var(--clear);font-size:.175px}
+.hdl{fill:var(--sheet);stroke:var(--dim);stroke-width:.022;cursor:grab}
+.hdl:hover{fill:var(--dim)}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Remise &middot; Profil</h1>
+  <span class="meta">Vorentwurf &middot; Schnitt A&ndash;A &middot; Ma&szlig;e in Metern &middot; Dachlinie = goldene Spirale, Wachstum &phi; je 90&deg;</span>
+</header>
+
+<main>
+  <div class="sheet">
+    <div id="dwg"></div>
+    <div class="sheetbar"><span id="sb1">&nbsp;</span><span id="sb2">&nbsp;</span></div>
+  </div>
+
+  <div class="rail">
+    <div class="card">
+      <h2>Ma&szlig;ordnung</h2>
+      <div class="row"><label for="a">Modul a</label><input type="number" id="a" step="0.05" min="0.35" max="1.1">
+        <input type="range" id="a_r" step="0.05" min="0.35" max="1.1"><div class="sub" id="a_s"></div></div>
+      <div class="chk"><input type="checkbox" id="fit"><label for="fit">Gesamth&ouml;he auf 13a einrasten (&phi;-Fit)</label></div>
+      <div class="btns"><button id="reset" class="primary">Fibonacci-Reset</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Lichtraum &amp; Auskragung</h2>
+      <div class="row"><label for="ch">Lichte H&ouml;he (Durchfahrt)</label><input type="number" id="ch" step="0.05" min="2.5" max="7">
+        <input type="range" id="ch_r" step="0.05" min="2.5" max="7"><div class="sub" id="ch_s"></div></div>
+      <div class="row"><label for="cw">Lichte Breite (frei auskragend)</label><input type="number" id="cw" step="0.05" min="2" max="7">
+        <input type="range" id="cw_r" step="0.05" min="2" max="7"><div class="sub" id="cw_s"></div></div>
+      <div class="row"><label for="bk">R&uuml;ckbau (Einspannung)</label><input type="number" id="bk" step="0.05" min="0.8" max="5">
+        <input type="range" id="bk_r" step="0.05" min="0.8" max="5"><div class="sub" id="bk_s"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>Dachkurve</h2>
+      <div class="row"><label for="s1">Neigung am First</label><input type="number" id="s1" step="0.5" min="25" max="88">
+        <input type="range" id="s1_r" step="0.5" min="25" max="88"><div class="sub" id="s1_s"></div></div>
+      <div class="row"><label for="s2">Neigung am Kragende</label><input type="number" id="s2" step="0.5" min="0" max="35">
+        <input type="range" id="s2_r" step="0.5" min="0" max="35"><div class="sub" id="s2_s"></div></div>
+      <div class="row"><label for="d">Dachaufbau d</label><input type="number" id="d" step="0.01" min="0.1" max="0.7">
+        <input type="range" id="d_r" step="0.01" min="0.1" max="0.7"><div class="sub" id="d_s"></div></div>
+      <div class="row"><label for="w">Wand-/St&uuml;tzendicke</label><input type="number" id="w" step="0.01" min="0.12" max="0.6">
+        <input type="range" id="w_r" step="0.01" min="0.12" max="0.6"><div class="sub" id="w_s"></div></div>
+      <div class="row"><label for="fd">Fundamenttiefe</label><input type="number" id="fd" step="0.05" min="0.3" max="1.5">
+        <input type="range" id="fd_r" step="0.05" min="0.3" max="1.5"><div class="sub" id="fd_s"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>Ebenen</h2>
+      <div class="chk"><input type="checkbox" id="ly_dim"><label for="ly_dim">Bema&szlig;ung</label></div>
+      <div class="chk"><input type="checkbox" id="ly_clear"><label for="ly_clear">Lichtraumprofil</label></div>
+      <div class="chk"><input type="checkbox" id="ly_car"><label for="ly_car">Pr&uuml;fk&ouml;rper Fahrzeug 2,55 &times; 4,00</label></div>
+      <div class="chk"><input type="checkbox" id="ly_fib"><label for="ly_fib">Fibonacci-Teilung der H&uuml;lle</label></div>
+      <div class="chk"><input type="checkbox" id="ly_spi"><label for="ly_spi">Spiral-Konstruktion (Pol, &phi;-Strahlen)</label></div>
+      <div class="chk"><input type="checkbox" id="ly_grid"><label for="ly_grid">Modulraster a</label></div>
+    </div>
+
+    <div class="card">
+      <h2>Pr&uuml;fwerte</h2>
+      <div class="kv" id="kv"></div>
+    </div>
+  </div>
+</main>
+
+<div class="info">
+  <div class="card">
+    <h2>Herleitung</h2>
+    <p>Alle Ma&szlig;e sind Vielfache des Moduls <code>a</code>. Mit <code>a&nbsp;=&nbsp;0,70&nbsp;m</code> fallen die
+      Vorgaben genau auf Fibonacci-Spr&uuml;nge:</p>
+    <ul>
+      <li>Lichte H&ouml;he <strong>4,20 = 6a</strong> (5a + a)</li>
+      <li>Lichte Breite <strong>3,50 = 5a</strong>, frei auskragend</li>
+      <li>R&uuml;ckbau <strong>2,10 = 3a</strong> &rarr; Innenma&szlig; 1,40 = 2a</li>
+      <li>Gesamttiefe <strong>5,60 = 8a</strong> (3a + 5a)</li>
+      <li>Gesamth&ouml;he <strong>9,10 = 13a</strong></li>
+      <li>H&uuml;lle 8a : 13a = 1 : 1,625 &asymp; <strong>&phi;</strong></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Dachlinie</h2>
+    <p>Die Dachunterkante ist ein Ausschnitt der <strong>goldenen Spirale</strong>
+      <code>r = r&#8320; &middot; &phi;<sup>&theta;/90&deg;</sup></code>. Weil die Tangente einen konstanten Winkel von
+      72,97&deg; zum Radius h&auml;lt, dreht sich die Neigung linear mit &theta;: steil am First, flach am Kragende.</p>
+    <p>Die Kurve ist nach oben offen &ndash; sie f&auml;llt steil von der R&uuml;ckwand ab und streckt sich zum
+      Kragende hin fast waagerecht ins Freie. Die Unterkante liegt am Kragende genau auf der lichten H&ouml;he,
+      jeder Punkt weiter innen liegt h&ouml;her. Der Lichtraum ist damit &uuml;ber die ganze Durchfahrt eingehalten.</p>
+  </div>
+  <div class="card">
+    <h2>Tragwerk &ndash; &Uuml;berschlag</h2>
+    <p class="note">Keine Statik, nur Gr&ouml;&szlig;enordnung f&uuml;r den Entwurf.</p>
+    <div class="kv" id="kv2"></div>
+    <p style="margin-top:9px">Das Kragmoment wird &uuml;ber die Scheibe im R&uuml;ckbau und das eingespannte
+      Streifenfundament kurzgeschlossen. Die Bauh&ouml;he am First liefert daf&uuml;r den Hebelarm &ndash; steil
+      und weit auskragend h&auml;ngen hier zusammen.</p>
+  </div>
+</div>
+
+<details>
+  <summary>Export &ndash; DXF / SVG zum Weiterzeichnen</summary>
+  <div class="exp">
+    <div class="btns">
+      <button id="mkdxf" class="primary">DXF erzeugen</button>
+      <button id="mksvg">SVG erzeugen</button>
+      <button id="copy">In Zwischenablage kopieren</button>
+      <select id="unit" aria-label="Einheit im DXF">
+        <option value="1000">DXF in mm</option><option value="1">DXF in m</option></select>
+    </div>
+    <p class="note">DXF&nbsp;R12 mit den Ebenen GELAENDE, BAUTEIL, DACH, LICHTRAUM, BEMASSUNG, KONSTRUKTION,
+      SPIRALE, TEXT. Text kopieren und als <code>remise-profil.dxf</code> speichern &ndash; &ouml;ffnet in AutoCAD,
+      BricsCAD, LibreCAD, ArchiCAD, Rhino, FreeCAD oder QCAD.</p>
+    <textarea id="out" spellcheck="false" readonly aria-label="Exporttext"></textarea>
+  </div>
+</details>
+</div>
+
+<script>
+"use strict";
+/* ============ Geometrie ============ */
+var PHI=(1+Math.sqrt(5))/2;
+var BG=Math.log(PHI)/(Math.PI/2);               // Wachstumskonstante b
+var ALPHA=90-Math.atan(BG)*180/Math.PI;         // 72,9676 : Tangentenwinkel = t + ALPHA
+var D2R=Math.PI/180;
+function sp(t){var r=Math.exp(BG*t*D2R);return{x:r*Math.cos(t*D2R),y:r*Math.sin(t*D2R)};}
+
+var DEF={a:0.70,ch:4.20,cw:3.50,bk:2.10,s1:75.19,s2:10,d:0.35,w:0.35,fd:0.80,fit:true,
+  ly_dim:true,ly_clear:true,ly_car:true,ly_fib:true,ly_spi:true,ly_grid:false};
+var P=Object.assign({},DEF);
+
+function raw(P,s1){
+  var t1=-s1-ALPHA, t2=-P.s2-ALPHA;
+  var span=P.bk+P.cw, ridgeX=-P.bk, tipX=P.cw;
+  var u1=sp(t1), u2=sp(t2);
+  var k=span/(u2.x-u1.x);
+  var drop=-k*(u2.y-u1.y);
+  var O={x:ridgeX-k*u1.x, y:P.ch-k*u2.y};
+  return {t1:t1,t2:t2,k:k,O:O,span:span,ridgeX:ridgeX,tipX:tipX,drop:drop,
+    H:P.ch+drop+P.d*Math.cos(s1*D2R)};
+}
+function fitS1(P){
+  var target=13*P.a, lo=25, hi=88;
+  if(raw(P,hi).H<target)return{s1:hi,warn:"13a nicht erreichbar – First am Anschlag"};
+  if(raw(P,lo).H>target)return{s1:lo,warn:"13a unterschritten – First am Anschlag"};
+  for(var i=0;i<70;i++){var m=(lo+hi)/2;if(raw(P,m).H<target)lo=m;else hi=m;}
+  return {s1:(lo+hi)/2,warn:null};
+}
+function geom(P){
+  var f=P.fit?fitS1(P):{s1:P.s1,warn:null};
+  var s1=f.s1, r=raw(P,s1), N=220, under=[], top=[], i, t, q, px, py, nn;
+  for(i=0;i<=N;i++){
+    t=r.t1+(r.t2-r.t1)*i/N; q=sp(t);
+    px=r.O.x+r.k*q.x; py=r.O.y+r.k*q.y;
+    nn=(t+ALPHA+90)*D2R;
+    under.push({x:px,y:py});
+    top.push({x:px+P.d*Math.cos(nn),y:py+P.d*Math.sin(nn)});
+  }
+  var cut=[];                                   // Traufkante senkrecht abschneiden
+  for(i=0;i<top.length;i++){
+    if(top[i].x<=r.tipX){cut.push(top[i]);continue;}
+    var b=top[i], a2=top[i-1];
+    if(a2){var u=(r.tipX-a2.x)/(b.x-a2.x);cut.push({x:r.tipX,y:a2.y+u*(b.y-a2.y)});}
+    break;
+  }
+  if(!cut.length)cut=[top[0]];
+  function yU(x){
+    if(x<=under[0].x)return under[0].y;
+    if(x>=under[under.length-1].x)return under[under.length-1].y;
+    for(var j=1;j<under.length;j++){var a3=under[j-1],b3=under[j];
+      if(x<=b3.x){var v=(x-a3.x)/(b3.x-a3.x);return a3.y+v*(b3.y-a3.y);}}
+    return under[under.length-1].y;
+  }
+  var len=0;
+  for(i=1;i<under.length;i++)len+=Math.hypot(under[i].x-under[i-1].x,under[i].y-under[i-1].y);
+  return Object.assign(r,{s1:s1,warn:f.warn,under:under,top:cut,yU:yU,arc:len,pole:{x:r.O.x,y:r.O.y}});
+}
+
+/* ============ Zeichen-Hilfen ============ */
+function fx(v){return Math.round(v*1e4)/1e4;}
+function X(v){return fx(v);}
+function Y(v){return fx(-v);}
+function nf(v){return v.toFixed(2).replace(".",",");}
+function nf1(v){return v.toFixed(1).replace(".",",");}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+function ln(x1,y1,x2,y2,c){return '<line x1="'+X(x1)+'" y1="'+Y(y1)+'" x2="'+X(x2)+'" y2="'+Y(y2)+'" class="'+c+'"/>';}
+function pl(pts,c,close){return '<path class="'+c+'" d="M '+pts.map(function(p){return X(p.x)+" "+Y(p.y);}).join(" L ")+(close?" Z":"")+'"/>';}
+function re(x,y,w,h,c){return '<rect class="'+c+'" x="'+X(x)+'" y="'+Y(y+h)+'" width="'+fx(w)+'" height="'+fx(h)+'"/>';}
+function tx(x,y,s,c,anch,rot){
+  return '<text class="'+c+'" x="'+X(x)+'" y="'+Y(y)+'" text-anchor="'+(anch||"middle")+'"'+
+    (rot?' transform="rotate('+rot+' '+X(x)+' '+Y(y)+')"':"")+'>'+esc(s)+'</text>';
+}
+function tick(x,y){var s=0.075;return ln(x-s,y-s,x+s,y+s,"dm");}
+function dimH(x1,x2,y,label,rY1,rY2){
+  var o=[];
+  if(rY1!==undefined)o.push(ln(x1,rY1,x1,y+0.1,"dmw"));
+  if(rY2!==undefined)o.push(ln(x2,rY2,x2,y+0.1,"dmw"));
+  o.push(ln(x1,y,x2,y,"dm"),tick(x1,y),tick(x2,y),tx((x1+x2)/2,y+0.085,label,"tdim","middle"));
+  return o.join("");
+}
+function dimV(y1,y2,x,label,rX1,rX2){
+  var o=[];
+  if(rX1!==undefined)o.push(ln(rX1,y1,x+0.1,y1,"dmw"));
+  if(rX2!==undefined)o.push(ln(rX2,y2,x+0.1,y2,"dmw"));
+  o.push(ln(x,y1,x,y2,"dm"),tick(x,y1),tick(x,y2),tx(x-0.085,(y1+y2)/2,label,"tdim","middle",-90));
+  return o.join("");
+}
+function fibSquares(x0,y0,w,h,n){
+  var sides=["bottom","left","top","right"], i=(h>=w)?0:1, r={x:x0,y:y0,w:w,h:h}, out=[], s, side, q, sq;
+  for(s=0;s<n;s++){
+    if(r.w<0.03||r.h<0.03)break;
+    side=sides[i%4];i++;q=Math.min(r.w,r.h);
+    if(side==="bottom"){sq={x:r.x,y:r.y,w:q,h:q};r={x:r.x,y:r.y+q,w:r.w,h:r.h-q};}
+    else if(side==="left"){sq={x:r.x,y:r.y,w:q,h:q};r={x:r.x+q,y:r.y,w:r.w-q,h:r.h};}
+    else if(side==="top"){sq={x:r.x,y:r.y+r.h-q,w:q,h:q};r={x:r.x,y:r.y,w:r.w,h:r.h-q};}
+    else{sq={x:r.x+r.w-q,y:r.y,w:q,h:q};r={x:r.x,y:r.y,w:r.w-q,h:r.h};}
+    out.push(sq);
+  }
+  return out;
+}
+function colTop(g,xa,xb){
+  var m=18,pts=[],i,x;
+  for(i=0;i<=m;i++){x=xa+(xb-xa)*i/m;pts.push({x:x,y:g.yU(x)});}
+  return pts;
+}
+
+/* ============ Rendern ============ */
+var VB={x:0,y:0,w:1,h:1}, G=null;
+
+function build(){
+  G=geom(P);
+  var g=G, o=[], i, v;
+  var x0=g.ridgeX, x1=g.tipX, H=g.H;
+  var minx=x0-2.3, maxx=x1+2.05, miny=-Math.max(1.8,P.fd+1.0), maxy=H+0.95;
+  if(P.ly_spi){maxy=Math.max(maxy,g.pole.y+0.6);maxx=Math.max(maxx,g.pole.x+0.6);}
+  VB={x:minx,y:-maxy,w:maxx-minx,h:maxy-miny};
+
+  /* Konstruktionsebenen */
+  if(P.ly_grid){
+    var gr=[];
+    for(v=x0;v<=x1+1e-6;v+=P.a)gr.push(ln(v,0,v,H,"grd"));
+    for(v=0;v<=H+1e-6;v+=P.a)gr.push(ln(x0,v,x1,v,"grd"));
+    o.push("<g>"+gr.join("")+"</g>");
+  }
+  if(P.ly_fib){
+    var sq=fibSquares(x0,0,x1-x0,H,8).map(function(s){return re(s.x,s.y,s.w,s.h,"cs");}).join("");
+    o.push("<g>"+sq+re(x0,0,x1-x0,H,"cs")+"</g>");
+    o.push(tx(x0+0.02,H+0.52,"Hülle "+nf(x1-x0)+" × "+nf(H)+"  =  "+nf1((x1-x0)/P.a)+"a × "+nf1(H/P.a)+"a","tcs","start"));
+    o.push(tx(x0+0.02,H+0.28,"Teilung "+nf(H/(x1-x0))+" ≈ φ = 1,618","tcs","start"));
+  }
+  if(P.ly_spi){
+    var ext=[], t, q;
+    for(t=g.t1-85;t<=g.t2+55;t+=1.2){q=sp(t);ext.push({x:g.O.x+g.k*q.x,y:g.O.y+g.k*q.y});}
+    o.push('<g clip-path="url(#sheetclip)">'+pl(ext,"csd")+"</g>");
+    var rays=[];
+    for(t=g.t2;t>g.t1-180;t-=90){q=sp(t);rays.push(ln(g.O.x,g.O.y,g.O.x+g.k*q.x,g.O.y+g.k*q.y,"csd"));}
+    [g.t1,g.t2].forEach(function(tt){var qq=sp(tt);rays.push(ln(g.O.x,g.O.y,g.O.x+g.k*qq.x,g.O.y+g.k*qq.y,"cs"));});
+    o.push('<g clip-path="url(#sheetclip)">'+rays.join("")+"</g>");
+    o.push(ln(g.O.x-0.18,g.O.y,g.O.x+0.18,g.O.y,"cs"),ln(g.O.x,g.O.y-0.18,g.O.x,g.O.y+0.18,"cs"));
+    o.push(tx(g.O.x+0.24,g.O.y+0.07,"Pol der Spirale","tcs","start"));
+    o.push(tx(g.O.x+0.24,g.O.y-0.17,"r₂ : r₁ = φ^("+nf1(g.t2-g.t1)+"°/90°) = "+
+      nf(Math.exp(BG*(g.t2-g.t1)*D2R)),"tcs","start"));
+  }
+
+  /* Gelände */
+  o.push(ln(minx+0.12,0,maxx-0.12,0,"gl"));
+  var hat=[];
+  for(v=minx+0.26;v<maxx-0.12;v+=0.26)hat.push(ln(v,0,v-0.17,-0.17,"bt2"));
+  o.push('<g opacity="0.5">'+hat.join("")+"</g>");
+  o.push(tx(maxx-0.16,0.1,"GOK ±0,00","tlb","end"));
+
+  /* Lichtraum + Prüfkörper */
+  if(P.ly_clear){
+    o.push(re(0,0,P.cw,P.ch,"lrf"),re(0,0,P.cw,P.ch,"lr"));
+    o.push(tx(P.cw/2,P.ch-0.34,"Lichtraum "+nf(P.cw)+" × "+nf(P.ch),"tlr","middle"));
+  }
+  if(P.ly_car){
+    var cwv=Math.min(2.55,Math.max(0.4,P.cw-0.1));
+    o.push(re(P.cw/2-cwv/2,0,cwv,4.0,"car"));
+    o.push(tx(P.cw/2,0.17,"Prüfkörper 2,55 × 4,00","tlr","middle"));
+  }
+
+  /* Bauteile */
+  o.push(re(x0-0.12,-P.fd,P.w+0.34,P.fd,"bt"));
+  o.push(re(-P.w-0.12,-P.fd,P.w+0.34,P.fd,"bt"));
+  o.push(pl([{x:x0,y:0}].concat(colTop(g,x0,x0+P.w),[{x:x0+P.w,y:0}]),"bt",true));
+  o.push(pl([{x:-P.w,y:0}].concat(colTop(g,-P.w,0),[{x:0,y:0}]),"bt",true));
+  if(P.ch+0.25<g.yU(-P.w)&&x0+P.w<-P.w){
+    o.push(re(x0+P.w,P.ch,-P.w-(x0+P.w),0.18,"bt"));
+    o.push(tx((x0+P.w-P.w)/2,P.ch+0.32,"Decke OK "+nf(P.ch),"tlb","middle"));
+  }
+  var roof=g.top.concat([{x:x1,y:P.ch}],g.under.slice().reverse());
+  o.push(pl(roof,"rf",true));
+  o.push(pl(g.under,"bt2"));
+
+  /* Beschriftung */
+  o.push(ln(x0-0.6,g.under[0].y,x0,g.under[0].y,"axc"));
+  o.push(tx(x0-0.1,g.under[0].y+0.07,nf1(g.s1)+"°","tdim","end"));
+  o.push(ln(x1-0.8,P.ch,x1,P.ch,"axc"));
+  o.push(tx(x1+0.78,P.ch+0.1,nf1(P.s2)+"°","tdim","start"));
+  o.push(tx(x1+0.78,P.ch-0.26,"UK "+nf(P.ch),"tlb","start"));
+  o.push(tx((x0+P.w-P.w)/2,-0.38,"Rückbau","tlb","middle"));
+  o.push(tx(P.cw/2,-0.38,"frei auskragend","tlb","middle"));
+
+  /* Bemaßung */
+  if(P.ly_dim){
+    o.push(dimH(x0,0,-0.78,nf(P.bk),0,0));
+    o.push(dimH(0,x1,-0.78,nf(P.cw),0,0));
+    o.push(dimH(x0,x1,-1.34,nf(x1-x0),-0.78,-0.78));
+    o.push(dimV(0,H,x0-0.85,nf(H),x0,g.top[0].x));
+    o.push(dimV(0,P.ch,x1+0.7,nf(P.ch),0,x1));
+    o.push(dimV(-P.fd,0,x0-1.5,nf(P.fd),x0-0.12,x0-0.12));
+    var m=Math.round(g.under.length*0.5);
+    var pu=g.under[m], pt=g.top[Math.min(m,g.top.length-1)];
+    var mid={x:(pu.x+pt.x)/2,y:(pu.y+pt.y)/2};
+    o.push(ln(pu.x,pu.y,pt.x,pt.y,"dm"),tick(pu.x,pu.y),tick(pt.x,pt.y));
+    o.push(ln(mid.x,mid.y,mid.x+0.72,mid.y+0.72,"dmw"));
+    o.push(tx(mid.x+0.78,mid.y+0.76,"Dachaufbau "+nf(P.d),"tdim","start"));
+  }
+
+  /* Griffe */
+  o.push('<circle class="hdl" id="h_tip" cx="'+X(x1)+'" cy="'+Y(P.ch)+'" r="0.115"><title>Kragende ziehen: lichte Breite und Höhe</title></circle>');
+  o.push('<circle class="hdl" id="h_bk" cx="'+X(x0)+'" cy="'+Y(0)+'" r="0.115"><title>Rückbau ziehen: Tiefe</title></circle>');
+
+  document.getElementById("dwg").innerHTML=
+    '<svg viewBox="'+fx(VB.x)+" "+fx(VB.y)+" "+fx(VB.w)+" "+fx(VB.h)+'" id="svg" role="img" '+
+    'aria-label="Profilschnitt der Remise, Dachlinie als goldene Spirale">'+
+    '<defs><clipPath id="sheetclip"><rect x="'+fx(VB.x)+'" y="'+fx(VB.y)+'" width="'+fx(VB.w)+'" height="'+fx(VB.h)+'"/></clipPath></defs>'+
+    o.join("\n")+"</svg>";
+  readouts();
+}
+
+function readouts(){
+  var g=G, B2=g.tipX-g.ridgeX, H=g.H;
+  var okH=P.ch>=4.199, okW=P.cw>=3.499;
+  function mods(v){return nf1(v/P.a)+"a";}
+  var rows=[
+    ["hd","Vorgaben"],
+    ["Durchfahrtshöhe",'<span class="'+(okH?"ok":"bad")+'">'+nf(P.ch)+" m "+(okH?"✓":"✗ < 4,20")+"</span>"],
+    ["Lichte Breite",'<span class="'+(okW?"ok":"bad")+'">'+nf(P.cw)+" m "+(okW?"✓":"✗ < 3,50")+"</span>"],
+    ["hd","Hülle"],
+    ["Gesamthöhe",nf(H)+" m = "+mods(H)],
+    ["Gesamttiefe",nf(B2)+" m = "+mods(B2)],
+    ["Höhe : Tiefe",nf(H/B2)+"  (φ = 1,62)"],
+    ["hd","Dachkurve"],
+    ["Neigung First",nf1(g.s1)+"°"+(P.fit?" (φ-Fit)":"")],
+    ["Neigung Kragende",nf1(P.s2)+"°"],
+    ["Drehung Δθ",nf1(g.t2-g.t1)+"°"],
+    ["Radienwachstum","× "+nf(Math.exp(BG*(g.t2-g.t1)*D2R))],
+    ["Bogenlänge UK",nf(g.arc)+" m"],
+    ["UK am Rückbau",nf(g.yU(0))+" m"],
+    ["Pol",nf(g.pole.x)+" / "+nf(g.pole.y)]
+  ];
+  document.getElementById("kv").innerHTML=rows.map(function(r){
+    return r[0]==="hd"?'<span class="hd">'+r[1]+"</span>":"<span>"+r[0]+"</span><span>"+r[1]+"</span>";
+  }).join("");
+
+  var q=2.2, M=q*P.cw*P.cw/2, lev=Math.max(P.bk/2,0.1), Gw=M/lev;
+  document.getElementById("kv2").innerHTML=[
+    ["Last q (Dach + Schnee)",nf1(q)+" kN/m²"],
+    ["Kragmoment M = q·L²/2",nf1(M)+" kNm/m"],
+    ["Hebel im Rückbau",nf(lev)+" m"],
+    ["Ballast / Verankerung",nf1(Gw)+" kN/m ≈ "+nf1(Gw/9.81)+" t/m"]
+  ].map(function(r){return "<span>"+r[0]+"</span><span>"+r[1]+"</span>";}).join("");
+
+  document.getElementById("sb1").textContent="a = "+nf(P.a)+" m   ·   M 1:50 (A3)   ·   Maße in m"+
+    (g.warn?"   ·   "+g.warn:"");
+  document.getElementById("sb2").textContent="UK Dach "+nf(P.ch)+" m am Kragende → "+nf(g.yU(0))+
+    " m am Rückbau · Bogen "+nf(g.arc)+" m";
+}
+
+/* ============ Steuerung ============ */
+var NUM=[["a",2],["ch",2],["cw",2],["bk",2],["s1",1],["s2",1],["d",2],["w",2],["fd",2]];
+var LAYERS=["ly_dim","ly_clear","ly_car","ly_fib","ly_spi","ly_grid"];
+
+function syncUI(){
+  if(P.fit&&G)P.s1=Math.round(G.s1*100)/100;
+  NUM.forEach(function(p){
+    var id=p[0], dec=p[1], el=document.getElementById(id), rg=document.getElementById(id+"_r"),
+        s=document.getElementById(id+"_s");
+    el.value=P[id].toFixed(dec);rg.value=P[id];
+    if(s){
+      if(id==="s1"||id==="s2")s.textContent="Grad";
+      else if(id==="a")s.textContent="Fib: "+[2,3,5,8,13].map(function(f){return nf(f*P.a);}).join(" / ");
+      else s.textContent=nf1(P[id]/P.a)+" × a";
+    }
+  });
+  document.getElementById("s1").disabled=P.fit;
+  document.getElementById("s1_r").disabled=P.fit;
+  document.getElementById("fit").checked=P.fit;
+  LAYERS.forEach(function(k){document.getElementById(k).checked=P[k];});
+}
+function upd(id,v){
+  if(!isFinite(v))return;
+  var rg=document.getElementById(id+"_r"), lo=parseFloat(rg.min), hi=parseFloat(rg.max);
+  P[id]=Math.min(hi,Math.max(lo,v));
+  build();syncUI();
+}
+NUM.forEach(function(p){
+  var id=p[0];
+  document.getElementById(id).addEventListener("change",function(e){upd(id,parseFloat(e.target.value.replace(",",".")));});
+  document.getElementById(id+"_r").addEventListener("input",function(e){upd(id,parseFloat(e.target.value));});
+});
+document.getElementById("fit").addEventListener("change",function(e){P.fit=e.target.checked;build();syncUI();});
+LAYERS.forEach(function(k){
+  document.getElementById(k).addEventListener("change",function(e){P[k]=e.target.checked;build();});
+});
+document.getElementById("reset").addEventListener("click",function(){
+  var a=P.a, keep={};
+  LAYERS.forEach(function(k){keep[k]=P[k];});
+  P=Object.assign({},DEF,{a:a,ch:6*a,cw:5*a,bk:3*a,d:a/2,w:a/2,fit:true},keep);
+  build();syncUI();
+});
+
+/* Griffe ziehen (Listener am Fenster, da die Zeichnung bei jedem Schritt neu entsteht) */
+var drag=null;
+function toWorld(ev){
+  var svg=document.getElementById("svg");
+  if(!svg)return null;
+  var r=svg.getBoundingClientRect();
+  var sc=Math.min(r.width/VB.w,r.height/VB.h);
+  var ox=r.left+(r.width-VB.w*sc)/2, oy=r.top+(r.height-VB.h*sc)/2;
+  return {x:VB.x+(ev.clientX-ox)/sc, y:-(VB.y+(ev.clientY-oy)/sc)};
+}
+document.getElementById("dwg").addEventListener("pointerdown",function(ev){
+  var id=ev.target&&ev.target.id;
+  if(id!=="h_tip"&&id!=="h_bk")return;
+  ev.preventDefault();drag=id;
+});
+window.addEventListener("pointermove",function(ev){
+  if(!drag)return;
+  var w=toWorld(ev);if(!w)return;
+  ev.preventDefault();
+  var snap=function(v){return Math.round(v*20)/20;};
+  if(drag==="h_tip"){
+    P.cw=Math.min(7,Math.max(2,snap(w.x)));
+    P.ch=Math.min(7,Math.max(2.5,snap(w.y)));
+  }else{
+    P.bk=Math.min(5,Math.max(0.8,snap(-w.x)));
+  }
+  build();syncUI();
+},{passive:false});
+window.addEventListener("pointerup",function(){drag=null;});
+window.addEventListener("pointercancel",function(){drag=null;});
+
+/* ============ Export ============ */
+function dxf(S){
+  var g=G, L=[];
+  function put(){for(var i=0;i<arguments.length;i++)L.push(arguments[i]);}
+  function n(v){return (v*S).toFixed(4);}
+  function line(ly,x1,y1,x2,y2){put("0","LINE","8",ly,"10",n(x1),"20",n(y1),"30","0.0","11",n(x2),"21",n(y2),"31","0.0");}
+  function poly(ly,pts,closed){
+    put("0","POLYLINE","8",ly,"66","1","70",closed?"1":"0","10","0.0","20","0.0","30","0.0");
+    pts.forEach(function(p){put("0","VERTEX","8",ly,"10",n(p.x),"20",n(p.y),"30","0.0");});
+    put("0","SEQEND","8",ly);
+  }
+  function rect(ly,x,y,w,h){poly(ly,[{x:x,y:y},{x:x+w,y:y},{x:x+w,y:y+h},{x:x,y:y+h}],true);}
+  function text(ly,x,y,h,s){put("0","TEXT","8",ly,"10",n(x),"20",n(y),"30","0.0","40",n(h),"1",s);}
+  var layers=[["GELAENDE",8],["BAUTEIL",7],["DACH",7],["LICHTRAUM",2],["BEMASSUNG",4],
+              ["KONSTRUKTION",1],["SPIRALE",6],["TEXT",4]];
+  put("0","SECTION","2","HEADER","9","$INSUNITS","70",S===1000?"4":"6","0","ENDSEC");
+  put("0","SECTION","2","TABLES","0","TABLE","2","LAYER","70",String(layers.length));
+  layers.forEach(function(l){put("0","LAYER","2",l[0],"70","0","62",String(l[1]),"6","CONTINUOUS");});
+  put("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
+
+  var x0=g.ridgeX, x1=g.tipX, H=g.H, t, q;
+  line("GELAENDE",x0-2,0,x1+2,0);
+  poly("BAUTEIL",[{x:x0,y:0}].concat(colTop(g,x0,x0+P.w),[{x:x0+P.w,y:0}]),true);
+  poly("BAUTEIL",[{x:-P.w,y:0}].concat(colTop(g,-P.w,0),[{x:0,y:0}]),true);
+  rect("BAUTEIL",x0-0.12,-P.fd,P.w+0.34,P.fd);
+  rect("BAUTEIL",-P.w-0.12,-P.fd,P.w+0.34,P.fd);
+  if(P.ch+0.25<g.yU(-P.w)&&x0+P.w<-P.w)rect("BAUTEIL",x0+P.w,P.ch,-P.w-(x0+P.w),0.18);
+  poly("DACH",g.top.concat([{x:x1,y:P.ch}],g.under.slice().reverse()),true);
+  poly("DACH",g.under,false);
+  rect("LICHTRAUM",0,0,P.cw,P.ch);
+  var cwv=Math.min(2.55,Math.max(0.4,P.cw-0.1));
+  rect("LICHTRAUM",P.cw/2-cwv/2,0,cwv,4.0);
+  fibSquares(x0,0,x1-x0,H,8).forEach(function(s){rect("KONSTRUKTION",s.x,s.y,s.w,s.h);});
+  rect("KONSTRUKTION",x0,0,x1-x0,H);
+  var ext=[];
+  for(t=g.t1-85;t<=g.t2+55;t+=1.2){q=sp(t);ext.push({x:g.O.x+g.k*q.x,y:g.O.y+g.k*q.y});}
+  poly("SPIRALE",ext,false);
+  for(t=g.t2;t>g.t1-180;t-=90){q=sp(t);line("SPIRALE",g.O.x,g.O.y,g.O.x+g.k*q.x,g.O.y+g.k*q.y);}
+  line("SPIRALE",g.O.x-0.2,g.O.y,g.O.x+0.2,g.O.y);
+  line("SPIRALE",g.O.x,g.O.y-0.2,g.O.x,g.O.y+0.2);
+  function dh(xa,xb,y,s){
+    line("BEMASSUNG",xa,y,xb,y);line("BEMASSUNG",xa,y-0.08,xa,y+0.08);line("BEMASSUNG",xb,y-0.08,xb,y+0.08);
+    text("TEXT",(xa+xb)/2-0.25,y+0.1,0.2,s);
+  }
+  function dv(ya,yb,x,s){
+    line("BEMASSUNG",x,ya,x,yb);line("BEMASSUNG",x-0.08,ya,x+0.08,ya);line("BEMASSUNG",x-0.08,yb,x+0.08,yb);
+    text("TEXT",x+0.1,(ya+yb)/2,0.2,s);
+  }
+  dh(x0,0,-0.78,nf(P.bk));dh(0,x1,-0.78,nf(P.cw));dh(x0,x1,-1.34,nf(x1-x0));
+  dv(0,H,x0-0.85,nf(H));dv(0,P.ch,x1+0.7,nf(P.ch));dv(-P.fd,0,x0-1.5,nf(P.fd));
+  text("TEXT",x0,H+0.5,0.26,"REMISE - PROFIL  M 1:50  Masse in m");
+  text("TEXT",x0,H+0.16,0.2,"Dachunterkante: goldene Spirale, Wachstum phi je 90 Grad, Modul a = "+nf(P.a)+" m");
+  put("0","ENDSEC","0","EOF");
+  return L.join("\r\n")+"\r\n";
+}
+function svgOut(){
+  var s=document.getElementById("svg").cloneNode(true);
+  Array.prototype.forEach.call(s.querySelectorAll(".hdl"),function(e){e.remove();});
+  var css=document.getElementById("dstyle").textContent.split("/* Zeichnungs-Stile */")[1]||"";
+  css=css.replace(/var\(--ink2?\)/g,"#171b1e").replace(/var\(--solid\)/g,"#2b3236")
+         .replace(/var\(--fill\)/g,"#dcd7cb").replace(/var\(--constr\)/g,"#a8503a")
+         .replace(/var\(--dim\)/g,"#2a6775").replace(/var\(--clear\)/g,"#9c7415")
+         .replace(/var\(--sheet\)/g,"#fbfaf6");
+  return '<?xml version="1.0" encoding="UTF-8"?>\n'+
+    s.outerHTML.replace("<svg",'<svg xmlns="http://www.w3.org/2000/svg"')
+      .replace("<defs>","<style>"+css+"</style><defs>");
+}
+var out=document.getElementById("out");
+document.getElementById("mkdxf").addEventListener("click",function(){
+  out.value=dxf(parseFloat(document.getElementById("unit").value));
+});
+document.getElementById("mksvg").addEventListener("click",function(){out.value=svgOut();});
+document.getElementById("copy").addEventListener("click",function(e){
+  if(!out.value)out.value=dxf(parseFloat(document.getElementById("unit").value));
+  var btn=e.target;
+  var done=function(msg){btn.textContent=msg;setTimeout(function(){btn.textContent="In Zwischenablage kopieren";},1800);};
+  try{
+    navigator.clipboard.writeText(out.value).then(function(){done("kopiert ✓");},function(){
+      out.removeAttribute("readonly");out.focus();out.select();out.setAttribute("readonly","");done("bitte Strg+C");
+    });
+  }catch(_){out.focus();out.select();done("bitte Strg+C");}
+});
+
+build();syncUI();
+</script>
