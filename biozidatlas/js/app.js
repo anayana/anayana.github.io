@@ -213,9 +213,10 @@
     return { cop, see, pegel, wert };
   }
 
-  // Grobe Einordnung, Faustregel für den Prototyp.
+  // Grobe Einordnung für Küstengewässer, Faustregel für den Prototyp: Nord- und
+  // Ostseeküste liegen meist bei 3 bis 10 mg/m³, nährstoffreiche Bodden darüber.
   function chlText(c) {
-    return c < 2 ? "niedrig" : c <= 5 ? "mittel" : "hoch, viele Nährstoffe";
+    return c < 3 ? "niedrig" : c <= 10 ? "mittel" : "hoch, nährstoffreich";
   }
 
   function datumText(iso) {

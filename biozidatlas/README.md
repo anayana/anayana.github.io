@@ -185,8 +185,9 @@ Zugangsdaten stehen als Repository-Secrets `COPERNICUSMARINE_SERVICE_USERNAME`
 und `COPERNICUSMARINE_SERVICE_PASSWORD`. Die Seite zeigt die Werte im
 Steckbrief und beim Darüberfahren; die Meerestemperatur von Open-Meteo dient
 nur noch als Ersatz, wenn für einen Hafen kein Copernicus-Wert vorliegt.
-Chlorophyll wird grob eingeordnet: unter 2 mg/m³ niedrig, bis 5 mittel,
-darüber hoch (Faustregel).
+Chlorophyll wird grob für Küstengewässer eingeordnet: unter 3 mg/m³ niedrig,
+bis 10 mittel, darüber hoch (Faustregel; nährstoffreiche Bodden liegen oft
+deutlich darüber).
 
 ## Chatbot
 
