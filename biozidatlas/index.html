@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Antifouling-Atlas</title>
+  <meta name="description" content="Prototyp mit Beispieldaten: Welcher Bewuchsschutz passt zu welchem Liegeplatz? Karte, multikriterielle Bewertung und Live-Wassertemperatur von PEGELONLINE.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <h1>Antifouling-Atlas</h1>
+        <p class="tagline">Welcher Bewuchsschutz passt zu diesem Liegeplatz?</p>
+      </div>
+      <p class="banner" role="note">
+        <strong>Prototyp mit Beispieldaten, keine Empfehlung.</strong>
+        Bewuchsdruck, Infrastruktur der Häfen, Kosten und Bewertungen sind Beispielwerte.
+        Echt sind nur die Lage der Häfen (gerundet) und die Wassertemperatur von PEGELONLINE.
+      </p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <div class="mapcol">
+      <div id="map" aria-label="Karte der Häfen"></div>
+    </div>
+
+    <div class="panel">
+      <section class="card controls" aria-label="Eingaben">
+        <div class="seg" role="radiogroup" aria-label="Profil">
+          <input type="radio" name="profil" id="profil-freizeit" value="freizeit" checked>
+          <label for="profil-freizeit">Freizeitboot</label>
+          <input type="radio" name="profil" id="profil-beruf" value="beruf">
+          <label for="profil-beruf">Berufsschifffahrt</label>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label for="hafen" id="hafen-label">Liegeplatz</label>
+            <select id="hafen"></select>
+          </div>
+          <div class="field field-num">
+            <label for="laenge" id="laenge-label">Bootslänge (m)</label>
+            <input type="number" id="laenge" min="3" max="400" step="1" inputmode="numeric">
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="steckbrief" aria-live="polite"></section>
+
+      <section class="card kernfrage" id="kernfrage" aria-live="polite"></section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Rangliste</h2>
+          <div class="field field-inline">
+            <label for="methode">Verfahren</label>
+            <select id="methode">
+              <option value="wsm">Gewichtete Summe</option>
+              <option value="topsis">TOPSIS</option>
+              <option value="promethee">PROMETHEE II</option>
+            </select>
+          </div>
+        </div>
+        <div id="rangliste"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Gewichtung</h2>
+          <button type="button" id="reset" class="btn-ghost">Standard</button>
+        </div>
+        <p class="hint">Wie wichtig ist Ihnen das? Die Umwelt behält immer mindestens 20 % des Gewichts.</p>
+        <div id="gewichte"></div>
+        <p class="hint" id="floor-note" hidden></p>
+      </section>
+
+      <section class="card">
+        <h2>Methodenvergleich</h2>
+        <p class="hint">Platz je Verfahren. Der Konsens zählt die Plätze aller drei Verfahren zusammen (Borda).</p>
+        <div class="table-wrap" id="vergleich"></div>
+        <dl class="methods">
+          <dt>Gewichtete Summe</dt>
+          <dd>Punkte je Kriterium mal Gewicht, aufaddiert. Stärken gleichen Schwächen aus.</dd>
+          <dt>TOPSIS</dt>
+          <dd>Abstand zur bestmöglichen und zur schlechtesten denkbaren Option.</dd>
+          <dt>PROMETHEE II</dt>
+          <dd>Vergleicht jede Option paarweise mit jeder anderen. Kleine Unterschiede (unter 5 %) zählen nicht, große voll.</dd>
+        </dl>
+      </section>
+
+      <section class="card" id="ausschluss-card">
+        <h2>Ausgeschlossen</h2>
+        <div id="ausschluss"></div>
+      </section>
+
+      <section class="card" id="produkte-card">
+        <h2>Biozidhaltige Produkte: zulässige Kategorien</h2>
+        <p class="hint">Beschreibende Kategorien statt Produktnamen. Ob ein bestimmtes Produkt zugelassen ist, steht in der Zulassungsdatenbank von BAuA bzw. ECHA.</p>
+        <div id="produkte"></div>
+      </section>
+
+      <footer class="sources">
+        <h2>Daten und Quellen</h2>
+        <ul>
+          <li>Karte: © OpenStreetMap-Mitwirkende; Seezeichen: OpenSeaMap</li>
+          <li>Wassertemperatur: PEGELONLINE, Wasserstraßen- und Schifffahrtsverwaltung des Bundes (live, je Messstelle)</li>
+          <li>Reviere, Bewuchsdruck, Infrastruktur, Optionen, Produktkategorien, Kriterien und Gewichte: Beispieldaten, angelehnt an die Logik des UBA-Bewuchsatlas</li>
+        </ul>
+        <p><a href="https://github.com/anayana/anayana.github.io/tree/main/biozidatlas" target="_blank" rel="noopener">Datenstruktur und Beispieldaten auf GitHub</a></p>
+      </footer>
+    </div>
+  </main>
+
+  <p class="load-error" id="load-error" hidden></p>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/mcda.js?v=1"></script>
+  <script src="js/live.js?v=1"></script>
+  <script src="js/app.js?v=1"></script>
+</body>
+</html>

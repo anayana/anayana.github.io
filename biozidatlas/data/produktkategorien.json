@@ -1,0 +1,88 @@
+{
+  "_hinweis": "Keine echten Produkte. Beschreibende Kategorien mit den Feldern einer Zulassung für Produktart 21 (Antifouling). Die Wirkstoffe sind in der EU für Produktart 21 genehmigt; die Gehalte sind Beispielspannen.",
+  "kategorien": [
+    {
+      "id": "pk-kupferoxid-spc-laie",
+      "bezeichnung": "Selbstpolierendes Antifouling mit Kupfer(I)-oxid",
+      "produktart": "PT21",
+      "verwender": "Laie",
+      "wirkstoffe": [
+        { "name": "Kupfer(I)-oxid", "gehalt_prozent": [20, 35] },
+        { "name": "Zinkpyrithion", "gehalt_prozent": [2, 4] }
+      ],
+      "gewaesser": ["salz", "brack"],
+      "bootslaenge": "bis 25 m",
+      "anwendung": "Rolle, Pinsel",
+      "hinweise": ["Nicht für Süßwasser", "Schleifen nur mit Absaugung, Schleifreste auffangen"]
+    },
+    {
+      "id": "pk-kupferoxid-hart-laie",
+      "bezeichnung": "Hartes Antifouling mit Kupfer(I)-oxid",
+      "produktart": "PT21",
+      "verwender": "Laie",
+      "wirkstoffe": [
+        { "name": "Kupfer(I)-oxid", "gehalt_prozent": [30, 45] }
+      ],
+      "gewaesser": ["salz", "brack"],
+      "bootslaenge": "bis 25 m",
+      "anwendung": "Rolle, Pinsel",
+      "hinweise": ["Nicht für Süßwasser", "Für schnelle Motorboote geeignet"]
+    },
+    {
+      "id": "pk-kupferthiocyanat-laie",
+      "bezeichnung": "Kupferarmes Antifouling mit Kupferthiocyanat",
+      "produktart": "PT21",
+      "verwender": "Laie",
+      "wirkstoffe": [
+        { "name": "Kupferthiocyanat", "gehalt_prozent": [5, 15] },
+        { "name": "Zineb", "gehalt_prozent": [3, 6] }
+      ],
+      "gewaesser": ["salz", "brack"],
+      "bootslaenge": "bis 25 m",
+      "anwendung": "Rolle, Pinsel",
+      "hinweise": ["Nicht für Süßwasser", "Hellere Farbtöne möglich"]
+    },
+    {
+      "id": "pk-kupferoxid-spc-profi",
+      "bezeichnung": "Selbstpolierendes Antifouling mit Kupfer(I)-oxid für Schiffe",
+      "produktart": "PT21",
+      "verwender": "berufsmäßig",
+      "wirkstoffe": [
+        { "name": "Kupfer(I)-oxid", "gehalt_prozent": [30, 50] },
+        { "name": "DCOIT", "gehalt_prozent": [1, 3] }
+      ],
+      "gewaesser": ["salz", "brack"],
+      "bootslaenge": "über 25 m",
+      "anwendung": "Airless-Spritzen in der Werft",
+      "hinweise": ["Nur durch Fachbetriebe", "Auftrag nur im Dock mit Auffangsystem"]
+    },
+    {
+      "id": "pk-kupferfrei-profi",
+      "bezeichnung": "Kupferfreies selbstpolierendes Antifouling für Schiffe",
+      "produktart": "PT21",
+      "verwender": "berufsmäßig",
+      "wirkstoffe": [
+        { "name": "Tralopyril", "gehalt_prozent": [2, 5] },
+        { "name": "Zinkpyrithion", "gehalt_prozent": [3, 6] }
+      ],
+      "gewaesser": ["salz", "brack"],
+      "bootslaenge": "über 25 m",
+      "anwendung": "Airless-Spritzen in der Werft",
+      "hinweise": ["Nur durch Fachbetriebe"]
+    },
+    {
+      "id": "pk-medetomidin-profi",
+      "bezeichnung": "Antifouling mit Medetomidin gegen Seepocken",
+      "produktart": "PT21",
+      "verwender": "berufsmäßig",
+      "wirkstoffe": [
+        { "name": "Medetomidin", "gehalt_prozent": [0.1, 0.2] },
+        { "name": "Kupferpyrithion", "gehalt_prozent": [2, 4] }
+      ],
+      "gewaesser": ["salz", "brack"],
+      "bootslaenge": "über 25 m",
+      "anwendung": "Airless-Spritzen in der Werft",
+      "hinweise": ["Nur durch Fachbetriebe", "Wirkt gezielt gegen Seepocken-Larven"]
+    }
+  ]
+}

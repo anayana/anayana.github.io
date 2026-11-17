@@ -1,0 +1,59 @@
+{
+  "_hinweis": "Lage der Häfen gerundet. Die Angaben zur Infrastruktur (Waschanlage, Kran, Trockenliegeplatz) sind Beispielwerte, keine Auskunft über den jeweiligen Hafen.",
+  "haefen": [
+    { "id": "list", "name": "List auf Sylt", "revier": "nordsee", "lat": 55.017, "lon": 8.441, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "husum", "name": "Husum", "revier": "nordsee", "lat": 54.474, "lon": 9.041, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "buesum", "name": "Büsum", "revier": "nordsee", "lat": 54.126, "lon": 8.858, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "helgoland", "name": "Helgoland, Südhafen", "revier": "nordsee", "lat": 54.177, "lon": 7.892, "infrastruktur": { "waschanlage": false, "kran": false, "trockenliegeplatz": false } },
+    { "id": "cuxhaven", "name": "Cuxhaven", "revier": "nordsee", "lat": 53.873, "lon": 8.707, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "wilhelmshaven", "name": "Wilhelmshaven, Nassauhafen", "revier": "nordsee", "lat": 53.514, "lon": 8.125, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "norderney", "name": "Norderney", "revier": "nordsee", "lat": 53.698, "lon": 7.157, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "borkum", "name": "Borkum, Schutzhafen", "revier": "nordsee", "lat": 53.565, "lon": 6.749, "infrastruktur": { "waschanlage": false, "kran": false, "trockenliegeplatz": false } },
+
+    { "id": "bremerhaven", "name": "Bremerhaven", "revier": "aestuar", "lat": 53.535, "lon": 8.578, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "brunsbuettel", "name": "Brunsbüttel", "revier": "aestuar", "lat": 53.892, "lon": 9.142, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "glueckstadt", "name": "Glückstadt", "revier": "aestuar", "lat": 53.787, "lon": 9.422, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "emden", "name": "Emden", "revier": "aestuar", "lat": 53.363, "lon": 7.205, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+
+    { "id": "flensburg", "name": "Flensburg", "revier": "ostsee-west", "lat": 54.795, "lon": 9.433, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "kappeln", "name": "Kappeln (Schlei)", "revier": "ostsee-west", "lat": 54.662, "lon": 9.937, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "eckernfoerde", "name": "Eckernförde", "revier": "ostsee-west", "lat": 54.472, "lon": 9.838, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "kiel-schilksee", "name": "Kiel-Schilksee", "revier": "ostsee-west", "lat": 54.427, "lon": 10.172, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "laboe", "name": "Laboe", "revier": "ostsee-west", "lat": 54.404, "lon": 10.222, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "heiligenhafen", "name": "Heiligenhafen", "revier": "ostsee-west", "lat": 54.374, "lon": 10.983, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "fehmarn", "name": "Fehmarn, Burgtiefe", "revier": "ostsee-west", "lat": 54.414, "lon": 11.192, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "neustadt", "name": "Neustadt in Holstein", "revier": "ostsee-west", "lat": 54.103, "lon": 10.817, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": false } },
+    { "id": "travemuende", "name": "Lübeck-Travemünde", "revier": "ostsee-west", "lat": 53.958, "lon": 10.874, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+
+    { "id": "wismar", "name": "Wismar", "revier": "ostsee-mitte", "lat": 53.899, "lon": 11.459, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "kuehlungsborn", "name": "Kühlungsborn", "revier": "ostsee-mitte", "lat": 54.152, "lon": 11.760, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "warnemuende", "name": "Rostock-Warnemünde, Hohe Düne", "revier": "ostsee-mitte", "lat": 54.181, "lon": 12.098, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "rostock", "name": "Rostock, Stadthafen", "revier": "ostsee-mitte", "lat": 54.093, "lon": 12.133, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+
+    { "id": "stralsund", "name": "Stralsund", "revier": "ostsee-ost", "lat": 54.316, "lon": 13.098, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "lauterbach", "name": "Lauterbach (Rügen)", "revier": "ostsee-ost", "lat": 54.341, "lon": 13.502, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "sassnitz", "name": "Sassnitz", "revier": "ostsee-ost", "lat": 54.514, "lon": 13.643, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+
+    { "id": "greifswald", "name": "Greifswald-Wieck", "revier": "bodden", "lat": 54.097, "lon": 13.452, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "kroeslin", "name": "Kröslin (Peenestrom)", "revier": "bodden", "lat": 54.118, "lon": 13.752, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "ueckermuende", "name": "Ueckermünde (Stettiner Haff)", "revier": "bodden", "lat": 53.740, "lon": 14.050, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+
+    { "id": "hamburg", "name": "Hamburg, City-Sporthafen", "revier": "fluss", "lat": 53.542, "lon": 9.982, "infrastruktur": { "waschanlage": false, "kran": false, "trockenliegeplatz": false } },
+    { "id": "duesseldorf", "name": "Düsseldorf, Marina", "revier": "fluss", "lat": 51.214, "lon": 6.748, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "mainz", "name": "Mainz, Winterhafen", "revier": "fluss", "lat": 49.997, "lon": 8.284, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+
+    { "id": "wannsee", "name": "Berlin-Wannsee", "revier": "binnensee", "lat": 52.431, "lon": 13.172, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "potsdam", "name": "Potsdam", "revier": "binnensee", "lat": 52.399, "lon": 13.065, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "waren", "name": "Waren (Müritz)", "revier": "binnensee", "lat": 53.515, "lon": 12.684, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "plau", "name": "Plau am See", "revier": "binnensee", "lat": 53.459, "lon": 12.266, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "steinhude", "name": "Steinhuder Meer", "revier": "binnensee", "lat": 52.459, "lon": 9.355, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+
+    { "id": "prien", "name": "Prien am Chiemsee", "revier": "voralpensee", "lat": 47.858, "lon": 12.375, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": true } },
+    { "id": "starnberg", "name": "Starnberg", "revier": "voralpensee", "lat": 47.998, "lon": 11.343, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+
+    { "id": "konstanz", "name": "Konstanz", "revier": "bodensee", "lat": 47.665, "lon": 9.183, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "ueberlingen", "name": "Überlingen", "revier": "bodensee", "lat": 47.763, "lon": 9.165, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } },
+    { "id": "friedrichshafen", "name": "Friedrichshafen", "revier": "bodensee", "lat": 47.650, "lon": 9.483, "infrastruktur": { "waschanlage": true, "kran": true, "trockenliegeplatz": true } },
+    { "id": "lindau", "name": "Lindau", "revier": "bodensee", "lat": 47.546, "lon": 9.683, "infrastruktur": { "waschanlage": false, "kran": true, "trockenliegeplatz": false } }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "_hinweis": "Beispielwerte. Plausible Spannen aus Leitfäden und Studien, auf einen Wert verdichtet; keine geprüften Fachdaten. Indizes 0–10: Umwelt, Gesundheit und Risiko gebietsfremder Arten = Belastung (0 = keine), Wirksamkeit = Schutz (10 = voll). Wirksamkeit je Bewuchsdruck 1 (gering), 2 (mittel), 3 (hoch).",
+  "optionen": [
+    {
+      "id": "hart-reinigung",
+      "name": "Hartbeschichtung mit Reinigung von Hand",
+      "kategorie": "biozidfrei",
+      "kurz": "Glatte, biozidfreie Beschichtung; Bewuchs wird in der Saison mehrmals mit Bürste oder Schwamm entfernt.",
+      "zielgruppen": ["freizeit"],
+      "bedingungen": {},
+      "werte": {
+        "umwelt": 1, "wirksamkeit": { "1": 9, "2": 6, "3": 4 },
+        "kosten_eur_10m": 180, "aufwand_h": 14, "gesundheit": 3
+      }
+    },
+    {
+      "id": "waschanlage",
+      "name": "Hartbeschichtung und Bürsten-Waschanlage",
+      "kategorie": "biozidfrei",
+      "kurz": "Biozidfreie Beschichtung; das Boot fährt in der Saison mehrmals durch eine Waschanlage im Hafen, die Reste werden aufgefangen.",
+      "zielgruppen": ["freizeit"],
+      "bedingungen": { "braucht": ["waschanlage"], "max_laenge_m": 15 },
+      "werte": {
+        "umwelt": 1, "wirksamkeit": { "1": 10, "2": 9, "3": 8 },
+        "kosten_eur_10m": 160, "aufwand_h": 3, "gesundheit": 0
+      }
+    },
+    {
+      "id": "folie",
+      "name": "Antifouling-Folie",
+      "kategorie": "biozidfrei",
+      "kurz": "Biozidfreie Folie auf dem Unterwasserschiff, an der Bewuchs schlecht haftet; hält mehrere Jahre.",
+      "zielgruppen": ["freizeit"],
+      "bedingungen": { "max_laenge_m": 25 },
+      "werte": {
+        "umwelt": 2, "wirksamkeit": { "1": 9, "2": 8, "3": 7 },
+        "kosten_eur_10m": 420, "aufwand_h": 2, "gesundheit": 1
+      }
+    },
+    {
+      "id": "silikon",
+      "name": "Silikon-Beschichtung (Foul-Release)",
+      "kategorie": "biozidfrei",
+      "kurz": "Sehr glatte Silikonschicht ohne Biozid; Bewuchs löst sich bei Fahrt oder lässt sich leicht abwischen.",
+      "zielgruppen": ["freizeit", "beruf"],
+      "bedingungen": {},
+      "werte": {
+        "umwelt": 3, "wirksamkeit": { "1": 9, "2": 8, "3": 6 },
+        "kosten_eur_10m": 380, "aufwand_h": 4, "gesundheit": 3,
+        "kosten_index": 7, "treibstoff_pct": 2, "standzeit_jahre": 5, "invasiv": 3
+      }
+    },
+    {
+      "id": "kranen",
+      "name": "Trockenliegeplatz oder Kranen nach dem Törn",
+      "kategorie": "mechanisch",
+      "kurz": "Das Boot liegt an Land und kommt nur zum Segeln ins Wasser; ohne Liegezeit im Wasser entsteht kaum Bewuchs.",
+      "zielgruppen": ["freizeit"],
+      "bedingungen": { "braucht": ["kran"], "max_laenge_m": 10 },
+      "werte": {
+        "umwelt": 0, "wirksamkeit": { "1": 10, "2": 10, "3": 10 },
+        "kosten_eur_10m": 900, "aufwand_h": 8, "gesundheit": 0
+      }
+    },
+    {
+      "id": "bootslift",
+      "name": "Bootslift am Liegeplatz",
+      "kategorie": "mechanisch",
+      "kurz": "Ein Lift hebt das Boot am Liegeplatz aus dem Wasser; der Rumpf bleibt trocken.",
+      "zielgruppen": ["freizeit"],
+      "bedingungen": { "max_laenge_m": 12 },
+      "werte": {
+        "umwelt": 0, "wirksamkeit": { "1": 10, "2": 10, "3": 10 },
+        "kosten_eur_10m": 650, "aufwand_h": 2, "gesundheit": 0
+      }
+    },
+    {
+      "id": "ultraschall",
+      "name": "Ultraschall-System",
+      "kategorie": "mechanisch",
+      "kurz": "Schallgeber am Rumpf sollen das Anhaften von Larven erschweren; braucht Landstrom, Wirkung unsicher.",
+      "zielgruppen": ["freizeit"],
+      "bedingungen": {},
+      "werte": {
+        "umwelt": 1, "wirksamkeit": { "1": 7, "2": 5, "3": 3 },
+        "kosten_eur_10m": 300, "aufwand_h": 1, "gesundheit": 0
+      }
+    },
+    {
+      "id": "unterwasserreinigung",
+      "name": "Hartbeschichtung mit Unterwasserreinigung und Auffangsystem",
+      "kategorie": "biozidfrei",
+      "kurz": "Harte, biozidfreie Beschichtung; Taucher oder Reinigungsroboter entfernen Bewuchs im Hafen und fangen die Reste auf.",
+      "zielgruppen": ["beruf"],
+      "bedingungen": {},
+      "werte": {
+        "umwelt": 2, "wirksamkeit": { "1": 9, "2": 8, "3": 7 }, "gesundheit": 1,
+        "kosten_index": 5, "treibstoff_pct": 3, "standzeit_jahre": 10, "invasiv": 2
+      }
+    },
+    {
+      "id": "kupferarm",
+      "name": "Kupferarmes Antifouling",
+      "kategorie": "biozid",
+      "kurz": "Biozidhaltiger Anstrich mit geringerem Kupfergehalt; muss jede Saison erneuert werden.",
+      "zielgruppen": ["freizeit"],
+      "bedingungen": { "gewaesser": ["salz", "brack"], "nicht_bei_regel": ["biozid_verboten"] },
+      "produktkategorien": ["pk-kupferthiocyanat-laie"],
+      "werte": {
+        "umwelt": 6, "wirksamkeit": { "1": 9, "2": 8, "3": 7 },
+        "kosten_eur_10m": 230, "aufwand_h": 10, "gesundheit": 6
+      }
+    },
+    {
+      "id": "kupfer-spc",
+      "name": "Selbstpolierendes Kupfer-Antifouling",
+      "kategorie": "biozid",
+      "kurz": "Biozidhaltiger Anstrich, der sich langsam abträgt und dabei Kupfer und weitere Wirkstoffe abgibt.",
+      "zielgruppen": ["freizeit", "beruf"],
+      "bedingungen": { "gewaesser": ["salz", "brack"], "nicht_bei_regel": ["biozid_verboten"] },
+      "produktkategorien": ["pk-kupferoxid-spc-laie", "pk-kupferoxid-hart-laie", "pk-kupferoxid-spc-profi"],
+      "werte": {
+        "umwelt": 8, "wirksamkeit": { "1": 10, "2": 9, "3": 9 },
+        "kosten_eur_10m": 260, "aufwand_h": 10, "gesundheit": 7,
+        "kosten_index": 4, "treibstoff_pct": 3, "standzeit_jahre": 5, "invasiv": 2
+      }
+    },
+    {
+      "id": "kupferfrei-profi",
+      "name": "Kupferfreies selbstpolierendes Antifouling",
+      "kategorie": "biozid",
+      "kurz": "Biozidhaltiger Anstrich ohne Kupfer, mit organischen Wirkstoffen; für die Berufsschifffahrt.",
+      "zielgruppen": ["beruf"],
+      "bedingungen": { "gewaesser": ["salz", "brack"], "nicht_bei_regel": ["biozid_verboten"] },
+      "produktkategorien": ["pk-kupferfrei-profi", "pk-medetomidin-profi"],
+      "werte": {
+        "umwelt": 6, "wirksamkeit": { "1": 9, "2": 8, "3": 8 }, "gesundheit": 5,
+        "kosten_index": 5, "treibstoff_pct": 3, "standzeit_jahre": 5, "invasiv": 2
+      }
+    }
+  ]
+}

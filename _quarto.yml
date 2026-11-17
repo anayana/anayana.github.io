@@ -19,6 +19,7 @@ project:
     - schluesseldienst/    # a standalone site, copied as it is
     - canis/
     - remise/
+    - biozidatlas/         # antifouling atlas prototype, a standalone app
 
 website:
   title: "A. Naya"

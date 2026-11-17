@@ -1,0 +1,108 @@
+{
+  "_hinweis": "Beispieldaten. Einteilung und Bewuchsdruck angelehnt an die Logik des UBA-Bewuchsatlas (Ampel pro Region), aber nicht aus dessen Daten übernommen.",
+  "reviere": [
+    {
+      "id": "nordsee",
+      "name": "Nordsee und Wattenmeer",
+      "wassertyp": "salz",
+      "salzgehalt_psu": [28, 34],
+      "bewuchsdruck": 3,
+      "hauptbewuchs": "Mai bis Oktober",
+      "organismen": ["Seepocken", "Miesmuscheln", "Seescheiden", "Grünalgen"],
+      "regeln": []
+    },
+    {
+      "id": "aestuar",
+      "name": "Ästuare von Elbe, Weser und Ems",
+      "wassertyp": "brack",
+      "salzgehalt_psu": [2, 20],
+      "bewuchsdruck": 2,
+      "hauptbewuchs": "Juni bis September",
+      "organismen": ["Seepocken", "Biofilm", "Grünalgen"],
+      "regeln": []
+    },
+    {
+      "id": "ostsee-west",
+      "name": "Westliche Ostsee (Flensburg bis Lübecker Bucht)",
+      "wassertyp": "brack",
+      "salzgehalt_psu": [12, 22],
+      "bewuchsdruck": 3,
+      "hauptbewuchs": "Juni bis September",
+      "organismen": ["Seepocken", "Miesmuscheln", "Moostierchen", "Grünalgen"],
+      "regeln": []
+    },
+    {
+      "id": "ostsee-mitte",
+      "name": "Mecklenburger Bucht",
+      "wassertyp": "brack",
+      "salzgehalt_psu": [9, 15],
+      "bewuchsdruck": 2,
+      "hauptbewuchs": "Juni bis September",
+      "organismen": ["Seepocken", "Miesmuscheln", "Grünalgen"],
+      "regeln": []
+    },
+    {
+      "id": "ostsee-ost",
+      "name": "Vorpommersche Küste und Rügen",
+      "wassertyp": "brack",
+      "salzgehalt_psu": [7, 9],
+      "bewuchsdruck": 2,
+      "hauptbewuchs": "Juli bis September",
+      "organismen": ["Seepocken", "Miesmuscheln", "Biofilm"],
+      "regeln": []
+    },
+    {
+      "id": "bodden",
+      "name": "Bodden und Haffe",
+      "wassertyp": "brack",
+      "salzgehalt_psu": [1, 7],
+      "bewuchsdruck": 1,
+      "hauptbewuchs": "Juli bis August",
+      "organismen": ["Biofilm", "Grünalgen", "Dreikantmuscheln"],
+      "regeln": []
+    },
+    {
+      "id": "fluss",
+      "name": "Flüsse und Kanäle",
+      "wassertyp": "suess",
+      "salzgehalt_psu": [0, 0.5],
+      "bewuchsdruck": 1,
+      "hauptbewuchs": "Juni bis August",
+      "organismen": ["Biofilm", "Dreikantmuscheln in Hafenbecken"],
+      "regeln": []
+    },
+    {
+      "id": "binnensee",
+      "name": "Seen in Nord- und Ostdeutschland",
+      "wassertyp": "suess",
+      "salzgehalt_psu": [0, 0.5],
+      "bewuchsdruck": 2,
+      "hauptbewuchs": "Juni bis September",
+      "organismen": ["Dreikantmuscheln", "Biofilm", "Algen"],
+      "regeln": []
+    },
+    {
+      "id": "voralpensee",
+      "name": "Voralpenseen",
+      "wassertyp": "suess",
+      "salzgehalt_psu": [0, 0.5],
+      "bewuchsdruck": 1,
+      "hauptbewuchs": "Juli bis August",
+      "organismen": ["Biofilm", "Algen"],
+      "regeln": []
+    },
+    {
+      "id": "bodensee",
+      "name": "Bodensee",
+      "wassertyp": "suess",
+      "salzgehalt_psu": [0, 0.5],
+      "bewuchsdruck": 2,
+      "hauptbewuchs": "Juni bis September",
+      "organismen": ["Quaggamuscheln", "Biofilm", "Algen"],
+      "regeln": ["biozid_verboten"]
+    }
+  ],
+  "regeltexte": {
+    "biozid_verboten": "Auf dem Bodensee sind biozidhaltige Unterwasseranstriche nicht erlaubt (Beispielregel nach der Bodensee-Schifffahrts-Ordnung, vor Verwendung prüfen)."
+  }
+}
