@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Beispielwerte. Plausible Spannen aus Leitfäden und Studien, auf einen Wert verdichtet; keine geprüften Fachdaten. Indizes 0–10: Umwelt, Gesundheit und Risiko gebietsfremder Arten = Belastung (0 = keine), Wirksamkeit = Schutz (10 = voll). Wirksamkeit je Bewuchsdruck 1 (gering), 2 (mittel), 3 (hoch).",
+  "_hinweis": "Beispielwerte. Plausible Spannen aus Leitfäden und Studien, auf einen Wert verdichtet; keine geprüften Fachdaten. Optionen mit nur_auf_wunsch werden nur bewertet, wenn sie in der Oberfläche angekreuzt sind. Indizes 0–10: Umwelt, Gesundheit und Risiko gebietsfremder Arten = Belastung (0 = keine), Wirksamkeit = Schutz (10 = voll). Wirksamkeit je Bewuchsdruck 1 (gering), 2 (mittel), 3 (hoch).",
   "optionen": [
     {
       "id": "hart-reinigung",
@@ -56,6 +56,7 @@
       "kategorie": "mechanisch",
       "kurz": "Das Boot liegt an Land und kommt nur zum Segeln ins Wasser; ohne Liegezeit im Wasser entsteht kaum Bewuchs.",
       "zielgruppen": ["freizeit"],
+      "nur_auf_wunsch": true,
       "bedingungen": { "braucht": ["kran"], "max_laenge_m": 10 },
       "werte": {
         "umwelt": 0, "wirksamkeit": { "1": 10, "2": 10, "3": 10 },
@@ -68,6 +69,7 @@
       "kategorie": "mechanisch",
       "kurz": "Ein Lift hebt das Boot am Liegeplatz aus dem Wasser; der Rumpf bleibt trocken.",
       "zielgruppen": ["freizeit"],
+      "nur_auf_wunsch": true,
       "bedingungen": { "max_laenge_m": 12 },
       "werte": {
         "umwelt": 0, "wirksamkeit": { "1": 10, "2": 10, "3": 10 },
