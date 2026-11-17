@@ -252,6 +252,9 @@ select, input[type="number"] {
 
 .btn-ghost:hover { background: var(--accent-soft); }
 
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets .btn-ghost[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
 /* Steckbrief */
 .hafen-name { font-size: 1.2rem; font-weight: 600; }
 .hafen-revier { color: var(--muted); margin-top: -6px; }

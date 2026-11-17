@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Keine echten Produkte. Beschreibende Kategorien mit den Feldern einer Zulassung für Produktart 21 (Antifouling). Die Wirkstoffe sind in der EU für Produktart 21 genehmigt; die Gehalte sind Beispielspannen.",
+  "_hinweis": "Keine echten Produkte. Beschreibende Kategorien mit den Feldern einer Zulassung für Produktart 21 (Antifouling). Die Wirkstoffe sind in der EU für Produktart 21 genehmigt; die Gehalte sind Beispielspannen. max_laenge_m: Laienprodukte nur für Boote bis 25 m.",
   "kategorien": [
     {
       "id": "pk-kupferoxid-spc-laie",
@@ -12,6 +12,7 @@
       ],
       "gewaesser": ["salz", "brack"],
       "bootslaenge": "bis 25 m",
+      "max_laenge_m": 25,
       "anwendung": "Rolle, Pinsel",
       "hinweise": ["Nicht für Süßwasser", "Schleifen nur mit Absaugung, Schleifreste auffangen"]
     },
@@ -25,6 +26,7 @@
       ],
       "gewaesser": ["salz", "brack"],
       "bootslaenge": "bis 25 m",
+      "max_laenge_m": 25,
       "anwendung": "Rolle, Pinsel",
       "hinweise": ["Nicht für Süßwasser", "Für schnelle Motorboote geeignet"]
     },
@@ -39,6 +41,7 @@
       ],
       "gewaesser": ["salz", "brack"],
       "bootslaenge": "bis 25 m",
+      "max_laenge_m": 25,
       "anwendung": "Rolle, Pinsel",
       "hinweise": ["Nicht für Süßwasser", "Hellere Farbtöne möglich"]
     },
