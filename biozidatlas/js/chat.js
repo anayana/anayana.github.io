@@ -4,10 +4,21 @@
    Die Bibliothek wird erst beim Start geladen, die Modelldateien kommen beim
    ersten Start von Hugging Face und liegen danach im Browser-Cache. */
 
+// Je Modell eine 16-Bit-Variante (kleiner, braucht die WebGPU-Erweiterung
+// shader-f16) und eine 32-Bit-Variante, die auf mehr Grafikkarten läuft.
 const MODELLE = [
-  { id: "Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC", label: "Ministral 3 (3B) von Mistral, Frankreich", groesse: "ca. 2 GB" },
-  { id: "gemma-2-2b-it-q4f16_1-MLC", label: "Gemma 2 (2B) von Google", groesse: "ca. 1,5 GB" },
-  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", label: "Llama 3.2 (1B) von Meta, schnell, schwächeres Deutsch", groesse: "ca. 0,7 GB" },
+  {
+    key: "ministral", label: "Ministral 3 (3B) von Mistral, Frankreich", groesse: "ca. 2 GB",
+    f16: "Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC", f32: "Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC",
+  },
+  {
+    key: "gemma", label: "Gemma 2 (2B) von Google", groesse: "ca. 1,5 GB",
+    f16: "gemma-2-2b-it-q4f16_1-MLC", f32: "gemma-2-2b-it-q4f32_1-MLC",
+  },
+  {
+    key: "llama", label: "Llama 3.2 (1B) von Meta, schnell, schwächeres Deutsch", groesse: "ca. 0,7 GB",
+    f16: "Llama-3.2-1B-Instruct-q4f16_1-MLC", f32: "Llama-3.2-1B-Instruct-q4f32_1-MLC",
+  },
 ];
 
 const VORSCHLAEGE = [
@@ -51,10 +62,30 @@ function status(text) {
   $("#chat-status").textContent = text;
 }
 
+async function kannF16() {
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    return !!adapter && adapter.features.has("shader-f16");
+  } catch (e) {
+    return false;
+  }
+}
+
+// Reihenfolge der Versuche: gewähltes Modell (16 Bit nur, wenn die Grafikkarte
+// es kann), dann seine 32-Bit-Variante, dann die anderen Modelle in 32 Bit.
+function versuche(key, f16) {
+  const gewaehlt = MODELLE.find((m) => m.key === key);
+  const liste = [];
+  if (f16) liste.push({ m: gewaehlt, id: gewaehlt.f16, bits: 16 });
+  liste.push({ m: gewaehlt, id: gewaehlt.f32, bits: 32 });
+  MODELLE.filter((m) => m !== gewaehlt).forEach((m) => liste.push({ m, id: m.f32, bits: 32 }));
+  return liste;
+}
+
 async function starten() {
   if (laeuft) return;
-  const modell = $("#chat-modell").value;
-  if (engine && geladenesModell === modell) return;
+  const key = $("#chat-modell").value;
+  if (engine && geladenesModell && geladenesModell.m.key === key) return;
   if (!("gpu" in navigator)) {
     status("Ihr Browser unterstützt WebGPU nicht. Bitte ein aktuelles Chrome oder Edge am Computer verwenden.");
     return;
@@ -69,16 +100,36 @@ async function starten() {
       $("#chat-progress").value = r.progress || 0;
       status(r.text || "Modell wird geladen …");
     };
-    if (engine) await engine.reload(modell);
-    else engine = await webllm.CreateMLCEngine(modell, { initProgressCallback: fortschritt });
-    geladenesModell = modell;
+    const liste = versuche(key, await kannF16());
+    let fehler = null;
+    for (const v of liste) {
+      if (engine) {
+        try { await engine.unload(); } catch (e) { /* egal */ }
+        engine = null;
+      }
+      try {
+        if (fehler) status(`Das hat nicht geklappt, versuche ${v.m.label} (${v.bits} Bit) …`);
+        engine = await webllm.CreateMLCEngine(v.id, { initProgressCallback: fortschritt });
+        geladenesModell = v;
+        break;
+      } catch (e) {
+        console.warn("Modell " + v.id + ":", e);
+        fehler = e;
+        engine = null;
+      }
+    }
+    if (!engine) throw fehler;
+    $("#chat-modell").value = geladenesModell.m.key;
     $("#chat-form").hidden = false;
     $("#chat-vorschlaege").hidden = false;
-    status("Bereit. Das Modell läuft auf Ihrem Rechner, nichts wird verschickt.");
+    status(`Bereit: ${geladenesModell.m.label}, ${geladenesModell.bits}-Bit-Variante. Das Modell läuft auf Ihrem Rechner, nichts wird verschickt.`);
     $("#chat-input").focus();
   } catch (e) {
     console.error(e);
-    status("Das Modell ließ sich nicht starten: " + (e && e.message ? e.message : e) + ". Ein kleineres Modell oder ein anderer Browser hilft oft.");
+    const text = e && e.message ? e.message : String(e);
+    status(/fetch|network/i.test(text)
+      ? "Die Modelldateien ließen sich nicht herunterladen (" + text + "). Bitte die Internetverbindung prüfen und neu versuchen."
+      : "Kein Modell ließ sich starten (" + text + "). Meist fehlt freier Grafikspeicher; andere Programme schließen oder einen anderen Rechner verwenden.");
     engine = null;
   } finally {
     laeuft = false;
@@ -120,7 +171,7 @@ async function fragen(frage) {
 function init() {
   const sel = $("#chat-modell");
   if (!sel) return;
-  sel.innerHTML = MODELLE.map((m) => `<option value="${m.id}">${m.label} – ${m.groesse}</option>`).join("");
+  sel.innerHTML = MODELLE.map((m) => `<option value="${m.key}">${m.label} – ${m.groesse}</option>`).join("");
   $("#chat-vorschlaege").innerHTML = VORSCHLAEGE.map((v) => `<button type="button" class="btn-ghost">${v}</button>`).join("");
   $("#chat-vorschlaege").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => fragen(b.textContent)));
   $("#chat-start").addEventListener("click", starten);
