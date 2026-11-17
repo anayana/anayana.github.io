@@ -636,6 +636,16 @@
     return farbe(d === 3 ? "--rot" : d === 2 ? "--gelb" : "--gruen", "#888");
   }
 
+  // Hinweis beim Darüberfahren: Name, Bewuchsdruck und, sobald geladen, die
+  // Wassertemperatur. Als Funktion, damit sie beim Öffnen aktuell ist.
+  function hafenTooltip(h) {
+    const t = temperatur(h);
+    let s = `<b>${esc(h.name)}</b>${h.quelle === "osm" ? " (OpenStreetMap)" : ""}<br>Bewuchsdruck ${DRUCK[D.reviere[h.revier].bewuchsdruck]}`;
+    if (t.see) s += `<br>Meerestemperatur ${zahl(t.see.wert, 1)} °C (Modell)`;
+    else if (t.pegel) s += `<br>Wassertemperatur ${zahl(t.pegel.wert, 1)} °C (Messstelle, ${zahl(t.pegel.km)} km)`;
+    return s;
+  }
+
   function alleBeispielhaefen() {
     return L.latLngBounds(D.haefen.map((x) => [x.lat, x.lon]));
   }
@@ -660,7 +670,7 @@
       const grau = farbe("--muted", "#566b75");
       D.osm.haefen.forEach((h) => {
         L.circleMarker([h.lat, h.lon], { renderer: canvas, radius: 3.5, weight: 1, color: "#ffffff", fillColor: grau, fillOpacity: 0.8 })
-          .bindTooltip(`${esc(h.name)} (OpenStreetMap)`, { direction: "top" })
+          .bindTooltip(() => hafenTooltip(h), { direction: "top" })
           .on("click", () => selectHafen(h.id))
           .addTo(osmLayer);
       });
@@ -670,7 +680,7 @@
 
     D.haefen.forEach((h) => {
       const m = L.circleMarker([h.lat, h.lon], { radius: 7, weight: 1.5, color: "#ffffff", fillOpacity: 0.95 });
-      m.bindTooltip(h.name, { direction: "top", offset: [0, -6] });
+      m.bindTooltip(() => hafenTooltip(h), { direction: "top", offset: [0, -6] });
       m.on("click", () => selectHafen(h.id));
       m.addTo(map);
       markers[h.id] = m;
@@ -729,7 +739,7 @@
     if (h.quelle === "osm") {
       osmAuswahl = L.circleMarker([h.lat, h.lon], {
         radius: 10, weight: 3, color: "#0b1f28", fillColor: druckFarbe(D.reviere[h.revier].bewuchsdruck), fillOpacity: 0.95,
-      }).bindTooltip(h.name, { direction: "top", offset: [0, -6] }).addTo(map);
+      }).bindTooltip(() => hafenTooltip(h), { direction: "top", offset: [0, -6] }).addTo(map);
     }
   }
 
@@ -765,7 +775,7 @@
       const blau = farbe("--accent", "#0d6a80");
       state.live.data.stationen.forEach((s) => {
         L.circleMarker([s.lat, s.lon], { radius: 3, weight: 1, color: "#ffffff", fillColor: blau, fillOpacity: s.veraltet ? 0.3 : 0.7 })
-          .bindTooltip(`${esc(s.name)}: ${zahl(s.wert, 1)} °C`, { direction: "top" })
+          .bindTooltip(`Messstelle ${esc(s.name)}<br>Wassertemperatur ${zahl(s.wert, 1)} °C`, { direction: "top" })
           .addTo(pegelLayer);
       });
       D.haefen.forEach((h) => markers[h.id].bringToFront());
