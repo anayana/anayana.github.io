@@ -136,15 +136,29 @@ a { color: var(--accent); }
 
 #map { height: 100%; width: 100%; background: var(--accent-soft); }
 
+/* Bedienfeld: eine Spalte, ab 1000 px Breite zwei (Eingaben und Hafen links,
+   Bewertung rechts). */
 .panel {
   min-width: 0;
-  max-width: 900px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  container-type: inline-size;
   padding-block: 16px 32px;
   padding-left: 16px;
   padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.panel-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.sources { grid-column: 1 / -1; }
+
+@container (min-width: 1000px) {
+  .panel-inner { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
 }
 
 @media (max-width: 900px) {

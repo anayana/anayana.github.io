@@ -278,17 +278,17 @@
 
     const scale =
       m === "wsm"
-        ? "Punkte 0–100; Balken zeigt, was jedes Kriterium beiträgt."
+        ? "Punkte 0–100, der Balken zeigt den Beitrag jedes Kriteriums."
         : m === "topsis"
         ? "Nähe zur Ideallösung, 0 bis 1."
         : "Nettofluss von −1 bis +1: Wie oft eine Option andere übertrifft, minus wie oft sie unterliegt.";
 
     const einheiten =
       state.profil === "beruf"
-        ? "Kosten als Index 0–10 (10 = am teuersten), Treibstoff als Mehrverbrauch gegenüber sauberem Rumpf, Standzeit bis zur nächsten Erneuerung. Beispielwerte."
-        : "Kosten: Euro pro Saison für ein 10-m-Boot, Anschaffung auf die Nutzungsdauer umgelegt. Aufwand: Stunden Eigenarbeit pro Saison. Indizes 0–10: Umwelt und Gesundheit = Belastung, Wirksamkeit = Schutz. Beispielwerte.";
+        ? "Kosten als Index 0–10 · Treibstoff: Mehrverbrauch gegenüber sauberem Rumpf · Beispielwerte"
+        : "Kosten pro Saison für ein 10-m-Boot, Anschaffung umgelegt · Indizes 0–10 · Beispielwerte";
 
-    $("#rangliste").innerHTML = `${legend}<p class="hint">${scale}</p><p class="hint">${einheiten}</p><ol class="rank-list">${items}</ol>${robust}`;
+    $("#rangliste").innerHTML = `${legend}<p class="hint">${scale} ${einheiten}.</p><ol class="rank-list">${items}</ol>${robust}`;
   }
 
   function buildGewichte() {
@@ -505,11 +505,13 @@
       }
       state.live.data.stationen.forEach((s) => {
         L.circleMarker([s.lat, s.lon], {
-          radius: 4, weight: 1.5, color: "#ffffff", fillColor: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0d6a80", fillOpacity: s.veraltet ? 0.4 : 0.9,
+          radius: 3, weight: 1, color: "#ffffff", fillColor: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0d6a80", fillOpacity: s.veraltet ? 0.3 : 0.7,
         })
           .bindTooltip(`${esc(s.name)}: ${zahl(s.wert, 1)} °C`, { direction: "top" })
           .addTo(pegelLayer);
       });
+      D.haefen.forEach((h) => markers[h.id].bringToFront());
+      markers[state.hafenId].bringToFront();
     } catch (e) {
       state.live.status = "fehler";
       if (liveStatusEl) liveStatusEl.textContent = "PEGELONLINE nicht erreichbar";
