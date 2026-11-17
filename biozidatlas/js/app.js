@@ -39,7 +39,7 @@
   /* ---------- Daten ---------- */
 
   async function loadJSON(name) {
-    const res = await fetch("data/" + name + ".json?v=2");
+    const res = await fetch("data/" + name + ".json?v=3");
     if (!res.ok) throw new Error(name + ".json: " + res.status);
     return res.json();
   }
