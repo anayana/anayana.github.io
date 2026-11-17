@@ -80,11 +80,12 @@
       "id": "ultraschall",
       "name": "Ultraschall-System",
       "kategorie": "mechanisch",
-      "kurz": "Schallgeber am Rumpf sollen das Anhaften von Larven erschweren; braucht Landstrom, Wirkung unsicher.",
+      "kurz": "Fest eingebaute Schallgeber am Rumpf sollen das Anhaften von Larven erschweren; braucht Landstrom, Wirkung im Bootsbereich kaum belegt.",
       "zielgruppen": ["freizeit"],
+      "nur_auf_wunsch": true,
       "bedingungen": {},
       "werte": {
-        "umwelt": 1, "wirksamkeit": { "1": 7, "2": 5, "3": 3 },
+        "umwelt": 1, "wirksamkeit": { "1": 4, "2": 2, "3": 1 },
         "kosten_eur_10m": 300, "aufwand_h": 1, "gesundheit": 0
       }
     },
