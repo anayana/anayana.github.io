@@ -1,0 +1,18 @@
+{
+  "_hinweis": "Kriterien, Wertebereiche und Standardgewichte sind Annahmen für den Prototyp. Im echten Tool legen Fachleute sie fest (z. B. per AHP-Workshop). 'untergrenze' ist der Mindestanteil am Gesamtgewicht.",
+  "freizeit": [
+    { "key": "umwelt", "label": "Umweltbelastung", "feld": "umwelt", "richtung": "min", "einheit": "Index 0–10", "bereich": [0, 10], "gewicht": 30, "untergrenze": 0.2 },
+    { "key": "wirksamkeit", "label": "Wirksamkeit am Liegeplatz", "feld": "wirksamkeit", "richtung": "max", "einheit": "Index 0–10", "bereich": [0, 10], "gewicht": 25 },
+    { "key": "kosten", "label": "Kosten", "feld": "kosten_eur_10m", "richtung": "min", "einheit": "€ pro Saison, 10-m-Boot", "bereich": [0, 1000], "gewicht": 20 },
+    { "key": "aufwand", "label": "Eigener Aufwand", "feld": "aufwand_h", "richtung": "min", "einheit": "Stunden pro Saison", "bereich": [0, 20], "gewicht": 15 },
+    { "key": "gesundheit", "label": "Gesundheit beim Verarbeiten", "feld": "gesundheit", "richtung": "min", "einheit": "Index 0–10", "bereich": [0, 10], "gewicht": 10 }
+  ],
+  "beruf": [
+    { "key": "umwelt", "label": "Umweltbelastung", "feld": "umwelt", "richtung": "min", "einheit": "Index 0–10", "bereich": [0, 10], "gewicht": 25, "untergrenze": 0.2 },
+    { "key": "wirksamkeit", "label": "Wirksamkeit im Fahrtgebiet", "feld": "wirksamkeit", "richtung": "max", "einheit": "Index 0–10", "bereich": [0, 10], "gewicht": 20 },
+    { "key": "treibstoff", "label": "Treibstoff und CO₂", "feld": "treibstoff_pct", "richtung": "min", "einheit": "% Mehrverbrauch", "bereich": [0, 10], "gewicht": 20 },
+    { "key": "kosten", "label": "Kosten", "feld": "kosten_index", "richtung": "min", "einheit": "Index 0–10", "bereich": [0, 10], "gewicht": 15 },
+    { "key": "standzeit", "label": "Standzeit", "feld": "standzeit_jahre", "richtung": "max", "einheit": "Jahre", "bereich": [0, 12], "gewicht": 10 },
+    { "key": "invasiv", "label": "Risiko gebietsfremder Arten", "feld": "invasiv", "richtung": "min", "einheit": "Index 0–10", "bereich": [0, 10], "gewicht": 10 }
+  ]
+}
