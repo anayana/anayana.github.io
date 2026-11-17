@@ -134,10 +134,10 @@
 
   function wertText(c, v) {
     switch (c.feld) {
-      case "kosten_eur_10m": return zahl(v) + " €";
-      case "aufwand_h": return zahl(v) + " h";
+      case "kosten_eur_10m": return zahl(v) + " €/Saison";
+      case "aufwand_h": return zahl(v) + " h/Saison";
       case "treibstoff_pct": return "+" + zahl(v) + " %";
-      case "standzeit_jahre": return zahl(v) + " J.";
+      case "standzeit_jahre": return zahl(v) + " Jahre";
       default: return zahl(v) + "/10";
     }
   }
@@ -283,7 +283,12 @@
         ? "Nähe zur Ideallösung, 0 bis 1."
         : "Nettofluss von −1 bis +1: Wie oft eine Option andere übertrifft, minus wie oft sie unterliegt.";
 
-    $("#rangliste").innerHTML = `${legend}<p class="hint">${scale}</p><ol class="rank-list">${items}</ol>${robust}`;
+    const einheiten =
+      state.profil === "beruf"
+        ? "Kosten als Index 0–10 (10 = am teuersten), Treibstoff als Mehrverbrauch gegenüber sauberem Rumpf, Standzeit bis zur nächsten Erneuerung. Beispielwerte."
+        : "Kosten: Euro pro Saison für ein 10-m-Boot, Anschaffung auf die Nutzungsdauer umgelegt. Aufwand: Stunden Eigenarbeit pro Saison. Indizes 0–10: Umwelt und Gesundheit = Belastung, Wirksamkeit = Schutz. Beispielwerte.";
+
+    $("#rangliste").innerHTML = `${legend}<p class="hint">${scale}</p><p class="hint">${einheiten}</p><ol class="rank-list">${items}</ol>${robust}`;
   }
 
   function buildGewichte() {
@@ -436,6 +441,18 @@
     legend.addTo(map);
     liveStatusEl = document.getElementById("live-status");
 
+    const toggle = L.control({ position: "topleft" });
+    toggle.onAdd = () => {
+      const btn = L.DomUtil.create("button", "map-toggle");
+      btn.type = "button";
+      btn.id = "map-toggle";
+      btn.textContent = "Karte verkleinern";
+      L.DomEvent.disableClickPropagation(btn);
+      btn.addEventListener("click", () => setCompact(!$(".layout").classList.contains("compact")));
+      return btn;
+    };
+    toggle.addTo(map);
+
     window.addEventListener("resize", () => map.invalidateSize());
   }
 
@@ -458,6 +475,21 @@
     state.hafenId = id;
     $("#hafen").value = id;
     render(false);
+    setCompact(true);
+  }
+
+  // Schmale Karte mit dem gewählten Hafen im Blick, oder ganz Deutschland.
+  function setCompact(on) {
+    const layout = $(".layout");
+    layout.classList.toggle("compact", on);
+    const btn = document.getElementById("map-toggle");
+    if (btn) btn.textContent = on ? "Karte vergrößern" : "Karte verkleinern";
+    setTimeout(() => {
+      map.invalidateSize();
+      const h = D.hafen[state.hafenId];
+      if (on) map.setView([h.lat, h.lon], 8);
+      else map.fitBounds(L.latLngBounds(D.haefen.map((x) => [x.lat, x.lon])), { padding: [24, 24] });
+    }, 280);
   }
 
   /* ---------- Live-Daten ---------- */
@@ -511,8 +543,6 @@
     sel.value = state.hafenId;
     sel.addEventListener("change", () => {
       selectHafen(sel.value);
-      const h = D.hafen[sel.value];
-      map.panTo([h.lat, h.lon]);
     });
 
     document.querySelectorAll('input[name="profil"]').forEach((r) =>

@@ -115,11 +115,17 @@ a { color: var(--accent); }
 }
 
 /* Raster */
+/* Karte so breit wie Deutschland bei voller Höhe; nach der Wahl eines Hafens
+   schmaler, damit das Bedienfeld Platz hat. */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 540px);
+  grid-template-columns: 460px minmax(0, 1fr);
   align-items: start;
+  transition: grid-template-columns 0.25s ease;
 }
+
+.layout.compact { grid-template-columns: 280px minmax(0, 1fr); }
+.layout.compact .map-legend { display: none; }
 
 .mapcol {
   position: sticky;
@@ -132,6 +138,7 @@ a { color: var(--accent); }
 
 .panel {
   min-width: 0;
+  max-width: 900px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -141,8 +148,9 @@ a { color: var(--accent); }
 }
 
 @media (max-width: 900px) {
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  .mapcol { position: relative; height: 52vh; }
+  .layout, .layout.compact { grid-template-columns: minmax(0, 1fr); }
+  .mapcol { position: relative; height: 48vh; transition: height 0.25s ease; }
+  .layout.compact .mapcol { height: 26vh; }
   .panel { padding-left: max(16px, env(safe-area-inset-left, 0px)); }
 }
 
@@ -409,6 +417,18 @@ td.diff { background: var(--warn-bg); color: var(--warn-ink); }
 .pegel-dot { background: var(--accent); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--accent); width: 10px; height: 10px; }
 
 .leaflet-container { font-family: var(--font); }
+
+.map-toggle {
+  font: 600 12px/1 var(--font);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.map-toggle:hover { background: var(--accent-soft); }
 .leaflet-tooltip { font-family: var(--font); }
 
 @media (prefers-reduced-motion: reduce) {
