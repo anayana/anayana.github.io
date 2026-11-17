@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <header class="top">
@@ -50,6 +50,9 @@
             <input type="number" id="laenge" min="3" max="400" step="1" inputmode="numeric">
           </div>
         </div>
+        <fieldset class="wunsch" id="wunsch">
+          <legend>Auch bewerten (nur wenn das für Sie in Frage kommt)</legend>
+        </fieldset>
       </section>
 
       <section class="card" id="steckbrief" aria-live="polite"></section>
@@ -123,6 +126,6 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="js/mcda.js?v=1"></script>
   <script src="js/live.js?v=1"></script>
-  <script src="js/app.js?v=1"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 </html>

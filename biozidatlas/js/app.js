@@ -19,6 +19,7 @@
     profil: "freizeit",
     laenge: { ...LAENGE },
     hafenId: "kiel-schilksee",
+    aufWunsch: [],
     methode: "wsm",
     importance: {},
     live: { status: "laden", data: null },
@@ -38,7 +39,7 @@
   /* ---------- Daten ---------- */
 
   async function loadJSON(name) {
-    const res = await fetch("data/" + name + ".json?v=1");
+    const res = await fetch("data/" + name + ".json?v=2");
     if (!res.ok) throw new Error(name + ".json: " + res.status);
     return res.json();
   }
@@ -107,6 +108,7 @@
     const ausgeschlossen = [];
     D.optionen
       .filter((o) => o.zielgruppen.includes(state.profil))
+      .filter((o) => !o.nur_auf_wunsch || state.aufWunsch.includes(o.id))
       .forEach((o) => {
         const g = gruende(o, hafen, revier, laenge);
         (g.length ? ausgeschlossen : erlaubt).push(g.length ? { o, gruende: g } : o);
@@ -492,6 +494,8 @@
     inp.value = state.laenge[state.profil];
     $("#laenge-label").textContent = state.profil === "beruf" ? "Schiffslänge (m)" : "Bootslänge (m)";
     $("#hafen-label").textContent = state.profil === "beruf" ? "Heimathafen bzw. Fahrtgebiet" : "Liegeplatz";
+    const wunsch = D.optionen.filter((o) => o.nur_auf_wunsch && o.zielgruppen.includes(state.profil));
+    $("#wunsch").hidden = !wunsch.length;
   }
 
   function bindControls() {
@@ -526,6 +530,21 @@
         render(false);
       }
     });
+
+    D.optionen
+      .filter((o) => o.nur_auf_wunsch)
+      .forEach((o) => {
+        const row = document.createElement("div");
+        row.className = "check";
+        row.innerHTML = `<input type="checkbox" id="wunsch-${o.id}" value="${o.id}"><label for="wunsch-${o.id}">${esc(o.name)}</label>`;
+        row.querySelector("input").addEventListener("change", (e) => {
+          state.aufWunsch = e.target.checked
+            ? [...state.aufWunsch, o.id]
+            : state.aufWunsch.filter((id) => id !== o.id);
+          render(false);
+        });
+        $("#wunsch").appendChild(row);
+      });
 
     $("#methode").addEventListener("change", (e) => {
       state.methode = e.target.value;
