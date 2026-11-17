@@ -37,7 +37,9 @@ biozidatlas/
 
 1. **Ausschluss:** Optionen, die rechtlich oder technisch nicht passen, fallen
    heraus (Gewässertyp, regionale Regel, Bootslänge, fehlende Waschanlage oder
-   fehlender Kran). Ausschluss wird nie gewichtet.
+   fehlender Kran), ebenso Optionen, die beim örtlichen Bewuchsdruck nicht
+   ausreichend wirken (Wirksamkeit unter 5 von 10). Ausschluss wird nie
+   gewichtet.
 2. **Bewertung:** Jeder Wert wird über einen festen Wertebereich auf 0–1
    normiert und mit dem Gewicht verrechnet. Wählbar: gewichtete Summe, TOPSIS,
    PROMETHEE II (lineare Präferenz, q = 0,05, p = 0,4).
@@ -45,7 +47,19 @@ biozidatlas/
    angezeigt wird, wie oft Platz 1 vorn bleibt.
 
 Die Umwelt behält immer mindestens 20 % des Gewichts (`untergrenze` in
-`kriterien.json`).
+`kriterien.json`). Drei Vorlagen setzen die Gewichte auf einen Schlag:
+„Umwelt zuerst“ (Standard), „Ausgewogen“ und „Wirksamkeit und Kosten
+zuerst“ bzw. „Wirtschaftlich zuerst“ für die Berufsschifffahrt.
+
+Bootslift, Kranen nach jedem Törn und Ultraschall werden nur bewertet, wenn
+sie im Bedienfeld angekreuzt sind (`nur_auf_wunsch`).
+
+Kosten sind für ein 10-m-Boot hinterlegt und werden in der Anzeige grob nach
+Rumpffläche (Länge zum Quadrat) auf die eingegebene Bootslänge umgerechnet.
+Die Rangfolge ändert das nicht.
+
+Der gewählte Hafen steht in der Adresse (z. B. `#cuxhaven`), so lässt sich
+eine Ansicht als Link weitergeben.
 
 ## Datenstruktur
 
@@ -87,8 +101,11 @@ Echte Quelle später: OpenStreetMap (`leisure=marina`), Hafenverzeichnisse, Abfr
 | `produktkategorien` | Verweise auf `produktkategorien.json` (nur biozidhaltig) |
 | `werte` | Kriterienwerte, siehe unten |
 
+`nur_auf_wunsch: true` heißt: nur bewerten, wenn angekreuzt.
+
 Werte: `umwelt`, `gesundheit`, `invasiv` als Belastungsindex 0–10 (0 = keine);
-`wirksamkeit` als Index 0–10 je Bewuchsdruck `{"1":…, "2":…, "3":…}`;
+`wirksamkeit` als Index 0–10 je Bewuchsdruck `{"1":…, "2":…, "3":…}`
+(diese Form ist bei jedem Wert möglich, z. B. beim Aufwand);
 `kosten_eur_10m` (€ pro Saison, 10-m-Boot), `aufwand_h` (Stunden pro Saison),
 `kosten_index` (0–10, Berufsschifffahrt), `treibstoff_pct` (% Mehrverbrauch),
 `standzeit_jahre`.
@@ -107,6 +124,9 @@ Je Profil (`freizeit`, `beruf`) eine Liste:
 | `einheit`, `bereich` | Einheit und fester Wertebereich für die Normierung |
 | `gewicht` | Standardgewicht (relativ) |
 | `untergrenze` | Mindestanteil am Gesamtgewicht (optional) |
+| `mindestwert` | Mindestanforderung; darunter wird die Option ausgeschlossen (optional) |
+
+Unter `vorlagen` stehen je Profil die wählbaren Gewichtungen.
 
 Echte Quelle später: AHP-Workshop mit Fachleuten.
 
@@ -115,7 +135,7 @@ Echte Quelle später: AHP-Workshop mit Fachleuten.
 Keine Produkte, sondern Kategorien mit den Feldern einer Zulassung für
 Produktart 21: `bezeichnung`, `produktart`, `verwender` (`Laie` oder
 `berufsmäßig`), `wirkstoffe` (`name`, `gehalt_prozent` als Spanne),
-`gewaesser`, `bootslaenge`, `anwendung`, `hinweise`. Die Wirkstoffe sind in der
+`gewaesser`, `bootslaenge`, `max_laenge_m`, `anwendung`, `hinweise`. Die Wirkstoffe sind in der
 EU für Produktart 21 genehmigt, die Gehalte sind Beispielspannen.
 
 Echte Quelle später: Zulassungsdaten von BAuA bzw. ECHA.
@@ -125,7 +145,9 @@ Echte Quelle später: Zulassungsdaten von BAuA bzw. ECHA.
 `js/live.js` fragt direkt aus dem Browser die offene REST-API von PEGELONLINE ab
 (Messstellen mit Wassertemperatur, Kürzel `WT`), speichert das Ergebnis
 15 Minuten in der Sitzung und ordnet jedem Hafen die nächste Messstelle im
-Umkreis von 40 km zu. Werte unter −2 °C oder über 35 °C werden verworfen,
+Umkreis von 60 km zu; ab 25 km Entfernung gilt der Wert nur als grober Anhalt.
+PEGELONLINE misst vor allem an Flüssen und Kanälen, an der Küste fehlen
+deshalb oft Werte. Werte unter −2 °C oder über 35 °C werden verworfen,
 Werte älter als 6 Stunden gekennzeichnet. Ist PEGELONLINE nicht erreichbar,
 läuft die Bewertung ohne Live-Daten weiter.
 

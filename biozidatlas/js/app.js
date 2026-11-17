@@ -39,7 +39,7 @@
   /* ---------- Daten ---------- */
 
   async function loadJSON(name) {
-    const res = await fetch("data/" + name + ".json?v=3");
+    const res = await fetch("data/" + name + ".json?v=4");
     if (!res.ok) throw new Error(name + ".json: " + res.status);
     return res.json();
   }
@@ -62,14 +62,21 @@
   }
 
   function defaultImportance(profil) {
-    return Object.fromEntries(D.kriterien[profil].map((c) => [c.key, c.gewicht]));
+    return { ...D.kriterien.vorlagen[profil][0].werte };
   }
 
   /* ---------- Bewertung ---------- */
 
-  function gruende(o, hafen, revier, laenge) {
+  function gruende(o, hafen, revier, laenge, crit) {
     const b = o.bedingungen || {};
     const out = [];
+    crit.forEach((c) => {
+      if (c.mindestwert == null) return;
+      const w = wert(o, c.feld, revier);
+      if (w < c.mindestwert) {
+        out.push(`Wirkt bei Bewuchsdruck ${DRUCK[revier.bewuchsdruck]} nicht ausreichend (${w}/10, mindestens ${c.mindestwert})`);
+      }
+    });
     if (b.gewaesser && !b.gewaesser.includes(revier.wassertyp)) {
       out.push(
         o.kategorie === "biozid"
@@ -89,11 +96,15 @@
     return out;
   }
 
+  // Ein Wert ist eine Zahl oder ein Objekt mit einem Wert je Bewuchsdruck.
+  function wert(o, feld, revier) {
+    const v = o.werte[feld];
+    return typeof v === "object" ? v[String(revier.bewuchsdruck)] : v;
+  }
+
   function rohwerte(o, crit, revier) {
     const raw = {};
-    crit.forEach((c) => {
-      raw[c.key] = c.feld === "wirksamkeit" ? o.werte.wirksamkeit[String(revier.bewuchsdruck)] : o.werte[c.feld];
-    });
+    crit.forEach((c) => { raw[c.key] = wert(o, c.feld, revier); });
     return raw;
   }
 
@@ -110,7 +121,7 @@
       .filter((o) => o.zielgruppen.includes(state.profil))
       .filter((o) => !o.nur_auf_wunsch || state.aufWunsch.includes(o.id))
       .forEach((o) => {
-        const g = gruende(o, hafen, revier, laenge);
+        const g = gruende(o, hafen, revier, laenge, crit);
         (g.length ? ausgeschlossen : erlaubt).push(g.length ? { o, gruende: g } : o);
       });
 
@@ -132,9 +143,15 @@
 
   /* ---------- Darstellung ---------- */
 
+  // Kosten sind für ein 10-m-Boot hinterlegt; für die Anzeige grob nach
+  // Rumpffläche (Länge zum Quadrat) auf das eigene Boot umgerechnet.
+  function kostenFaktor() {
+    return state.profil === "freizeit" ? (state.laenge.freizeit / 10) ** 2 : 1;
+  }
+
   function wertText(c, v) {
     switch (c.feld) {
-      case "kosten_eur_10m": return zahl(v) + " €/Saison";
+      case "kosten_eur_10m": return "≈ " + zahl(Math.max(10, Math.round((v * kostenFaktor()) / 10) * 10)) + " €/Saison";
       case "aufwand_h": return zahl(v) + " h/Saison";
       case "treibstoff_pct": return "+" + zahl(v) + " %";
       case "standzeit_jahre": return zahl(v) + " Jahre";
@@ -170,15 +187,17 @@
     if (state.live.status === "fehler") {
       return `${tag}<span class="live-meta">PEGELONLINE ist gerade nicht erreichbar. Die Bewertung funktioniert auch ohne Live-Daten.</span>`;
     }
-    const st = Live.nearest(hafen.lat, hafen.lon, state.live.data.stationen, 40);
-    if (!st) return `${tag}<span class="live-meta">Keine Messstelle mit Wassertemperatur im Umkreis von 40 km.</span>`;
+    const st = Live.nearest(hafen.lat, hafen.lon, state.live.data.stationen, 60);
+    if (!st) {
+      return `${tag}<span class="live-meta">Keine Messstelle mit Wassertemperatur im Umkreis von 60 km. PEGELONLINE misst vor allem an Flüssen und Kanälen; Meerestemperaturen an der Küste lägen beim BSH.</span>`;
+    }
     const zeit = st.zeit
       ? new Date(st.zeit).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
       : "unbekannt";
     const s = Live.saison(st.wert);
     return `${tag}
       <span class="live-value">${zahl(st.wert, 1)} °C</span>
-      <span class="live-meta">Messstelle ${esc(st.name)}${st.gewaesser ? " (" + esc(st.gewaesser) + ")" : ""}, ${zahl(st.km)} km entfernt · Stand ${zeit}${st.veraltet ? " · älter als 6 Stunden" : ""}</span>
+      <span class="live-meta">Messstelle ${esc(st.name)}${st.gewaesser ? " (" + esc(st.gewaesser) + ")" : ""}, ${zahl(st.km)} km entfernt${st.km > 25 ? " (nur grober Anhalt)" : ""} · Stand ${zeit}${st.veraltet ? " · älter als 6 Stunden" : ""}</span>
       <span>${esc(s.text)} <span class="example">(Faustregel)</span></span>`;
   }
 
@@ -286,7 +305,7 @@
     const einheiten =
       state.profil === "beruf"
         ? "Kosten als Index 0–10 · Treibstoff: Mehrverbrauch gegenüber sauberem Rumpf · Beispielwerte"
-        : "Kosten pro Saison für ein 10-m-Boot, Anschaffung umgelegt · Indizes 0–10 · Beispielwerte";
+        : `Kosten pro Saison für ein ${zahl(state.laenge.freizeit)}-m-Boot, Anschaffung umgelegt, grob nach Rumpffläche umgerechnet · Indizes 0–10 · Beispielwerte`;
 
     $("#rangliste").innerHTML = `${legend}<p class="hint">${scale} ${einheiten}.</p><ol class="rank-list">${items}</ol>${robust}`;
   }
@@ -294,6 +313,16 @@
   function buildGewichte() {
     const crit = D.kriterien[state.profil];
     const imp = state.importance[state.profil];
+    $("#vorlagen").innerHTML = D.kriterien.vorlagen[state.profil]
+      .map((v) => `<button type="button" class="btn-ghost" data-vorlage="${v.id}" aria-pressed="false">${esc(v.label)}</button>`)
+      .join("");
+    $("#vorlagen").querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const v = D.kriterien.vorlagen[state.profil].find((x) => x.id === btn.dataset.vorlage);
+        state.importance[state.profil] = { ...v.werte };
+        render(true);
+      });
+    });
     $("#gewichte").innerHTML = crit
       .map(
         (c) => `<div class="weight-row">
@@ -312,6 +341,11 @@
   }
 
   function renderGewichte(ctx) {
+    const imp = state.importance[state.profil];
+    $("#vorlagen").querySelectorAll("button").forEach((btn) => {
+      const v = D.kriterien.vorlagen[state.profil].find((x) => x.id === btn.dataset.vorlage);
+      btn.setAttribute("aria-pressed", String(ctx.crit.every((c) => v.werte[c.key] === imp[c.key])));
+    });
     ctx.crit.forEach((c) => {
       const el = document.getElementById("wp-" + c.key);
       if (el) el.textContent = zahl(100 * ctx.weights[c.key]) + " %";
@@ -357,9 +391,12 @@
     ctx.erlaubt
       .filter((o) => o.kategorie === "biozid")
       .forEach((o) => (o.produktkategorien || []).forEach((p) => { if (!ids.includes(p)) ids.push(p); }));
-    const pks = ids.map((id) => D.pk[id]).filter((p) => p && p.verwender === verwender);
+    const passend = ids.map((id) => D.pk[id]).filter((p) => p && p.verwender === verwender);
+    const pks = passend.filter((p) => !p.max_laenge_m || ctx.laenge <= p.max_laenge_m);
     if (!pks.length) {
-      $("#produkte").innerHTML = `<p>An diesem Liegeplatz kommt kein biozidhaltiges Produkt in Frage.</p>`;
+      $("#produkte").innerHTML = passend.length
+        ? `<p>Laienprodukte sind nur für Boote bis 25 m zugelassen. Bei ${zahl(ctx.laenge)} m darf nur ein Fachbetrieb biozidhaltig streichen.</p>`
+        : `<p>An diesem Liegeplatz kommt kein biozidhaltiges Produkt in Frage.</p>`;
       return;
     }
     $("#produkte").innerHTML = `<div class="pk-list">${pks
@@ -474,6 +511,7 @@
   function selectHafen(id) {
     state.hafenId = id;
     $("#hafen").value = id;
+    try { history.replaceState(null, "", "#" + id); } catch (e) { /* ohne Adresszeile */ }
     render(false);
     setCompact(true);
   }
@@ -583,10 +621,6 @@
       render(false);
     });
 
-    $("#reset").addEventListener("click", () => {
-      state.importance[state.profil] = defaultImportance(state.profil);
-      render(true);
-    });
   }
 
   async function init() {
@@ -602,10 +636,13 @@
       return;
     }
     state.importance = { freizeit: defaultImportance("freizeit"), beruf: defaultImportance("beruf") };
+    const ausAdresse = decodeURIComponent(location.hash.slice(1));
+    if (D.hafen[ausAdresse]) state.hafenId = ausAdresse;
     syncLaengeFeld();
     bindControls();
     initMap();
     render(true);
+    if (D.hafen[ausAdresse]) setCompact(true);
     loadLive();
   }
 
