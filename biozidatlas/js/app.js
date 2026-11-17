@@ -1,6 +1,7 @@
 /* Antifouling-Atlas (Prototyp): Karte, Ausschluss nach Regeln, Bewertung mit
-   drei MCDA-Verfahren und Live-Wassertemperatur. Alle Fachwerte kommen aus
-   data/*.json und sind Beispieldaten. */
+   drei MCDA-Verfahren, Bewuchskalender, Kosten über 5 Jahre und Live-Daten.
+   Alle Fachwerte kommen aus data/*.json und sind Beispieldaten. Für den
+   Chatbot (js/chat.js) stellt window.Atlas den aktuellen Stand als Text bereit. */
 (function () {
   "use strict";
 
@@ -11,35 +12,48 @@
     umwelt: "Umwelt", wirksamkeit: "Wirksamkeit", kosten: "Kosten", aufwand: "Aufwand",
     gesundheit: "Gesundheit", treibstoff: "Treibstoff", standzeit: "Standzeit", invasiv: "Arten",
   };
+  const BOOTSTYP = {
+    segel: "Segelboot",
+    "motor-langsam": "Motorboot, langsam (Verdränger)",
+    "motor-schnell": "Motorboot, schnell (Gleiter)",
+  };
   const METHODEN = ["wsm", "topsis", "promethee"];
   const METHODE_KURZ = { wsm: "Summe", topsis: "TOPSIS", promethee: "PROMETHEE" };
-  const LAENGE = { freizeit: 9, beruf: 90 };
+  const METHODE_NAME = { wsm: "Gewichtete Summe", topsis: "TOPSIS", promethee: "PROMETHEE II" };
+  const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+  const JAHRE = 5;
 
   const state = {
     profil: "freizeit",
-    laenge: { ...LAENGE },
+    laenge: { freizeit: 9, beruf: 90 },
+    bootstyp: "segel",
+    monate: 6,
     hafenId: "kiel-schilksee",
     aufWunsch: [],
     methode: "wsm",
     importance: {},
     live: { status: "laden", data: null },
+    see: { status: "laden", data: null },
   };
 
   let D = null;
   let map = null;
+  let lastCtx = null;
   const markers = {};
   let pegelLayer = null;
+  let osmLayer = null;
   let liveStatusEl = null;
 
   const $ = (s) => document.querySelector(s);
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const zahl = (n, d = 0) => n.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const euro = (v) => zahl(Math.max(10, Math.round(v / 10) * 10)) + " €";
 
   /* ---------- Daten ---------- */
 
   async function loadJSON(name) {
-    const res = await fetch("data/" + name + ".json?v=4");
+    const res = await fetch("data/" + name + ".json?v=5");
     if (!res.ok) throw new Error(name + ".json: " + res.status);
     return res.json();
   }
@@ -48,13 +62,17 @@
     const [rv, hf, op, kr, pk] = await Promise.all(
       ["reviere", "haefen", "optionen", "kriterien", "produktkategorien"].map(loadJSON)
     );
+    // Häfen aus OpenStreetMap schreibt ein GitHub-Actions-Job; fehlt die Datei, geht es ohne.
+    const osm = await loadJSON("osm-haefen").catch(() => null);
     const byId = (arr) => Object.fromEntries(arr.map((x) => [x.id, x]));
+    const osmHaefen = (osm ? osm.haefen : []).map((h) => ({ ...h, quelle: "osm" }));
     return {
       reviere: byId(rv.reviere),
       reviereListe: rv.reviere,
       regeltexte: rv.regeltexte,
       haefen: hf.haefen,
-      hafen: byId(hf.haefen),
+      hafen: { ...byId(osmHaefen), ...byId(hf.haefen) },
+      osm: { haefen: osmHaefen, stand: osm ? osm.stand : null },
       optionen: op.optionen,
       kriterien: kr,
       pk: byId(pk.kategorien),
@@ -67,14 +85,33 @@
 
   /* ---------- Bewertung ---------- */
 
-  function gruende(o, hafen, revier, laenge, crit) {
+  // Wie lange das Boot im Wasser liegt, verschiebt den Bewuchsdruck um eine Stufe.
+  function druckFuer(revier) {
+    const d = revier.bewuchsdruck;
+    if (state.profil !== "freizeit") return d;
+    if (state.monate <= 4) return Math.max(1, d - 1);
+    if (state.monate >= 10) return Math.min(3, d + 1);
+    return d;
+  }
+
+  // Ein Wert ist eine Zahl oder ein Objekt mit einem Wert je Bewuchsdruck.
+  function wert(o, feld, druck) {
+    const v = o.werte[feld];
+    let w = typeof v === "object" ? v[String(druck)] : v;
+    if (feld === "wirksamkeit" && o.wirksamkeit_bonus && state.profil === "freizeit") {
+      w = Math.min(10, w + (o.wirksamkeit_bonus[state.bootstyp] || 0));
+    }
+    return w;
+  }
+
+  function gruende(o, hafen, revier, druck, laenge, crit) {
     const b = o.bedingungen || {};
     const out = [];
     crit.forEach((c) => {
       if (c.mindestwert == null) return;
-      const w = wert(o, c.feld, revier);
+      const w = wert(o, c.feld, druck);
       if (w < c.mindestwert) {
-        out.push(`Wirkt bei Bewuchsdruck ${DRUCK[revier.bewuchsdruck]} nicht ausreichend (${w}/10, mindestens ${c.mindestwert})`);
+        out.push(`Wirkt bei Bewuchsdruck ${DRUCK[druck]} nicht ausreichend (${w}/10, mindestens ${c.mindestwert})`);
       }
     });
     if (b.gewaesser && !b.gewaesser.includes(revier.wassertyp)) {
@@ -89,28 +126,17 @@
     });
     if (b.max_laenge_m && laenge > b.max_laenge_m) out.push(`Nur für Boote bis ${b.max_laenge_m} m`);
     (b.braucht || []).forEach((x) => {
-      if (!hafen.infrastruktur[x]) {
-        out.push(x === "waschanlage" ? "Keine Waschanlage im Hafen (Beispielwert)" : "Kein Kran im Hafen (Beispielwert)");
-      }
+      if (hafen.infrastruktur[x] === true) return;
+      if (hafen.quelle === "osm") out.push(`${x === "waschanlage" ? "Waschanlage" : "Kran"} in OpenStreetMap nicht eingetragen`);
+      else out.push(x === "waschanlage" ? "Keine Waschanlage im Hafen (Beispielwert)" : "Kein Kran im Hafen (Beispielwert)");
     });
     return out;
-  }
-
-  // Ein Wert ist eine Zahl oder ein Objekt mit einem Wert je Bewuchsdruck.
-  function wert(o, feld, revier) {
-    const v = o.werte[feld];
-    return typeof v === "object" ? v[String(revier.bewuchsdruck)] : v;
-  }
-
-  function rohwerte(o, crit, revier) {
-    const raw = {};
-    crit.forEach((c) => { raw[c.key] = wert(o, c.feld, revier); });
-    return raw;
   }
 
   function evaluate() {
     const hafen = D.hafen[state.hafenId];
     const revier = D.reviere[hafen.revier];
+    const druck = druckFuer(revier);
     const crit = D.kriterien[state.profil];
     const laenge = state.laenge[state.profil];
     const importance = state.importance[state.profil];
@@ -121,11 +147,12 @@
       .filter((o) => o.zielgruppen.includes(state.profil))
       .filter((o) => !o.nur_auf_wunsch || state.aufWunsch.includes(o.id))
       .forEach((o) => {
-        const g = gruende(o, hafen, revier, laenge, crit);
-        (g.length ? ausgeschlossen : erlaubt).push(g.length ? { o, gruende: g } : o);
+        const g = gruende(o, hafen, revier, druck, laenge, crit);
+        if (g.length) ausgeschlossen.push({ o, gruende: g });
+        else erlaubt.push(o);
       });
 
-    const alts = erlaubt.map((o) => ({ id: o.id, raw: rohwerte(o, crit, revier) }));
+    const alts = erlaubt.map((o) => ({ id: o.id, raw: Object.fromEntries(crit.map((c) => [c.key, wert(o, c.feld, druck)])) }));
     const { weights, floored } = MCDA.weightsFrom(importance, crit);
     const res = {};
     const rk = {};
@@ -137,11 +164,12 @@
     const kons = ids.length ? MCDA.consensus(METHODEN.map((m) => rk[m]), ids) : {};
     const robust = MCDA.robustness(alts, crit, importance, state.methode);
     const opt = Object.fromEntries(erlaubt.map((o) => [o.id, o]));
+    const order = ids.slice().sort((a, b) => rk[state.methode][a] - rk[state.methode][b]);
 
-    return { hafen, revier, crit, laenge, erlaubt, ausgeschlossen, alts, weights, floored, res, rk, kons, robust, opt };
+    return { hafen, revier, druck, crit, laenge, erlaubt, ausgeschlossen, alts, weights, floored, res, rk, kons, robust, opt, order };
   }
 
-  /* ---------- Darstellung ---------- */
+  /* ---------- Hilfen für die Darstellung ---------- */
 
   // Kosten sind für ein 10-m-Boot hinterlegt; für die Anzeige grob nach
   // Rumpffläche (Länge zum Quadrat) auf das eigene Boot umgerechnet.
@@ -151,7 +179,7 @@
 
   function wertText(c, v) {
     switch (c.feld) {
-      case "kosten_eur_10m": return "≈ " + zahl(Math.max(10, Math.round((v * kostenFaktor()) / 10) * 10)) + " €/Saison";
+      case "kosten_eur_10m": return "≈ " + euro(v * kostenFaktor()) + "/Saison";
       case "aufwand_h": return zahl(v) + " h/Saison";
       case "treibstoff_pct": return "+" + zahl(v) + " %";
       case "standzeit_jahre": return zahl(v) + " Jahre";
@@ -159,90 +187,161 @@
     }
   }
 
+  function punkte(m, r) {
+    if (m === "wsm") return zahl(100 * r.score) + " P.";
+    if (m === "topsis") return zahl(r.score, 2);
+    return (r.score >= 0 ? "+" : "−") + zahl(Math.abs(r.score), 2);
+  }
+
+  function druckText(ctx) {
+    const basis = ctx.revier.bewuchsdruck;
+    if (ctx.druck === basis) return `Bewuchsdruck ${DRUCK[basis]}`;
+    const grund = state.monate <= 4 ? `nur ${state.monate} Monate im Wasser` : `${state.monate} Monate im Wasser`;
+    return `Bewuchsdruck ${DRUCK[basis]}, für Ihr Boot ${DRUCK[ctx.druck]} (${grund})`;
+  }
+
+  // Wassertemperatur: Meerestemperatur aus dem Modell an der Küste, sonst die
+  // nächste PEGELONLINE-Messstelle.
+  function temperatur(hafen) {
+    const see = state.see.status === "ok" ? state.see.data.werte[hafen.id] : null;
+    const pegel = state.live.status === "ok" ? Live.nearest(hafen.lat, hafen.lon, state.live.data.stationen, 60) : null;
+    return { see, pegel, wert: see ? see.wert : pegel ? pegel.wert : null };
+  }
+
+  function zeitText(t) {
+    return t ? new Date(t).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "unbekannt";
+  }
+
+  /* ---------- Steckbrief, Kalender, Live ---------- */
+
   function renderSteckbrief(ctx) {
     const { hafen, revier } = ctx;
     const inf = hafen.infrastruktur;
-    const janein = (b) => (b ? "ja" : "nein");
+    const osm = hafen.quelle === "osm";
+    const janein = (b) => (b === true ? "ja" : osm ? "unbekannt" : "nein");
     const [smin, smax] = revier.salzgehalt_psu;
     $("#steckbrief").innerHTML = `
-      <h2>${state.profil === "beruf" ? "Heimathafen" : "Liegeplatz"}</h2>
+      <div class="card-head">
+        <h2>${state.profil === "beruf" ? "Heimathafen" : "Liegeplatz"}${osm ? " aus OpenStreetMap" : ""}</h2>
+        <button type="button" class="btn-ghost no-print" id="drucken">Steckbrief drucken</button>
+      </div>
       <div class="hafen-name">${esc(hafen.name)}</div>
-      <div class="hafen-revier">${esc(revier.name)}</div>
+      <div class="hafen-revier">${esc(revier.name)}${osm ? ` <span class="example">(Revier vom Beispielhafen ${esc(hafen.revier_von)}, ${zahl(hafen.revier_km)} km)</span>` : ""}</div>
       <div class="chips">
-        <span class="chip"><span class="dot druck-${revier.bewuchsdruck}"></span>Bewuchsdruck ${DRUCK[revier.bewuchsdruck]}</span>
+        <span class="chip"><span class="dot druck-${ctx.druck}"></span>${esc(druckText(ctx))}</span>
         <span class="chip">${WASSER[revier.wassertyp]}, ${zahl(smin, smin % 1 ? 1 : 0)}–${zahl(smax, smax % 1 ? 1 : 0)} PSU</span>
       </div>
       <dl class="facts">
-        <dt>Hauptbewuchs</dt><dd>${esc(revier.hauptbewuchs)}</dd>
         <dt>Typisch</dt><dd>${esc(revier.organismen.join(", "))}</dd>
         <dt>Im Hafen</dt><dd>Waschanlage ${janein(inf.waschanlage)} · Kran ${janein(inf.kran)} · Trockenliegeplatz ${janein(inf.trockenliegeplatz)}</dd>
       </dl>
-      <div class="example">Bewuchsdruck und Hafen-Infrastruktur: Beispielwerte.</div>
+      <div class="example">${osm ? "Lage und Infrastruktur aus OpenStreetMap (unbekannt = nicht eingetragen); Bewuchsdruck: Beispielwert." : "Bewuchsdruck und Hafen-Infrastruktur: Beispielwerte."}</div>
+      <div class="kalender-box" id="kalender-box">${kalenderHTML(revier)}</div>
       <div class="live" id="live-box">${liveHTML(hafen)}</div>`;
+    $("#drucken").addEventListener("click", () => window.print());
+  }
+
+  function kalenderHTML(revier) {
+    const k = revier.bewuchs_kalender;
+    const jetzt = new Date().getMonth();
+    const staerke = ["kein", "wenig", "mittlerer", "starker"];
+    const cells = k
+      .map((s, i) => `<span class="k k${s}${i === jetzt ? " now" : ""}" title="${MONATE[i]}: ${staerke[s]} Bewuchs">${MONATE[i][0]}</span>`)
+      .join("");
+    return `<div class="kal-head"><span>Bewuchskalender</span><span class="example">am stärksten ${esc(revier.hauptbewuchs)}</span></div>
+      <div class="kalender" role="img" aria-label="Bewuchs nach Monaten, am stärksten ${esc(revier.hauptbewuchs)}">${cells}</div>
+      <div class="kal-legend" aria-hidden="true"><span><i class="k k0"></i>kein</span><span><i class="k k1"></i>wenig</span><span><i class="k k2"></i>mittel</span><span><i class="k k3"></i>stark</span></div>
+      <p class="kal-jetzt"><b>Jetzt (${MONATE[jetzt]}):</b> ${esc(jetztHinweis(revier, jetzt))}</p>`;
+  }
+
+  function jetztHinweis(revier, m) {
+    const k = revier.bewuchs_kalender;
+    const temp = lastCtx ? temperatur(lastCtx.hafen).wert : null;
+    let t;
+    if (k[m] >= 2) t = "Hauptbewuchszeit. Biozidfreie Rümpfe alle zwei bis drei Wochen reinigen oder durch die Waschanlage fahren.";
+    else if (k[(m + 1) % 12] > k[m]) t = "Der Bewuchs beginnt bald. Unterwasserschiff vorbereiten und die Beschichtung prüfen.";
+    else if (k[m] === 1) t = "Der Bewuchs lässt nach. Beim Auskranen den Rumpf reinigen und die Reste auffangen.";
+    else t = "Kaum Bewuchs. Gute Zeit für Arbeiten am Unterwasserschiff an Land.";
+    if (temp != null && temp >= 15 && k[m] < 2) t += ` Das Wasser ist mit ${zahl(temp, 1)} °C aber noch warm, mit Bewuchs ist zu rechnen.`;
+    return t;
   }
 
   function liveHTML(hafen) {
-    const tag = `<span class="live-tag">Live · PEGELONLINE</span>`;
-    if (state.live.status === "laden") return `${tag}<span class="live-meta">Wassertemperatur wird abgefragt …</span>`;
-    if (state.live.status === "fehler") {
-      return `${tag}<span class="live-meta">PEGELONLINE ist gerade nicht erreichbar. Die Bewertung funktioniert auch ohne Live-Daten.</span>`;
+    const t = temperatur(hafen);
+    const kueste = D.reviere[hafen.revier].wassertyp !== "suess";
+    const teile = [];
+    if (t.see) {
+      teile.push(`<span class="live-tag">Live · Meerestemperatur (Modell, Open-Meteo)</span>
+        <span class="live-value">${zahl(t.see.wert, 1)} °C</span>
+        <span class="live-meta">Modellwert am Hafen · Stand ${zeitText(t.see.zeit)}</span>`);
+    } else if (kueste && state.see.status === "laden") {
+      teile.push(`<span class="live-tag">Live · Meerestemperatur</span><span class="live-meta">wird abgefragt …</span>`);
     }
-    const st = Live.nearest(hafen.lat, hafen.lon, state.live.data.stationen, 60);
-    if (!st) {
-      return `${tag}<span class="live-meta">Keine Messstelle mit Wassertemperatur im Umkreis von 60 km. PEGELONLINE misst vor allem an Flüssen und Kanälen; Meerestemperaturen an der Küste lägen beim BSH.</span>`;
+    if (t.pegel) {
+      const ort = `Messstelle ${esc(t.pegel.name)}${t.pegel.gewaesser ? " (" + esc(t.pegel.gewaesser) + ")" : ""}, ${zahl(t.pegel.km)} km entfernt${t.pegel.km > 25 ? " (nur grober Anhalt)" : ""} · Stand ${zeitText(t.pegel.zeit)}${t.pegel.veraltet ? " · älter als 6 Stunden" : ""}`;
+      teile.push(t.see
+        ? `<span class="live-tag">Live · PEGELONLINE</span><span class="live-meta">${zahl(t.pegel.wert, 1)} °C an der ${ort}</span>`
+        : `<span class="live-tag">Live · PEGELONLINE</span><span class="live-value">${zahl(t.pegel.wert, 1)} °C</span><span class="live-meta">${ort}</span>`);
+    } else if (state.live.status === "laden") {
+      teile.push(`<span class="live-tag">Live · PEGELONLINE</span><span class="live-meta">wird abgefragt …</span>`);
     }
-    const zeit = st.zeit
-      ? new Date(st.zeit).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
-      : "unbekannt";
-    const s = Live.saison(st.wert);
-    return `${tag}
-      <span class="live-value">${zahl(st.wert, 1)} °C</span>
-      <span class="live-meta">Messstelle ${esc(st.name)}${st.gewaesser ? " (" + esc(st.gewaesser) + ")" : ""}, ${zahl(st.km)} km entfernt${st.km > 25 ? " (nur grober Anhalt)" : ""} · Stand ${zeit}${st.veraltet ? " · älter als 6 Stunden" : ""}</span>
-      <span>${esc(s.text)} <span class="example">(Faustregel)</span></span>`;
+    if (t.wert != null) {
+      teile.push(`<span>${esc(Live.saison(t.wert).text)} <span class="example">(Faustregel)</span></span>`);
+    } else if (state.live.status !== "laden" && state.see.status !== "laden") {
+      teile.push(`<span class="live-tag">Live</span><span class="live-meta">Für diesen Hafen liegt gerade keine Wassertemperatur vor${kueste ? "" : " (keine PEGELONLINE-Messstelle im Umkreis von 60 km)"}.</span>`);
+    }
+    return teile.join("");
+  }
+
+  function refreshLive() {
+    if (!lastCtx) return;
+    const box = document.getElementById("live-box");
+    if (box) box.innerHTML = liveHTML(lastCtx.hafen);
+    const kal = document.getElementById("kalender-box");
+    if (kal) kal.innerHTML = kalenderHTML(lastCtx.revier);
+  }
+
+  /* ---------- Kernfrage, Rangliste, Kosten ---------- */
+
+  function kernfrage(ctx) {
+    const order = ctx.order;
+    const wsm = Object.fromEntries(ctx.res.wsm.map((r) => [r.id, r.score]));
+    if (!order.length) {
+      return { cls: "nein", head: "Keine Option passt", text: "Für diese Kombination aus Revier, Bootslänge und Hafen bleibt keine Option übrig." };
+    }
+    if (ctx.revier.regeln.includes("biozid_verboten")) {
+      return { cls: "ja", head: "Ja, und hier sogar vorgeschrieben", text: `${D.regeltexte.biozid_verboten} Bestbewertet: ${ctx.opt[order[0]].name}.` };
+    }
+    const top = ctx.opt[order[0]];
+    const frei = order.find((id) => ctx.opt[id].kategorie !== "biozid");
+    if (top.kategorie !== "biozid") {
+      return { cls: "ja", head: "Ja, biozidfrei geht hier", text: `Die bestbewertete Option kommt ohne Biozid aus: ${top.name}.` };
+    }
+    if (frei && wsm[frei] >= 0.9 * wsm[top.id]) {
+      return {
+        cls: "teils", head: "Ja, mit kleinen Abstrichen",
+        text: `Platz 1 ist biozidhaltig, aber ${ctx.opt[frei].name} erreicht ${zahl((100 * wsm[frei]) / wsm[top.id])} % der Punkte.`,
+      };
+    }
+    return {
+      cls: "nein", head: "Eher nicht",
+      text: frei
+        ? `Bei diesem Bewuchsdruck und dieser Gewichtung liegen biozidhaltige Anstriche vorn. Beste biozidfreie Option: ${ctx.opt[frei].name}.`
+        : "Unter den passenden Optionen ist keine biozidfreie.",
+    };
   }
 
   function renderKernfrage(ctx) {
+    const k = kernfrage(ctx);
     const el = $("#kernfrage");
-    const order = rangfolge(ctx);
-    const wsm = Object.fromEntries(ctx.res.wsm.map((r) => [r.id, r.score]));
-    let cls, head, text;
-    if (!order.length) {
-      cls = "nein"; head = "Keine Option passt";
-      text = "Für diese Kombination aus Revier, Bootslänge und Hafen bleibt keine Option übrig.";
-    } else if (ctx.revier.regeln.includes("biozid_verboten")) {
-      const best = ctx.opt[order[0]];
-      cls = "ja"; head = "Ja, und hier sogar vorgeschrieben";
-      text = `${D.regeltexte.biozid_verboten} Bestbewertet: ${best.name}.`;
-    } else {
-      const top = ctx.opt[order[0]];
-      const frei = order.find((id) => ctx.opt[id].kategorie !== "biozid");
-      if (top.kategorie !== "biozid") {
-        cls = "ja"; head = "Ja, biozidfrei geht hier";
-        text = `Die bestbewertete Option kommt ohne Biozid aus: ${top.name}.`;
-      } else if (frei && wsm[frei] >= 0.9 * wsm[top.id]) {
-        cls = "teils"; head = "Ja, mit kleinen Abstrichen";
-        text = `Platz 1 ist biozidhaltig, aber ${ctx.opt[frei].name} erreicht ${zahl((100 * wsm[frei]) / wsm[top.id])} % der Punkte.`;
-      } else {
-        cls = "nein"; head = "Eher nicht";
-        text = frei
-          ? `Bei diesem Bewuchsdruck und dieser Gewichtung liegen biozidhaltige Anstriche vorn. Beste biozidfreie Option: ${ctx.opt[frei].name}.`
-          : "Unter den passenden Optionen ist keine biozidfreie.";
-      }
-    }
-    el.className = "card kernfrage " + cls;
-    el.innerHTML = `<h2>Geht es hier ohne Biozid?</h2><div class="kf-head">${esc(head)}</div><p class="kf-text">${esc(text)}</p>`;
-  }
-
-  function rangfolge(ctx) {
-    const rk = ctx.rk[state.methode];
-    return ctx.alts.map((a) => a.id).sort((a, b) => rk[a] - rk[b]);
+    el.className = "card kernfrage " + k.cls;
+    el.innerHTML = `<h2>Geht es hier ohne Biozid?</h2><div class="kf-head">${esc(k.head)}</div><p class="kf-text">${esc(k.text)}</p>`;
   }
 
   function renderRangliste(ctx) {
     const m = state.methode;
-    const order = rangfolge(ctx);
     const score = Object.fromEntries(ctx.res[m].map((r) => [r.id, r]));
-    if (!order.length) {
+    if (!ctx.order.length) {
       $("#rangliste").innerHTML = `<p class="hint">Keine Option übrig. Siehe „Ausgeschlossen“.</p>`;
       return;
     }
@@ -254,22 +353,18 @@
             .join("")}</div>`
         : "";
 
-    const items = order
+    const items = ctx.order
       .map((id, i) => {
         const o = ctx.opt[id];
         const r = score[id];
-        let bar, val;
+        let bar;
         if (m === "wsm") {
           bar = `<div class="bar" title="Anteil der Kriterien an der Punktzahl">${ctx.crit
             .map((c) => `<span style="width:${(100 * r.parts[c.key]).toFixed(2)}%;background:var(--c-${c.key})"></span>`)
             .join("")}</div>`;
-          val = zahl(100 * r.score) + " P.";
-        } else if (m === "topsis") {
-          bar = `<div class="bar bar-single"><span style="width:${(100 * r.score).toFixed(2)}%"></span></div>`;
-          val = zahl(r.score, 2);
         } else {
-          bar = `<div class="bar bar-single"><span style="width:${(50 * (r.score + 1)).toFixed(2)}%"></span></div>`;
-          val = (r.score >= 0 ? "+" : "−") + zahl(Math.abs(r.score), 2);
+          const w = m === "topsis" ? 100 * r.score : 50 * (r.score + 1);
+          bar = `<div class="bar bar-single"><span style="width:${w.toFixed(2)}%"></span></div>`;
         }
         const raw = ctx.alts.find((a) => a.id === id).raw;
         const values = ctx.crit.map((c) => `<span>${KURZ[c.key]} ${wertText(c, raw[c.key])}</span>`).join("");
@@ -281,18 +376,17 @@
             ${bar}
             <div class="values">${values}</div>
           </div>
-          <span class="rank-score">${val}</span>
+          <span class="rank-score">${punkte(m, r)}</span>
         </li>`;
       })
       .join("");
 
-    const rb = ctx.robust;
     let robust = "";
-    if (order.length > 1) {
-      const pct = Math.round(100 * rb.share);
-      const tag = pct >= 80 ? ["stabil", "stabil"] : pct >= 60 ? ["knapp", "knapp"] : ["unsicher", "unsicher"];
-      robust = `<div class="robust"><span class="tag tag-${tag[0]}">${tag[1]}</span>
-        <span>Platz 1 bleibt in <b>${pct} %</b> von ${rb.runs} Durchläufen vorn, wenn Gewichte um ±25 % und Werte um ±15 % schwanken.</span></div>`;
+    if (ctx.order.length > 1) {
+      const pct = Math.round(100 * ctx.robust.share);
+      const tag = pct >= 80 ? "stabil" : pct >= 60 ? "knapp" : "unsicher";
+      robust = `<div class="robust"><span class="tag tag-${tag}">${tag}</span>
+        <span>Platz 1 bleibt in <b>${pct} %</b> von ${ctx.robust.runs} Durchläufen vorn, wenn Gewichte um ±25 % und Werte um ±15 % schwanken.</span></div>`;
     }
 
     const scale =
@@ -301,7 +395,6 @@
         : m === "topsis"
         ? "Nähe zur Ideallösung, 0 bis 1."
         : "Nettofluss von −1 bis +1: Wie oft eine Option andere übertrifft, minus wie oft sie unterliegt.";
-
     const einheiten =
       state.profil === "beruf"
         ? "Kosten als Index 0–10 · Treibstoff: Mehrverbrauch gegenüber sauberem Rumpf · Beispielwerte"
@@ -309,6 +402,42 @@
 
     $("#rangliste").innerHTML = `${legend}<p class="hint">${scale} ${einheiten}.</p><ol class="rank-list">${items}</ol>${robust}`;
   }
+
+  // Ausgaben über JAHRE Saisons: Anschaffung zu Beginn und erneut, wenn die
+  // Nutzungsdauer abläuft, dazu die laufenden Kosten jeder Saison.
+  function fuenfJahre(o) {
+    const k = o.werte.kosten_aufteilung;
+    if (!k) return null;
+    const f = kostenFaktor();
+    const kaeufe = k.anschaffung > 0 ? Math.ceil(JAHRE / (k.nutzungsdauer_jahre || JAHRE)) : 0;
+    const anschaffung = kaeufe * k.anschaffung * f;
+    const laufend = JAHRE * k.laufend * f;
+    return { anschaffung, laufend, summe: anschaffung + laufend, kaeufe, k };
+  }
+
+  function renderKosten(ctx) {
+    const card = $("#kosten-card");
+    const rows = ctx.erlaubt.map((o) => ({ o, c: fuenfJahre(o) })).filter((x) => x.c).sort((a, b) => a.c.summe - b.c.summe);
+    card.hidden = state.profil !== "freizeit" || !rows.length;
+    if (card.hidden) return;
+    const max = Math.max(...rows.map((x) => x.c.summe));
+    $("#kosten").innerHTML = `
+      <div class="legend"><span><i class="swatch" style="background:var(--c-anschaffung)"></i>Anschaffung</span><span><i class="swatch" style="background:var(--c-laufend)"></i>laufende Kosten</span></div>
+      <ul class="cost-list">${rows
+        .map(({ o, c }) => {
+          const tip = `${o.name}: Anschaffung ≈ ${euro(c.anschaffung)}${c.kaeufe > 1 ? ` (${c.kaeufe}×, Nutzungsdauer ${c.k.nutzungsdauer_jahre} Jahre)` : ""}, laufend ≈ ${euro(c.laufend / JAHRE)} pro Saison, zusammen ≈ ${euro(c.summe)}`;
+          const seg = (v, token) => (v > 0 ? `<span style="width:${((100 * v) / max).toFixed(2)}%;background:var(${token})"></span>` : "");
+          return `<li class="cost-row" title="${esc(tip)}">
+            <span class="cost-name">${esc(o.name)}</span>
+            <span class="cost-bar">${seg(c.anschaffung, "--c-anschaffung")}${seg(c.laufend, "--c-laufend")}</span>
+            <span class="cost-sum">≈ ${euro(c.summe)}</span>
+          </li>`;
+        })
+        .join("")}</ul>
+      <p class="hint">Ausgaben in ${JAHRE} Saisons für ein ${zahl(state.laenge.freizeit)}-m-Boot, grob nach Rumpffläche umgerechnet. Läuft die Nutzungsdauer vorher ab, wird neu angeschafft. Beispielwerte.</p>`;
+  }
+
+  /* ---------- Gewichte, Vergleich, Ausschluss, Produkte ---------- */
 
   function buildGewichte() {
     const crit = D.kriterien[state.profil];
@@ -340,11 +469,15 @@
     });
   }
 
-  function renderGewichte(ctx) {
+  function aktiveVorlage(ctx) {
     const imp = state.importance[state.profil];
+    return D.kriterien.vorlagen[state.profil].find((v) => ctx.crit.every((c) => v.werte[c.key] === imp[c.key])) || null;
+  }
+
+  function renderGewichte(ctx) {
+    const aktiv = aktiveVorlage(ctx);
     $("#vorlagen").querySelectorAll("button").forEach((btn) => {
-      const v = D.kriterien.vorlagen[state.profil].find((x) => x.id === btn.dataset.vorlage);
-      btn.setAttribute("aria-pressed", String(ctx.crit.every((c) => v.werte[c.key] === imp[c.key])));
+      btn.setAttribute("aria-pressed", String(!!aktiv && aktiv.id === btn.dataset.vorlage));
     });
     ctx.crit.forEach((c) => {
       const el = document.getElementById("wp-" + c.key);
@@ -375,8 +508,7 @@
   }
 
   function renderAusschluss(ctx) {
-    const card = $("#ausschluss-card");
-    card.hidden = !ctx.ausgeschlossen.length;
+    $("#ausschluss-card").hidden = !ctx.ausgeschlossen.length;
     $("#ausschluss").innerHTML = `<ul class="excl-list">${ctx.ausgeschlossen
       .map(
         (x) => `<li><span class="excl-name">${esc(x.o.name)} <span class="kat kat-${x.o.kategorie}">${KAT[x.o.kategorie]}</span></span>
@@ -385,7 +517,7 @@
       .join("")}</ul>`;
   }
 
-  function renderProdukte(ctx) {
+  function produkte(ctx) {
     const verwender = state.profil === "beruf" ? "berufsmäßig" : "Laie";
     const ids = [];
     ctx.erlaubt
@@ -393,12 +525,18 @@
       .forEach((o) => (o.produktkategorien || []).forEach((p) => { if (!ids.includes(p)) ids.push(p); }));
     const passend = ids.map((id) => D.pk[id]).filter((p) => p && p.verwender === verwender);
     const pks = passend.filter((p) => !p.max_laenge_m || ctx.laenge <= p.max_laenge_m);
+    return { passend, pks };
+  }
+
+  function renderProdukte(ctx) {
+    const { passend, pks } = produkte(ctx);
     if (!pks.length) {
       $("#produkte").innerHTML = passend.length
         ? `<p>Laienprodukte sind nur für Boote bis 25 m zugelassen. Bei ${zahl(ctx.laenge)} m darf nur ein Fachbetrieb biozidhaltig streichen.</p>`
         : `<p>An diesem Liegeplatz kommt kein biozidhaltiges Produkt in Frage.</p>`;
       return;
     }
+    const gehalt = (g) => zahl(g, g % 1 ? 1 : 0);
     $("#produkte").innerHTML = `<div class="pk-list">${pks
       .map(
         (p) => `<article class="pk">
@@ -410,9 +548,7 @@
             <span class="chip">${esc(p.bootslaenge)}</span>
           </div>
           <div class="pk-sub">Wirkstoffe</div>
-          <ul>${p.wirkstoffe
-            .map((w) => `<li>${esc(w.name)} ${zahl(w.gehalt_prozent[0], w.gehalt_prozent[0] % 1 ? 1 : 0)}–${zahl(w.gehalt_prozent[1], w.gehalt_prozent[1] % 1 ? 1 : 0)} %</li>`)
-            .join("")}</ul>
+          <ul>${p.wirkstoffe.map((w) => `<li>${esc(w.name)} ${gehalt(w.gehalt_prozent[0])}–${gehalt(w.gehalt_prozent[1])} %</li>`).join("")}</ul>
           <div class="pk-sub">Anwendung</div>
           <ul><li>${esc(p.anwendung)}</li>${p.hinweise.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>
         </article>`
@@ -420,24 +556,88 @@
       .join("")}</div>`;
   }
 
+  /* ---------- Stand als Text (Druck, Chatbot) ---------- */
+
+  function profilText() {
+    if (state.profil === "beruf") return `Berufsschifffahrt, Schiff ${zahl(state.laenge.beruf)} m`;
+    return `Freizeitboot, ${zahl(state.laenge.freizeit)} m, ${BOOTSTYP[state.bootstyp]}, ${state.monate} Monate im Jahr im Wasser`;
+  }
+
+  function renderDruckkopf(ctx) {
+    const aktiv = aktiveVorlage(ctx);
+    $("#print-meta").textContent =
+      `${profilText()} · Gewichtung: ${aktiv ? aktiv.label : "eigene Einstellung"} · Verfahren: ${METHODE_NAME[state.methode]} · ` +
+      `Stand: ${new Date().toLocaleDateString("de-DE")} · ${location.href}`;
+  }
+
+  // Kompakte Zusammenfassung für das Sprachmodell; es hat nur 4.096 Tokens Kontext.
+  function kontext() {
+    const ctx = lastCtx;
+    if (!ctx) return "";
+    const { hafen, revier } = ctx;
+    const inf = hafen.infrastruktur;
+    const janein = (b) => (b === true ? "ja" : hafen.quelle === "osm" ? "unbekannt" : "nein");
+    const t = temperatur(hafen);
+    const k = kernfrage(ctx);
+    const aktiv = aktiveVorlage(ctx);
+    const score = Object.fromEntries(ctx.res[state.methode].map((r) => [r.id, r]));
+    const monat = new Date().getMonth();
+    const z = [];
+    z.push(`Hafen: ${hafen.name}; Revier: ${revier.name}; ${WASSER[revier.wassertyp]} ${revier.salzgehalt_psu.join("–")} PSU.`);
+    z.push(`${druckText(ctx)}. Stärkster Bewuchs: ${revier.hauptbewuchs}. Typisch: ${revier.organismen.join(", ")}.`);
+    z.push(`Im Hafen: Waschanlage ${janein(inf.waschanlage)}, Kran ${janein(inf.kran)}, Trockenliegeplatz ${janein(inf.trockenliegeplatz)}.`);
+    if (t.wert != null) z.push(`Wassertemperatur jetzt: ${zahl(t.wert, 1)} °C (${t.see ? "Modellwert Open-Meteo" : "PEGELONLINE, " + zahl(t.pegel.km) + " km entfernt"}).`);
+    z.push(`Jetzt (${MONATE[monat]}): ${jetztHinweis(revier, monat)}`);
+    z.push(`Nutzer: ${profilText()}.`);
+    z.push(`Gewichtung: ${aktiv ? aktiv.label + ": " : ""}${ctx.crit.map((c) => `${c.label} ${zahl(100 * ctx.weights[c.key])} %`).join(", ")}. Verfahren: ${METHODE_NAME[state.methode]}.`);
+    z.push(`Antwort auf "Geht es ohne Biozid?": ${k.head}. ${k.text}`);
+    z.push("Rangliste:");
+    ctx.order.forEach((id, i) => {
+      const o = ctx.opt[id];
+      const raw = ctx.alts.find((a) => a.id === id).raw;
+      z.push(`${i + 1}. ${o.name} (${KAT[o.kategorie]}), ${punkte(state.methode, score[id])}: ${ctx.crit.map((c) => `${KURZ[c.key]} ${wertText(c, raw[c.key])}`).join(", ")}. ${o.kurz}`);
+    });
+    if (ctx.order.length > 1) z.push(`Robustheit: Platz 1 bleibt in ${Math.round(100 * ctx.robust.share)} % der Durchläufe vorn.`);
+    if (ctx.ausgeschlossen.length) {
+      z.push("Ausgeschlossen:");
+      ctx.ausgeschlossen.forEach((x) => z.push(`- ${x.o.name}: ${x.gruende.join("; ")}`));
+    }
+    const { pks } = produkte(ctx);
+    if (pks.length) z.push(`Zulässige biozidhaltige Produktkategorien (keine Marken): ${pks.map((p) => `${p.bezeichnung} (${p.wirkstoffe.map((w) => w.name).join(", ")})`).join("; ")}.`);
+    z.push("Alle Fachwerte sind Beispieldaten eines Prototyps, keine geprüften Angaben.");
+    return z.join("\n");
+  }
+
+  window.Atlas = { kontext };
+
   function render(rebuildWeights = true) {
     const ctx = evaluate();
+    lastCtx = ctx;
     if (rebuildWeights) buildGewichte();
     renderSteckbrief(ctx);
     renderKernfrage(ctx);
     renderRangliste(ctx);
+    renderKosten(ctx);
     renderGewichte(ctx);
     renderVergleich(ctx);
     renderAusschluss(ctx);
     renderProdukte(ctx);
+    renderDruckkopf(ctx);
     updateMarkers();
   }
 
   /* ---------- Karte ---------- */
 
+  function farbe(token, fallback) {
+    return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
+  }
+
   function druckFarbe(d) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(d === 3 ? "--rot" : d === 2 ? "--gelb" : "--gruen");
-    return v.trim() || "#888";
+    return farbe(d === 3 ? "--rot" : d === 2 ? "--gelb" : "--gruen", "#888");
+  }
+
+  function alleBeispielhaefen() {
+    return L.latLngBounds(D.haefen.map((x) => [x.lat, x.lon]));
   }
 
   function initMap() {
@@ -451,7 +651,22 @@
       attribution: '<a href="https://www.openseamap.org" target="_blank" rel="noopener">OpenSeaMap</a>',
     });
     pegelLayer = L.layerGroup().addTo(map);
-    L.control.layers(null, { "Seezeichen (OpenSeaMap)": seezeichen, "Messstellen Wassertemperatur": pegelLayer }, { collapsed: true }).addTo(map);
+    const overlays = { "Seezeichen (OpenSeaMap)": seezeichen, "Messstellen Wassertemperatur": pegelLayer };
+
+    // Häfen aus OpenStreetMap: klein und grau, auf Canvas gezeichnet, weil es viele sind.
+    if (D.osm.haefen.length) {
+      osmLayer = L.layerGroup().addTo(map);
+      const canvas = L.canvas({ padding: 0.5 });
+      const grau = farbe("--muted", "#566b75");
+      D.osm.haefen.forEach((h) => {
+        L.circleMarker([h.lat, h.lon], { renderer: canvas, radius: 3.5, weight: 1, color: "#ffffff", fillColor: grau, fillOpacity: 0.8 })
+          .bindTooltip(`${esc(h.name)} (OpenStreetMap)`, { direction: "top" })
+          .on("click", () => selectHafen(h.id))
+          .addTo(osmLayer);
+      });
+      overlays[`Weitere Häfen aus OpenStreetMap (${zahl(D.osm.haefen.length)})`] = osmLayer;
+    }
+    L.control.layers(null, overlays, { collapsed: true }).addTo(map);
 
     D.haefen.forEach((h) => {
       const m = L.circleMarker([h.lat, h.lon], { radius: 7, weight: 1.5, color: "#ffffff", fillOpacity: 0.95 });
@@ -460,7 +675,7 @@
       m.addTo(map);
       markers[h.id] = m;
     });
-    map.fitBounds(L.latLngBounds(D.haefen.map((h) => [h.lat, h.lon])), { padding: [24, 24] });
+    map.fitBounds(alleBeispielhaefen(), { padding: [24, 24] });
 
     const legend = L.control({ position: "bottomleft" });
     legend.onAdd = () => {
@@ -470,6 +685,7 @@
         <span class="row"><span class="dot druck-2"></span>mittel</span>
         <span class="row"><span class="dot druck-3"></span>hoch</span>
         <span class="muted">Beispielwerte je Revier</span>
+        ${D.osm.haefen.length ? `<span class="row"><span class="dot osm-dot"></span>weitere Häfen (OpenStreetMap)</span>` : ""}
         <span class="row"><span class="dot pegel-dot"></span>Wassertemperatur, live</span>
         <span class="muted" id="live-status">PEGELONLINE wird abgefragt …</span>`;
       L.DomEvent.disableClickPropagation(div);
@@ -493,24 +709,33 @@
     window.addEventListener("resize", () => map.invalidateSize());
   }
 
+  // Ein gewählter Hafen aus OpenStreetMap bekommt einen eigenen, hervorgehobenen Marker.
+  let osmAuswahl = null;
+
   function updateMarkers() {
     if (!map) return;
     D.haefen.forEach((h) => {
       const sel = h.id === state.hafenId;
-      const d = D.reviere[h.revier].bewuchsdruck;
       markers[h.id].setStyle({
-        fillColor: druckFarbe(d),
+        fillColor: druckFarbe(D.reviere[h.revier].bewuchsdruck),
         color: sel ? "#0b1f28" : "#ffffff",
         weight: sel ? 3 : 1.5,
       });
       markers[h.id].setRadius(sel ? 11 : 7);
       if (sel) markers[h.id].bringToFront();
     });
+    if (osmAuswahl) { osmAuswahl.remove(); osmAuswahl = null; }
+    const h = D.hafen[state.hafenId];
+    if (h.quelle === "osm") {
+      osmAuswahl = L.circleMarker([h.lat, h.lon], {
+        radius: 10, weight: 3, color: "#0b1f28", fillColor: druckFarbe(D.reviere[h.revier].bewuchsdruck), fillOpacity: 0.95,
+      }).bindTooltip(h.name, { direction: "top", offset: [0, -6] }).addTo(map);
+    }
   }
 
   function selectHafen(id) {
     state.hafenId = id;
-    $("#hafen").value = id;
+    syncHafenAuswahl();
     try { history.replaceState(null, "", "#" + id); } catch (e) { /* ohne Adresszeile */ }
     render(false);
     setCompact(true);
@@ -518,15 +743,14 @@
 
   // Schmale Karte mit dem gewählten Hafen im Blick, oder ganz Deutschland.
   function setCompact(on) {
-    const layout = $(".layout");
-    layout.classList.toggle("compact", on);
+    $(".layout").classList.toggle("compact", on);
     const btn = document.getElementById("map-toggle");
     if (btn) btn.textContent = on ? "Karte vergrößern" : "Karte verkleinern";
     setTimeout(() => {
       map.invalidateSize();
       const h = D.hafen[state.hafenId];
-      if (on) map.setView([h.lat, h.lon], 8);
-      else map.fitBounds(L.latLngBounds(D.haefen.map((x) => [x.lat, x.lon])), { padding: [24, 24] });
+      if (on) map.setView([h.lat, h.lon], Math.max(map.getZoom(), 9));
+      else map.fitBounds(alleBeispielhaefen(), { padding: [24, 24] });
     }, 280);
   }
 
@@ -536,38 +760,72 @@
     try {
       state.live.data = await Live.load();
       state.live.status = "ok";
-      const n = state.live.data.stationen.length;
-      if (liveStatusEl) {
-        const t = new Date(state.live.data.fetched).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-        liveStatusEl.textContent = `${n} Messstellen, abgefragt ${t} Uhr`;
-      }
+      const t = new Date(state.live.data.fetched).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      if (liveStatusEl) liveStatusEl.textContent = `${state.live.data.stationen.length} Messstellen, abgefragt ${t} Uhr`;
+      const blau = farbe("--accent", "#0d6a80");
       state.live.data.stationen.forEach((s) => {
-        L.circleMarker([s.lat, s.lon], {
-          radius: 3, weight: 1, color: "#ffffff", fillColor: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0d6a80", fillOpacity: s.veraltet ? 0.3 : 0.7,
-        })
+        L.circleMarker([s.lat, s.lon], { radius: 3, weight: 1, color: "#ffffff", fillColor: blau, fillOpacity: s.veraltet ? 0.3 : 0.7 })
           .bindTooltip(`${esc(s.name)}: ${zahl(s.wert, 1)} °C`, { direction: "top" })
           .addTo(pegelLayer);
       });
       D.haefen.forEach((h) => markers[h.id].bringToFront());
-      markers[state.hafenId].bringToFront();
     } catch (e) {
       state.live.status = "fehler";
       if (liveStatusEl) liveStatusEl.textContent = "PEGELONLINE nicht erreichbar";
-      console.warn("Live-Daten:", e);
+      console.warn("PEGELONLINE:", e);
     }
-    const box = document.getElementById("live-box");
-    if (box) box.innerHTML = liveHTML(D.hafen[state.hafenId]);
+    refreshLive();
+  }
+
+  // Meerestemperatur für alle Küstenhäfen der Beispieldaten auf einmal; ein
+  // Hafen aus OpenStreetMap wird beim Auswählen nachgeladen.
+  async function loadSee() {
+    const kueste = D.haefen.filter((h) => D.reviere[h.revier].wassertyp !== "suess");
+    try {
+      state.see.data = await Live.loadSee(kueste);
+      state.see.status = "ok";
+    } catch (e) {
+      state.see.status = "fehler";
+      console.warn("Open-Meteo:", e);
+    }
+    const h = D.hafen[state.hafenId];
+    if (h.quelle === "osm") seeFuerOsm(h);
+    refreshLive();
+  }
+
+  async function seeFuerOsm(h) {
+    if (state.see.status !== "ok" || h.id in state.see.data.werte || D.reviere[h.revier].wassertyp === "suess") return;
+    try {
+      const r = await Live.loadSee([h]);
+      state.see.data.werte[h.id] = r.werte[h.id];
+      refreshLive();
+    } catch (e) { /* ohne Meerestemperatur weiter */ }
   }
 
   /* ---------- Bedienung ---------- */
 
-  function syncLaengeFeld() {
-    const inp = $("#laenge");
-    inp.value = state.laenge[state.profil];
+  function syncProfilFelder() {
+    $("#laenge").value = state.laenge[state.profil];
     $("#laenge-label").textContent = state.profil === "beruf" ? "Schiffslänge (m)" : "Bootslänge (m)";
     $("#hafen-label").textContent = state.profil === "beruf" ? "Heimathafen bzw. Fahrtgebiet" : "Liegeplatz";
-    const wunsch = D.optionen.filter((o) => o.nur_auf_wunsch && o.zielgruppen.includes(state.profil));
-    $("#wunsch").hidden = !wunsch.length;
+    $("#boot-felder").hidden = state.profil !== "freizeit";
+    $("#wunsch").hidden = !D.optionen.some((o) => o.nur_auf_wunsch && o.zielgruppen.includes(state.profil));
+  }
+
+  function syncHafenAuswahl() {
+    const sel = $("#hafen");
+    const alt = sel.querySelector("optgroup[data-osm]");
+    if (alt) alt.remove();
+    const h = D.hafen[state.hafenId];
+    if (h.quelle === "osm") {
+      const g = document.createElement("optgroup");
+      g.label = "Aus OpenStreetMap";
+      g.dataset.osm = "1";
+      g.innerHTML = `<option value="${esc(h.id)}">${esc(h.name)}</option>`;
+      sel.appendChild(g);
+      seeFuerOsm(h);
+    }
+    sel.value = state.hafenId;
   }
 
   function bindControls() {
@@ -580,15 +838,13 @@
           : "";
       })
       .join("");
-    sel.value = state.hafenId;
-    sel.addEventListener("change", () => {
-      selectHafen(sel.value);
-    });
+    syncHafenAuswahl();
+    sel.addEventListener("change", () => selectHafen(sel.value));
 
     document.querySelectorAll('input[name="profil"]').forEach((r) =>
       r.addEventListener("change", () => {
         state.profil = r.value;
-        syncLaengeFeld();
+        syncProfilFelder();
         render(true);
       })
     );
@@ -601,6 +857,19 @@
       }
     });
 
+    $("#bootstyp").addEventListener("change", (e) => {
+      state.bootstyp = e.target.value;
+      render(false);
+    });
+
+    $("#monate").addEventListener("input", (e) => {
+      const v = Math.round(Number(e.target.value));
+      if (v >= 1 && v <= 12) {
+        state.monate = v;
+        render(false);
+      }
+    });
+
     D.optionen
       .filter((o) => o.nur_auf_wunsch)
       .forEach((o) => {
@@ -608,9 +877,7 @@
         row.className = "check";
         row.innerHTML = `<input type="checkbox" id="wunsch-${o.id}" value="${o.id}"><label for="wunsch-${o.id}">${esc(o.name)}</label>`;
         row.querySelector("input").addEventListener("change", (e) => {
-          state.aufWunsch = e.target.checked
-            ? [...state.aufWunsch, o.id]
-            : state.aufWunsch.filter((id) => id !== o.id);
+          state.aufWunsch = e.target.checked ? [...state.aufWunsch, o.id] : state.aufWunsch.filter((id) => id !== o.id);
           render(false);
         });
         $("#wunsch").appendChild(row);
@@ -620,7 +887,6 @@
       state.methode = e.target.value;
       render(false);
     });
-
   }
 
   async function init() {
@@ -638,12 +904,20 @@
     state.importance = { freizeit: defaultImportance("freizeit"), beruf: defaultImportance("beruf") };
     const ausAdresse = decodeURIComponent(location.hash.slice(1));
     if (D.hafen[ausAdresse]) state.hafenId = ausAdresse;
-    syncLaengeFeld();
+    $("#bootstyp").value = state.bootstyp;
+    $("#monate").value = state.monate;
+    syncProfilFelder();
     bindControls();
     initMap();
     render(true);
     if (D.hafen[ausAdresse]) setCompact(true);
+    window.addEventListener("hashchange", () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (D.hafen[id] && id !== state.hafenId) selectHafen(id);
+    });
+    if (D.osm.stand) $("#osm-stand").textContent = ` (Stand ${new Date(D.osm.stand).toLocaleDateString("de-DE")}, ${zahl(D.osm.haefen.length)} Häfen)`;
     loadLive();
+    loadSee();
   }
 
   init();

@@ -1,6 +1,7 @@
 /* Live-Daten: aktuelle Wassertemperatur von PEGELONLINE (Wasserstraßen- und
-   Schifffahrtsverwaltung des Bundes). Der Browser fragt die offene REST-API
-   direkt ab; Ergebnis wird 15 Minuten in der Sitzung zwischengespeichert. */
+   Schifffahrtsverwaltung des Bundes) und Meerestemperatur aus dem Marine-Modell
+   von Open-Meteo für die Küstenhäfen. Der Browser fragt beide offenen APIs
+   direkt ab; Ergebnisse werden in der Sitzung zwischengespeichert. */
 (function (root) {
   "use strict";
 
@@ -79,6 +80,47 @@
     return best;
   }
 
+  // Meerestemperatur (Modellwert) je Küstenhafen, alle in einer Abfrage.
+  // Antwort für mehrere Orte ist eine Liste, für einen Ort ein Objekt.
+  const SEE_KEY = "biozidatlas.see.v1";
+  const SEE_MS = 30 * 60 * 1000;
+
+  async function loadSee(haefen) {
+    if (!haefen.length) return { fetched: Date.now(), werte: {} };
+    try {
+      const c = JSON.parse(sessionStorage.getItem(SEE_KEY) || "null");
+      if (c && Date.now() - c.fetched < SEE_MS && haefen.every((h) => h.id in c.werte)) return c;
+    } catch (e) { /* kein Speicher verfügbar */ }
+    const url =
+      "https://marine-api.open-meteo.com/v1/marine" +
+      "?latitude=" + haefen.map((h) => h.lat.toFixed(3)).join(",") +
+      "&longitude=" + haefen.map((h) => h.lon.toFixed(3)).join(",") +
+      "&hourly=sea_surface_temperature&forecast_days=1&timezone=UTC";
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("Open-Meteo antwortet mit " + res.status);
+      const json = await res.json();
+      const liste = Array.isArray(json) ? json : [json];
+      const jetzt = new Date().toISOString().slice(0, 13); // "JJJJ-MM-TTTHH"
+      const werte = {};
+      haefen.forEach((h, i) => {
+        const hourly = liste[i] && liste[i].hourly;
+        if (!hourly || !hourly.time) { werte[h.id] = null; return; }
+        let k = hourly.time.findIndex((t) => t.slice(0, 13) === jetzt);
+        if (k < 0) k = 0;
+        const v = hourly.sea_surface_temperature && hourly.sea_surface_temperature[k];
+        werte[h.id] = typeof v === "number" && v > -2 && v < 35 ? { wert: v, zeit: Date.parse(hourly.time[k] + "Z") } : null;
+      });
+      const result = { fetched: Date.now(), werte };
+      try { sessionStorage.setItem(SEE_KEY, JSON.stringify(result)); } catch (e) { /* egal */ }
+      return result;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // Faustregel für den Prototyp, keine fachliche Schwelle.
   function saison(temp) {
     if (temp >= 15) return { stufe: 3, text: "Hauptbewuchsphase: Larven von Seepocken und Muscheln setzen sich jetzt bevorzugt fest." };
@@ -86,5 +128,5 @@
     return { stufe: 1, text: "Kaltes Wasser: kaum neuer Bewuchs." };
   }
 
-  root.Live = { load, nearest, saison, distanceKm };
+  root.Live = { load, loadSee, nearest, saison, distanceKm };
 })(window);

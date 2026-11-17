@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <header class="top">
@@ -34,6 +34,7 @@
 
     <div class="panel">
      <div class="panel-inner">
+      <p class="print-only print-meta" id="print-meta"></p>
       <div class="col col-a">
         <section class="card controls" aria-label="Eingaben">
           <div class="seg" role="radiogroup" aria-label="Profil">
@@ -52,18 +53,52 @@
               <input type="number" id="laenge" min="3" max="400" step="1" inputmode="numeric">
             </div>
           </div>
+          <div class="fields" id="boot-felder">
+            <div class="field">
+              <label for="bootstyp">Bootstyp</label>
+              <select id="bootstyp">
+                <option value="segel">Segelboot</option>
+                <option value="motor-langsam">Motorboot, langsam (Verdränger)</option>
+                <option value="motor-schnell">Motorboot, schnell (Gleiter)</option>
+              </select>
+            </div>
+            <div class="field field-num">
+              <label for="monate">Monate im Wasser</label>
+              <input type="number" id="monate" min="1" max="12" step="1" inputmode="numeric">
+            </div>
+          </div>
           <fieldset class="wunsch" id="wunsch">
             <legend>Auch bewerten (nur wenn das für Sie in Frage kommt)</legend>
           </fieldset>
         </section>
         <section class="card" id="steckbrief" aria-live="polite"></section>
         <section class="card kernfrage" id="kernfrage" aria-live="polite"></section>
+        <section class="card chat no-print" id="chat-card">
+          <h2>Fragen zur Bewertung (KI im Browser)</h2>
+          <p class="hint">Ein Sprachmodell läuft direkt auf Ihrem Rechner und erklärt, was die Seite gerade zeigt. Es kennt nur diese Angaben, nichts wird verschickt. Beim ersten Start wird das Modell einmalig heruntergeladen. Antworten können falsch sein.</p>
+          <div class="chat-start-row">
+            <div class="field">
+              <label for="chat-modell">Modell</label>
+              <select id="chat-modell"></select>
+            </div>
+            <button type="button" class="btn" id="chat-start">Chat starten</button>
+          </div>
+          <progress id="chat-progress" max="1" value="0" hidden></progress>
+          <p class="hint" id="chat-status" aria-live="polite"></p>
+          <ol class="chat-log" id="chat-log" aria-live="polite"></ol>
+          <div class="presets" id="chat-vorschlaege" hidden></div>
+          <form class="chat-form" id="chat-form" hidden>
+            <label for="chat-input" class="sr-only">Ihre Frage</label>
+            <input type="text" id="chat-input" autocomplete="off" placeholder="Ihre Frage zur Bewertung …">
+            <button type="submit" class="btn" id="chat-send">Senden</button>
+          </form>
+        </section>
         <section class="card">
           <div class="card-head">
             <h2>Gewichtung</h2>
           </div>
           <div class="presets" id="vorlagen" role="group" aria-label="Vorlagen für die Gewichtung"></div>
-          <p class="hint">Oder selbst einstellen: Wie wichtig ist Ihnen das? Die Umwelt behält immer mindestens 20 % des Gewichts.</p>
+          <p class="hint no-print">Oder selbst einstellen: Wie wichtig ist Ihnen das? Die Umwelt behält immer mindestens 20 % des Gewichts.</p>
           <div id="gewichte"></div>
           <p class="hint" id="floor-note" hidden></p>
         </section>
@@ -83,6 +118,10 @@
             </div>
           </div>
           <div id="rangliste"></div>
+        </section>
+        <section class="card" id="kosten-card">
+          <h2>Kosten in 5 Jahren</h2>
+          <div id="kosten"></div>
         </section>
         <section class="card">
           <h2>Methodenvergleich</h2>
@@ -113,7 +152,10 @@
         <ul>
           <li>Karte: © OpenStreetMap-Mitwirkende; Seezeichen: OpenSeaMap</li>
           <li>Wassertemperatur: PEGELONLINE, Wasserstraßen- und Schifffahrtsverwaltung des Bundes (live, je Messstelle)</li>
-          <li>Reviere, Bewuchsdruck, Infrastruktur, Optionen, Produktkategorien, Kriterien und Gewichte: Beispieldaten, angelehnt an die Logik des UBA-Bewuchsatlas</li>
+          <li>Meerestemperatur: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, Marine-Modell (live, CC BY 4.0)</li>
+          <li>Weitere Häfen: OpenStreetMap, monatlich abgefragt<span id="osm-stand"></span></li>
+          <li>Chat: <a href="https://webllm.mlc.ai/" target="_blank" rel="noopener">WebLLM</a> mit offenen Modellen von Mistral, Google oder Meta, läuft im Browser</li>
+          <li>Reviere, Bewuchsdruck, Bewuchskalender, Infrastruktur der Beispielhäfen, Optionen, Kosten, Produktkategorien, Kriterien und Gewichte: Beispieldaten, angelehnt an die Logik des UBA-Bewuchsatlas</li>
         </ul>
         <p><a href="https://github.com/anayana/anayana.github.io/tree/main/biozidatlas" target="_blank" rel="noopener">Datenstruktur und Beispieldaten auf GitHub</a></p>
       </footer>
@@ -125,7 +167,8 @@
 
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="js/mcda.js?v=1"></script>
-  <script src="js/live.js?v=2"></script>
-  <script src="js/app.js?v=7"></script>
+  <script src="js/live.js?v=3"></script>
+  <script src="js/app.js?v=8"></script>
+  <script type="module" src="js/chat.js?v=1"></script>
 </body>
 </html>
