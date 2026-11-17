@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Beispieldaten. Einteilung und Bewuchsdruck angelehnt an die Logik des UBA-Bewuchsatlas (Ampel pro Region), aber nicht aus dessen Daten übernommen.",
+  "_hinweis": "Beispieldaten. Einteilung und Bewuchsdruck angelehnt an die Logik des UBA-Bewuchsatlas (Ampel pro Region), aber nicht aus dessen Daten übernommen. bewuchs_kalender: Stärke des Bewuchses von Januar bis Dezember, 0 (keiner) bis 3 (stark).",
   "reviere": [
     {
       "id": "nordsee",
@@ -8,6 +8,7 @@
       "salzgehalt_psu": [28, 34],
       "bewuchsdruck": 3,
       "hauptbewuchs": "Mai bis Oktober",
+      "bewuchs_kalender": [0, 0, 1, 1, 2, 3, 3, 3, 3, 2, 1, 0],
       "organismen": ["Seepocken", "Miesmuscheln", "Seescheiden", "Grünalgen"],
       "regeln": []
     },
@@ -18,6 +19,7 @@
       "salzgehalt_psu": [2, 20],
       "bewuchsdruck": 2,
       "hauptbewuchs": "Juni bis September",
+      "bewuchs_kalender": [0, 0, 0, 1, 1, 2, 3, 3, 2, 1, 0, 0],
       "organismen": ["Seepocken", "Biofilm", "Grünalgen"],
       "regeln": []
     },
@@ -28,6 +30,7 @@
       "salzgehalt_psu": [12, 22],
       "bewuchsdruck": 3,
       "hauptbewuchs": "Juni bis September",
+      "bewuchs_kalender": [0, 0, 0, 1, 1, 2, 3, 3, 2, 1, 0, 0],
       "organismen": ["Seepocken", "Miesmuscheln", "Moostierchen", "Grünalgen"],
       "regeln": []
     },
@@ -38,6 +41,7 @@
       "salzgehalt_psu": [9, 15],
       "bewuchsdruck": 2,
       "hauptbewuchs": "Juni bis September",
+      "bewuchs_kalender": [0, 0, 0, 0, 1, 2, 3, 3, 2, 1, 0, 0],
       "organismen": ["Seepocken", "Miesmuscheln", "Grünalgen"],
       "regeln": []
     },
@@ -48,6 +52,7 @@
       "salzgehalt_psu": [7, 9],
       "bewuchsdruck": 2,
       "hauptbewuchs": "Juli bis September",
+      "bewuchs_kalender": [0, 0, 0, 0, 1, 1, 2, 3, 2, 1, 0, 0],
       "organismen": ["Seepocken", "Miesmuscheln", "Biofilm"],
       "regeln": []
     },
@@ -58,6 +63,7 @@
       "salzgehalt_psu": [1, 7],
       "bewuchsdruck": 1,
       "hauptbewuchs": "Juli bis August",
+      "bewuchs_kalender": [0, 0, 0, 0, 1, 1, 2, 2, 1, 0, 0, 0],
       "organismen": ["Biofilm", "Grünalgen", "Dreikantmuscheln"],
       "regeln": []
     },
@@ -68,6 +74,7 @@
       "salzgehalt_psu": [0, 0.5],
       "bewuchsdruck": 1,
       "hauptbewuchs": "Juni bis August",
+      "bewuchs_kalender": [0, 0, 0, 0, 1, 2, 2, 2, 1, 0, 0, 0],
       "organismen": ["Biofilm", "Dreikantmuscheln in Hafenbecken"],
       "regeln": []
     },
@@ -78,6 +85,7 @@
       "salzgehalt_psu": [0, 0.5],
       "bewuchsdruck": 2,
       "hauptbewuchs": "Juni bis September",
+      "bewuchs_kalender": [0, 0, 0, 1, 1, 2, 3, 3, 2, 1, 0, 0],
       "organismen": ["Dreikantmuscheln", "Biofilm", "Algen"],
       "regeln": []
     },
@@ -88,6 +96,7 @@
       "salzgehalt_psu": [0, 0.5],
       "bewuchsdruck": 1,
       "hauptbewuchs": "Juli bis August",
+      "bewuchs_kalender": [0, 0, 0, 0, 1, 1, 2, 2, 1, 0, 0, 0],
       "organismen": ["Biofilm", "Algen"],
       "regeln": []
     },
@@ -98,6 +107,7 @@
       "salzgehalt_psu": [0, 0.5],
       "bewuchsdruck": 2,
       "hauptbewuchs": "Juni bis September",
+      "bewuchs_kalender": [0, 0, 0, 0, 1, 2, 3, 3, 2, 1, 0, 0],
       "organismen": ["Quaggamuscheln", "Biofilm", "Algen"],
       "regeln": ["biozid_verboten"]
     }

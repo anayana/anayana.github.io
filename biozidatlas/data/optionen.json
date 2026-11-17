@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Beispielwerte. Plausible Spannen aus Leitfäden und Studien, auf einen Wert verdichtet; keine geprüften Fachdaten. Optionen, deren Wirksamkeit beim örtlichen Bewuchsdruck unter dem Mindestwert aus kriterien.json liegt, werden ausgeschlossen. Optionen mit nur_auf_wunsch werden nur bewertet, wenn sie in der Oberfläche angekreuzt sind. Indizes 0–10: Umwelt, Gesundheit und Risiko gebietsfremder Arten = Belastung (0 = keine), Wirksamkeit = Schutz (10 = voll). Werte als Objekt mit den Schlüsseln 1, 2 und 3 gelten je Bewuchsdruck 1 (gering), 2 (mittel), 3 (hoch); das ist bei Wirksamkeit Pflicht und bei anderen Werten möglich.",
+  "_hinweis": "Beispielwerte. Plausible Spannen aus Leitfäden und Studien, auf einen Wert verdichtet; keine geprüften Fachdaten. kosten_aufteilung (10-m-Boot): Anschaffung, Nutzungsdauer in Jahren und laufende Kosten pro Saison; Anschaffung geteilt durch Nutzungsdauer plus laufende Kosten ergibt kosten_eur_10m. wirksamkeit_bonus: Zuschlag je Bootstyp. Optionen, deren Wirksamkeit beim örtlichen Bewuchsdruck unter dem Mindestwert aus kriterien.json liegt, werden ausgeschlossen. Optionen mit nur_auf_wunsch werden nur bewertet, wenn sie in der Oberfläche angekreuzt sind. Indizes 0–10: Umwelt, Gesundheit und Risiko gebietsfremder Arten = Belastung (0 = keine), Wirksamkeit = Schutz (10 = voll). Werte als Objekt mit den Schlüsseln 1, 2 und 3 gelten je Bewuchsdruck 1 (gering), 2 (mittel), 3 (hoch); das ist bei Wirksamkeit Pflicht und bei anderen Werten möglich.",
   "optionen": [
     {
       "id": "ohne",
@@ -10,7 +10,8 @@
       "bedingungen": {},
       "werte": {
         "umwelt": 0, "wirksamkeit": { "1": 7, "2": 3, "3": 1 },
-        "kosten_eur_10m": 40, "aufwand_h": 4, "gesundheit": 0
+        "kosten_eur_10m": 40, "aufwand_h": 4, "gesundheit": 0,
+        "kosten_aufteilung": { "anschaffung": 0, "nutzungsdauer_jahre": null, "laufend": 40 }
       }
     },
     {
@@ -22,7 +23,8 @@
       "bedingungen": {},
       "werte": {
         "umwelt": 1, "wirksamkeit": { "1": 9, "2": 6, "3": 4 },
-        "kosten_eur_10m": 150, "aufwand_h": { "1": 6, "2": 12, "3": 18 }, "gesundheit": 3
+        "kosten_eur_10m": 150, "aufwand_h": { "1": 6, "2": 12, "3": 18 }, "gesundheit": 3,
+        "kosten_aufteilung": { "anschaffung": 1000, "nutzungsdauer_jahre": 8, "laufend": 25 }
       }
     },
     {
@@ -34,7 +36,8 @@
       "bedingungen": { "braucht": ["waschanlage"], "max_laenge_m": 15 },
       "werte": {
         "umwelt": 1, "wirksamkeit": { "1": 10, "2": 9, "3": 8 },
-        "kosten_eur_10m": 240, "aufwand_h": { "1": 2, "2": 3, "3": 4 }, "gesundheit": 0
+        "kosten_eur_10m": 240, "aufwand_h": { "1": 2, "2": 3, "3": 4 }, "gesundheit": 0,
+        "kosten_aufteilung": { "anschaffung": 1000, "nutzungsdauer_jahre": 8, "laufend": 115 }
       }
     },
     {
@@ -46,7 +49,8 @@
       "bedingungen": { "max_laenge_m": 25 },
       "werte": {
         "umwelt": 2, "wirksamkeit": { "1": 9, "2": 7, "3": 5 },
-        "kosten_eur_10m": 650, "aufwand_h": { "1": 2, "2": 4, "3": 6 }, "gesundheit": 1
+        "kosten_eur_10m": 650, "aufwand_h": { "1": 2, "2": 4, "3": 6 }, "gesundheit": 1,
+        "kosten_aufteilung": { "anschaffung": 3600, "nutzungsdauer_jahre": 6, "laufend": 50 }
       }
     },
     {
@@ -55,10 +59,12 @@
       "kategorie": "biozidfrei",
       "kurz": "Sehr glatte Silikonschicht ohne Biozid; Bewuchs löst sich erst bei zügiger Fahrt, bei langsamen Segelbooten muss oft nachgewischt werden.",
       "zielgruppen": ["freizeit"],
+      "wirksamkeit_bonus": { "motor-schnell": 3 },
       "bedingungen": {},
       "werte": {
         "umwelt": 3, "wirksamkeit": { "1": 7, "2": 5, "3": 3 },
-        "kosten_eur_10m": 450, "aufwand_h": { "1": 3, "2": 5, "3": 8 }, "gesundheit": 3
+        "kosten_eur_10m": 450, "aufwand_h": { "1": 3, "2": 5, "3": 8 }, "gesundheit": 3,
+        "kosten_aufteilung": { "anschaffung": 1600, "nutzungsdauer_jahre": 4, "laufend": 50 }
       }
     },
     {
@@ -83,7 +89,8 @@
       "bedingungen": { "braucht": ["kran"], "max_laenge_m": 10 },
       "werte": {
         "umwelt": 0, "wirksamkeit": { "1": 10, "2": 10, "3": 10 },
-        "kosten_eur_10m": 900, "aufwand_h": 8, "gesundheit": 0
+        "kosten_eur_10m": 900, "aufwand_h": 8, "gesundheit": 0,
+        "kosten_aufteilung": { "anschaffung": 0, "nutzungsdauer_jahre": null, "laufend": 900 }
       }
     },
     {
@@ -96,7 +103,8 @@
       "bedingungen": { "max_laenge_m": 12 },
       "werte": {
         "umwelt": 0, "wirksamkeit": { "1": 10, "2": 10, "3": 10 },
-        "kosten_eur_10m": 650, "aufwand_h": 2, "gesundheit": 0
+        "kosten_eur_10m": 650, "aufwand_h": 2, "gesundheit": 0,
+        "kosten_aufteilung": { "anschaffung": 5000, "nutzungsdauer_jahre": 10, "laufend": 150 }
       }
     },
     {
@@ -109,7 +117,8 @@
       "bedingungen": {},
       "werte": {
         "umwelt": 1, "wirksamkeit": { "1": 4, "2": 2, "3": 1 },
-        "kosten_eur_10m": 300, "aufwand_h": 1, "gesundheit": 0
+        "kosten_eur_10m": 300, "aufwand_h": 1, "gesundheit": 0,
+        "kosten_aufteilung": { "anschaffung": 1500, "nutzungsdauer_jahre": 6, "laufend": 50 }
       }
     },
     {
@@ -134,7 +143,8 @@
       "produktkategorien": ["pk-kupferthiocyanat-laie"],
       "werte": {
         "umwelt": 6, "wirksamkeit": { "1": 9, "2": 8, "3": 7 },
-        "kosten_eur_10m": 230, "aufwand_h": 8, "gesundheit": 6
+        "kosten_eur_10m": 230, "aufwand_h": 8, "gesundheit": 6,
+        "kosten_aufteilung": { "anschaffung": 0, "nutzungsdauer_jahre": null, "laufend": 230 }
       }
     },
     {
@@ -148,7 +158,8 @@
       "werte": {
         "umwelt": 8, "wirksamkeit": { "1": 10, "2": 9, "3": 9 },
         "kosten_eur_10m": 260, "aufwand_h": 8, "gesundheit": 7,
-        "kosten_index": 4, "treibstoff_pct": 2, "standzeit_jahre": 5, "invasiv": 2
+        "kosten_index": 4, "treibstoff_pct": 2, "standzeit_jahre": 5, "invasiv": 2,
+        "kosten_aufteilung": { "anschaffung": 0, "nutzungsdauer_jahre": null, "laufend": 260 }
       }
     },
     {
