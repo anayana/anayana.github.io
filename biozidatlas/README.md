@@ -33,6 +33,8 @@ biozidatlas/
   data/*.json             Beispieldaten (siehe unten)
   data/osm-haefen.json    Häfen aus OpenStreetMap (vom GitHub-Actions-Job geschrieben)
   tools/osm_haefen.py     Overpass-Abfrage für data/osm-haefen.json
+  data/copernicus.json    Meeresdaten von Copernicus (vom GitHub-Actions-Job geschrieben)
+  tools/copernicus.py     Abfrage bei Copernicus Marine für data/copernicus.json
   vendor/leaflet/         Leaflet 1.9.4 (BSD-2-Clause)
   vendor/web-llm/         WebLLM 0.2.86 (Apache-2.0)
 ```
@@ -169,6 +171,22 @@ Slipanlage, Waschanlage oder Trockenliegeplatz eingetragen sind; was nicht
 eingetragen ist, gilt als unbekannt. Das Revier übernimmt jeder Hafen vom
 nächsten Beispielhafen (höchstens 30 km entfernt), weiter entfernte Häfen
 werden weggelassen. Auf der Karte erscheinen sie als kleine graue Punkte.
+
+## Meeresdaten von Copernicus
+
+Der Workflow `.github/workflows/biozidatlas-copernicus.yml` (täglich und von
+Hand startbar) holt mit der Copernicus Marine Toolbox Meerestemperatur
+(`thetao`), Salzgehalt (`so`) und Chlorophyll-a (`chl`) an der Oberfläche aus
+den Analyse- und Vorhersagemodellen für den Nordwesteuropäischen Schelf
+(Nordsee) und die Ostsee. Den passenden Datensatz mit Tagesmitteln sucht das
+Skript im Katalog selbst. Für jeden Küstenhafen, auch aus OpenStreetMap, wird
+der nächste Gitterpunkt mit Wasser genommen (höchstens 15 km). Die
+Zugangsdaten stehen als Repository-Secrets `COPERNICUSMARINE_SERVICE_USERNAME`
+und `COPERNICUSMARINE_SERVICE_PASSWORD`. Die Seite zeigt die Werte im
+Steckbrief und beim Darüberfahren; die Meerestemperatur von Open-Meteo dient
+nur noch als Ersatz, wenn für einen Hafen kein Copernicus-Wert vorliegt.
+Chlorophyll wird grob eingeordnet: unter 2 mg/m³ niedrig, bis 5 mittel,
+darüber hoch (Faustregel).
 
 ## Chatbot
 

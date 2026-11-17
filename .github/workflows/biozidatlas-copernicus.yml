@@ -1,0 +1,49 @@
+name: Antifouling-Atlas - Meeresdaten von Copernicus
+
+# Copernicus Marine needs a login, so the page cannot ask it from the browser.
+# Once a day this fetches sea temperature, salinity and chlorophyll from the
+# North Sea and Baltic models for every coastal harbour, writes
+# biozidatlas/data/copernicus.json and commits it. The login comes from the
+# repository secrets COPERNICUSMARINE_SERVICE_USERNAME and _PASSWORD. A push
+# made with GITHUB_TOKEN starts no other workflow, so the job asks for the
+# site to be published afterwards.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 * * *"   # daily at 05:41 UTC
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The Copernicus Marine toolbox
+        run: python3 -m pip install --quiet --disable-pip-version-check copernicusmarine==2.5.1
+      - name: Ask Copernicus Marine for the coastal harbours
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python3 biozidatlas/tools/copernicus.py
+      - name: Commit and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add biozidatlas/data/copernicus.json
+          git diff --cached --quiet && { echo "nothing new"; exit 0; }
+          git commit -m "Antifouling-Atlas: Meeresdaten von Copernicus aktualisiert
+
+          Geschrieben von biozidatlas/tools/copernicus.py
+          (E.U. Copernicus Marine Service Information)."
+          git pull --rebase --quiet
+          git push
+          gh workflow run publish.yml --ref "${GITHUB_REF_NAME}"

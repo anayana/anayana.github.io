@@ -53,7 +53,7 @@
   /* ---------- Daten ---------- */
 
   async function loadJSON(name) {
-    const res = await fetch("data/" + name + ".json?v=5");
+    const res = await fetch("data/" + name + ".json?v=6");
     if (!res.ok) throw new Error(name + ".json: " + res.status);
     return res.json();
   }
@@ -64,6 +64,8 @@
     );
     // Häfen aus OpenStreetMap schreibt ein GitHub-Actions-Job; fehlt die Datei, geht es ohne.
     const osm = await loadJSON("osm-haefen").catch(() => null);
+    // Meeresdaten von Copernicus schreibt ebenfalls ein Job; ohne Datei geht es mit Open-Meteo.
+    const cop = await loadJSON("copernicus").catch(() => null);
     const byId = (arr) => Object.fromEntries(arr.map((x) => [x.id, x]));
     const osmHaefen = (osm ? osm.haefen : []).map((h) => ({ ...h, quelle: "osm" }));
     return {
@@ -73,6 +75,7 @@
       haefen: hf.haefen,
       hafen: { ...byId(osmHaefen), ...byId(hf.haefen) },
       osm: { haefen: osmHaefen, stand: osm ? osm.stand : null },
+      cop: cop ? cop.werte : {},
       optionen: op.optionen,
       kriterien: kr,
       pk: byId(pk.kategorien),
@@ -200,12 +203,23 @@
     return `Bewuchsdruck ${DRUCK[basis]}, für Ihr Boot ${DRUCK[ctx.druck]} (${grund})`;
   }
 
-  // Wassertemperatur: Meerestemperatur aus dem Modell an der Küste, sonst die
-  // nächste PEGELONLINE-Messstelle.
+  // Wassertemperatur: an der Küste Copernicus (Tagesmittel), sonst Open-Meteo
+  // (stündlich), sonst die nächste PEGELONLINE-Messstelle.
   function temperatur(hafen) {
+    const cop = D.cop[hafen.id] || null;
     const see = state.see.status === "ok" ? state.see.data.werte[hafen.id] : null;
     const pegel = state.live.status === "ok" ? Live.nearest(hafen.lat, hafen.lon, state.live.data.stationen, 60) : null;
-    return { see, pegel, wert: see ? see.wert : pegel ? pegel.wert : null };
+    const wert = cop && cop.temp != null ? cop.temp : see ? see.wert : pegel ? pegel.wert : null;
+    return { cop, see, pegel, wert };
+  }
+
+  // Grobe Einordnung, Faustregel für den Prototyp.
+  function chlText(c) {
+    return c < 2 ? "niedrig" : c <= 5 ? "mittel" : "hoch, viele Nährstoffe";
+  }
+
+  function datumText(iso) {
+    return iso ? new Date(iso + "T00:00:00Z").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "unbekannt";
   }
 
   function zeitText(t) {
@@ -270,11 +284,21 @@
     const t = temperatur(hafen);
     const kueste = D.reviere[hafen.revier].wassertyp !== "suess";
     const teile = [];
-    if (t.see) {
+    if (t.cop) {
+      const c = t.cop;
+      const mehr = [
+        c.salz != null ? `Salzgehalt ${zahl(c.salz, 1)} PSU` : "",
+        c.chl != null ? `Chlorophyll ${zahl(c.chl, 1)} mg/m³ (${chlText(c.chl)})` : "",
+      ].filter(Boolean).join(" · ");
+      teile.push(`<span class="live-tag">Copernicus Marine · Modell, Tagesmittel vom ${datumText(c.zeit)}</span>
+        ${c.temp != null ? `<span class="live-value">${zahl(c.temp, 1)} °C</span>` : ""}
+        <span class="live-meta">${mehr ? mehr + " · " : ""}Gitterpunkt ${zahl(c.km, 1)} km vom Hafen</span>`);
+    }
+    if (t.see && !(t.cop && t.cop.temp != null)) {
       teile.push(`<span class="live-tag">Live · Meerestemperatur (Modell, Open-Meteo)</span>
         <span class="live-value">${zahl(t.see.wert, 1)} °C</span>
         <span class="live-meta">Modellwert am Hafen · Stand ${zeitText(t.see.zeit)}</span>`);
-    } else if (kueste && state.see.status === "laden") {
+    } else if (kueste && !t.cop && state.see.status === "laden") {
       teile.push(`<span class="live-tag">Live · Meerestemperatur</span><span class="live-meta">wird abgefragt …</span>`);
     }
     if (t.pegel) {
@@ -586,7 +610,12 @@
     z.push(`Hafen: ${hafen.name}; Revier: ${revier.name}; ${WASSER[revier.wassertyp]} ${revier.salzgehalt_psu.join("–")} PSU.`);
     z.push(`${druckText(ctx)}. Stärkster Bewuchs: ${revier.hauptbewuchs}. Typisch: ${revier.organismen.join(", ")}.`);
     z.push(`Im Hafen: Waschanlage ${janein(inf.waschanlage)}, Kran ${janein(inf.kran)}, Trockenliegeplatz ${janein(inf.trockenliegeplatz)}.`);
-    if (t.wert != null) z.push(`Wassertemperatur jetzt: ${zahl(t.wert, 1)} °C (${t.see ? "Modellwert Open-Meteo" : "PEGELONLINE, " + zahl(t.pegel.km) + " km entfernt"}).`);
+    if (t.wert != null) {
+      const q = t.cop && t.cop.temp != null ? "Copernicus Marine, Tagesmittel" : t.see ? "Modellwert Open-Meteo" : "PEGELONLINE, " + zahl(t.pegel.km) + " km entfernt";
+      z.push(`Wassertemperatur jetzt: ${zahl(t.wert, 1)} °C (${q}).`);
+    }
+    if (t.cop && t.cop.salz != null) z.push(`Salzgehalt laut Copernicus: ${zahl(t.cop.salz, 1)} PSU.`);
+    if (t.cop && t.cop.chl != null) z.push(`Chlorophyll laut Copernicus: ${zahl(t.cop.chl, 1)} mg/m³ (${chlText(t.cop.chl)}); mehr Nährstoffe bedeuten eher mehr Bewuchs.`);
     z.push(`Jetzt (${MONATE[monat]}): ${jetztHinweis(revier, monat)}`);
     z.push(`Nutzer: ${profilText()}.`);
     z.push(`Gewichtung: ${aktiv ? aktiv.label + ": " : ""}${ctx.crit.map((c) => `${c.label} ${zahl(100 * ctx.weights[c.key])} %`).join(", ")}. Verfahren: ${METHODE_NAME[state.methode]}.`);
@@ -641,7 +670,10 @@
   function hafenTooltip(h) {
     const t = temperatur(h);
     let s = `<b>${esc(h.name)}</b>${h.quelle === "osm" ? " (OpenStreetMap)" : ""}<br>Bewuchsdruck ${DRUCK[D.reviere[h.revier].bewuchsdruck]}`;
-    if (t.see) s += `<br>Meerestemperatur ${zahl(t.see.wert, 1)} °C (Modell)`;
+    if (t.cop && t.cop.temp != null) {
+      s += `<br>Meerestemperatur ${zahl(t.cop.temp, 1)} °C (Copernicus)`;
+      if (t.cop.salz != null) s += `<br>Salzgehalt ${zahl(t.cop.salz, 1)} PSU`;
+    } else if (t.see) s += `<br>Meerestemperatur ${zahl(t.see.wert, 1)} °C (Modell)`;
     else if (t.pegel) s += `<br>Wassertemperatur ${zahl(t.pegel.wert, 1)} °C (Messstelle, ${zahl(t.pegel.km)} km)`;
     return s;
   }
