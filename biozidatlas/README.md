@@ -273,6 +273,11 @@ dem man gerade ist, in der Eingabe passend zum offenen Reiter; die übrigen
 Rundgänge stehen eingeklappt unter „Andere Rundgänge“. Auf einer geöffneten
 Hafenseite läuft der Hafen-Rundgang auf diesem Hafen.
 
+Das Gespräch bleibt beim Wechsel zwischen den Seiten erhalten (sessionStorage,
+bis der Tab geschlossen wird). Gehört eine Frage zur Eingabe oder Datenbank,
+bietet der Assistent die Anmeldung an und beantwortet die Frage danach sofort,
+ohne dass man sie noch einmal stellen muss.
+
 Auf Wunsch lädt der Assistent ein offenes Sprachmodell im Browser (WebLLM;
 Ministral 3 3B von Mistral, Gemma 2 2B oder Llama 3.2 1B, je in 16- und
 32-Bit-Variante mit automatischem Ausweichen). Es antwortet dann frei, aber nur

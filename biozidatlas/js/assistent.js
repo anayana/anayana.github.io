@@ -25,6 +25,21 @@
 
   let HILFE = [];
   let RUNDGAENGE = [];
+
+  // Gespräch, offenes Fenster und eine wegen fehlender Anmeldung offene Frage
+  // überstehen Seitenwechsel und das Neuladen nach der Anmeldung (nur in diesem Tab).
+  const SPEICHER = "biozidatlas.assistent.v1";
+  const zustand = (() => {
+    try {
+      const z = JSON.parse(sessionStorage.getItem(SPEICHER) || "null");
+      if (z && Array.isArray(z.log)) return z;
+    } catch (e) { /* kein Speicher verfügbar */ }
+    return { log: [], offen: false, offeneFrage: null };
+  })();
+
+  function sichern() {
+    try { sessionStorage.setItem(SPEICHER, JSON.stringify(zustand)); } catch (e) { /* egal */ }
+  }
   let engine = null;
   let geladen = null;
   let laeuft = false;
@@ -128,7 +143,12 @@
     });
 
     hierZeigen();
-    begruessen();
+    if (zustand.log.length) zustand.log.forEach((m) => nachricht(m.wer, m.html, false));
+    else begruessen();
+    // Anmelde-Knopf in Antworten, auch in wiederhergestellten
+    $(".as-log").addEventListener("click", (e) => {
+      if (e.target.closest("[data-aktion=anmelden]") && window.Zugang) window.Zugang.anmelden();
+    });
     // Wechselt der Bereich (anderer Hafen, anderer Reiter der Eingabe), passt sich das Angebot an.
     window.addEventListener("hashchange", hierZeigen);
     document.querySelectorAll('input[name="art"]').forEach((r) => r.addEventListener("change", hierZeigen));
@@ -138,10 +158,16 @@
     hierZeigen();
     $("#assistent").hidden = false;
     $("#assistent-knopf").setAttribute("aria-expanded", "true");
+    const inhalt = $(".as-inhalt");
+    inhalt.scrollTop = inhalt.scrollHeight;
     $("#as-frage").focus();
+    zustand.offen = true;
+    sichern();
   }
 
   function schliessen() {
+    zustand.offen = false;
+    sichern();
     $("#assistent").hidden = true;
     $("#assistent-knopf").setAttribute("aria-expanded", "false");
     $("#assistent-knopf").focus();
@@ -193,7 +219,12 @@
     $("#assistent").querySelectorAll("[data-rundgang]").forEach((b) => { b.onclick = () => rundgangStarten(b.dataset.rundgang); });
   }
 
-  function nachricht(wer, html) {
+  function nachricht(wer, html, merken = true) {
+    if (merken) {
+      zustand.log.push({ wer, html });
+      zustand.log = zustand.log.slice(-40);
+      sichern();
+    }
     const li = document.createElement("li");
     li.className = "as-msg as-" + wer;
     li.innerHTML = `<span class="as-wer">${wer === "user" ? "Sie" : wer === "ki" ? "Assistent (KI)" : "Assistent"}</span><div class="as-text">${html}</div>`;
@@ -231,13 +262,16 @@
     return main ? main.innerText.replace(/\n{2,}/g, "\n").slice(0, 2000) : "";
   }
 
-  async function fragen(frage) {
-    nachricht("user", esc(frage));
+  async function fragen(frage, zeigeFrage = true) {
+    if (zeigeFrage) nachricht("user", esc(frage));
     const treffer = suchen(frage);
-    // Gehört die Frage zur Eingabe oder Datenbank, ohne dass jemand angemeldet ist: auf die Anmeldung verweisen.
+    // Gehört die Frage eindeutig zur Eingabe oder Datenbank und ist niemand angemeldet:
+    // auf die Anmeldung verweisen und die Frage danach von selbst beantworten.
     const ohneRolle = suchen(frage, true)[0];
-    if (ohneRolle && !erlaubt(ohneRolle.e.rolle) && (!treffer.length || ohneRolle.punkte > treffer[0].punkte)) {
-      nachricht("bot", "Das gehört zur Eingabe und Datenbank für Wissenschaftlerinnen und Wissenschaftler. Bitte oben rechts anmelden; danach erkläre ich es Ihnen Schritt für Schritt.");
+    const bester = treffer.length ? treffer[0].punkte : 0;
+    if (ohneRolle && !erlaubt(ohneRolle.e.rolle) && ohneRolle.punkte >= Math.max(3, bester + 2)) {
+      zustand.offeneFrage = frage;
+      nachricht("bot", 'Das gehört zur Eingabe für Wissenschaftlerinnen und Wissenschaftler. Nach der Anmeldung beantworte ich Ihre Frage sofort. <button type="button" class="btn-ghost" data-aktion="anmelden">Jetzt anmelden</button>');
       vorschlaege(startfragen());
       return;
     }
@@ -252,7 +286,7 @@
 
   async function kiAntwort(frage, hilfen) {
     laeuft = true;
-    const body = nachricht("ki", "…");
+    const body = nachricht("ki", "…", false);
     const system = `Du bist der Assistent des Antifouling-Atlas, eines Prototyps mit Beispieldaten. Die Person ist ${rolle() === "wissenschaft" ? "Wissenschaftlerin oder Wissenschaftler und darf Daten eingeben" : "öffentliche Nutzerin oder öffentlicher Nutzer"}. Sie ist auf der Seite „${document.title}“.
 Regeln: Antworte auf Deutsch, kurz, höchstens fünf Sätze. Stütze dich nur auf HILFE und STAND. Erfinde keine Zahlen, Marken, Vorschriften oder Funktionen. Steht die Antwort nicht darin, sag das offen. Keine Rechtsberatung.
 
@@ -272,6 +306,8 @@ ${seitenstand().slice(0, 2500)}`;
         body.textContent = text || "…";
       }
       verlauf.push({ role: "user", content: frage }, { role: "assistant", content: text });
+      zustand.log.push({ wer: "ki", html: esc(text) });
+      sichern();
       vorschlaege(hilfen.slice(0, 3));
     } catch (e) {
       body.textContent = "Fehler bei der Antwort: " + (e && e.message ? e.message : e);
@@ -489,7 +525,7 @@ ${seitenstand().slice(0, 2500)}`;
   async function start() {
     try {
       const [h, r] = await Promise.all([
-        fetch("data/hilfe.json?v=1").then((x) => x.json()),
+        fetch("data/hilfe.json?v=2").then((x) => x.json()),
         fetch("data/rundgaenge.json?v=2").then((x) => x.json()),
       ]);
       HILFE = h.eintraege;
@@ -498,6 +534,15 @@ ${seitenstand().slice(0, 2500)}`;
       console.warn("Assistent:", e);
     }
     aufbauen();
+    if (zustand.offen) oeffnen();
+    // Nach der Anmeldung: die Frage beantworten, die vorher an der Anmeldung hing.
+    if (zustand.offeneFrage && erlaubt("wissenschaft")) {
+      const f = zustand.offeneFrage;
+      zustand.offeneFrage = null;
+      oeffnen();
+      nachricht("bot", `Sie sind angemeldet. Hier die Antwort auf Ihre Frage „${esc(f)}“:`);
+      fragen(f, false);
+    }
     const param = new URLSearchParams(location.search).get("rundgang");
     if (param) {
       try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) { /* egal */ }
