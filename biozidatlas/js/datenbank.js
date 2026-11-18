@@ -138,6 +138,7 @@
   }
 
   async function init() {
+    if (window.Zugang && !window.Zugang.darf("wissenschaft")) return;
     const [SQL, D, schema, kr, op, pk] = await Promise.all([
       initSqlJs({ locateFile: (f) => "vendor/sql.js/" + f }),
       A.ladeAlles(),

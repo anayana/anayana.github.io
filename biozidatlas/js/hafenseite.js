@@ -8,6 +8,7 @@
   const A = window.Atlasdaten;
   const { esc, zahl, datum } = A;
   const $ = (s) => document.querySelector(s);
+  const wissenschaft = () => !window.Zugang || window.Zugang.darf("wissenschaft");
   let D = null;
 
   function inhalte(id) {
@@ -45,7 +46,7 @@
     $("#inhalt").innerHTML = `
       <h2 class="seite-titel">Hafenseiten</h2>
       <p class="einleitung">Jeder Hafen hat eine eigene Seite mit Grunddaten, Messwerten, den Ablesungen von Bewuchstafeln und Beiträgen.
-        Mitarbeiterinnen und Mitarbeiter ergänzen sie über die <a href="eingabe.html">Eingabe</a>, immer im selben Aufbau.</p>
+        Wissenschaftlerinnen und Wissenschaftler ergänzen sie über die Eingabe, immer im selben Aufbau.</p>
       <div class="field suche">
         <label for="suche">Hafen suchen (${zahl(D.beispielhaefen.length + D.osmhaefen.length)} Häfen)</label>
         <input type="search" id="suche" placeholder="z. B. Kiel, Wannsee, Konstanz" autocomplete="off">
@@ -129,8 +130,8 @@
         </div>
         <div class="aktionen">
           <a class="btn" href="index.html#${esc(h.id)}">Im Atlas bewerten</a>
-          <a class="btn-ghost" href="eingabe.html?hafen=${encodeURIComponent(h.id)}#beitrag">Beitrag hinzufügen</a>
-          <a class="btn-ghost" href="eingabe.html?hafen=${encodeURIComponent(h.id)}#tafel">Bewuchstafel melden</a>
+          ${wissenschaft() ? `<a class="btn-ghost" href="eingabe.html?hafen=${encodeURIComponent(h.id)}#beitrag">Beitrag hinzufügen</a>
+          <a class="btn-ghost" href="eingabe.html?hafen=${encodeURIComponent(h.id)}#tafel">Bewuchstafel melden</a>` : ""}
         </div>
       </div>
 
@@ -161,7 +162,7 @@
                </div>
                ${verlauf(int.sortiert)}
                <p class="example">Bürgerwissenschaft: Freiwillige lesen eine Tafel im Hafen regelmäßig ab. Beispieldaten.</p>`
-            : `<p>Für diesen Hafen gibt es noch keine Ablesungen. <a href="eingabe.html?hafen=${encodeURIComponent(h.id)}#tafel">Erste Bewuchstafel melden</a></p>`}
+            : `<p>Für diesen Hafen gibt es noch keine Ablesungen.${wissenschaft() ? ` <a href="eingabe.html?hafen=${encodeURIComponent(h.id)}#tafel">Erste Bewuchstafel melden</a>` : ""}</p>`}
         </section>
       </div>
 
@@ -176,7 +177,7 @@
         <h2 class="abschnitt-titel">Beiträge</h2>
         ${beitraege.length
           ? `<div class="beitrag-liste">${beitraege.map((x) => A.renderBeitrag(x.b, { lokal: x.lokal })).join("")}</div>`
-          : `<p>Noch keine Beiträge. <a href="eingabe.html?hafen=${encodeURIComponent(h.id)}#beitrag">Ersten Beitrag schreiben</a></p>`}
+          : `<p>Noch keine Beiträge.${wissenschaft() ? ` <a href="eingabe.html?hafen=${encodeURIComponent(h.id)}#beitrag">Ersten Beitrag schreiben</a>` : ""}</p>`}
       </section>`;
   }
 

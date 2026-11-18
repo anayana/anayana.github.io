@@ -9,7 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
+  <script src="js/zugang.js?v=1"></script>
 </head>
 <body class="seite">
   <header class="top">
@@ -21,8 +22,8 @@
       <nav class="hauptnav no-print" aria-label="Bereiche">
         <a href="index.html">Atlas</a>
         <a href="hafen.html" aria-current="page">Hafenseiten</a>
-        <a href="eingabe.html">Eingabe</a>
-        <a href="datenbank.html">Datenbank</a>
+        <a class="nur-wissenschaft" href="eingabe.html">Eingabe</a>
+        <a class="nur-wissenschaft" href="datenbank.html">Datenbank</a>
       </nav>
       <p class="banner" role="note">
         <strong>Prototyp mit Beispieldaten.</strong>
@@ -36,6 +37,7 @@
   </main>
 
   <script src="js/daten.js?v=2"></script>
-  <script src="js/hafenseite.js?v=1"></script>
+  <script src="js/hafenseite.js?v=2"></script>
+  <script src="js/assistent.js?v=2"></script>
 </body>
 </html>

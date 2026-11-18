@@ -9,9 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
+  <script src="js/zugang.js?v=1"></script>
 </head>
-<body class="seite">
+<body class="seite" data-nur="wissenschaft">
   <header class="top">
     <div class="top-inner">
       <div class="brand">
@@ -21,8 +22,8 @@
       <nav class="hauptnav no-print" aria-label="Bereiche">
         <a href="index.html">Atlas</a>
         <a href="hafen.html">Hafenseiten</a>
-        <a href="eingabe.html" aria-current="page">Eingabe</a>
-        <a href="datenbank.html">Datenbank</a>
+        <a class="nur-wissenschaft" href="eingabe.html" aria-current="page">Eingabe</a>
+        <a class="nur-wissenschaft" href="datenbank.html">Datenbank</a>
       </nav>
       <p class="banner" role="note">
         <strong>Prototyp ohne Datenbank.</strong>
@@ -60,7 +61,7 @@
           <div class="field"><label for="b-hafen">Hafen *</label><input id="b-hafen" list="hafenliste" autocomplete="off" placeholder="Name eintippen und aus der Liste wählen"></div>
           <div class="field"><label for="b-ueberschrift">Überschrift *</label><input id="b-ueberschrift" maxlength="120"></div>
           <div class="field"><label for="b-unter">Unterüberschrift</label><input id="b-unter" maxlength="160"></div>
-          <fieldset class="gruppe">
+          <fieldset class="gruppe" id="b-meta">
             <legend>Metadaten</legend>
             <div class="fields">
               <div class="field"><label for="b-autor">Autor/in *</label><input id="b-autor" maxlength="120"></div>
@@ -72,7 +73,7 @@
             </div>
             <div class="field"><label for="b-schlagworte">Schlagworte</label><input id="b-schlagworte" placeholder="durch Komma getrennt, z. B. Seepocken, Monitoring"></div>
           </fieldset>
-          <fieldset class="gruppe">
+          <fieldset class="gruppe" id="b-bildgruppe">
             <legend>Bild</legend>
             <div class="field"><label for="b-bild">Bilddatei (JPG, PNG)</label><input type="file" id="b-bild" accept="image/*"></div>
             <div class="fields">
@@ -99,7 +100,7 @@
             <div class="field"><label for="t-ab">Abgelesen am *</label><input type="date" id="t-ab"></div>
           </div>
           <div class="field"><label for="t-bed">Bewachsener Anteil der Tafel: <b id="t-bed-wert">0 %</b> *</label><input type="range" id="t-bed" min="0" max="100" step="1" value="0"></div>
-          <fieldset class="gruppe">
+          <fieldset class="gruppe" id="t-orggruppe">
             <legend>Zusammensetzung des Bewuchses (Anteile zusammen 100 %)</legend>
             <div id="t-org"></div>
             <button type="button" class="btn-ghost" id="t-org-neu">Organismus hinzufügen</button>
@@ -136,6 +137,7 @@
   </main>
 
   <script src="js/daten.js?v=2"></script>
-  <script src="js/eingabe.js?v=2"></script>
+  <script src="js/eingabe.js?v=3"></script>
+  <script src="js/assistent.js?v=2"></script>
 </body>
 </html>

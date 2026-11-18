@@ -1,0 +1,167 @@
+{
+ "_hinweis": "Hilfetexte für den Assistenten. rolle: alle oder wissenschaft (nur nach Anmeldung). stichworte helfen beim Finden der passenden Antwort. Die Redaktion kann Einträge ergänzen.",
+ "eintraege": [
+  {
+   "id": "atlas", "rolle": "alle",
+   "frage": "Was zeigt der Atlas?",
+   "stichworte": ["atlas", "karte", "überblick", "was", "zeigt", "funktion", "tool", "seite"],
+   "antwort": "Der Atlas zeigt Häfen an Nord- und Ostsee, an Flüssen und Seen. Wählen Sie einen Hafen und beschreiben Sie Ihr Boot; dann bewertet der Atlas, welcher Bewuchsschutz dort passt, und beantwortet die Frage, ob es ohne Biozid geht. Viele Werte sind Beispieldaten eines Prototyps."
+  },
+  {
+   "id": "hafen-waehlen", "rolle": "alle",
+   "frage": "Wie wähle ich meinen Hafen?",
+   "stichworte": ["hafen", "liegeplatz", "wählen", "auswählen", "suchen", "finden", "marina", "punkt", "grau"],
+   "antwort": "Wählen Sie den Hafen in der Liste „Liegeplatz“ oder klicken Sie auf einen Punkt in der Karte. Die farbigen Punkte sind die Beispielhäfen, die kleinen grauen Punkte weitere Häfen aus OpenStreetMap. Der gewählte Hafen steht danach in der Adresszeile, so lässt sich der Link weitergeben."
+  },
+  {
+   "id": "bewuchsdruck", "rolle": "alle",
+   "frage": "Was bedeuten die Farben und der Bewuchsdruck?",
+   "stichworte": ["farbe", "farben", "grün", "gelb", "rot", "ampel", "bewuchsdruck", "druck", "gering", "mittel", "hoch"],
+   "antwort": "Die Farbe zeigt den Bewuchsdruck im Revier: grün gering, gelb mittel, rot hoch. Er hängt vor allem vom Salzgehalt und der Wassertemperatur ab. Liegt Ihr Boot höchstens vier Monate im Wasser, sinkt er um eine Stufe, ab zehn Monaten steigt er um eine. Die Werte je Revier sind Beispielwerte."
+  },
+  {
+   "id": "kernfrage", "rolle": "alle",
+   "frage": "Was bedeutet „Geht es hier ohne Biozid?“",
+   "stichworte": ["biozid", "ohne", "biozidfrei", "kernfrage", "antwort", "ja", "nein", "abstriche"],
+   "antwort": "Der Kasten fasst die Bewertung zusammen. „Ja“ heißt: Die bestbewertete Option kommt ohne Biozid aus. „Mit kleinen Abstrichen“ heißt: Platz 1 ist biozidhaltig, aber eine biozidfreie Option ist fast genauso gut. „Eher nicht“ heißt: Bei diesem Bewuchsdruck und dieser Gewichtung liegen biozidhaltige Anstriche deutlich vorn."
+  },
+  {
+   "id": "rangliste", "rolle": "alle",
+   "frage": "Wie entsteht die Rangliste?",
+   "stichworte": ["rangliste", "platz", "punkte", "bewertung", "reihenfolge", "beste", "empfehlung", "kriterien"],
+   "antwort": "Zuerst fallen Optionen heraus, die rechtlich oder technisch nicht passen oder bei diesem Bewuchsdruck nicht genug wirken. Die übrigen werden nach Umwelt, Wirksamkeit, Kosten, Aufwand und Gesundheit bewertet und nach Ihrer Gewichtung zusammengezählt. Der bunte Balken zeigt, was jedes Kriterium beiträgt."
+  },
+  {
+   "id": "gewichtung", "rolle": "alle",
+   "frage": "Wie funktioniert die Gewichtung?",
+   "stichworte": ["gewichtung", "gewicht", "regler", "vorlage", "umwelt", "zuerst", "ausgewogen", "kosten", "wichtig", "prozent"],
+   "antwort": "Mit den Vorlagen „Umwelt zuerst“, „Ausgewogen“ und „Wirksamkeit und Kosten zuerst“ setzen Sie alle Gewichte auf einmal, mit den Reglern einzeln. Die Umwelt behält immer mindestens 20 Prozent. Bei hohem Bewuchsdruck und „Wirksamkeit und Kosten zuerst“ liegen oft biozidhaltige Anstriche vorn."
+  },
+  {
+   "id": "verfahren", "rolle": "alle",
+   "frage": "Was sind gewichtete Summe, TOPSIS und PROMETHEE?",
+   "stichworte": ["verfahren", "methode", "topsis", "promethee", "summe", "gewichtete", "methodenvergleich", "konsens", "mcda"],
+   "antwort": "Das sind drei Rechenwege für dieselbe Entscheidung. Die gewichtete Summe zählt Punkte zusammen, Stärken gleichen Schwächen aus. TOPSIS misst den Abstand zur besten und schlechtesten denkbaren Option. PROMETHEE vergleicht jede Option paarweise mit jeder anderen. Der Methodenvergleich zeigt, ob alle drei zum selben Ergebnis kommen."
+  },
+  {
+   "id": "ausgeschlossen", "rolle": "alle",
+   "frage": "Warum wurde eine Option ausgeschlossen?",
+   "stichworte": ["ausgeschlossen", "fehlt", "warum", "nicht", "erlaubt", "zulassung", "süßwasser", "bodensee", "waschanlage", "länge"],
+   "antwort": "Unter „Ausgeschlossen“ steht der Grund: zum Beispiel keine Zulassung für Süßwasser, eine regionale Regel wie am Bodensee, das Boot ist zu lang, im Hafen fehlt eine Waschanlage oder ein Kran, oder die Option wirkt bei diesem Bewuchsdruck nicht ausreichend."
+  },
+  {
+   "id": "auf-wunsch", "rolle": "alle",
+   "frage": "Warum fehlen Bootslift, Kranen und Ultraschall?",
+   "stichworte": ["bootslift", "kranen", "kran", "trockenliegeplatz", "ultraschall", "ankreuzen", "auch", "bewerten"],
+   "antwort": "Diese drei Optionen kommen für die meisten nicht in Frage und werden deshalb nur bewertet, wenn Sie sie unter „Auch bewerten“ ankreuzen."
+  },
+  {
+   "id": "messwerte", "rolle": "alle",
+   "frage": "Woher kommen Wassertemperatur, Salzgehalt und Chlorophyll?",
+   "stichworte": ["temperatur", "wassertemperatur", "salzgehalt", "salz", "chlorophyll", "copernicus", "pegelonline", "live", "messwert", "messstelle"],
+   "antwort": "An der Küste kommen Meerestemperatur, Salzgehalt und Chlorophyll täglich aus den Meeresmodellen von Copernicus Marine. An Flüssen und Seen zeigt der Atlas die Wassertemperatur der nächsten PEGELONLINE-Messstelle. Fehlt ein Copernicus-Wert, springt Open-Meteo ein. Ab etwa 15 Grad setzen sich Seepocken und Muscheln bevorzugt fest."
+  },
+  {
+   "id": "kalender", "rolle": "alle",
+   "frage": "Was zeigt der Bewuchskalender?",
+   "stichworte": ["kalender", "monat", "saison", "wann", "jetzt", "zeit", "reinigen", "auskranen"],
+   "antwort": "Der Bewuchskalender zeigt für jeden Monat, wie stark im Revier etwas wächst, von hell (kaum) bis dunkel (stark). Der umrandete Monat ist der aktuelle; darunter steht, was jetzt sinnvoll ist, zum Beispiel reinigen oder beim Auskranen die Reste auffangen."
+  },
+  {
+   "id": "kosten", "rolle": "alle",
+   "frage": "Was kosten die Optionen?",
+   "stichworte": ["kosten", "preis", "euro", "teuer", "günstig", "saison", "jahre", "anschaffung"],
+   "antwort": "In der Rangliste stehen die Kosten pro Saison für Ihr Boot, Anschaffungen auf die Nutzungsdauer verteilt. „Kosten in 5 Jahren“ zeigt, was Sie über fünf Saisons insgesamt ausgeben, getrennt nach Anschaffung und laufenden Kosten. Alle Beträge sind Beispielwerte, grob nach Rumpffläche umgerechnet."
+  },
+  {
+   "id": "produkte", "rolle": "alle",
+   "frage": "Welche Antifouling-Produkte sind erlaubt?",
+   "stichworte": ["produkt", "produkte", "marke", "farbe", "anstrich", "antifouling", "kupfer", "zugelassen", "zulassung", "wirkstoff"],
+   "antwort": "Der Atlas nennt keine Marken, sondern Produktkategorien mit ihren Wirkstoffen, zum Beispiel selbstpolierendes Antifouling mit Kupfer(I)-oxid. Ob ein bestimmtes Produkt zugelassen ist, steht in der Zulassungsdatenbank der BAuA. Laienprodukte sind nur für Boote bis 25 Meter erlaubt."
+  },
+  {
+   "id": "hafenseite", "rolle": "alle",
+   "frage": "Was steht auf einer Hafenseite?",
+   "stichworte": ["hafenseite", "hafenseiten", "seite", "beitrag", "beiträge", "grunddaten", "informationen"],
+   "antwort": "Jeder Hafen hat eine eigene Seite mit Grunddaten, Bewuchskalender, Messwerten, den Ablesungen der Bewuchstafeln und Beiträgen von Fachleuten. Sie erreichen sie über „Hafenseite“ im Atlas oder über den Bereich „Hafenseiten“ mit Suche."
+  },
+  {
+   "id": "bewuchstafel", "rolle": "alle",
+   "frage": "Was sind Bewuchstafeln?",
+   "stichworte": ["bewuchstafel", "bewuchstafeln", "tafel", "tafeln", "citizen", "science", "bürgerwissenschaft", "ablesung", "ablesungen"],
+   "antwort": "Eine Bewuchstafel ist eine kleine Kunststoffplatte, die im Hafen etwa einen Meter tief im Wasser hängt. Freiwillige holen sie regelmäßig heraus, fotografieren sie und schätzen, wie viel davon bewachsen ist und womit. So sieht man, wann und wie stark es am Liegeplatz wächst."
+  },
+  {
+   "id": "intensitaet", "rolle": "alle",
+   "frage": "Wie lese ich die Bewuchsintensität?",
+   "stichworte": ["intensität", "bewuchsintensität", "prozent", "bewachsen", "verlauf", "balken", "kennzahl", "anteil"],
+   "antwort": "Die große Zahl ist der bewachsene Anteil der Tafel bei der letzten Ablesung. Unter 30 Prozent gilt als gering, bis 60 Prozent als mittel, darüber als hoch. Die Balken zeigen den Verlauf über die Saison, darunter steht jede Ablesung einzeln mit Foto und Zusammensetzung."
+  },
+  {
+   "id": "beispieldaten", "rolle": "alle",
+   "frage": "Sind die Daten echt?",
+   "stichworte": ["echt", "beispiel", "beispieldaten", "ausgedacht", "stimmt", "verlässlich", "prototyp", "quelle", "quellen"],
+   "antwort": "Echt sind die Lage der Häfen, die Häfen aus OpenStreetMap, die Messwerte von PEGELONLINE und Copernicus sowie die Fotos von Wikimedia Commons. Bewuchsdruck, Bewuchstafeln, Beiträge, Kosten und Bewertungen sind für den Prototyp ausgedacht und keine Empfehlung."
+  },
+  {
+   "id": "drucken", "rolle": "alle",
+   "frage": "Wie drucke ich einen Steckbrief?",
+   "stichworte": ["drucken", "druck", "pdf", "steckbrief", "ausdrucken", "speichern"],
+   "antwort": "Klicken Sie im Kasten „Liegeplatz“ auf „Steckbrief drucken“. Die Druckansicht zeigt Hafen, Antwort, Gewichtung, Rangliste, Kosten und Ausschlüsse ohne Karte; im Druckdialog lässt sie sich auch als PDF speichern."
+  },
+  {
+   "id": "anmelden", "rolle": "alle",
+   "frage": "Wer darf was? Wie melde ich mich an?",
+   "stichworte": ["anmelden", "anmeldung", "login", "rolle", "rollen", "wissenschaft", "wissenschaftler", "zugang", "passwort", "eingabe", "datenbank"],
+   "antwort": "Atlas und Hafenseiten sind für alle offen. Eingabe und Datenbank sind nur für Wissenschaftlerinnen und Wissenschaftler; dafür oben rechts auf „Anmelden“ klicken. Im Prototyp ist das eine Demo-Anmeldung ohne echten Schutz; später meldet man sich mit dem Dienstkonto an."
+  },
+  {
+   "id": "eingabe-beitrag", "rolle": "wissenschaft",
+   "frage": "Wie gebe ich einen Beitrag für eine Hafenseite ein?",
+   "stichworte": ["beitrag", "eingeben", "eingabe", "schreiben", "artikel", "text", "überschrift", "formular", "hinzufügen"],
+   "antwort": "Unter „Eingabe“ den Reiter „Beitrag für eine Hafenseite“ wählen. Dann Hafen aus der Liste wählen, Überschrift und Unterüberschrift eintragen, Metadaten ergänzen (Autor/in und Datum sind Pflicht, Quelle, Lizenz und Schlagworte freiwillig), optional ein Bild mit Bildbeschreibung hochladen und die Erklärung schreiben; Absätze durch eine Leerzeile trennen. Rechts sehen Sie sofort die Vorschau."
+  },
+  {
+   "id": "eingabe-tafel", "rolle": "wissenschaft",
+   "frage": "Wie melde ich eine Ablesung einer Bewuchstafel?",
+   "stichworte": ["ablesung", "melden", "tafel", "bewuchstafel", "eingeben", "eintragen", "organismen", "zusammensetzung", "tiefe"],
+   "antwort": "Unter „Eingabe“ den Reiter „Ablesung einer Bewuchstafel“ wählen. Hafen, Tafel-Nummer, Tiefe sowie die Daten des Ausbringens und Ablesens eintragen, den bewachsenen Anteil mit dem Regler einstellen und die Zusammensetzung angeben: je Organismus ein Anteil, zusammen 100 Prozent. Foto der Tafel und Name der Person, die abgelesen hat, ergänzen."
+  },
+  {
+   "id": "anteil-schaetzen", "rolle": "wissenschaft",
+   "frage": "Wie schätze ich den bewachsenen Anteil einer Tafel?",
+   "stichworte": ["schätzen", "anteil", "bedeckung", "bewachsen", "prozent", "raster", "messen", "bestimmen"],
+   "antwort": "Fotografieren Sie die Tafel von oben und teilen Sie sie gedanklich in zehn mal zehn Felder. Die Zahl der Felder, die überwiegend bewachsen sind, ist der Anteil in Prozent. Für die Zusammensetzung schätzen Sie, welcher Teil des Bewuchses auf welchen Organismus entfällt; die Anteile ergeben zusammen 100 Prozent."
+  },
+  {
+   "id": "bilder", "rolle": "wissenschaft",
+   "frage": "Welche Bilder darf ich hochladen?",
+   "stichworte": ["bild", "bilder", "foto", "fotos", "hochladen", "upload", "lizenz", "bildnachweis", "alternativtext", "bildbeschreibung"],
+   "antwort": "Nur eigene Fotos oder Bilder mit freier Lizenz, und ohne erkennbare Personen. Zu jedem Bild gehört eine Bildbeschreibung (was ist zu sehen?) für Menschen, die das Bild nicht sehen, und ein Bildnachweis mit Name und Lizenz. Große Bilder werden beim Hochladen automatisch verkleinert."
+  },
+  {
+   "id": "speichern-einreichen", "rolle": "wissenschaft",
+   "frage": "Was passiert beim Speichern und Einreichen?",
+   "stichworte": ["speichern", "einreichen", "senden", "abschicken", "github", "vorgang", "prüfung", "browser", "veröffentlichen"],
+   "antwort": "„Im Browser speichern“ legt den Eintrag nur in Ihrem Browser ab; er erscheint gekennzeichnet auf der Hafenseite, aber nur für Sie. „Zur Prüfung einreichen“ öffnet einen vorausgefüllten Vorgang auf GitHub; dort auf „Create“ klicken und ein Bild hineinziehen. Nach der Freigabe durch die Redaktion steht der Eintrag für alle auf der Hafenseite."
+  },
+  {
+   "id": "freigeben", "rolle": "wissenschaft",
+   "frage": "Wie gebe ich eine Einreichung frei?",
+   "stichworte": ["freigeben", "freigabe", "redaktion", "übernehmen", "workflow", "nummer", "label", "prüfen"],
+   "antwort": "Jede Einreichung hat auf GitHub eine Nummer, zum Beispiel #13. Zum Freigeben auf GitHub unter Actions den Ablauf „Antifouling-Atlas - Eingabe übernehmen“ starten und die Nummer eintragen, oder am Vorgang das Label „freigegeben“ setzen. Der Ablauf prüft die Angaben, übernimmt sie, schreibt einen Kommentar und schließt den Vorgang."
+  },
+  {
+   "id": "pflichtfelder", "rolle": "wissenschaft",
+   "frage": "Welche Felder sind Pflicht? Was bedeuten die Fehlermeldungen?",
+   "stichworte": ["pflicht", "pflichtfeld", "fehler", "fehlermeldung", "ergänzen", "stern", "fehlt", "summe", "100"],
+   "antwort": "Felder mit Stern sind Pflicht. Beim Speichern listet das Formular auf, was noch fehlt, zum Beispiel die Überschrift, eine zu kurze Erklärung, die Bildbeschreibung zum Bild oder Anteile, die nicht 100 Prozent ergeben. Das Ablesedatum darf nicht vor dem Ausbringen liegen."
+  },
+  {
+   "id": "datenbank", "rolle": "wissenschaft",
+   "frage": "Was zeigt die Datenbank?",
+   "stichworte": ["datenbank", "tabelle", "tabellen", "daten", "filter", "herkunft", "zeilen"],
+   "antwort": "Die Datenbank zeigt alle Daten des Atlas in Tabellen: Reviere, Häfen, Optionen, Messwerte, Bewuchstafeln, Beiträge und mehr. Oben steht, woher die Daten kommen. Eine Tabelle anklicken, um sie anzusehen; mit „Filtern“ suchen Sie nach Text in den Zeilen."
+  }
+ ]
+}

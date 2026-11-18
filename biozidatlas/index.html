@@ -10,7 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
+  <script src="js/zugang.js?v=1"></script>
 </head>
 <body>
   <header class="top">
@@ -22,8 +23,8 @@
       <nav class="hauptnav no-print" aria-label="Bereiche">
         <a href="index.html" aria-current="page">Atlas</a>
         <a href="hafen.html">Hafenseiten</a>
-        <a href="eingabe.html">Eingabe</a>
-        <a href="datenbank.html">Datenbank</a>
+        <a class="nur-wissenschaft" href="eingabe.html">Eingabe</a>
+        <a class="nur-wissenschaft" href="datenbank.html">Datenbank</a>
       </nav>
       <p class="banner" role="note">
         <strong>Prototyp mit Beispieldaten, keine Empfehlung.</strong>
@@ -79,26 +80,6 @@
         </section>
         <section class="card" id="steckbrief" aria-live="polite"></section>
         <section class="card kernfrage" id="kernfrage" aria-live="polite"></section>
-        <section class="card chat no-print" id="chat-card">
-          <h2>Fragen zur Bewertung (KI im Browser)</h2>
-          <p class="hint">Ein Sprachmodell läuft direkt auf Ihrem Rechner und erklärt, was die Seite gerade zeigt. Es kennt nur diese Angaben, nichts wird verschickt. Beim ersten Start wird das Modell einmalig heruntergeladen. Antworten können falsch sein.</p>
-          <div class="chat-start-row">
-            <div class="field">
-              <label for="chat-modell">Modell</label>
-              <select id="chat-modell"></select>
-            </div>
-            <button type="button" class="btn" id="chat-start">Chat starten</button>
-          </div>
-          <progress id="chat-progress" max="1" value="0" hidden></progress>
-          <p class="hint" id="chat-status" aria-live="polite"></p>
-          <ol class="chat-log" id="chat-log" aria-live="polite"></ol>
-          <div class="presets" id="chat-vorschlaege" hidden></div>
-          <form class="chat-form" id="chat-form" hidden>
-            <label for="chat-input" class="sr-only">Ihre Frage</label>
-            <input type="text" id="chat-input" autocomplete="off" placeholder="Ihre Frage zur Bewertung …">
-            <button type="submit" class="btn" id="chat-send">Senden</button>
-          </form>
-        </section>
         <section class="card">
           <div class="card-head">
             <h2>Gewichtung</h2>
@@ -175,7 +156,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="js/mcda.js?v=1"></script>
   <script src="js/live.js?v=3"></script>
-  <script src="js/app.js?v=13"></script>
-  <script type="module" src="js/chat.js?v=2"></script>
+  <script src="js/app.js?v=14"></script>
+  <script src="js/assistent.js?v=2"></script>
 </body>
 </html>

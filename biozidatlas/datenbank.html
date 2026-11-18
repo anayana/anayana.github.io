@@ -9,9 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
+  <script src="js/zugang.js?v=1"></script>
 </head>
-<body class="seite">
+<body class="seite" data-nur="wissenschaft">
   <header class="top">
     <div class="top-inner">
       <div class="brand">
@@ -21,8 +22,8 @@
       <nav class="hauptnav no-print" aria-label="Bereiche">
         <a href="index.html">Atlas</a>
         <a href="hafen.html">Hafenseiten</a>
-        <a href="eingabe.html">Eingabe</a>
-        <a href="datenbank.html" aria-current="page">Datenbank</a>
+        <a class="nur-wissenschaft" href="eingabe.html">Eingabe</a>
+        <a class="nur-wissenschaft" href="datenbank.html" aria-current="page">Datenbank</a>
       </nav>
       <p class="banner" role="note">
         <strong>Exemplarische Datenbank.</strong>
@@ -33,7 +34,7 @@
 
   <main class="seite-inhalt">
     <h2 class="seite-titel">Datenbank</h2>
-    <p class="einleitung">Alle Daten des Atlas in Tabellen. Neue Daten kommen über die <a href="eingabe.html">Eingabe</a> oder die automatischen Abrufe.</p>
+    <p class="einleitung">Alle Daten des Atlas in Tabellen. Neue Daten kommen über die <a class="nur-wissenschaft" href="eingabe.html">Eingabe</a> oder die automatischen Abrufe.</p>
 
     <section class="card">
       <h2>Woher die Daten kommen</h2>
@@ -67,6 +68,7 @@
 
   <script src="vendor/sql.js/sql-wasm.js"></script>
   <script src="js/daten.js?v=2"></script>
-  <script src="js/datenbank.js?v=3"></script>
+  <script src="js/datenbank.js?v=4"></script>
+  <script src="js/assistent.js?v=2"></script>
 </body>
 </html>

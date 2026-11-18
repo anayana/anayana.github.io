@@ -1,0 +1,64 @@
+{
+ "_hinweis": "Rundgänge des Assistenten. Jeder Rundgang gehört zu einer Seite (seite) und einer Rolle (alle oder wissenschaft). Ein Schritt hebt das Element zu ziel (CSS-Selektor) hervor; klick löst vorher einen Klick aus, z. B. um einen Reiter zu öffnen.",
+ "rundgaenge": [
+  {
+   "id": "atlas", "rolle": "alle", "seite": "index.html", "titel": "Den Atlas kennenlernen",
+   "schritte": [
+    { "ziel": ".controls .seg", "titel": "Freizeit oder Beruf", "text": "Wählen Sie zuerst, ob Sie ein Freizeitboot oder ein Schiff der Berufsschifffahrt bewerten wollen. Davon hängen Kriterien und Optionen ab." },
+    { "ziel": "#hafen", "titel": "Hafen wählen", "text": "Wählen Sie Ihren Liegeplatz aus der Liste. Alternativ klicken Sie einen Punkt in der Karte an." },
+    { "ziel": "#map", "titel": "Die Karte", "text": "Die Farbe zeigt den Bewuchsdruck im Revier: grün gering, gelb mittel, rot hoch. Graue Punkte sind weitere Häfen aus OpenStreetMap, blaue Punkte Messstellen der Wassertemperatur." },
+    { "ziel": "#boot-felder", "titel": "Ihr Boot", "text": "Bootstyp und Monate im Wasser verändern die Bewertung: Wer nur kurz im Wasser liegt, hat weniger Bewuchs; schnelle Motorboote vertragen glatte Silikonschichten besser." },
+    { "ziel": "#steckbrief", "titel": "Steckbrief des Hafens", "text": "Hier stehen Revier, Gewässer, Bewuchsdruck und was es im Hafen gibt. Über „Hafenseite“ geht es zu allen Informationen über den Hafen." },
+    { "ziel": "#kalender-box", "titel": "Bewuchskalender", "text": "Zeigt, in welchen Monaten im Revier am meisten wächst, und was jetzt zu tun ist." },
+    { "ziel": "#live-box", "titel": "Aktuelle Messwerte", "text": "Meerestemperatur, Salzgehalt und Chlorophyll von Copernicus oder die Wassertemperatur der nächsten Messstelle." },
+    { "ziel": "#kernfrage", "titel": "Geht es ohne Biozid?", "text": "Die Kurzantwort auf die wichtigste Frage, abgeleitet aus der Rangliste." },
+    { "ziel": "#vorlagen", "titel": "Gewichtung", "text": "Legen Sie fest, was Ihnen wichtig ist: Umwelt, Wirksamkeit, Kosten oder Aufwand. Die Vorlagen setzen alle Gewichte auf einmal." },
+    { "ziel": "#rangliste", "titel": "Rangliste", "text": "Die passenden Optionen, beste zuerst. Der bunte Balken zeigt, welches Kriterium wie viel beiträgt; darunter stehen die Werte." },
+    { "ziel": "#kosten-card", "titel": "Kosten in 5 Jahren", "text": "Was die Optionen über fünf Saisons kosten, getrennt nach Anschaffung und laufenden Kosten." },
+    { "ziel": "#ausschluss-card", "titel": "Ausgeschlossen", "text": "Was hier nicht in Frage kommt, und warum." },
+    { "ziel": "#assistent-knopf", "titel": "Fragen jederzeit", "text": "Über die Muschel unten rechts erreichen Sie mich immer, auch auf den anderen Seiten." }
+   ]
+  },
+  {
+   "id": "hafen", "rolle": "alle", "seite": "hafen.html#kiel-schilksee", "titel": "Eine Hafenseite lesen",
+   "schritte": [
+    { "ziel": ".seite-kopf", "titel": "Die Hafenseite", "text": "Jeder Hafen hat eine eigene Seite. Von hier geht es zurück in den Atlas, um die Bewertung zu sehen." },
+    { "ziel": ".seite-raster > .card:first-child", "titel": "Grunddaten und Messwerte", "text": "Revier, Gewässer, Bewuchsdruck, Einrichtungen im Hafen, Bewuchskalender und die aktuellen Werte von Copernicus." },
+    { "ziel": ".kennzahl", "titel": "Bewuchsintensität", "text": "So viel Prozent der Bewuchstafel waren bei der letzten Ablesung bewachsen. Unter 30 Prozent gering, bis 60 mittel, darüber hoch." },
+    { "ziel": ".verlauf", "titel": "Verlauf über die Saison", "text": "Ein Balken je Ablesung. So sehen Sie, wann der Bewuchs einsetzt und wann er am stärksten ist." },
+    { "ziel": ".tafel-liste", "titel": "Die einzelnen Ablesungen", "text": "Datum, Anteil, Zusammensetzung und wer abgelesen hat. Ohne eigenes Foto steht ein Beispielfoto des häufigsten Organismus dabei." },
+    { "ziel": ".beitrag-liste", "titel": "Beiträge", "text": "Fachleute ergänzen die Seite mit Beiträgen, immer im selben Aufbau: Überschrift, Unterzeile, Angaben zu Autor, Datum und Lizenz, Bild und Erklärung." }
+   ]
+  },
+  {
+   "id": "eingabe", "rolle": "wissenschaft", "seite": "eingabe.html#beitrag", "titel": "Daten eingeben",
+   "schritte": [
+    { "ziel": ".ablauf", "titel": "So läuft es ab", "text": "Formular ausfüllen, speichern oder einreichen, die Redaktion gibt frei, dann steht es für alle auf der Hafenseite." },
+    { "ziel": ".tabs", "titel": "Was wollen Sie eingeben?", "text": "Ein Beitrag ist ein Text mit Bild für eine Hafenseite. Eine Ablesung ist das Ergebnis einer Bewuchstafel. Wir beginnen mit dem Beitrag." },
+    { "ziel": "#b-hafen", "titel": "Hafen", "text": "Tippen Sie die ersten Buchstaben und wählen Sie den Hafen aus der Liste. Nur Häfen aus der Liste werden angenommen." },
+    { "ziel": "#b-ueberschrift", "titel": "Überschrift", "text": "Kurz und aussagekräftig, höchstens 120 Zeichen. Darunter folgt eine optionale Unterüberschrift." },
+    { "ziel": "#b-meta", "titel": "Metadaten", "text": "Autor/in und Datum sind Pflicht. Quelle, Lizenz und Schlagworte helfen beim Einordnen und Finden; Schlagworte durch Komma trennen." },
+    { "ziel": "#b-bildgruppe", "titel": "Bild", "text": "Optional ein eigenes Foto oder ein frei lizenziertes Bild. Pflicht ist dann die Bildbeschreibung: Was ist zu sehen? Dazu der Bildnachweis mit Name und Lizenz." },
+    { "ziel": "#b-text", "titel": "Erklärung", "text": "Der eigentliche Text, mindestens 20 Zeichen. Absätze durch eine Leerzeile trennen." },
+    { "ziel": "#b-status", "titel": "Status", "text": "„Zur Veröffentlichung“ erscheint nach der Freigabe für alle; ein Entwurf bleibt unsichtbar." },
+    { "ziel": ".vorschau", "titel": "Vorschau", "text": "So sieht der Beitrag auf der Hafenseite aus. Die Vorschau ändert sich bei jeder Eingabe." },
+    { "ziel": "#speichern", "titel": "Speichern oder einreichen", "text": "„Im Browser speichern“ ist zum Ausprobieren: nur Sie sehen es. „Zur Prüfung einreichen“ legt einen Vorgang auf GitHub an; nach der Freigabe steht der Eintrag für alle auf der Hafenseite." },
+    { "ziel": "#t-tafel", "klick": "label[for=art-tafel]", "titel": "Ablesung einer Bewuchstafel", "text": "Jetzt die Ablesung: Hafen wählen, dann die Nummer der Tafel, zum Beispiel KIE-1, und die Tiefe in Metern." },
+    { "ziel": "#t-aus", "titel": "Daten", "text": "Wann die Tafel ausgebracht und wann sie abgelesen wurde. Abgelesen kann nicht vor dem Ausbringen liegen." },
+    { "ziel": "#t-bed", "titel": "Bewachsener Anteil", "text": "Tafel von oben fotografieren und gedanklich in zehn mal zehn Felder teilen. Die Zahl der bewachsenen Felder ist der Anteil in Prozent." },
+    { "ziel": "#t-orggruppe", "titel": "Zusammensetzung", "text": "Woraus der Bewuchs besteht: je Organismus eine Zeile mit Anteil. Zusammen müssen es 100 Prozent sein." },
+    { "ziel": "#t-bild", "titel": "Foto der Tafel", "text": "Das Foto erscheint bei der Ablesung auf der Hafenseite. Ohne Foto zeigt die Seite ein Beispielfoto des häufigsten Organismus." },
+    { "ziel": "#lokal-liste", "titel": "Ihre Einträge", "text": "Was Sie im Browser gespeichert haben, steht hier. Sie können es auf der Hafenseite ansehen oder löschen." }
+   ]
+  },
+  {
+   "id": "datenbank", "rolle": "wissenschaft", "seite": "datenbank.html", "titel": "Die Datenbank",
+   "schritte": [
+    { "ziel": ".fluss", "titel": "Woher die Daten kommen", "text": "Von der Redaktion, aus Ihren Eingaben, aus OpenStreetMap und täglich von Copernicus." },
+    { "ziel": "#tabellen", "titel": "Die Tabellen", "text": "Jede Tabelle mit Anzahl der Zeilen und Inhalt. Ein Klick auf den Namen zeigt sie unten an." },
+    { "ziel": "#filter", "titel": "Filtern", "text": "Suchen Sie nach Text in den Zeilen, zum Beispiel nach einem Hafen." },
+    { "ziel": "#ansicht", "titel": "Die Tabelle", "text": "Zeilen der gewählten Tabelle, 50 je Seite. Ein Strich bedeutet: kein Wert." }
+   ]
+  }
+ ]
+}
