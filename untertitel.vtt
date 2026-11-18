@@ -1,0 +1,148 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:08.857
+Willkommen beim Antifouling-Atlas. Diese Anleitung zeigt in wenigen Minuten, wie der Atlas funktioniert: für Bootseigner, für alle Interessierten und für die Wissenschaft.
+
+00:00:09.163 --> 00:00:19.599
+Der Atlas beantwortet eine Frage: Welcher Bewuchsschutz passt zu diesem Liegeplatz? Wichtig vorab: Es ist ein Prototyp. Bewuchsdruck, Kosten und Bewertungen sind Beispieldaten.
+
+00:00:19.901 --> 00:00:30.592
+Links die Karte. Die farbigen Punkte sind Beispielhäfen, die Farbe zeigt den Bewuchsdruck im Revier: grün gering, gelb mittel, rot hoch. Graue Punkte sind weitere Häfen aus OpenStreetMap.
+
+00:00:30.899 --> 00:00:37.677
+Zuerst wählen Sie: Freizeitboot oder Berufsschifffahrt. Davon hängen die Kriterien und die möglichen Optionen ab.
+
+00:00:37.979 --> 00:00:44.978
+Dann den Liegeplatz: aus der Liste wählen oder in der Karte auf einen Punkt klicken. Wir nehmen Heiligenhafen an der Ostsee.
+
+00:00:45.280 --> 00:00:52.024
+Bootslänge, Bootstyp und Monate im Wasser verändern die Bewertung. Wer nur kurz im Wasser liegt, hat weniger Bewuchs.
+
+00:00:52.327 --> 00:00:59.047
+Optionen wie Trockenliegeplatz, Bootslift oder Ultraschall bewertet der Atlas nur, wenn Sie sie hier ankreuzen.
+
+00:00:59.349 --> 00:01:08.298
+Der Steckbrief zeigt Revier, Gewässer, Bewuchsdruck, typische Organismen, was es im Hafen gibt, und die letzte Ablesung der Bewuchstafel.
+
+00:01:08.603 --> 00:01:14.487
+Der Bewuchskalender zeigt, in welchen Monaten im Revier am meisten wächst, und was jetzt zu tun ist.
+
+00:01:14.789 --> 00:01:26.153
+Darunter aktuelle Messwerte: Meerestemperatur, Salzgehalt und Chlorophyll von Copernicus Marine, täglich aktualisiert. An Flüssen und Seen kommt die Wassertemperatur von PEGELONLINE.
+
+00:01:26.460 --> 00:01:33.389
+Oben in der Bewertung steht die wichtigste Frage: Geht es hier ohne Biozid? Die Kurzantwort leitet der Atlas aus der Rangliste ab.
+
+00:01:33.691 --> 00:01:43.720
+Bei der Gewichtung legen Sie fest, was Ihnen wichtig ist: Umwelt, Wirksamkeit, Kosten, Aufwand, Gesundheit. Vorlagen setzen alle Gewichte auf einmal, Schieberegler einzeln.
+
+00:01:44.025 --> 00:01:47.947
+Die Umwelt behält dabei immer mindestens zwanzig Prozent des Gewichts.
+
+00:01:48.247 --> 00:01:56.697
+Die Rangliste zeigt die passenden Optionen, die beste zuerst. Der farbige Balken zeigt, wie viel jedes Kriterium beiträgt; darunter stehen die Werte.
+
+00:01:57.003 --> 00:02:02.783
+Der Robustheitstest prüft, ob Platz eins vorn bleibt, wenn Gewichte und Werte zufällig schwanken.
+
+00:02:03.085 --> 00:02:10.990
+Das Verfahren lässt sich wechseln: gewichtete Summe, TOPSIS oder PROMETHEE. Das sind gängige Verfahren der multikriteriellen Entscheidungsanalyse.
+
+00:02:11.290 --> 00:02:18.080
+Kosten in fünf Jahren: Anschaffung und laufende Kosten über fünf Saisons, grob nach Bootsgröße umgerechnet.
+
+00:02:18.383 --> 00:02:24.697
+Der Methodenvergleich zeigt den Platz je Verfahren und den Konsens. Weicht ein Verfahren ab, ist das Feld markiert.
+
+00:02:25.000 --> 00:02:28.887
+Unter „Ausgeschlossen“ steht, was hier nicht in Frage kommt, und warum.
+
+00:02:29.187 --> 00:02:41.283
+Für biozidhaltige Anstriche nennt der Atlas zulässige Kategorien statt Produktnamen. Ob ein Produkt zugelassen ist, steht in den Datenbanken von BAuA und ECHA.
+
+00:02:41.591 --> 00:02:45.537
+Mit „Steckbrief drucken“ gibt es alles auf Papier oder als PDF.
+
+00:02:45.837 --> 00:02:49.632
+Über „Hafenseite“ geht es zu allen Informationen über den Hafen.
+
+00:02:49.934 --> 00:02:57.223
+Jeder Hafen hat eine eigene Seite: Grunddaten, Bewuchskalender und Messwerte. Oben rechts geht es zurück in den Atlas.
+
+00:02:57.525 --> 00:03:06.950
+Die Bewuchsintensität stammt aus Bewuchstafeln: Platten, die im Hafen hängen und regelmäßig abgelesen werden. Ein Balken je Ablesung zeigt den Verlauf über die Saison.
+
+00:03:07.255 --> 00:03:16.843
+Darunter jede Ablesung mit Datum, Anteil und Zusammensetzung. Ohne eigenes Foto steht ein Beispielfoto des häufigsten Organismus dabei, mit Urheber und Lizenz.
+
+00:03:17.148 --> 00:03:26.631
+Fachleute ergänzen die Seite mit Beiträgen, immer im selben Aufbau: Überschrift, Unterzeile, Autor, Datum, Lizenz, Bild und Erklärung.
+
+00:03:26.936 --> 00:03:30.905
+Die Übersicht listet alle Häfen. Mit der Suche finden Sie einen Hafen schnell.
+
+00:03:31.206 --> 00:03:37.079
+Unten rechts sitzt auf jeder Seite der Assistent, die Muschel. Er beantwortet Fragen und führt durch Rundgänge.
+
+00:03:37.379 --> 00:03:42.648
+Oben bietet er gleich den Rundgang und häufige Fragen zu dem Bereich an, in dem Sie gerade sind.
+
+00:03:42.948 --> 00:03:47.602
+Sie können auch eine eigene Frage eintippen, zum Beispiel: Wo kommen die Daten her?
+
+00:03:47.901 --> 00:03:57.083
+Die Antworten kommen aus festen Hilfetexten. Auf Wunsch lädt der Assistent ein offenes Sprachmodell, das freier formuliert. Es läuft im Browser; nichts wird verschickt.
+
+00:03:57.383 --> 00:04:04.939
+Mit dem Mikrofon geht das auch per Sprache. Auch die Spracherkennung läuft auf Ihrem Rechner; beim ersten Mal lädt sie etwa hundert Megabyte.
+
+00:04:05.239 --> 00:04:10.833
+Eingabe und Datenbank sind für Wissenschaftlerinnen und Wissenschaftler. Dafür melden Sie sich oben an.
+
+00:04:11.133 --> 00:04:19.177
+Demo-Zugang für die Wissenschaft: Benutzername „wissenschaft“, Passwort „atlas“. Beides steht auch im Anmeldefenster.
+
+00:04:19.478 --> 00:04:25.687
+Benutzername und Passwort eintragen, anmelden. Im echten Betrieb meldet man sich mit dem Dienstkonto an.
+
+00:04:25.987 --> 00:04:29.538
+Jetzt erscheinen oben zusätzlich Eingabe und Datenbank.
+
+00:04:29.839 --> 00:04:39.473
+Die Eingabe erklärt oben den Ablauf: Formular ausfüllen, speichern oder einreichen, die Redaktion prüft und gibt frei, dann steht der Eintrag für alle auf der Hafenseite.
+
+00:04:39.778 --> 00:04:45.697
+Es gibt zwei Formulare: einen Beitrag für eine Hafenseite und die Ablesung einer Bewuchstafel.
+
+00:04:46.000 --> 00:04:54.439
+Beim Beitrag wählen Sie den Hafen aus der Liste und schreiben eine Überschrift. Rechts sehen Sie sofort die Vorschau, so wie es auf der Hafenseite aussehen wird.
+
+00:04:54.740 --> 00:05:01.960
+Autorin oder Autor und Datum sind Pflicht. Quelle, Lizenz und Schlagworte helfen beim Einordnen und Finden.
+
+00:05:02.261 --> 00:05:08.714
+Dann die Erklärung. Ein Bild ist freiwillig; wer eins hochlädt, ergänzt Bildbeschreibung und Bildnachweis.
+
+00:05:09.014 --> 00:05:17.638
+„Im Browser speichern“ ist zum Ausprobieren, nur Sie sehen es. „Zur Prüfung einreichen“ legt einen Vorgang an; nach der Freigabe erscheint der Beitrag für alle.
+
+00:05:17.940 --> 00:05:27.923
+Die Ablesung einer Bewuchstafel: Hafen, Tafel und Tiefe, wann ausgebracht und wann abgelesen, der bewachsene Anteil und woraus der Bewuchs besteht, zusammen hundert Prozent.
+
+00:05:28.226 --> 00:05:35.898
+Den Anteil schätzen Sie so: Tafel von oben fotografieren, gedanklich in zehn mal zehn Felder teilen und die bewachsenen Felder zählen.
+
+00:05:36.202 --> 00:05:44.942
+Die Datenbank zeigt alle Daten des Atlas in Tabellen. Oben steht, woher sie kommen: Redaktion, Eingaben, OpenStreetMap und Copernicus.
+
+00:05:45.245 --> 00:05:50.398
+Ein Klick auf eine Tabelle zeigt ihren Inhalt, zum Beispiel die Ablesungen der Bewuchstafeln.
+
+00:05:50.699 --> 00:05:54.621
+Mit dem Filter suchen Sie in den Zeilen, zum Beispiel nach einem Hafen.
+
+00:05:54.921 --> 00:06:00.039
+Abmelden geht oben rechts. Danach sind Eingabe und Datenbank wieder ausgeblendet.
+
+00:06:00.340 --> 00:06:06.340
+Das war der Rundgang durch den Antifouling-Atlas. Bei Fragen hilft die Muschel unten rechts auf jeder Seite weiter.
