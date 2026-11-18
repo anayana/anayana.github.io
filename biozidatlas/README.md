@@ -266,8 +266,12 @@ Der Assistent beantwortet Fragen aus den Hilfetexten in `data/hilfe.json`
 `data/rundgaenge.json`: Ein Rundgang hebt Schritt für Schritt ein Element der
 Seite hervor und erklärt es; liegt er auf einer anderen Seite, wechselt der
 Assistent dorthin. Rundgänge für alle: „Den Atlas kennenlernen“ und „Eine
-Hafenseite lesen“; für Wissenschaft zusätzlich „Daten eingeben“ (Beitrag und
-Ablesung, Feld für Feld) und „Die Datenbank“.
+Hafenseite lesen“; für Wissenschaft zusätzlich „Einen Beitrag eingeben“, „Eine
+Ablesung eingeben“ (Feld für Feld) und „Die Datenbank“. Beim Öffnen bietet der
+Assistent oben gleich den Rundgang und die häufigen Fragen zu dem Bereich an, in
+dem man gerade ist, in der Eingabe passend zum offenen Reiter; die übrigen
+Rundgänge stehen eingeklappt unter „Andere Rundgänge“. Auf einer geöffneten
+Hafenseite läuft der Hafen-Rundgang auf diesem Hafen.
 
 Auf Wunsch lädt der Assistent ein offenes Sprachmodell im Browser (WebLLM;
 Ministral 3 3B von Mistral, Gemma 2 2B oder Llama 3.2 1B, je in 16- und

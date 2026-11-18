@@ -90,9 +90,10 @@
         <button type="button" class="as-zu" aria-label="Assistent schließen">×</button>
       </header>
       <div class="as-inhalt">
-        <div class="as-rundgaenge"></div>
+        <div class="as-hier"></div>
         <ol class="as-log" aria-live="polite"></ol>
         <div class="as-vorschlaege"></div>
+        <details class="as-andere"><summary>Andere Rundgänge</summary><div class="presets"></div></details>
       </div>
       <form class="as-form">
         <label for="as-frage" class="sr-only">Ihre Frage</label>
@@ -126,11 +127,15 @@
       if (e.key === "Escape" && !panel.hidden && !tour) schliessen();
     });
 
-    rundgangKnoepfe();
+    hierZeigen();
     begruessen();
+    // Wechselt der Bereich (anderer Hafen, anderer Reiter der Eingabe), passt sich das Angebot an.
+    window.addEventListener("hashchange", hierZeigen);
+    document.querySelectorAll('input[name="art"]').forEach((r) => r.addEventListener("change", hierZeigen));
   }
 
   function oeffnen() {
+    hierZeigen();
     $("#assistent").hidden = false;
     $("#assistent-knopf").setAttribute("aria-expanded", "true");
     $("#as-frage").focus();
@@ -142,14 +147,50 @@
     $("#assistent-knopf").focus();
   }
 
-  function rundgangKnoepfe() {
-    const liste = RUNDGAENGE.filter((r) => erlaubt(r.rolle));
-    $(".as-rundgaenge").innerHTML = liste.length
-      ? `<div class="as-titel">Rundgang starten</div><div class="presets">${liste
-          .map((r) => `<button type="button" class="btn-ghost" data-rundgang="${esc(r.id)}">${esc(r.titel)}${r.rolle === "wissenschaft" ? " (Wissenschaft)" : ""}</button>`)
-          .join("")}</div>`
-      : "";
-    $(".as-rundgaenge").querySelectorAll("[data-rundgang]").forEach((b) => b.addEventListener("click", () => rundgangStarten(b.dataset.rundgang)));
+  // Was gerade offen ist: Seite, bei der Eingabe auch der Reiter, beim Hafen die Einzelseite.
+  function hier() {
+    const s = seite();
+    if (s.startsWith("eingabe")) {
+      const r = document.querySelector('input[name="art"]:checked');
+      return r && r.value === "tafel"
+        ? { name: "Eingabe: Ablesung einer Bewuchstafel", rundgang: "eingabe-tafel", fragen: ["eingabe-tafel", "anteil-schaetzen", "bilder", "pflichtfelder", "speichern-einreichen"] }
+        : { name: "Eingabe: Beitrag für eine Hafenseite", rundgang: "eingabe-beitrag", fragen: ["eingabe-beitrag", "bilder", "pflichtfelder", "speichern-einreichen", "freigeben"] };
+    }
+    if (s.startsWith("datenbank")) return { name: "Datenbank", rundgang: "datenbank", fragen: ["datenbank", "freigeben", "beispieldaten"] };
+    if (s.startsWith("hafen")) {
+      return location.hash.length > 1
+        ? { name: "Hafenseite", rundgang: "hafen", fragen: ["hafenseite", "bewuchstafel", "intensitaet", "messwerte", "beispieldaten"] }
+        : { name: "Hafenseiten", rundgang: "hafen", fragen: ["hafenseite", "hafen-waehlen", "bewuchstafel", "beispieldaten"] };
+    }
+    return { name: "Atlas", rundgang: "atlas", fragen: ["bewuchsdruck", "kernfrage", "rangliste", "gewichtung", "ausgeschlossen"] };
+  }
+
+  function fragenKnoepfe(box) {
+    box.querySelectorAll("[data-frage]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const e = HILFE.find((x) => x.id === b.dataset.frage);
+        nachricht("user", esc(e.frage));
+        antwortZeigen(e, suchen(e.frage).filter((x) => x.e.id !== e.id).slice(0, 3).map((x) => x.e));
+      })
+    );
+  }
+
+  // Rundgang und Fragen zum aktuellen Bereich oben, alle anderen Rundgänge eingeklappt darunter.
+  function hierZeigen() {
+    const box = $(".as-hier");
+    if (!box) return;
+    const h = hier();
+    const t = RUNDGAENGE.find((r) => r.id === h.rundgang && erlaubt(r.rolle));
+    box.innerHTML = `
+      <div class="as-titel">Hier: ${esc(h.name)}</div>
+      ${t ? `<button type="button" class="btn as-start" data-rundgang="${esc(t.id)}">Rundgang starten: ${esc(t.titel)}</button>` : ""}
+      <div class="presets">${startfragen().map((e) => `<button type="button" class="btn-ghost" data-frage="${esc(e.id)}">${esc(e.frage)}</button>`).join("")}</div>`;
+    fragenKnoepfe(box);
+    const andere = RUNDGAENGE.filter((r) => erlaubt(r.rolle) && (!t || r.id !== t.id));
+    const det = $(".as-andere");
+    det.hidden = !andere.length;
+    $(".presets", det).innerHTML = andere.map((r) => `<button type="button" class="btn-ghost" data-rundgang="${esc(r.id)}">${esc(r.titel)}</button>`).join("");
+    $("#assistent").querySelectorAll("[data-rundgang]").forEach((b) => { b.onclick = () => rundgangStarten(b.dataset.rundgang); });
   }
 
   function nachricht(wer, html) {
@@ -164,33 +205,17 @@
   function vorschlaege(eintraege) {
     const box = $(".as-vorschlaege");
     box.innerHTML = eintraege.length
-      ? `<div class="as-titel">Häufige Fragen</div><div class="presets">${eintraege.map((e) => `<button type="button" class="btn-ghost" data-frage="${esc(e.id)}">${esc(e.frage)}</button>`).join("")}</div>`
+      ? `<div class="as-titel">Passt vielleicht auch</div><div class="presets">${eintraege.map((e) => `<button type="button" class="btn-ghost" data-frage="${esc(e.id)}">${esc(e.frage)}</button>`).join("")}</div>`
       : "";
-    box.querySelectorAll("[data-frage]").forEach((b) =>
-      b.addEventListener("click", () => {
-        const e = HILFE.find((x) => x.id === b.dataset.frage);
-        nachricht("user", esc(e.frage));
-        antwortZeigen(e, suchen(e.frage).filter((x) => x.e.id !== e.id).slice(0, 3).map((x) => x.e));
-      })
-    );
+    fragenKnoepfe(box);
   }
 
-  // Passende Fragen zur aktuellen Seite zuerst.
   function startfragen() {
-    const s = seite();
-    const ids = s.startsWith("eingabe") ? ["eingabe-beitrag", "eingabe-tafel", "anteil-schaetzen", "speichern-einreichen"]
-      : s.startsWith("datenbank") ? ["datenbank", "freigeben", "beispieldaten"]
-      : s.startsWith("hafen") ? ["hafenseite", "bewuchstafel", "intensitaet", "beispieldaten"]
-      : ["bewuchsdruck", "kernfrage", "rangliste", "gewichtung"];
-    return ids.map((id) => HILFE.find((e) => e.id === id)).filter((e) => e && erlaubt(e.rolle));
+    return hier().fragen.map((id) => HILFE.find((e) => e.id === id)).filter((e) => e && erlaubt(e.rolle));
   }
 
   function begruessen() {
-    const wiss = rolle() === "wissenschaft";
-    nachricht("bot", wiss
-      ? "Hallo! Ich erkläre den Atlas und zeige Ihnen, wie Sie Beiträge und Ablesungen von Bewuchstafeln eingeben. Starten Sie einen Rundgang oder stellen Sie eine Frage."
-      : "Hallo! Fragen Sie mich alles zum Atlas und zu den Hafenseiten, oder starten Sie einen Rundgang.");
-    vorschlaege(startfragen());
+    nachricht("bot", "Hallo! Oben stehen der Rundgang und häufige Fragen zu dem Bereich, in dem Sie gerade sind. Sie können auch einfach eine Frage eintippen.");
   }
 
   function antwortZeigen(e, aehnlich) {
@@ -342,7 +367,7 @@ ${seitenstand().slice(0, 2500)}`;
       location.href = `${ziel}?rundgang=${encodeURIComponent(id)}${hash ? "#" + hash : ""}`;
       return;
     }
-    if (hash && location.hash.slice(1) !== hash) location.hash = hash;
+    if (hash && !(t.jeder_hafen && location.hash.length > 1) && location.hash.slice(1) !== hash) location.hash = hash;
     $("#assistent").hidden = true;
     $("#assistent-knopf").setAttribute("aria-expanded", "false");
     tour = t;
@@ -465,7 +490,7 @@ ${seitenstand().slice(0, 2500)}`;
     try {
       const [h, r] = await Promise.all([
         fetch("data/hilfe.json?v=1").then((x) => x.json()),
-        fetch("data/rundgaenge.json?v=1").then((x) => x.json()),
+        fetch("data/rundgaenge.json?v=2").then((x) => x.json()),
       ]);
       HILFE = h.eintraege;
       RUNDGAENGE = r.rundgaenge;

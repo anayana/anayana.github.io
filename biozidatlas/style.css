@@ -715,7 +715,11 @@ dialog.anmelden input { font: inherit; color: var(--ink); background: var(--surf
 .as-bot, .as-ki { background: var(--bg); border: 1px solid var(--line); }
 .as-wer { font-size: 0.7rem; font-weight: 600; color: var(--muted); }
 .as-text { white-space: pre-wrap; overflow-wrap: anywhere; }
-.as-vorschlaege .btn-ghost, .as-rundgaenge .btn-ghost { text-align: left; }
+.as-vorschlaege .btn-ghost, .as-hier .btn-ghost, .as-andere .btn-ghost { text-align: left; }
+.as-hier { display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.as-start { align-self: stretch; text-align: left; }
+.as-andere summary { cursor: pointer; color: var(--accent); font-size: 0.85rem; }
+.as-andere .presets { margin-top: 6px; }
 .as-form { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
 .as-form input { flex: 1 1 auto; min-width: 0; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 9px; }
 .as-ki { padding: 0 14px 10px; font-size: 0.85rem; }
