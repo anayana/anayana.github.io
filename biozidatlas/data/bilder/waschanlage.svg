@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 340" role="img" aria-label="Skizze: Boot fährt zwischen rotierenden Bürsten hindurch, das Waschwasser läuft in ein Auffangbecken">
+  <rect width="600" height="340" fill="#eef4f6"/>
+  <rect y="150" width="600" height="190" fill="#9cc7d6"/>
+  <path d="M170 150 Q300 250 430 150 Z" fill="#e9e3d6" stroke="#5f6a70" stroke-width="3"/>
+  <rect x="285" y="70" width="8" height="80" fill="#5f6a70"/>
+  <g fill="#c98a2b" stroke="#7a5418" stroke-width="2">
+    <rect x="150" y="160" width="26" height="110" rx="12"/><rect x="424" y="160" width="26" height="110" rx="12"/>
+    <rect x="270" y="252" width="60" height="22" rx="10"/>
+  </g>
+  <rect x="120" y="296" width="360" height="30" fill="#7a8a90"/>
+  <g fill="none" stroke="#1d2b33" stroke-width="2"><path d="M300 278 L300 294"/><path d="M294 288 L300 294 L306 288"/></g>
+  <g font-family="sans-serif" font-size="16" fill="#1d2b33">
+    <text x="40" y="190">Bürsten</text>
+    <text x="490" y="190">Bürsten</text>
+    <text x="490" y="318">Auffangbecken</text>
+  </g>
+  <text x="590" y="24" text-anchor="end" font-family="sans-serif" font-size="12" fill="#3d4f57">Skizze, Beispiel</text>
+</svg>

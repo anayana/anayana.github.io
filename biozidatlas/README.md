@@ -24,12 +24,24 @@ python -m http.server 8000
 
 ```
 biozidatlas/
-  index.html              Seite
+  index.html              Atlas (Karte, Bewertung, Chat)
+  hafen.html              Hafenseiten: Übersicht und je Hafen eine Seite
+  eingabe.html            Eingabeformulare für Beiträge und Bewuchstafeln
+  datenbank.html          Alle Daten als SQLite-Datenbank im Browser
   style.css               Gestaltung (hell und dunkel)
   js/mcda.js              Verfahren: gewichtete Summe, TOPSIS, PROMETHEE II, Borda-Konsens, Robustheit
   js/live.js              PEGELONLINE und Open-Meteo, nächste Messstelle, Faustregel zur Saison
   js/app.js               Karte, Regeln, Darstellung, Stand als Text für Druck und Chat
   js/chat.js              Chatbot im Browser (WebLLM)
+  js/daten.js             Gemeinsamer Code der Unterseiten: Laden, lokale Einträge, Darstellung
+  js/hafenseite.js        Hafenseiten
+  js/eingabe.js           Eingabe, Prüfung, Speichern und Einreichen
+  js/datenbank.js         Aufbau der Datenbank, Tabellen, Abfragen
+  data/schema.sql         Datenbankschema (SQLite, nach PostgreSQL übertragbar)
+  data/bewuchstafeln.json Ablesungen von Bewuchstafeln (Beispieldaten)
+  data/beitraege.json     Beiträge der Hafenseiten (Beispieldaten)
+  data/bilder/            Bilder zu Beiträgen und Tafeln
+  tools/eingabe_uebernehmen.py  Übernahme freigegebener Einreichungen
   data/*.json             Beispieldaten (siehe unten)
   data/osm-haefen.json    Häfen aus OpenStreetMap (vom GitHub-Actions-Job geschrieben)
   tools/osm_haefen.py     Overpass-Abfrage für data/osm-haefen.json
@@ -37,6 +49,7 @@ biozidatlas/
   tools/copernicus.py     Abfrage bei Copernicus Marine für data/copernicus.json
   vendor/leaflet/         Leaflet 1.9.4 (BSD-2-Clause)
   vendor/web-llm/         WebLLM 0.2.86 (Apache-2.0)
+  vendor/sql.js/          sql.js 1.13.0, SQLite im Browser (MIT)
 ```
 
 ## Ablauf der Bewertung
@@ -171,6 +184,52 @@ Slipanlage, Waschanlage oder Trockenliegeplatz eingetragen sind; was nicht
 eingetragen ist, gilt als unbekannt. Das Revier übernimmt jeder Hafen vom
 nächsten Beispielhafen (höchstens 30 km entfernt), weiter entfernte Häfen
 werden weggelassen. Auf der Karte erscheinen sie als kleine graue Punkte.
+
+## Hafenseiten, Eingabe und Datenbank
+
+**Hafenseiten** (`hafen.html#<hafen-id>`): Jeder Hafen, auch aus
+OpenStreetMap, hat eine Seite mit Grunddaten, Bewuchskalender, Messwerten von
+Copernicus, der Bewuchsintensität aus den Bewuchstafeln (Kennzahl, Verlauf je
+Ablesung, Karten der einzelnen Ablesungen) und Beiträgen. Ohne Kennung zeigt
+`hafen.html` eine Übersicht mit Suche. Im Atlas führt „Hafenseite“ im
+Steckbrief dorthin.
+
+**Beiträge** haben immer denselben Aufbau: Überschrift, Unterüberschrift,
+Metadaten (Autor/in, Datum, Quelle, Lizenz, Schlagworte), Bild mit
+Bildbeschreibung und Bildnachweis, Erklärung. So können Mitarbeitende die
+Seiten ergänzen, ohne an der Gestaltung etwas zu ändern. Nur Beiträge mit
+Status `veroeffentlicht` erscheinen.
+
+**Bewuchstafeln** (Citizen Science): je Ablesung Tafel, Datum des Ausbringens
+und Ablesens, Tiefe, bewachsener Anteil und Zusammensetzung des Bewuchses.
+Ohne Foto zeigt die Seite ein aus den Angaben erzeugtes Symbolbild.
+
+**Eingabe** (`eingabe.html`): Formulare mit genau den Feldern der Tabellen
+`beitraege` und `bewuchstafeln`, Live-Vorschau, Prüfung der Pflichtfelder und
+Regeln, Bild-Upload (auf 900 px verkleinert). Speichern geht im Prototyp auf
+drei Wegen:
+
+1. **Im Browser speichern:** Der Eintrag erscheint gekennzeichnet auf der
+   Hafenseite, aber nur im eigenen Browser (localStorage).
+2. **Als JSON herunterladen.**
+3. **Zur Prüfung einreichen:** öffnet einen vorausgefüllten Vorgang (Issue)
+   auf GitHub mit dem Datensatz als JSON; ein Bild wird dort hineingezogen.
+   Gibt die Redaktion den Vorgang frei (Label `freigegeben` oder Workflow
+   „Antifouling-Atlas - Eingabe übernehmen“ von Hand mit der Vorgangsnummer),
+   prüft `tools/eingabe_uebernehmen.py` den Datensatz nach denselben Regeln,
+   lädt das Bild herunter, vergibt eine Kennung, schreibt den Eintrag in die
+   Daten, kommentiert und schließt den Vorgang und veröffentlicht die Seite
+   neu. Labels setzen und Workflows starten können nur Personen mit Rechten
+   am Repository; ohne Freigabe kommt nichts hinein.
+
+Später ersetzt eine Verwaltungsoberfläche mit Anmeldung (z. B. Directus) an
+der echten Datenbank die Wege 1 bis 3.
+
+**Datenbank** (`datenbank.html`): baut beim Öffnen mit sql.js eine
+SQLite-Datenbank nach `data/schema.sql` und füllt sie aus allen JSON-Dateien
+(12 Tabellen, gut 2.000 Zeilen). Die Seite zeigt, woher die Daten kommen, alle
+Tabellen mit Filter und Blättern, das Schema und eine SQL-Abfrage mit
+Beispielen. Änderungen gelten nur bis zum Neuladen.
 
 ## Meeresdaten von Copernicus
 

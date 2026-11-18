@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Hafenseiten – Antifouling-Atlas</title>
+  <meta name="description" content="Prototyp: Hafenseiten mit Grunddaten, Messwerten, Bewuchstafeln aus Bürgerwissenschaft und Beiträgen.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css?v=8">
+</head>
+<body class="seite">
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <h1>Antifouling-Atlas</h1>
+        <p class="tagline">Hafenseiten</p>
+      </div>
+      <nav class="hauptnav no-print" aria-label="Bereiche">
+        <a href="index.html">Atlas</a>
+        <a href="hafen.html" aria-current="page">Hafenseiten</a>
+        <a href="eingabe.html">Eingabe</a>
+        <a href="datenbank.html">Datenbank</a>
+      </nav>
+      <p class="banner" role="note">
+        <strong>Prototyp mit Beispieldaten.</strong>
+        Bewuchstafeln und Beiträge sind ausgedacht und zeigen nur, wie die Seiten aufgebaut sind.
+      </p>
+    </div>
+  </header>
+
+  <main class="seite-inhalt" id="inhalt" aria-live="polite">
+    <p class="hint">Daten werden geladen …</p>
+  </main>
+
+  <script src="js/daten.js?v=1"></script>
+  <script src="js/hafenseite.js?v=1"></script>
+</body>
+</html>

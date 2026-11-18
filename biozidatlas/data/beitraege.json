@@ -1,0 +1,187 @@
+{
+ "_hinweis": "Beispielbeiträge, ausgedacht für die Struktur. Jeder Beitrag gehört zu einem Hafen und hat immer dieselben Felder: ueberschrift, unterueberschrift, metadaten (autor, datum, quelle, lizenz, schlagworte), bild (datei unter data/bilder/, alt-Text, bildnachweis; oder null) und text (Absätze durch Leerzeile getrennt). status: veroeffentlicht oder entwurf; reihenfolge: Position auf der Hafenseite.",
+ "beitraege": [
+  {
+   "id": "b001",
+   "hafen_id": "kiel-schilksee",
+   "reihenfolge": 1,
+   "status": "veroeffentlicht",
+   "ueberschrift": "Bewuchstafeln am Steg C",
+   "unterueberschrift": "Bürgerwissenschaft: Mitglieder lesen jeden Monat eine Tafel ab",
+   "metadaten": {
+    "autor": "Redaktion Antifouling-Atlas (Beispiel)",
+    "datum": "2026-10-05",
+    "quelle": "Beispieltext",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Bewuchstafel",
+     "Citizen Science",
+     "Monitoring"
+    ]
+   },
+   "bild": {
+    "datei": "bilder/bewuchstafel-aufbau.svg",
+    "alt": "Skizze: Bewuchstafel an einer Leine unter dem Steg",
+    "bildnachweis": "Skizze, Beispiel"
+   },
+   "text": "Seit Mai 2026 hängt am Steg C eine Bewuchstafel aus grauem Kunststoff, 15 × 15 cm groß, etwa einen Meter unter der Oberfläche. Einmal im Monat holen Vereinsmitglieder sie kurz heraus, fotografieren beide Seiten und schätzen, wie viel der Fläche bewachsen ist.\n\nDie Ablesungen zeigen, wann der Bewuchs am Liegeplatz einsetzt und wie schnell er zunimmt. Daraus lässt sich ablesen, wann Reinigen oder Kranen sinnvoll ist."
+  },
+  {
+   "id": "b002",
+   "hafen_id": "kiel-schilksee",
+   "reihenfolge": 2,
+   "status": "veroeffentlicht",
+   "ueberschrift": "Bürsten-Waschanlage im Hafen",
+   "unterueberschrift": "Biozidfrei sauber halten, die Reste werden aufgefangen",
+   "metadaten": {
+    "autor": "Hafenverwaltung (Beispiel)",
+    "datum": "2026-09-12",
+    "quelle": "Beispieltext",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Waschanlage",
+     "biozidfrei"
+    ]
+   },
+   "bild": {
+    "datei": "bilder/waschanlage.svg",
+    "alt": "Skizze: Boot zwischen rotierenden Bürsten, darunter ein Auffangbecken",
+    "bildnachweis": "Skizze, Beispiel"
+   },
+   "text": "Boote mit einer harten, biozidfreien Beschichtung fahren in der Saison alle drei bis vier Wochen durch die Waschanlage. Ein Durchgang dauert etwa zehn Minuten.\n\nDas Waschwasser läuft in ein Becken und wird gefiltert, damit abgelöster Bewuchs und Farbreste nicht ins Hafenbecken gelangen."
+  },
+  {
+   "id": "b003",
+   "hafen_id": "buesum",
+   "reihenfolge": 1,
+   "status": "veroeffentlicht",
+   "ueberschrift": "Seepocken im Spätsommer",
+   "unterueberschrift": "Warum der Bewuchs an der Nordsee so schnell zunimmt",
+   "metadaten": {
+    "autor": "Redaktion Antifouling-Atlas (Beispiel)",
+    "datum": "2026-08-25",
+    "quelle": "Beispieltext",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Seepocken",
+     "Nordsee"
+    ]
+   },
+   "bild": {
+    "datei": "bilder/seepocken.svg",
+    "alt": "Skizze: dicht mit Seepocken besetzte Fläche",
+    "bildnachweis": "Skizze, Beispiel"
+   },
+   "text": "Im salzigen Wasser der Nordsee setzen sich ab etwa 15 °C Wassertemperatur viele Seepockenlarven fest. Auf der Tafel in Büsum war Ende August fast die ganze Fläche bewachsen.\n\nWer biozidfrei unterwegs ist, sollte den Rumpf in dieser Zeit besonders häufig reinigen. Seepocken lassen sich jung noch leicht abschaben, ausgewachsen kaum noch."
+  },
+  {
+   "id": "b004",
+   "hafen_id": "greifswald",
+   "reihenfolge": 1,
+   "status": "veroeffentlicht",
+   "ueberschrift": "Nährstoffreicher Bodden",
+   "unterueberschrift": "Viel Algen, wenig Seepocken",
+   "metadaten": {
+    "autor": "Schulprojekt (Beispiel)",
+    "datum": "2026-09-03",
+    "quelle": "Beispieltext",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Bodden",
+     "Chlorophyll",
+     "Algen"
+    ]
+   },
+   "bild": null,
+   "text": "Im Greifswalder Bodden ist das Wasser kaum salzig, aber reich an Nährstoffen. Copernicus meldet hier deutlich mehr Chlorophyll als an der offenen Küste.\n\nAuf der Tafel wächst deshalb vor allem ein schleimiger Biofilm mit Grünalgen. Seepocken kommen bei dem geringen Salzgehalt kaum vor; ein biozidhaltiger Anstrich ist hier meist nicht nötig."
+  },
+  {
+   "id": "b005",
+   "hafen_id": "wannsee",
+   "reihenfolge": 1,
+   "status": "veroeffentlicht",
+   "ueberschrift": "Dreikantmuscheln im Hafenbecken",
+   "unterueberschrift": "Süßwasser heißt nicht bewuchsfrei",
+   "metadaten": {
+    "autor": "Wassersportverein (Beispiel)",
+    "datum": "2026-09-08",
+    "quelle": "Beispieltext",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Dreikantmuschel",
+     "Süßwasser"
+    ]
+   },
+   "bild": {
+    "datei": "bilder/muschel.svg",
+    "alt": "Skizze einer dreieckigen, gestreiften Muschel, 2 bis 4 cm groß",
+    "bildnachweis": "Skizze, Beispiel"
+   },
+   "text": "In den Berliner Seen sitzen Dreikantmuscheln an Stegen, Ketten und Rümpfen. Auf der Tafel waren sie ab Juli deutlich zu sehen.\n\nBiozidhaltige Anstriche sind für Süßwasser im Prototyp nicht vorgesehen. Bewährt hat sich, den Rumpf im Herbst beim Auskranen gründlich zu reinigen."
+  },
+  {
+   "id": "b006",
+   "hafen_id": "konstanz",
+   "reihenfolge": 1,
+   "status": "veroeffentlicht",
+   "ueberschrift": "Quaggamuschel im Bodensee",
+   "unterueberschrift": "Eine eingeschleppte Art breitet sich aus",
+   "metadaten": {
+    "autor": "Tauchgruppe (Beispiel)",
+    "datum": "2026-09-20",
+    "quelle": "Beispieltext",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Quaggamuschel",
+     "gebietsfremde Art",
+     "Bodensee"
+    ]
+   },
+   "bild": {
+    "datei": "bilder/muschel.svg",
+    "alt": "Skizze einer dreieckigen Muschel",
+    "bildnachweis": "Skizze, Beispiel"
+   },
+   "text": "Die Quaggamuschel wurde vor einigen Jahren in den Bodensee eingeschleppt und besiedelt inzwischen auch tiefere Bereiche. Auf der Tafel in zwei Metern Tiefe machte sie im September den größten Teil des Bewuchses aus.\n\nBoote, die zwischen Gewässern wechseln, sollten vor dem Einsetzen gereinigt und getrocknet werden, damit keine Larven verschleppt werden."
+  },
+  {
+   "id": "b007",
+   "hafen_id": "konstanz",
+   "reihenfolge": 2,
+   "status": "veroeffentlicht",
+   "ueberschrift": "Regeln für Unterwasseranstriche",
+   "unterueberschrift": "Am Bodensee nur ohne Biozid",
+   "metadaten": {
+    "autor": "Redaktion Antifouling-Atlas (Beispiel)",
+    "datum": "2026-04-02",
+    "quelle": "Beispieltext, Regel vor Verwendung prüfen",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Regeln",
+     "Bodensee"
+    ]
+   },
+   "bild": null,
+   "text": "Im Atlas ist für den Bodensee hinterlegt, dass biozidhaltige Unterwasseranstriche nicht erlaubt sind. Die Bewertung schließt sie dort deshalb aus.\n\nDie genaue Rechtslage muss vor einer Veröffentlichung geprüft werden; dieser Beitrag zeigt nur, wie solche Hinweise auf der Hafenseite erscheinen."
+  },
+  {
+   "id": "b008",
+   "hafen_id": "cuxhaven",
+   "reihenfolge": 1,
+   "status": "entwurf",
+   "ueberschrift": "Waschplatz mit Auffangsystem",
+   "unterueberschrift": "Entwurf, noch nicht freigegeben",
+   "metadaten": {
+    "autor": "Hafenverwaltung (Beispiel)",
+    "datum": "2026-11-10",
+    "quelle": "Beispieltext",
+    "lizenz": "intern",
+    "schlagworte": [
+     "Waschplatz"
+    ]
+   },
+   "bild": null,
+   "text": "Dieser Beitrag ist ein Entwurf. Er steht in der Datenbank, erscheint aber erst auf der Hafenseite, wenn die Redaktion ihn freigibt."
+  }
+ ]
+}

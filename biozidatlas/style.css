@@ -228,8 +228,10 @@ a { color: var(--accent); }
 
 .fields { display: flex; gap: 12px; flex-wrap: wrap; }
 
-.field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 220px; min-width: 0; }
-.field-num { flex: 0 1 140px; }
+/* Breite teilen sich Felder nur nebeneinander in einer .fields-Zeile; untereinander bleiben sie so hoch wie ihr Inhalt. */
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fields > .field { flex: 1 1 220px; }
+.fields > .field-num { flex: 0 1 140px; }
 .field-inline { flex-direction: row; align-items: center; gap: 8px; flex: 0 1 auto; }
 
 label { font-size: 0.85rem; color: var(--muted); }
@@ -351,6 +353,7 @@ select, input[type="number"] {
 .kal-legend span { display: inline-flex; align-items: center; gap: 4px; }
 .kal-legend .k { width: 12px; height: 10px; padding: 0; }
 .kal-jetzt { margin: 0; font-size: 0.88rem; }
+.tafel-kurz { margin: 0; font-size: 0.88rem; }
 
 /* Kernfrage */
 .kernfrage { border-left: 4px solid var(--accent); }
@@ -530,6 +533,126 @@ td.diff { background: var(--warn-bg); color: var(--warn-ink); }
 
 .map-toggle:hover { background: var(--accent-soft); }
 .leaflet-tooltip { font-family: var(--font); }
+
+/* Navigation zwischen Atlas, Hafenseiten, Eingabe und Datenbank */
+.hauptnav { display: flex; flex-wrap: wrap; gap: 4px; }
+.hauptnav a {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+.hauptnav a:hover { background: var(--accent-soft); }
+.hauptnav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+
+a.btn, a.btn-ghost { display: inline-block; text-decoration: none; }
+.aktionen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.leer { color: var(--muted); font-style: italic; }
+.load-error-inline { padding: 12px 14px; background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--radius); }
+
+/* Unterseiten: eine Spalte mit fester Höchstbreite */
+.seite-inhalt {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.seite-titel { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; text-transform: none; color: var(--ink); }
+.einleitung { margin: 0; max-width: 70ch; }
+.unterzeile { margin: 2px 0 0; color: var(--muted); }
+.crumbs { font-size: 0.88rem; color: var(--muted); }
+.seite-kopf { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: flex-end; }
+.seite-raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+.abschnitt { display: flex; flex-direction: column; gap: 12px; }
+.abschnitt-titel { font-size: 1.1rem; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.card h2.zwischen { margin-top: 6px; }
+.revier-titel { font-size: 0.95rem; margin: 8px 0 0; }
+.suche { max-width: 480px; }
+.suche input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
+
+.hafenliste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hafenliste li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.hafenliste a { font-weight: 600; }
+
+/* Bewuchsintensität: Kennzahl und Verlauf je Ablesung */
+.kennzahl { display: flex; gap: 14px; align-items: center; }
+.kz-wert { font-family: var(--mono); font-size: 2rem; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.verlauf {
+  display: flex; align-items: flex-end; gap: 10px; height: 170px;
+  padding: 4px 4px 0; border-bottom: 1px solid var(--line);
+  background: repeating-linear-gradient(to top, transparent 0, transparent calc(50% - 1px), var(--line) calc(50% - 1px), var(--line) 50%);
+}
+.vb { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; position: relative; }
+.vb-saeule { width: 100%; max-width: 46px; border-radius: 4px 4px 0 0; }
+.vb-wert { font-size: 0.75rem; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.vb-datum { position: absolute; bottom: -20px; font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+.verlauf + .example { margin-top: 24px; }
+
+.tafel-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.tafel {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px;
+}
+.tafel-bild svg, .tafel-bild img { width: 120px; height: 120px; display: block; border-radius: 4px; object-fit: cover; }
+.tafel-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.88rem; }
+.tafel-kopf { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tafel-meta { color: var(--muted); font-size: 0.8rem; }
+
+/* Beiträge: immer Überschrift, Unterzeile, Metadaten, Bild, Erklärung */
+.beitrag-liste { display: flex; flex-direction: column; gap: 14px; }
+.beitrag {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; max-width: 860px;
+}
+.beitrag h3 { margin: 0; font-size: 1.25rem; text-wrap: balance; }
+.beitrag-meta { margin: 4px 0 0; font-size: 0.82rem; color: var(--muted); }
+.beitrag figure { margin: 0; }
+.beitrag figure img { width: 100%; max-height: 360px; object-fit: contain; background: var(--bg); border-radius: 4px; }
+.beitrag figcaption { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+.beitrag-text p { margin: 0 0 0.7em; max-width: 70ch; }
+.beitrag-text p:last-child { margin-bottom: 0; }
+.is-lokal { border: 2px dashed var(--accent); }
+.is-entwurf { opacity: 0.8; }
+.lokal-hinweis { align-self: flex-start; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+
+/* Eingabe */
+.eingabe-raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; align-items: start; }
+.eingabe-raster > .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.formular input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), .formular textarea, .formular select, #sql {
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 9px; width: 100%;
+}
+.formular input[type=range] { width: 100%; accent-color: var(--accent); }
+.gruppe { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.gruppe legend { font-size: 0.85rem; color: var(--muted); padding: 0 4px; }
+.org-zeile { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; gap: 8px; align-items: center; }
+.tabs { max-width: 620px; }
+.fehler { padding: 10px 12px; background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--radius); font-size: 0.9rem; }
+.fehler ul { margin: 4px 0 0; padding-left: 18px; }
+.schritte { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.lokal-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lokal-liste li { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px; }
+pre.json {
+  margin: 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+  font: 0.78rem/1.45 var(--mono); overflow-x: auto; max-height: 420px; white-space: pre;
+}
+
+/* Datenbank */
+.fluss { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 8px; }
+.fluss-quelle, .fluss-ziel {
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--bg);
+  display: flex; flex-direction: column; gap: 2px; font-size: 0.88rem;
+}
+.fluss-quelle span, .fluss-ziel span { color: var(--muted); }
+.fluss-ziel { flex-direction: row; gap: 8px; flex-wrap: wrap; background: var(--accent-soft); }
+.fluss-pfeil { text-align: center; color: var(--muted); font-size: 1.2rem; line-height: 1; }
+#tabellen td, #ansicht td, #ergebnis td { font-size: 0.82rem; vertical-align: top; }
+.num-v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* Steckbrief drucken: Karte und Bedienung weg, eine Spalte, Farben der Balken behalten */
 @media print {

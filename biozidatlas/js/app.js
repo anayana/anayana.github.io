@@ -66,6 +66,7 @@
     const osm = await loadJSON("osm-haefen").catch(() => null);
     // Meeresdaten von Copernicus schreibt ebenfalls ein Job; ohne Datei geht es mit Open-Meteo.
     const cop = await loadJSON("copernicus").catch(() => null);
+    const tafeln = await loadJSON("bewuchstafeln").catch(() => null);
     const byId = (arr) => Object.fromEntries(arr.map((x) => [x.id, x]));
     const osmHaefen = (osm ? osm.haefen : []).map((h) => ({ ...h, quelle: "osm" }));
     return {
@@ -76,6 +77,7 @@
       hafen: { ...byId(osmHaefen), ...byId(hf.haefen) },
       osm: { haefen: osmHaefen, stand: osm ? osm.stand : null },
       cop: cop ? cop.werte : {},
+      tafeln: tafeln ? tafeln.tafeln : [],
       optionen: op.optionen,
       kriterien: kr,
       pk: byId(pk.kategorien),
@@ -223,6 +225,14 @@
     return iso ? new Date(iso + "T00:00:00Z").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "unbekannt";
   }
 
+  // Letzte Ablesung einer Bewuchstafel im Hafen (Citizen Science, Beispieldaten).
+  function tafelInfo(hafen) {
+    const ts = D.tafeln.filter((t) => t.hafen_id === hafen.id).sort((a, b) => a.abgelesen.localeCompare(b.abgelesen));
+    if (!ts.length) return null;
+    const max = ts.reduce((m, t) => Math.max(m, t.bedeckung_prozent), 0);
+    return { letzte: ts[ts.length - 1], max, anzahl: ts.length };
+  }
+
   function zeitText(t) {
     return t ? new Date(t).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "unbekannt";
   }
@@ -238,7 +248,10 @@
     $("#steckbrief").innerHTML = `
       <div class="card-head">
         <h2>${state.profil === "beruf" ? "Heimathafen" : "Liegeplatz"}${osm ? " aus OpenStreetMap" : ""}</h2>
-        <button type="button" class="btn-ghost no-print" id="drucken">Steckbrief drucken</button>
+        <span class="aktionen no-print">
+          <a class="btn-ghost" href="hafen.html#${esc(hafen.id)}">Hafenseite</a>
+          <button type="button" class="btn-ghost" id="drucken">Steckbrief drucken</button>
+        </span>
       </div>
       <div class="hafen-name">${esc(hafen.name)}</div>
       <div class="hafen-revier">${esc(revier.name)}${osm ? ` <span class="example">(Revier vom Beispielhafen ${esc(hafen.revier_von)}, ${zahl(hafen.revier_km)} km)</span>` : ""}</div>
@@ -251,9 +264,17 @@
         <dt>Im Hafen</dt><dd>Waschanlage ${janein(inf.waschanlage)} · Kran ${janein(inf.kran)} · Trockenliegeplatz ${janein(inf.trockenliegeplatz)}</dd>
       </dl>
       <div class="example">${osm ? "Lage und Infrastruktur aus OpenStreetMap (unbekannt = nicht eingetragen); Bewuchsdruck: Beispielwert." : "Bewuchsdruck und Hafen-Infrastruktur: Beispielwerte."}</div>
+      ${tafelHTML(hafen)}
       <div class="kalender-box" id="kalender-box">${kalenderHTML(revier)}</div>
       <div class="live" id="live-box">${liveHTML(hafen)}</div>`;
     $("#drucken").addEventListener("click", () => window.print());
+  }
+
+  function tafelHTML(hafen) {
+    const ti = tafelInfo(hafen);
+    if (!ti) return "";
+    const d = new Date(ti.letzte.abgelesen + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return `<p class="tafel-kurz"><b>Bewuchstafel:</b> am ${d} zu ${zahl(ti.letzte.bedeckung_prozent)} % bewachsen, Höchstwert ${zahl(ti.max)} % (${ti.anzahl} Ablesungen, Beispieldaten). <a href="hafen.html#${esc(hafen.id)}">Ablesungen ansehen</a></p>`;
   }
 
   function kalenderHTML(revier) {
@@ -618,6 +639,8 @@
     if (t.cop && t.cop.salz != null) z.push(`Salzgehalt laut Copernicus: ${zahl(t.cop.salz, 1)} PSU.`);
     if (t.cop && t.cop.chl != null) z.push(`Chlorophyll laut Copernicus: ${zahl(t.cop.chl, 1)} mg/m³ (${chlText(t.cop.chl)}); mehr Nährstoffe bedeuten eher mehr Bewuchs.`);
     z.push(`Jetzt (${MONATE[monat]}): ${jetztHinweis(revier, monat)}`);
+    const ti = tafelInfo(hafen);
+    if (ti) z.push(`Bewuchstafel im Hafen (Citizen Science): letzte Ablesung ${ti.letzte.abgelesen} mit ${zahl(ti.letzte.bedeckung_prozent)} % Bedeckung (${ti.letzte.organismen.map((o) => o.name).join(", ")}), Höchstwert der Saison ${zahl(ti.max)} %.`);
     z.push(`Nutzer: ${profilText()}.`);
     z.push(`Gewichtung: ${aktiv ? aktiv.label + ": " : ""}${ctx.crit.map((c) => `${c.label} ${zahl(100 * ctx.weights[c.key])} %`).join(", ")}. Verfahren: ${METHODE_NAME[state.methode]}.`);
     z.push(`Antwort auf "Geht es ohne Biozid?": ${k.head}. ${k.text}`);

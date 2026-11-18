@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 340" role="img" aria-label="Skizze: dreieckige Muschel mit gestreifter Schale, Größe etwa 2 bis 4 Zentimeter">
+  <rect width="600" height="340" fill="#f2f0ea"/>
+  <path d="M200 260 L300 70 L410 250 Q305 300 200 260 Z" fill="#c9b48a" stroke="#5b4a2c" stroke-width="4"/>
+  <g stroke="#5b4a2c" stroke-width="5" fill="none" opacity="0.8">
+    <path d="M232 238 Q300 205 380 230"/><path d="M252 200 Q302 172 362 196"/><path d="M272 160 Q303 140 340 158"/>
+  </g>
+  <line x1="200" y1="300" x2="410" y2="300" stroke="#1d2b33" stroke-width="2"/>
+  <line x1="200" y1="292" x2="200" y2="308" stroke="#1d2b33" stroke-width="2"/>
+  <line x1="410" y1="292" x2="410" y2="308" stroke="#1d2b33" stroke-width="2"/>
+  <text x="305" y="328" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#1d2b33">etwa 2 bis 4 cm</text>
+  <text x="590" y="24" text-anchor="end" font-family="sans-serif" font-size="12" fill="#3d4f57">Skizze, Beispiel</text>
+</svg>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Datenbank – Antifouling-Atlas</title>
+  <meta name="description" content="Prototyp: alle Daten des Antifouling-Atlas als SQLite-Datenbank im Browser, mit Schema, Tabellen und Abfragen.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css?v=8">
+</head>
+<body class="seite">
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <h1>Antifouling-Atlas</h1>
+        <p class="tagline">Datenbank</p>
+      </div>
+      <nav class="hauptnav no-print" aria-label="Bereiche">
+        <a href="index.html">Atlas</a>
+        <a href="hafen.html">Hafenseiten</a>
+        <a href="eingabe.html">Eingabe</a>
+        <a href="datenbank.html" aria-current="page">Datenbank</a>
+      </nav>
+      <p class="banner" role="note">
+        <strong>Exemplarische Datenbank.</strong>
+        Sie wird beim Öffnen im Browser aus den Daten des Atlas aufgebaut. Die Struktur ist echt, viele Inhalte sind ausgedacht.
+      </p>
+    </div>
+  </header>
+
+  <main class="seite-inhalt">
+    <h2 class="seite-titel">Datenbank</h2>
+    <p class="einleitung">Alle Daten des Atlas in einer relationalen Datenbank (SQLite, läuft im Browser). Das Schema lässt sich so in PostgreSQL übernehmen.
+      Änderungen hier wirken nur bis zum Neuladen; neue Daten kommen über die <a href="eingabe.html">Eingabe</a> oder die automatischen Abrufe.</p>
+
+    <section class="card">
+      <h2>Woher die Daten kommen</h2>
+      <div class="fluss" role="list">
+        <div class="fluss-quelle" role="listitem"><b>Redaktion</b><span>Reviere, Optionen, Kriterien, Produktkategorien (Beispieldaten)</span></div>
+        <div class="fluss-quelle" role="listitem"><b>Mitarbeitende</b><span>Beiträge und Bewuchstafeln über die Eingabe, nach Freigabe</span></div>
+        <div class="fluss-quelle" role="listitem"><b>OpenStreetMap</b><span>Häfen, monatlicher Abruf</span></div>
+        <div class="fluss-quelle" role="listitem"><b>Copernicus Marine</b><span>Temperatur, Salzgehalt, Chlorophyll, täglicher Abruf</span></div>
+      </div>
+      <div class="fluss-pfeil" aria-hidden="true">↓</div>
+      <div class="fluss-ziel"><b>Datenbank</b> <span id="db-status">wird aufgebaut …</span></div>
+      <div class="fluss-pfeil" aria-hidden="true">↓</div>
+      <div class="fluss-ziel"><b>Atlas, Hafenseiten, Chatbot</b> <span>lesen aus der Datenbank</span></div>
+    </section>
+
+    <section class="card">
+      <h2>Tabellen</h2>
+      <div class="table-wrap"><table id="tabellen"></table></div>
+    </section>
+
+    <section class="card" id="ansicht-card">
+      <div class="card-head">
+        <h2 id="ansicht-titel">Tabelle</h2>
+        <div class="field field-inline"><label for="filter">Filtern</label><input type="search" id="filter" placeholder="Text in einer Zeile"></div>
+      </div>
+      <div class="table-wrap"><table id="ansicht"></table></div>
+      <div class="aktionen" id="blaettern"></div>
+    </section>
+
+    <section class="card">
+      <h2>Abfrage (SQL)</h2>
+      <div class="presets" id="beispiele"></div>
+      <label for="sql" class="sr-only">SQL-Abfrage</label>
+      <textarea id="sql" rows="6" spellcheck="false"></textarea>
+      <div class="aktionen"><button type="button" class="btn" id="ausfuehren">Ausführen</button></div>
+      <p class="hint" id="sql-meldung" aria-live="polite"></p>
+      <div class="table-wrap"><table id="ergebnis"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Schema</h2>
+      <p class="hint">Datei <a href="data/schema.sql">data/schema.sql</a>; die Eingabeformulare haben genau diese Felder.</p>
+      <pre class="json" id="schema"></pre>
+    </section>
+  </main>
+
+  <script src="vendor/sql.js/sql-wasm.js"></script>
+  <script src="js/daten.js?v=1"></script>
+  <script src="js/datenbank.js?v=1"></script>
+</body>
+</html>
