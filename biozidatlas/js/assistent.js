@@ -486,9 +486,11 @@ ${seitenstand().slice(0, 2500)}`;
     SP.an = true;
     SP.fehl = 0;
     mikroZustand("laedt");
-    sprachStatus("Spracherkennung wird vorbereitet …");
+    sprachStatus("Spracherkennung wird geladen …");
     try {
-      await window.Sprache.laden((w) => sprachStatus(`Spracherkennung wird geladen: ${Math.round(w * 100)} % (einmalig etwa 100 MB, danach aus dem Zwischenspeicher)`));
+      await window.Sprache.laden((w, phase) => sprachStatus(phase === "start"
+        ? "Spracherkennung startet …"
+        : `Spracherkennung wird geladen: ${Math.round(w * 100)} % (beim ersten Mal etwa 100 MB, danach aus dem Speicher des Browsers)`));
     } catch (e) {
       SP.an = false;
       mikroZustand("");

@@ -33,10 +33,10 @@
     bereit = (async () => {
       const m = await fetch(new URL("modelle/manifest.json", location.href), { cache: "no-cache" }).catch(() => null);
       if (!m || !m.ok) throw new Error("ohne-modell");
-      worker = new Worker(new URL("js/sprache-worker.js?v=4", location.href), { type: "module" });
+      worker = new Worker(new URL("js/sprache-worker.js?v=5", location.href), { type: "module" });
       worker.onmessage = (e) => {
         const d = e.data || {};
-        if (d.typ === "fortschritt") { if (fortschritt) fortschritt(d.wert); return; }
+        if (d.typ === "fortschritt") { if (fortschritt) fortschritt(d.wert, d.phase); return; }
         const a = auftraege.get(d.id);
         if (!a) return;
         auftraege.delete(d.id);
