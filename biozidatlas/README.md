@@ -34,6 +34,11 @@ biozidatlas/
   js/app.js               Karte, Regeln, Darstellung, Stand als Text für Druck und Chat
   js/zugang.js            Anmeldung und Rollen (Demo)
   js/assistent.js         Assistent: Fragen, Rundgänge, optional KI-Modell
+  js/sprache.js           Spracheingabe: Mikrofon, Pausenerkennung, Vorlesen
+  js/sprache-worker.js    Spracherkennung mit Whisper im Hintergrund (transformers.js)
+  vendor/transformers/    transformers.js 4.3.1 (Apache-2.0)
+  modelle/                Whisper Base und ONNX Runtime; nicht in main, siehe „Spracheingabe“
+  tools/sprachmodell_holen.py  Holt Modell und Laufzeit für den Zweig biozidatlas-modelle
   js/daten.js             Gemeinsamer Code der Unterseiten: Laden, lokale Einträge, Darstellung
   js/hafenseite.js        Hafenseiten
   js/eingabe.js           Eingabe, Prüfung, Speichern und Einreichen
@@ -283,6 +288,50 @@ Ministral 3 3B von Mistral, Gemma 2 2B oder Llama 3.2 1B, je in 16- und
 32-Bit-Variante mit automatischem Ausweichen). Es antwortet dann frei, aber nur
 aus den passenden Hilfetexten und dem Stand der Seite (`window.Atlas.kontext()`
 im Atlas, sonst dem Text der Seite).
+
+## Spracheingabe
+
+Im Assistenten steht neben „Fragen“ ein Mikrofon; im Rundgang gibt es ein
+eigenes. Ein Tipp darauf startet das Gespräch: Der Assistent hört zu, erkennt
+das Ende des Satzes an der Pause, wandelt die Sprache in Text um, antwortet,
+liest die Antwort vor und hört danach weiter zu. Er hört auf bei „stopp“ oder
+„danke“, bei einem weiteren Tipp aufs Mikrofon, beim Schließen des Fensters
+oder wenn neun Sekunden lang niemand spricht.
+
+Was der Assistent per Sprache versteht:
+
+- Fragen wie beim Tippen, etwa „Wo kommen die Daten her?“
+- im Rundgang: „weiter“, „zurück“, „wiederholen“, „beenden“; jeder Schritt
+  wird vorgelesen
+- „Rundgang“, „Atlas“, „Hafenseiten“, „Eingabe“, „Datenbank“
+- Häfen: „Hafen Husum“ wählt im Atlas den Hafen und liest die Kurzantwort
+  „Geht es hier ohne Biozid?“ vor; auf den Hafenseiten oder mit „Hafenseite
+  Warnemünde“ öffnet sich die Seite des Hafens. Weil die Erkennung Ortsnamen
+  oft falsch schreibt, vergleicht der Assistent sie auch nach Klang (Kölner
+  Phonetik): „Wahrne Monday“ wird Warnemünde, „Hafenkühl“ wird Kiel.
+- „Freizeitboot“, „Berufsschifffahrt“
+
+Technik: Whisper Base von OpenAI (MIT-Lizenz, 8 Bit, 77 MB) läuft über
+transformers.js und ONNX Runtime (WebAssembly) in einem Web Worker im Browser.
+Whisper bekommt das Vokabular des Atlas als Vorab-Text, das verbessert kurze
+Befehle deutlich. Vorgelesen wird nur mit Stimmen, die auf dem Gerät laufen;
+gibt es keine deutsche, entfällt „vorlesen“. Weder Audio noch Text verlassen
+den Rechner. Beim ersten Mal lädt der Browser etwa 100 MB, danach kommen sie
+aus dem Zwischenspeicher. Eine Äußerung braucht auf einem 4-Kern-Server ohne
+Grafikkarte rund 4 Sekunden; mehr Tempo brächten WebGPU oder Threads, die aber
+besondere Server-Kopfzeilen brauchen, die GitHub Pages nicht setzt.
+
+Die Modelldateien liegen nicht in main, sondern auf dem Zweig
+`biozidatlas-modelle` (Workflow `biozidatlas-sprachmodell.yml`, Aufruf von
+Hand). `publish.yml` kopiert sie beim Veröffentlichen nach
+`biozidatlas/modelle/`. Für einen lokalen Test:
+
+    git fetch origin biozidatlas-modelle
+    mkdir -p biozidatlas/modelle && git archive FETCH_HEAD | tar -x -C biozidatlas/modelle
+
+Grenzen: Mikrofon braucht HTTPS oder localhost. Nach einem Seitenwechsel per
+Sprache verlangen die meisten Browser einen neuen Tipp aufs Mikrofon.
+Whisper Base irrt sich bei einzelnen Wörtern öfter als bei ganzen Sätzen.
 
 ## Anmeldung und Rollen
 

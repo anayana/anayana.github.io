@@ -728,6 +728,29 @@ dialog.anmelden input { font: inherit; color: var(--ink); background: var(--surf
 .as-ki-zeile select { flex: 1 1 auto; min-width: 0; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 5px 7px; }
 #as-fortschritt { width: 100%; height: 6px; accent-color: var(--accent); }
 
+/* Spracheingabe: Mikrofon neben dem Eingabefeld und im Rundgang */
+.as-mikro {
+  flex: 0 0 auto; width: 38px; height: 38px; padding: 0;
+  display: inline-grid; place-items: center;
+  border-radius: 50%; border: 1px solid var(--accent);
+  background: var(--surface); color: var(--accent); cursor: pointer;
+}
+.as-mikro svg { width: 20px; height: 20px; }
+.as-mikro[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.as-mikro[data-zustand="hoert"] { background: var(--rot); border-color: var(--rot); color: #fff; box-shadow: 0 0 0 0 rgba(198, 70, 61, 0.5); animation: as-puls 1.4s infinite; }
+.as-mikro[data-zustand="laedt"], .as-mikro[data-zustand="denkt"] { opacity: 0.75; animation: as-blinken 1s infinite alternate; }
+@keyframes as-puls { 70% { box-shadow: 0 0 0 9px rgba(198, 70, 61, 0); } 100% { box-shadow: 0 0 0 0 rgba(198, 70, 61, 0); } }
+@keyframes as-blinken { to { opacity: 0.4; } }
+.rg-box .as-mikro { width: 34px; height: 34px; margin-left: auto; }
+.as-sprachzeile { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; font-size: 0.82rem; color: var(--muted); }
+.as-sprachstatus { flex: 1 1 auto; min-width: 0; }
+.as-vorlesen { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; cursor: pointer; }
+.as-pegel { flex: 0 0 36px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.as-pegel i { display: block; height: 100%; width: 0; background: var(--muted); transition: width 0.08s linear; }
+.as-pegel i.spricht { background: var(--rot); }
+.rg-sprache { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .as-mikro[data-zustand] { animation: none !important; } .as-pegel i { transition: none; } }
+
 @media (max-width: 600px) {
   .assistent { left: 8px; right: 8px; width: auto; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); max-height: calc(100vh - 110px); }
 }

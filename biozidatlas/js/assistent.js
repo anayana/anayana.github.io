@@ -2,6 +2,8 @@
    den Hilfetexten (data/hilfe.json), führt durch Rundgänge (data/rundgaenge.json)
    und kann auf Wunsch ein Sprachmodell im Browser laden (WebLLM), das dann
    frei formuliert, aber nur aus Hilfetexten und dem Stand der Seite antwortet.
+   Über das Mikrofon geht alles auch per Sprache (js/sprache.js): Fragen,
+   Rundgänge („weiter“, „zurück“, „beenden“), Seiten und Häfen.
    Was jemand sieht, hängt von der Rolle ab (js/zugang.js). */
 (function () {
   "use strict";
@@ -25,6 +27,7 @@
 
   let HILFE = [];
   let RUNDGAENGE = [];
+  let HAEFEN = [];
 
   // Gespräch, offenes Fenster und eine wegen fehlender Anmeldung offene Frage
   // überstehen Seitenwechsel und das Neuladen nach der Anmeldung (nur in diesem Tab).
@@ -36,6 +39,7 @@
     } catch (e) { /* kein Speicher verfügbar */ }
     return { log: [], offen: false, offeneFrage: null };
   })();
+  if (zustand.vorlesen === undefined) zustand.vorlesen = true;
 
   function sichern() {
     try { sessionStorage.setItem(SPEICHER, JSON.stringify(zustand)); } catch (e) { /* egal */ }
@@ -44,6 +48,9 @@
   let geladen = null;
   let laeuft = false;
   const verlauf = [];
+  // Spracheingabe: an = Gespräch läuft; token bricht veraltete Runden ab.
+  const SP = { an: false, token: 0, fehl: 0, status: "", zustand: "" };
+  let letzteAntwort = "";
 
   const rolle = () => (window.Zugang ? window.Zugang.rolle() : "oeffentlich");
   const erlaubt = (r) => r === "alle" || rolle() === "wissenschaft";
@@ -84,6 +91,13 @@
     <path d="M12 4.8v11.6M9.3 5.3l1.5 11M14.7 5.3l-1.5 11M6.5 7l3.1 9.3M17.5 7l-3.1 9.3M4.8 9.6l4 6.6M19.2 9.6l-4 6.6" class="rippe"/>
   </svg>`;
 
+  const MIKRO = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" fill="currentColor"/>
+    <path d="M6 11a6 6 0 0 0 12 0M12 17v4M8.5 21h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`;
+
+  const sprachOk = () => !!(window.Sprache && window.Sprache.verfuegbar());
+
   function aufbauen() {
     const knopf = document.createElement("button");
     knopf.type = "button";
@@ -113,8 +127,14 @@
       <form class="as-form">
         <label for="as-frage" class="sr-only">Ihre Frage</label>
         <input id="as-frage" autocomplete="off" placeholder="Frage stellen, z. B. „Was bedeuten die Farben?“">
+        ${sprachOk() ? `<button type="button" class="as-mikro" id="as-mikro" aria-pressed="false" aria-label="Per Sprache fragen" title="Per Sprache fragen">${MIKRO}</button>` : ""}
         <button type="submit" class="btn">Fragen</button>
       </form>
+      ${sprachOk() ? `<div class="as-sprachzeile" id="as-sprachzeile" hidden>
+        <span class="as-pegel" aria-hidden="true"><i></i></span>
+        <span class="as-sprachstatus" id="as-sprachstatus" aria-live="polite"></span>
+        <label class="as-vorlesen"><input type="checkbox" id="as-vorlesen"${zustand.vorlesen ? " checked" : ""}> vorlesen</label>
+      </div>` : ""}
       <details class="as-ki">
         <summary>Freie Fragen mit KI-Modell</summary>
         <p class="hint">Ohne Modell antworte ich aus festen Hilfetexten. Ein Sprachmodell im Browser formuliert freier, kennt aber auch nur diese Texte und den Stand der Seite. Es wird einmalig heruntergeladen und läuft auf Ihrem Rechner; nichts wird verschickt.</p>
@@ -138,6 +158,14 @@
       if (f) fragen(f);
     });
     $("#as-laden", panel).addEventListener("click", modellLaden);
+    if (sprachOk()) {
+      $("#as-mikro", panel).addEventListener("click", sprachKnopf);
+      $("#as-vorlesen", panel).addEventListener("change", (e) => {
+        zustand.vorlesen = e.target.checked;
+        sichern();
+        if (!e.target.checked) window.Sprache.still();
+      });
+    }
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !panel.hidden && !tour) schliessen();
     });
@@ -154,18 +182,19 @@
     document.querySelectorAll('input[name="art"]').forEach((r) => r.addEventListener("change", hierZeigen));
   }
 
-  function oeffnen() {
+  function oeffnen(fokus = true) {
     hierZeigen();
     $("#assistent").hidden = false;
     $("#assistent-knopf").setAttribute("aria-expanded", "true");
     const inhalt = $(".as-inhalt");
     inhalt.scrollTop = inhalt.scrollHeight;
-    $("#as-frage").focus();
+    if (fokus && !SP.an) $("#as-frage").focus();
     zustand.offen = true;
     sichern();
   }
 
   function schliessen() {
+    if (SP.an) sprachAus("");
     zustand.offen = false;
     sichern();
     $("#assistent").hidden = true;
@@ -188,7 +217,7 @@
         ? { name: "Hafenseite", rundgang: "hafen", fragen: ["hafenseite", "bewuchstafel", "intensitaet", "messwerte", "beispieldaten"] }
         : { name: "Hafenseiten", rundgang: "hafen", fragen: ["hafenseite", "hafen-waehlen", "bewuchstafel", "beispieldaten"] };
     }
-    return { name: "Atlas", rundgang: "atlas", fragen: ["bewuchsdruck", "kernfrage", "rangliste", "gewichtung", "ausgeschlossen"] };
+    return { name: "Atlas", rundgang: "atlas", fragen: ["bewuchsdruck", "kernfrage", "rangliste", "gewichtung", "ausgeschlossen", "sprache"] };
   }
 
   function fragenKnoepfe(box) {
@@ -219,7 +248,15 @@
     $("#assistent").querySelectorAll("[data-rundgang]").forEach((b) => { b.onclick = () => rundgangStarten(b.dataset.rundgang); });
   }
 
+  // Text einer Antwort zum Vorlesen: ohne Knöpfe und Auszeichnung.
+  function vorlesbar(html) {
+    const d = document.createElement("div");
+    d.innerHTML = String(html).replace(/<button[\s\S]*?<\/button>/g, "");
+    return d.textContent.replace(/\s+/g, " ").trim();
+  }
+
   function nachricht(wer, html, merken = true) {
+    if (wer !== "user") letzteAntwort = vorlesbar(html);
     if (merken) {
       zustand.log.push({ wer, html });
       zustand.log = zustand.log.slice(-40);
@@ -246,7 +283,9 @@
   }
 
   function begruessen() {
-    nachricht("bot", "Hallo! Oben stehen der Rundgang und häufige Fragen zu dem Bereich, in dem Sie gerade sind. Sie können auch einfach eine Frage eintippen.");
+    nachricht("bot", sprachOk()
+      ? "Hallo! Oben stehen der Rundgang und häufige Fragen zu dem Bereich, in dem Sie gerade sind. Sie können auch eine Frage eintippen oder auf das Mikrofon tippen und sprechen."
+      : "Hallo! Oben stehen der Rundgang und häufige Fragen zu dem Bereich, in dem Sie gerade sind. Sie können auch einfach eine Frage eintippen.");
   }
 
   function antwortZeigen(e, aehnlich) {
@@ -306,6 +345,7 @@ ${seitenstand().slice(0, 2500)}`;
         body.textContent = text || "…";
       }
       verlauf.push({ role: "user", content: frage }, { role: "assistant", content: text });
+      letzteAntwort = text;
       zustand.log.push({ wer: "ki", html: esc(text) });
       sichern();
       vorschlaege(hilfen.slice(0, 3));
@@ -373,6 +413,294 @@ ${seitenstand().slice(0, 2500)}`;
       $("#as-laden").disabled = false;
       $("#as-fortschritt").hidden = true;
     }
+  }
+
+
+  /* ---------- Sprache ---------- */
+
+  // Vorab-Text für Whisper: Wörter, die im Atlas oft fallen.
+  const VOKABULAR = "Antifouling-Atlas. Rundgang, weiter, zurück, wiederholen, beenden, stopp. Atlas, Hafenseite, Hafenseiten, Eingabe, Datenbank. Bewuchsdruck, Bewuchstafel, Biozid, biozidfrei, Freizeitboot, Berufsschifffahrt.";
+
+  // Kölner Phonetik: gleich klingende deutsche Wörter bekommen denselben Code
+  // („Warnemünde“ und „Wahrne Monday“ beide 376662). Für Hafennamen, die
+  // die Erkennung falsch schreibt.
+  function klang(wort) {
+    const s = norm(wort).replace(/[^a-z]/g, "");
+    let code = "";
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i], v = s[i - 1] || "", n = s[i + 1] || "";
+      if ("aeijouy".includes(c)) code += "0";
+      else if (c === "h") continue;
+      else if (c === "b") code += "1";
+      else if (c === "p") code += n === "h" ? "3" : "1";
+      else if (c === "d" || c === "t") code += n && "csz".includes(n) ? "8" : "2";
+      else if ("fvw".includes(c)) code += "3";
+      else if ("gkq".includes(c)) code += "4";
+      else if (c === "c") code += i === 0 ? (n && "ahkloqrux".includes(n) ? "4" : "8") : (v && "sz".includes(v) ? "8" : n && "ahkoqux".includes(n) ? "4" : "8");
+      else if (c === "x") code += v && "ckq".includes(v) ? "8" : "48";
+      else if (c === "l") code += "5";
+      else if (c === "m" || c === "n") code += "6";
+      else if (c === "r") code += "7";
+      else if (c === "s" || c === "z") code += "8";
+    }
+    let r = "";
+    for (const ch of code) if (ch !== r[r.length - 1]) r += ch;
+    return r ? r[0] + r.slice(1).replace(/0/g, "") : "";
+  }
+
+  function mikroZustand(z) {
+    SP.zustand = z;
+    document.querySelectorAll(".as-mikro").forEach((b) => {
+      b.dataset.zustand = z;
+      b.setAttribute("aria-pressed", SP.an ? "true" : "false");
+    });
+  }
+
+  function sprachStatus(t) {
+    SP.status = t;
+    const zeile = $("#as-sprachzeile");
+    if (zeile) zeile.hidden = !t;
+    document.querySelectorAll(".as-sprachstatus").forEach((el) => { el.textContent = t; });
+    const rg = $(".rg-sprache");
+    if (rg) rg.hidden = !t;
+  }
+
+  function pegel(w, spricht) {
+    document.querySelectorAll(".as-pegel i").forEach((i) => {
+      i.style.width = Math.round(w * 100) + "%";
+      i.classList.toggle("spricht", !!spricht);
+    });
+  }
+
+  function vorlesen() {
+    return zustand.vorlesen !== false && window.Sprache.kannSprechen();
+  }
+
+  function sprachKnopf() {
+    if (SP.an) sprachAus("Spracheingabe aus. Mikrofon antippen, um wieder zu sprechen.");
+    else sprachStart();
+  }
+
+  async function sprachStart() {
+    if (!sprachOk()) return;
+    SP.an = true;
+    SP.fehl = 0;
+    mikroZustand("laedt");
+    sprachStatus("Spracherkennung wird vorbereitet …");
+    try {
+      await window.Sprache.laden((w) => sprachStatus(`Spracherkennung wird geladen: ${Math.round(w * 100)} % (einmalig etwa 100 MB, danach aus dem Zwischenspeicher)`));
+    } catch (e) {
+      SP.an = false;
+      mikroZustand("");
+      sprachStatus(e.message === "ohne-modell"
+        ? "Die Spracherkennung ist auf dieser Seite noch nicht eingerichtet."
+        : "Die Spracherkennung ließ sich nicht starten (" + e.message + ").");
+      return;
+    }
+    if (!SP.an) return;
+    // „vorlesen“ nur anbieten, wenn der Rechner eine deutsche Stimme hat.
+    const vl = $(".as-vorlesen");
+    if (vl) vl.hidden = !window.Sprache.kannSprechen();
+    zustand.sprache = true;
+    sichern();
+    sprachRunde(tour ? schrittText() : null);
+  }
+
+  function sprachAus(text) {
+    SP.an = false;
+    SP.token++;
+    if (window.Sprache) { window.Sprache.abbrechen(); window.Sprache.mikrofonZu(); }
+    zustand.sprache = false;
+    sichern();
+    mikroZustand("");
+    sprachStatus(text || "");
+  }
+
+  // Eine Runde: vorlesen, zuhören, verstehen, ausführen. Danach beginnt die nächste.
+  async function sprachRunde(text) {
+    const t = ++SP.token;
+    const S = window.Sprache;
+    S.abbrechen();
+    if (text && vorlesen()) {
+      mikroZustand("spricht");
+      sprachStatus("Ich lese vor … (Mikrofon antippen beendet die Spracheingabe)");
+      await S.sprechen(text);
+      if (t !== SP.token || !SP.an) return;
+    }
+    if (!SP.an) return;
+    mikroZustand("hoert");
+    sprachStatus(tour ? "Ich höre zu: „weiter“, „zurück“, „wiederholen“, „beenden“ oder eine Frage." : "Ich höre zu … Ihre Frage, oder z. B. „Hafen Kiel“, „Rundgang“, „Hafenseiten“, „stopp“.");
+    let audio;
+    try {
+      audio = await S.aufnehmen({ onPegel: pegel, onSprache: () => { if (t === SP.token) sprachStatus("Ich höre …"); } });
+    } catch (e) {
+      if (t !== SP.token) return;
+      if (e && e.message === "braucht-klick") return sprachAus("Mikrofon antippen, um per Sprache weiterzumachen.");
+      return sprachAus(e && (e.name === "NotAllowedError" || e.name === "SecurityError")
+        ? "Kein Zugriff aufs Mikrofon. Bitte im Browser für diese Seite erlauben."
+        : "Kein Mikrofon gefunden.");
+    }
+    if (t !== SP.token || !SP.an) return;
+    if (!audio) return sprachAus("Ich höre nicht mehr zu. Mikrofon antippen, um weiterzusprechen.");
+    mikroZustand("denkt");
+    sprachStatus("Einen Moment, ich verstehe …");
+    let gehoert = "";
+    try {
+      gehoert = await S.erkennen(audio, VOKABULAR);
+    } catch (e) {
+      if (t === SP.token) sprachAus("Die Erkennung hat nicht geklappt (" + (e && e.message ? e.message : e) + ").");
+      return;
+    }
+    if (t !== SP.token || !SP.an) return;
+    if (!gehoert) {
+      if (++SP.fehl >= 2) return sprachAus("Ich habe nichts verstanden. Mikrofon antippen, um es noch einmal zu versuchen.");
+      return sprachRunde("Das habe ich nicht verstanden. Bitte noch einmal.");
+    }
+    SP.fehl = 0;
+    console.debug("Spracheingabe:", gehoert);
+    const b = befehl(gehoert);
+    if (b) return b(gehoert);
+    // Sonst ist es eine Frage.
+    if (tour) beenden(true);
+    if ($("#assistent").hidden) oeffnen(false);
+    letzteAntwort = "";
+    await fragen(gehoert);
+    if (t !== SP.token || !SP.an) return;
+    sprachRunde(letzteAntwort);
+  }
+
+  const ALLGEMEIN = new Set(["hafen", "stadthafen", "marina", "sporthafen", "schutzhafen", "suedhafen", "winterhafen", "nassauhafen",
+    "city", "holstein", "ruegen", "stettiner", "haff", "schlei", "hohe", "duene", "peenestrom", "chiemsee", "muritz", "mueritz", "sylt", "meer"]);
+  const FUELLWORT = new Set(["zur", "zum", "den", "die", "der", "das", "dem", "von", "nach", "auf", "und", "mir", "bitte", "hafen",
+    "hafenseite", "seite", "zeig", "zeige", "oeffne", "waehle", "nimm", "geh", "gehe"]);
+  const hafenTeile = (h) => norm(h.name).split(/[^a-z0-9]+/).filter((x) => x.length >= 4 && !ALLGEMEIN.has(x));
+
+  function eindeutig(bewerten) {
+    let best = null, punkte = 0, gleich = false;
+    HAEFEN.forEach((h) => {
+      const p = bewerten(h);
+      if (p > punkte) { best = h; punkte = p; gleich = false; } else if (p && p === punkte) gleich = true;
+    });
+    return punkte && !gleich ? best : null;
+  }
+
+  // Erst exakt nach Namen, dann nach Klang (auch zwei Wörter zusammen: „Waren, Mönde“).
+  function hafenFinden(t, nachKlang = false) {
+    if (!nachKlang) {
+      const gesagt = new Set(t.split(" "));
+      return eindeutig((h) => hafenTeile(h).filter((x) => gesagt.has(x)).length);
+    }
+    // Kurze Codes (Kiel = 45) nur, wenn „Hafen“ fällt; sonst würde z. B. „blau“ zu Plau.
+    const mindest = /\bhafen/.test(t) ? 2 : 3;
+    const alle = t.split(" ");
+    const w = alle.map((x) => x.replace(/^hafen(?=[a-z]{3})/, "")).filter((x) => x.length >= 2 && !FUELLWORT.has(x));
+    const codes = new Set(w.map(klang));
+    alle.forEach((x, i) => { if (alle[i + 1]) codes.add(klang(x + alle[i + 1])); });
+    w.forEach((x, i) => { if (w[i + 1]) codes.add(klang(x + w[i + 1])); });
+    // Längere Codes sind genauer und zählen mehr (Warnemünde vor Waren).
+    return eindeutig((h) => hafenTeile(h).map(klang).filter((k) => k.length >= mindest && codes.has(k)).reduce((a, k) => a + k.length, 0));
+  }
+
+  function hafenOeffnen(h, t) {
+    const s = seite();
+    if (s.startsWith("index") && !/hafenseite/.test(t) && $("#hafen")) {
+      const sel = $("#hafen");
+      sel.value = h.id;
+      sel.dispatchEvent(new Event("change"));
+      const k = $("#kernfrage");
+      setTimeout(() => {
+        const kurz = k ? vorlesbar(k.innerHTML) : "";
+        nachricht("bot", esc(`${h.name} ist gewählt.`));
+        sprachRunde(`${h.name} ist gewählt. ${kurz}`);
+      }, 300);
+      return;
+    }
+    if (s.startsWith("hafen")) {
+      location.hash = h.id;
+      nachricht("bot", esc(`Hier ist die Hafenseite von ${h.name}.`));
+      return sprachRunde(`Hier ist die Hafenseite von ${h.name}.`);
+    }
+    seiteOeffnen(`hafen.html#${h.id}`, `die Hafenseite von ${h.name}`);
+  }
+
+  async function seiteOeffnen(ziel, name) {
+    const datei = ziel.split("#")[0];
+    if (/^(eingabe|datenbank)/.test(datei) && !erlaubt("wissenschaft")) {
+      nachricht("bot", 'Eingabe und Datenbank sind für Wissenschaftlerinnen und Wissenschaftler. Bitte zuerst anmelden. <button type="button" class="btn-ghost" data-aktion="anmelden">Jetzt anmelden</button>');
+      return sprachRunde(letzteAntwort);
+    }
+    if (seite() === datei && !ziel.includes("#") && location.hash.length <= 1) {
+      nachricht("bot", "Diese Seite ist schon offen.");
+      return sprachRunde(letzteAntwort);
+    }
+    const t = SP.token;
+    nachricht("bot", esc(`Ich öffne ${name}.`));
+    if (vorlesen()) await window.Sprache.sprechen(`Ich öffne ${name}.`);
+    if (t !== SP.token) return;
+    zustand.sprache = true;
+    zustand.offen = true;
+    sichern();
+    location.href = ziel;
+  }
+
+  // Kurze Sätze und Aufforderungen sind Befehle; alles andere ist eine Frage.
+  function befehl(text) {
+    const t = norm(text).replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+    const n = t ? t.split(" ").length : 0;
+    const kurz = n <= 4;
+    const frage = /^(was|wie|wo|woher|wohin|warum|wieso|weshalb|welche[rsnm]?|wann|wer|wem|wen|kann|koennen|darf|gibt|muss|soll|ist|sind|bedeutet|heisst|brauche|habe)\b/.test(t);
+    const auf = /^(oeffne|oeffnen|zeig|zeige|zeigen|geh|gehe|gehen|wechsle|wechsel|wechseln|waehle|waehlen|nimm|zur|zum|zu|starte|starten|start|bitte|jetzt|und|dann)\b/.test(t);
+    if (tour && kurz) {
+      if (/^(weiter|naechste[rsnm]?|vor|vorwaerts|ja|ok|okay|gut|klar|verstanden)\b/.test(t)) {
+        return () => {
+          if (schritt >= tour.schritte.length - 1) return beenden();
+          weiter(1);
+        };
+      }
+      if (/^(zurueck|vorherige[rsnm]?)\b/.test(t)) return () => (schritt > 0 ? weiter(-1) : sprachRunde("Das ist der erste Schritt."));
+      if (/^(wiederhole|wiederholen|nochmal|noch mal|nochmals|wie bitte)\b/.test(t)) return () => sprachRunde(schrittText());
+      if (/^(beenden|beende|stopp|stop|ende|abbrechen|schluss|fertig|aus|tschuess|danke)\b/.test(t)) return () => beenden();
+    }
+    if (kurz && /^(stopp|stop|ende|beenden|aufhoeren|hoer auf|danke|vielen dank|tschuess|ruhe|schluss|aus|nichts)\b/.test(t)) {
+      return (txt) => {
+        nachricht("user", esc(txt));
+        sprachAus("Spracheingabe aus. Mikrofon antippen, um wieder zu sprechen.");
+        if (vorlesen()) window.Sprache.sprechen("Gern.");
+      };
+    }
+    if (frage || !(kurz || auf)) return null;
+    const zeigen = (txt) => nachricht("user", esc(txt));
+    if (/\b(rundgang|fuehrung|tour)\b/.test(t)) {
+      return (txt) => {
+        zeigen(txt);
+        const h = hier();
+        if (RUNDGAENGE.find((r) => r.id === h.rundgang && erlaubt(r.rolle))) rundgangStarten(h.rundgang);
+        else { nachricht("bot", "Für diesen Bereich gibt es keinen Rundgang."); sprachRunde(letzteAntwort); }
+      };
+    }
+    const h = hafenFinden(t);
+    if (h) return (txt) => { zeigen(txt); hafenOeffnen(h, t); };
+    const ziele = [
+      [/\b(atlas|karte|startseite|bewertung)\b/, "index.html", "den Atlas"],
+      [/\b(hafenseite|hafenseiten|haefen|hafenliste)\b/, "hafen.html", "die Hafenseiten"],
+      [/\b(eingabe|eingeben|formular)\b/, "eingabe.html", "die Eingabe"],
+      [/\b(datenbank|tabelle|tabellen)\b/, "datenbank.html", "die Datenbank"],
+    ];
+    for (const [re, ziel, name] of ziele) if (re.test(t)) return (txt) => { zeigen(txt); seiteOeffnen(ziel, name); };
+    if (seite().startsWith("index") && $("#profil-freizeit")) {
+      const profil = /\b(freizeit|freizeitboot|sportboot|segelboot|motorboot)\b/.test(t) ? "freizeit" : /\b(beruf|berufsschifffahrt|berufsschiff|frachter|schiff)\b/.test(t) ? "beruf" : null;
+      if (profil) {
+        return (txt) => {
+          zeigen(txt);
+          $("#profil-" + profil).click();
+          nachricht("bot", profil === "beruf" ? "Berufsschifffahrt ist gewählt." : "Freizeitboot ist gewählt.");
+          sprachRunde(letzteAntwort);
+        };
+      }
+    }
+    const hk = hafenFinden(t, true);
+    if (hk) return (txt) => { zeigen(txt); hafenOeffnen(hk, t); };
+    return null;
   }
 
   /* ---------- Rundgänge ---------- */
@@ -461,7 +789,9 @@ ${seitenstand().slice(0, 2500)}`;
         ${schritt > 0 ? `<button type="button" class="btn-ghost" id="rg-zurueck">Zurück</button>` : ""}
         <button type="button" class="btn" id="rg-weiter">${schritt < n - 1 ? "Weiter" : "Fertig"}</button>
         <button type="button" class="btn-ghost" id="rg-frage">Frage dazu</button>
-      </div>`;
+        ${sprachOk() ? `<button type="button" class="as-mikro" id="rg-mikro" aria-pressed="${SP.an}" aria-label="Rundgang per Sprache steuern" title="Per Sprache: „weiter“, „zurück“, „beenden“">${MIKRO}</button>` : ""}
+      </div>
+      ${sprachOk() ? `<p class="rg-sprache" ${SP.an ? "" : "hidden"}><span class="as-pegel" aria-hidden="true"><i></i></span><span class="as-sprachstatus">${esc(SP.status)}</span></p>` : ""}`;
     $("#rg-ende").addEventListener("click", beenden);
     $("#rg-weiter").addEventListener("click", () => weiter(1));
     const z = $("#rg-zurueck");
@@ -472,8 +802,16 @@ ${seitenstand().slice(0, 2500)}`;
       $("#as-frage").value = s.titel + ": ";
       $("#as-frage").focus();
     });
+    if (sprachOk()) $("#rg-mikro").addEventListener("click", sprachKnopf);
+    mikroZustand(SP.zustand);
     platzieren();
     $("#rg-weiter").focus();
+    if (SP.an) sprachRunde(schrittText());
+  }
+
+  function schrittText() {
+    const s = tour && tour.schritte[schritt];
+    return s ? `${s.titel}. ${s.text}` : "";
   }
 
   function weiter(d) {
@@ -509,7 +847,8 @@ ${seitenstand().slice(0, 2500)}`;
     Object.assign(box.style, { top: top + "px", left: left + "px", right: "", bottom: "" });
   }
 
-  function beenden() {
+  function beenden(leise = false) {
+    const lief = !!tour;
     tour = null;
     zielEl = null;
     const r = $("#rg-rahmen"), b = $("#rg-box");
@@ -518,6 +857,11 @@ ${seitenstand().slice(0, 2500)}`;
     window.removeEventListener("scroll", platzieren);
     window.removeEventListener("resize", platzieren);
     document.removeEventListener("keydown", tasten);
+    // Läuft die Spracheingabe, geht es im Fenster weiter.
+    if (SP.an && lief) {
+      oeffnen(false);
+      if (!leise) sprachRunde("Rundgang beendet. Was möchten Sie wissen?");
+    }
   }
 
   /* ---------- Start ---------- */
@@ -525,16 +869,25 @@ ${seitenstand().slice(0, 2500)}`;
   async function start() {
     try {
       const [h, r] = await Promise.all([
-        fetch("data/hilfe.json?v=2").then((x) => x.json()),
+        fetch("data/hilfe.json?v=3").then((x) => x.json()),
         fetch("data/rundgaenge.json?v=2").then((x) => x.json()),
       ]);
       HILFE = h.eintraege;
       RUNDGAENGE = r.rundgaenge;
+      fetch("data/haefen.json").then((x) => x.json()).then((d) => { HAEFEN = d.haefen || []; }).catch(() => {});
     } catch (e) {
       console.warn("Assistent:", e);
     }
     aufbauen();
-    if (zustand.offen) oeffnen();
+    if (zustand.offen) oeffnen(!zustand.sprache);
+    // Kam man per Sprache hierher, geht es per Sprache weiter, sofern der Browser
+    // das Mikrofon ohne neuen Klick freigibt; sonst genügt ein Tipp aufs Mikrofon.
+    if (zustand.sprache && sprachOk() && !new URLSearchParams(location.search).get("rundgang")) {
+      zustand.sprache = false;
+      sichern();
+      oeffnen(false);
+      sprachStart();
+    }
     // Nach der Anmeldung: die Frage beantworten, die vorher an der Anmeldung hing.
     if (zustand.offeneFrage && erlaubt("wissenschaft")) {
       const f = zustand.offeneFrage;
