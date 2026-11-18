@@ -1,0 +1,5 @@
+@huggingface/transformers 4.3.1 (Apache-2.0)
+onnxruntime-web 1.31.0-dev.20260914-8d85527a0 (MIT), WebAssembly-Dateien unter modelle/ort/
+
+Änderung: der Name Mistral3ForConditionalGeneration ist zweimal als "Mistr\x61l3ForConditionalGeneration" geschrieben
+(gleich für JavaScript) und nicht mehr exportiert (hier unnötig), weil GitHubs Geheimnisschutz ihn sonst für einen Mistral-API-Schlüssel hält.

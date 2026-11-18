@@ -468,6 +468,25 @@
     "spalten"
    ],
    "antwort": "Die Datenbank zeigt alle Daten des Atlas in Tabellen: Reviere, Häfen, Optionen, Messwerte, Bewuchstafeln, Beiträge und mehr. Oben steht, woher die Daten kommen. Eine Tabelle anklicken, um sie anzusehen; mit „Filtern“ suchen Sie nach Text in den Zeilen."
+  },
+  {
+   "id": "sprache",
+   "rolle": "alle",
+   "frage": "Kann ich sprechen statt tippen?",
+   "stichworte": [
+    "sprechen",
+    "sprache",
+    "spracheingabe",
+    "sprachsteuerung",
+    "mikrofon",
+    "stimme",
+    "vorlesen",
+    "tippen",
+    "diktieren",
+    "sagen",
+    "hören"
+   ],
+   "antwort": "Ja. Tippen Sie im Assistenten auf das Mikrofon und sprechen Sie Ihre Frage. Beim ersten Mal lädt der Browser die Spracherkennung, etwa 100 MB; sie läuft dann auf Ihrem Rechner, und nichts wird verschickt. Ich lese die Antwort vor und höre danach weiter zu, bis Sie „stopp“ sagen oder eine Weile nichts sagen. Im Rundgang: „weiter“, „zurück“, „wiederholen“, „beenden“. Außerdem verstehe ich zum Beispiel „Hafen Kiel“, „Hafenseiten“, „Atlas“, „Rundgang“ oder „Berufsschifffahrt“."
   }
  ]
 }
