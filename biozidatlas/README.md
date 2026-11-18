@@ -316,8 +316,10 @@ transformers.js und ONNX Runtime (WebAssembly) in einem Web Worker im Browser.
 Whisper bekommt das Vokabular des Atlas als Vorab-Text, das verbessert kurze
 Befehle deutlich. Vorgelesen wird nur mit Stimmen, die auf dem Gerät laufen;
 gibt es keine deutsche, entfällt „vorlesen“. Weder Audio noch Text verlassen
-den Rechner. Beim ersten Mal lädt der Browser etwa 100 MB, danach kommen sie
-aus dem Zwischenspeicher. Eine Äußerung braucht auf einem 4-Kern-Server ohne
+den Rechner. Beim ersten Mal lädt der Browser etwa 100 MB, jede Datei genau
+einmal (der Worker lädt die großen Dateien selbst, sonst holt transformers.js
+sie doppelt) und legt sie im Speicher des Browsers ab (Cache API); ab dem
+zweiten Mal ist die Erkennung nach wenigen Sekunden bereit. Eine Äußerung braucht auf einem 4-Kern-Server ohne
 Grafikkarte rund 4 Sekunden; mehr Tempo brächten WebGPU oder Threads, die aber
 besondere Server-Kopfzeilen brauchen, die GitHub Pages nicht setzt.
 
