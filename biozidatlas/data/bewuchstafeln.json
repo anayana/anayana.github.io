@@ -1,0 +1,909 @@
+{
+ "_hinweis": "Beispieldaten, ausgedacht für die Struktur. Ablesungen von Bewuchstafeln (Citizen Science): je Zeile eine Ablesung einer Tafel. bedeckung_prozent = bewachsener Anteil der Tafelfläche; organismen.anteil_prozent = Anteil am Bewuchs (Summe 100). bild = Pfad unter data/bilder/ oder null (dann zeigt die Seite ein aus den Angaben erzeugtes Symbolbild). geprueft = von der Redaktion geprüft.",
+ "tafeln": [
+  {
+   "id": "t001",
+   "hafen_id": "kiel-schilksee",
+   "tafel": "KIE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-06-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 12,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 45
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Moostierchen",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Segelverein am Steg C (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t002",
+   "hafen_id": "kiel-schilksee",
+   "tafel": "KIE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-07-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 41,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 45
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Moostierchen",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Segelverein am Steg C (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t003",
+   "hafen_id": "kiel-schilksee",
+   "tafel": "KIE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-08-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 72,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 45
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Moostierchen",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Segelverein am Steg C (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t004",
+   "hafen_id": "kiel-schilksee",
+   "tafel": "KIE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-09-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 86,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 45
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Moostierchen",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Segelverein am Steg C (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t005",
+   "hafen_id": "kiel-schilksee",
+   "tafel": "KIE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-10-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 81,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 45
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Moostierchen",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Segelverein am Steg C (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  },
+  {
+   "id": "t006",
+   "hafen_id": "heiligenhafen",
+   "tafel": "HEI-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-06-05",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 9,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 50
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Hafenmeisterei (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t007",
+   "hafen_id": "heiligenhafen",
+   "tafel": "HEI-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-07-05",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 35,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 50
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Hafenmeisterei (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t008",
+   "hafen_id": "heiligenhafen",
+   "tafel": "HEI-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-08-05",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 64,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 50
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Hafenmeisterei (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t009",
+   "hafen_id": "heiligenhafen",
+   "tafel": "HEI-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-09-05",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 78,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 50
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Hafenmeisterei (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  },
+  {
+   "id": "t010",
+   "hafen_id": "warnemuende",
+   "tafel": "WAR-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-06-10",
+   "tiefe_m": 0.8,
+   "bedeckung_prozent": 6,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 40
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 35
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Jugendgruppe Segeln (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t011",
+   "hafen_id": "warnemuende",
+   "tafel": "WAR-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-07-10",
+   "tiefe_m": 0.8,
+   "bedeckung_prozent": 24,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 40
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 35
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Jugendgruppe Segeln (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t012",
+   "hafen_id": "warnemuende",
+   "tafel": "WAR-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-08-10",
+   "tiefe_m": 0.8,
+   "bedeckung_prozent": 47,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 40
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 35
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Jugendgruppe Segeln (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t013",
+   "hafen_id": "warnemuende",
+   "tafel": "WAR-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-09-10",
+   "tiefe_m": 0.8,
+   "bedeckung_prozent": 55,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 40
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 35
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 25
+    }
+   ],
+   "bild": null,
+   "melder": "Jugendgruppe Segeln (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  },
+  {
+   "id": "t014",
+   "hafen_id": "buesum",
+   "tafel": "BUE-1",
+   "ausgebracht": "2026-04-15",
+   "abgelesen": "2026-05-20",
+   "tiefe_m": 1.2,
+   "bedeckung_prozent": 15,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 20
+    },
+    {
+     "name": "Seescheiden",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Wattführerin (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t015",
+   "hafen_id": "buesum",
+   "tafel": "BUE-1",
+   "ausgebracht": "2026-04-15",
+   "abgelesen": "2026-06-20",
+   "tiefe_m": 1.2,
+   "bedeckung_prozent": 48,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 20
+    },
+    {
+     "name": "Seescheiden",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Wattführerin (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t016",
+   "hafen_id": "buesum",
+   "tafel": "BUE-1",
+   "ausgebracht": "2026-04-15",
+   "abgelesen": "2026-07-20",
+   "tiefe_m": 1.2,
+   "bedeckung_prozent": 79,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 20
+    },
+    {
+     "name": "Seescheiden",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Wattführerin (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t017",
+   "hafen_id": "buesum",
+   "tafel": "BUE-1",
+   "ausgebracht": "2026-04-15",
+   "abgelesen": "2026-08-20",
+   "tiefe_m": 1.2,
+   "bedeckung_prozent": 92,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 20
+    },
+    {
+     "name": "Seescheiden",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Wattführerin (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t018",
+   "hafen_id": "buesum",
+   "tafel": "BUE-1",
+   "ausgebracht": "2026-04-15",
+   "abgelesen": "2026-09-20",
+   "tiefe_m": 1.2,
+   "bedeckung_prozent": 90,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Miesmuscheln",
+     "anteil_prozent": 20
+    },
+    {
+     "name": "Seescheiden",
+     "anteil_prozent": 15
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Wattführerin (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  },
+  {
+   "id": "t019",
+   "hafen_id": "cuxhaven",
+   "tafel": "CUX-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-06-15",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 18,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 60
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 15
+    }
+   ],
+   "bild": null,
+   "melder": "Bootsclub (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t020",
+   "hafen_id": "cuxhaven",
+   "tafel": "CUX-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-07-15",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 52,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 60
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 15
+    }
+   ],
+   "bild": null,
+   "melder": "Bootsclub (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t021",
+   "hafen_id": "cuxhaven",
+   "tafel": "CUX-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-08-15",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 76,
+   "organismen": [
+    {
+     "name": "Seepocken",
+     "anteil_prozent": 60
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 15
+    }
+   ],
+   "bild": null,
+   "melder": "Bootsclub (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  },
+  {
+   "id": "t022",
+   "hafen_id": "greifswald",
+   "tafel": "GRE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-07-01",
+   "tiefe_m": 0.6,
+   "bedeckung_prozent": 8,
+   "organismen": [
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 50
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Dreikantmuscheln",
+     "anteil_prozent": 20
+    }
+   ],
+   "bild": null,
+   "melder": "Schulprojekt (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t023",
+   "hafen_id": "greifswald",
+   "tafel": "GRE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-08-01",
+   "tiefe_m": 0.6,
+   "bedeckung_prozent": 22,
+   "organismen": [
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 50
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Dreikantmuscheln",
+     "anteil_prozent": 20
+    }
+   ],
+   "bild": null,
+   "melder": "Schulprojekt (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t024",
+   "hafen_id": "greifswald",
+   "tafel": "GRE-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-09-01",
+   "tiefe_m": 0.6,
+   "bedeckung_prozent": 27,
+   "organismen": [
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 50
+    },
+    {
+     "name": "Grünalgen",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Dreikantmuscheln",
+     "anteil_prozent": 20
+    }
+   ],
+   "bild": null,
+   "melder": "Schulprojekt (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  },
+  {
+   "id": "t025",
+   "hafen_id": "wannsee",
+   "tafel": "WAN-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-06-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 5,
+   "organismen": [
+    {
+     "name": "Dreikantmuscheln",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 15
+    }
+   ],
+   "bild": null,
+   "melder": "Wassersportverein (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t026",
+   "hafen_id": "wannsee",
+   "tafel": "WAN-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-07-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 21,
+   "organismen": [
+    {
+     "name": "Dreikantmuscheln",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 15
+    }
+   ],
+   "bild": null,
+   "melder": "Wassersportverein (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t027",
+   "hafen_id": "wannsee",
+   "tafel": "WAN-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-08-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 44,
+   "organismen": [
+    {
+     "name": "Dreikantmuscheln",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 15
+    }
+   ],
+   "bild": null,
+   "melder": "Wassersportverein (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t028",
+   "hafen_id": "wannsee",
+   "tafel": "WAN-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-09-01",
+   "tiefe_m": 1.0,
+   "bedeckung_prozent": 51,
+   "organismen": [
+    {
+     "name": "Dreikantmuscheln",
+     "anteil_prozent": 55
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 30
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 15
+    }
+   ],
+   "bild": null,
+   "melder": "Wassersportverein (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  },
+  {
+   "id": "t029",
+   "hafen_id": "konstanz",
+   "tafel": "KON-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-06-15",
+   "tiefe_m": 2.0,
+   "bedeckung_prozent": 7,
+   "organismen": [
+    {
+     "name": "Quaggamuscheln",
+     "anteil_prozent": 65
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Tauchgruppe (Beispiel)",
+   "geprueft": true,
+   "bemerkung": "Beispielablesung, keine echten Daten."
+  },
+  {
+   "id": "t030",
+   "hafen_id": "konstanz",
+   "tafel": "KON-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-07-15",
+   "tiefe_m": 2.0,
+   "bedeckung_prozent": 26,
+   "organismen": [
+    {
+     "name": "Quaggamuscheln",
+     "anteil_prozent": 65
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Tauchgruppe (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t031",
+   "hafen_id": "konstanz",
+   "tafel": "KON-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-08-15",
+   "tiefe_m": 2.0,
+   "bedeckung_prozent": 49,
+   "organismen": [
+    {
+     "name": "Quaggamuscheln",
+     "anteil_prozent": 65
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Tauchgruppe (Beispiel)",
+   "geprueft": true,
+   "bemerkung": ""
+  },
+  {
+   "id": "t032",
+   "hafen_id": "konstanz",
+   "tafel": "KON-1",
+   "ausgebracht": "2026-05-01",
+   "abgelesen": "2026-09-15",
+   "tiefe_m": 2.0,
+   "bedeckung_prozent": 58,
+   "organismen": [
+    {
+     "name": "Quaggamuscheln",
+     "anteil_prozent": 65
+    },
+    {
+     "name": "Biofilm",
+     "anteil_prozent": 25
+    },
+    {
+     "name": "Algen",
+     "anteil_prozent": 10
+    }
+   ],
+   "bild": null,
+   "melder": "Tauchgruppe (Beispiel)",
+   "geprueft": false,
+   "bemerkung": ""
+  }
+ ]
+}
