@@ -123,7 +123,7 @@ GROUP BY r.name, h.quelle ORDER BY r.name, h.quelle;`,
     ins("beitraege", D.beitraege.map((b) => ({
       id: b.id, hafen_id: b.hafen_id, reihenfolge: b.reihenfolge, status: b.status, ueberschrift: b.ueberschrift, unterueberschrift: b.unterueberschrift,
       autor: b.metadaten.autor, datum: b.metadaten.datum, quelle: b.metadaten.quelle, lizenz: b.metadaten.lizenz,
-      schlagworte: (b.metadaten.schlagworte || []).join(","), bild: b.bild ? b.bild.datei : null,
+      schlagworte: (b.metadaten.schlagworte || []).join(","), bild: b.bild ? b.bild.datei || "foto:" + b.bild.foto : null,
       bild_alt: b.bild ? b.bild.alt : null, bildnachweis: b.bild ? b.bild.bildnachweis : null, text: b.text,
     })));
     db.run("COMMIT");

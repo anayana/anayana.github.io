@@ -1,7 +1,7 @@
 /* Eingabe: Formulare für Beiträge und Ablesungen von Bewuchstafeln. Die
    Felder entsprechen den Tabellen beitraege und bewuchstafeln (data/schema.sql).
-   Im Prototyp wird im eigenen Browser gespeichert, als JSON heruntergeladen
-   oder als Vorgang auf GitHub zur Prüfung eingereicht; nach der Freigabe
+   Im Prototyp wird im eigenen Browser gespeichert oder als Vorgang auf
+   GitHub zur Prüfung eingereicht; nach der Freigabe
    übernimmt tools/eingabe_uebernehmen.py die Angaben in die Daten. */
 (function () {
   "use strict";
@@ -177,7 +177,6 @@
     $("#vorschau").innerHTML = kopf + (art === "beitrag"
       ? A.renderBeitrag(d)
       : A.renderTafel({ ...d, id: "vorschau", tafel: d.tafel || "–", melder: d.melder || "–", abgelesen: d.abgelesen || heute(), ausgebracht: d.ausgebracht || heute() }));
-    $("#datensatz").textContent = JSON.stringify(ohneBild(d), null, 2);
   }
 
   function lokaleListe() {
@@ -230,16 +229,6 @@
     }
     meldung(`Gespeichert. <a href="hafen.html#${esc(d.hafen_id)}">Auf der Hafenseite ansehen</a> (nur in diesem Browser sichtbar).`);
     lokaleListe();
-  }
-
-  function herunterladen() {
-    const d = aktueller();
-    const blob = new Blob([JSON.stringify(ohneBild(d), null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `atlas-eingabe-${art}-${heute()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
   function einreichen() {
@@ -329,7 +318,6 @@
 
     $("#speichern").addEventListener("click", speichern);
     $("#einreichen").addEventListener("click", einreichen);
-    $("#json").addEventListener("click", herunterladen);
     $("#leeren").addEventListener("click", leeren);
 
     artWaehlen(location.hash === "#tafel" ? "tafel" : "beitrag");

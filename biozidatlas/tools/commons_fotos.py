@@ -3,8 +3,10 @@
 Sucht je Stichwort Dateien auf Commons, liest Lizenz und Urheber aus der
 Commons-API und lädt nur Fotos unter Public Domain, CC0, CC BY oder CC BY-SA
 herunter (kein NC, kein ND, nichts ohne lesbare Lizenz), 800 px breit, nach
-data/bilder/fotos/. Lizenz und Urheber stehen in data/fotos.json, damit die
-Seiten den Nachweis unter jedes Bild schreiben können.
+data/bilder/fotos-kandidaten/, mit Lizenz und Urheber in
+data/fotos-kandidaten.json. Ausgewählte Fotos kommen von Hand nach
+data/bilder/fotos/ und data/fotos.json; die Seiten nennen den Nachweis unter
+jedem Bild.
 
 Läuft auf einem GitHub-Runner (.github/workflows/biozidatlas-fotos.yml), weil
 die Entwicklungsumgebung Commons nicht erreicht. Es lädt je Stichwort mehrere
@@ -21,8 +23,10 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
-ZIEL = HERE / "data" / "bilder" / "fotos"
-LISTE = HERE / "data" / "fotos.json"
+# Kandidaten landen getrennt von der Auswahl in data/fotos.json, damit ein neuer
+# Lauf nichts überschreibt, was schon ausgewählt ist.
+ZIEL = HERE / "data" / "bilder" / "fotos-kandidaten"
+LISTE = HERE / "data" / "fotos-kandidaten.json"
 API = "https://commons.wikimedia.org/w/api.php"
 UA = "antifouling-atlas-prototyp/1.0 (https://anayana.github.io/biozidatlas/)"
 JE_STICHWORT = 4
@@ -64,8 +68,7 @@ def text(meta, feld):
 
 def main():
     ZIEL.mkdir(parents=True, exist_ok=True)
-    alt = json.loads(LISTE.read_text(encoding="utf-8")) if LISTE.exists() else {"fotos": {}}
-    fotos = alt.get("fotos", {})
+    fotos = {}
     for key, begriffe in STICHWORTE.items():
         kandidaten = []
         gesehen = set()
@@ -91,7 +94,7 @@ def main():
                     continue
                 gesehen.add(s["title"])
                 n = len(kandidaten) + 1
-                datei = f"bilder/fotos/{key}-{n}.{'png' if info['mime'] == 'image/png' else 'jpg'}"
+                datei = f"bilder/fotos-kandidaten/{key}-{n}.{'png' if info['mime'] == 'image/png' else 'jpg'}"
                 req = urllib.request.Request(info["thumburl"], headers={"User-Agent": UA})
                 with urllib.request.urlopen(req, timeout=60) as res:
                     (HERE / "data" / datei).write_bytes(res.read())
@@ -109,9 +112,8 @@ def main():
         fotos[key] = kandidaten
         print(f"{key}: {len(kandidaten)} Fotos")
     LISTE.write_text(json.dumps({
-        "_hinweis": "Fotos von Wikimedia Commons, nur Public Domain, CC0, CC BY und CC BY-SA. "
-                    "Je Organismus mehrere Kandidaten; genutzt wird der erste. Urheber und Lizenz "
-                    "werden unter jedem Bild genannt.",
+        "_hinweis": "Kandidaten von Wikimedia Commons, nur Public Domain, CC0, CC BY und CC BY-SA, "
+                    "mit Urheber und Lizenz. Ausgewählte Fotos stehen in data/fotos.json.",
         "fotos": fotos,
     }, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     if not any(fotos.values()):

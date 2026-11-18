@@ -381,7 +381,8 @@
     const k = kernfrage(ctx);
     const el = $("#kernfrage");
     el.className = "card kernfrage " + k.cls;
-    el.innerHTML = `<h2>Geht es hier ohne Biozid?</h2><div class="kf-head">${esc(k.head)}</div><p class="kf-text">${esc(k.text)}</p>`;
+    const punkt = { ja: 1, teils: 2, nein: 3 }[k.cls];
+    el.innerHTML = `<h2>Geht es hier ohne Biozid?</h2><div class="kf-head"><span class="dot druck-${punkt}" aria-hidden="true"></span>${esc(k.head)}</div><p class="kf-text">${esc(k.text)}</p>`;
   }
 
   function renderRangliste(ctx) {

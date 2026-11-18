@@ -1,5 +1,5 @@
 {
- "_hinweis": "Beispielbeiträge, ausgedacht für die Struktur. Jeder Beitrag gehört zu einem Hafen und hat immer dieselben Felder: ueberschrift, unterueberschrift, metadaten (autor, datum, quelle, lizenz, schlagworte), bild (datei unter data/bilder/, alt-Text, bildnachweis; oder null) und text (Absätze durch Leerzeile getrennt). status: veroeffentlicht oder entwurf; reihenfolge: Position auf der Hafenseite. vorgang: Nummer der GitHub-Einreichung, aus der der Beitrag übernommen wurde.",
+ "_hinweis": "Beispielbeiträge, ausgedacht für die Struktur. Jeder Beitrag gehört zu einem Hafen und hat immer dieselben Felder: ueberschrift, unterueberschrift, metadaten (autor, datum, quelle, lizenz, schlagworte), bild (datei unter data/bilder/ mit alt-Text und bildnachweis, oder foto = Schlüssel eines Fotos aus data/fotos.json mit alt-Text, oder null) und text (Absätze durch Leerzeile getrennt). status: veroeffentlicht oder entwurf; reihenfolge: Position auf der Hafenseite. vorgang: Nummer der GitHub-Einreichung, aus der der Beitrag übernommen wurde.",
  "beitraege": [
   {
    "id": "b001",
@@ -20,9 +20,8 @@
     ]
    },
    "bild": {
-    "datei": "bilder/bewuchstafel-aufbau.svg",
-    "alt": "Skizze: Bewuchstafel an einer Leine unter dem Steg",
-    "bildnachweis": "Skizze, Beispiel"
+    "foto": "rumpf_seepocken",
+    "alt": "Seepocken an einem Bootsrumpf"
    },
    "text": "Seit Mai 2026 hängt am Steg C eine Bewuchstafel aus grauem Kunststoff, 15 × 15 cm groß, etwa einen Meter unter der Oberfläche. Einmal im Monat holen Vereinsmitglieder sie kurz heraus, fotografieren beide Seiten und schätzen, wie viel der Fläche bewachsen ist.\n\nDie Ablesungen zeigen, wann der Bewuchs am Liegeplatz einsetzt und wie schnell er zunimmt. Daraus lässt sich ablesen, wann Reinigen oder Kranen sinnvoll ist."
   },
@@ -44,9 +43,8 @@
     ]
    },
    "bild": {
-    "datei": "bilder/waschanlage.svg",
-    "alt": "Skizze: Boot zwischen rotierenden Bürsten, darunter ein Auffangbecken",
-    "bildnachweis": "Skizze, Beispiel"
+    "foto": "rumpf_bewuchs",
+    "alt": "Stark bewachsener Rumpf eines Küstenboots"
    },
    "text": "Boote mit einer harten, biozidfreien Beschichtung fahren in der Saison alle drei bis vier Wochen durch die Waschanlage. Ein Durchgang dauert etwa zehn Minuten.\n\nDas Waschwasser läuft in ein Becken und wird gefiltert, damit abgelöster Bewuchs und Farbreste nicht ins Hafenbecken gelangen."
   },
@@ -68,9 +66,8 @@
     ]
    },
    "bild": {
-    "datei": "bilder/seepocken.svg",
-    "alt": "Skizze: dicht mit Seepocken besetzte Fläche",
-    "bildnachweis": "Skizze, Beispiel"
+    "foto": "seepocken",
+    "alt": "Dicht sitzende Seepocken auf einem Stein"
    },
    "text": "Im salzigen Wasser der Nordsee setzen sich ab etwa 15 °C Wassertemperatur viele Seepockenlarven fest. Auf der Tafel in Büsum war Ende August fast die ganze Fläche bewachsen.\n\nWer biozidfrei unterwegs ist, sollte den Rumpf in dieser Zeit besonders häufig reinigen. Seepocken lassen sich jung noch leicht abschaben, ausgewachsen kaum noch."
   },
@@ -92,7 +89,10 @@
      "Algen"
     ]
    },
-   "bild": null,
+   "bild": {
+    "foto": "algen",
+    "alt": "Fadenalgen unter Wasser in einem Hafen"
+   },
    "text": "Im Greifswalder Bodden ist das Wasser kaum salzig, aber reich an Nährstoffen. Copernicus meldet hier deutlich mehr Chlorophyll als an der offenen Küste.\n\nAuf der Tafel wächst deshalb vor allem ein schleimiger Biofilm mit Grünalgen. Seepocken kommen bei dem geringen Salzgehalt kaum vor; ein biozidhaltiger Anstrich ist hier meist nicht nötig."
   },
   {
@@ -113,9 +113,8 @@
     ]
    },
    "bild": {
-    "datei": "bilder/muschel.svg",
-    "alt": "Skizze einer dreieckigen, gestreiften Muschel, 2 bis 4 cm groß",
-    "bildnachweis": "Skizze, Beispiel"
+    "foto": "dreikantmuscheln",
+    "alt": "Dreikantmuscheln, Schalen von mehreren Seiten"
    },
    "text": "In den Berliner Seen sitzen Dreikantmuscheln an Stegen, Ketten und Rümpfen. Auf der Tafel waren sie ab Juli deutlich zu sehen.\n\nBiozidhaltige Anstriche sind für Süßwasser im Prototyp nicht vorgesehen. Bewährt hat sich, den Rumpf im Herbst beim Auskranen gründlich zu reinigen."
   },
@@ -138,9 +137,8 @@
     ]
    },
    "bild": {
-    "datei": "bilder/muschel.svg",
-    "alt": "Skizze einer dreieckigen Muschel",
-    "bildnachweis": "Skizze, Beispiel"
+    "foto": "quagga_anlage",
+    "alt": "Mit Quaggamuscheln zugesetzter Siebkorb einer Wasseranlage"
    },
    "text": "Die Quaggamuschel wurde vor einigen Jahren in den Bodensee eingeschleppt und besiedelt inzwischen auch tiefere Bereiche. Auf der Tafel in zwei Metern Tiefe machte sie im September den größten Teil des Bewuchses aus.\n\nBoote, die zwischen Gewässern wechseln, sollten vor dem Einsetzen gereinigt und getrocknet werden, damit keine Larven verschleppt werden."
   },

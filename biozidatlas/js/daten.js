@@ -17,7 +17,7 @@
 
   async function loadJSON(name, pflicht = true) {
     try {
-      const res = await fetch("data/" + name + ".json?v=7");
+      const res = await fetch("data/" + name + ".json?v=8");
       if (!res.ok) throw new Error(name + ".json: " + res.status);
       return await res.json();
     } catch (e) {
@@ -27,10 +27,11 @@
   }
 
   async function ladeAlles() {
-    const [rv, hf, osm, cop, tf, bt] = await Promise.all([
+    const [rv, hf, osm, cop, tf, bt, fo] = await Promise.all([
       loadJSON("reviere"), loadJSON("haefen"), loadJSON("osm-haefen", false),
-      loadJSON("copernicus", false), loadJSON("bewuchstafeln"), loadJSON("beitraege"),
+      loadJSON("copernicus", false), loadJSON("bewuchstafeln"), loadJSON("beitraege"), loadJSON("fotos", false),
     ]);
+    FOTOS = fo ? fo.fotos : {};
     const byId = (arr) => Object.fromEntries(arr.map((x) => [x.id, x]));
     const beispiel = hf.haefen.map((h) => ({ ...h, quelle: "beispiel" }));
     const osmHaefen = (osm ? osm.haefen : []).map((h) => ({ ...h, quelle: "osm" }));
@@ -88,50 +89,46 @@
     return (t.organismen || []).map((o) => `${o.name} ${zahl(o.anteil_prozent)} %`).join(" · ");
   }
 
-  // Symbolbild einer Tafel aus Bedeckung und Organismen, wenn kein Foto da ist.
-  // Fester Zufall je Ablesung, damit das Bild bei jedem Laden gleich aussieht.
-  function tafelSVG(t) {
-    let seed = 0;
-    for (const c of String(t.id || "x")) seed = (seed * 31 + c.charCodeAt(0)) | 0;
-    const rnd = () => {
-      seed = (seed + 0x6d2b79f5) | 0;
-      let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
-      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-    };
-    const flaeche = Math.max(0, Math.min(100, Number(t.bedeckung_prozent) || 0));
-    const teile = [];
-    (t.organismen || []).forEach((o) => {
-      const n = Math.round((flaeche / 100) * (o.anteil_prozent / 100) * 90);
-      const name = o.name.toLowerCase();
-      for (let i = 0; i < n; i++) {
-        const x = 12 + rnd() * 136, y = 12 + rnd() * 136;
-        if (name.includes("seepocke")) teile.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(4 + rnd() * 4).toFixed(1)}" fill="#f3efe6" stroke="#8d8576" stroke-width="1.5"/>`);
-        else if (name.includes("muschel")) teile.push(`<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(5 + rnd() * 3).toFixed(1)}" ry="${(3 + rnd() * 2).toFixed(1)}" transform="rotate(${Math.round(rnd() * 180)} ${x.toFixed(1)} ${y.toFixed(1)})" fill="${name.includes("mies") ? "#2c3440" : "#6b5a3a"}"/>`);
-        else if (name.includes("alge")) teile.push(`<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(5 + rnd() * 6).toFixed(1)}" ry="${(2 + rnd() * 3).toFixed(1)}" fill="#3f8a4a" opacity="0.75"/>`);
-        else if (name.includes("seescheide")) teile.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(4 + rnd() * 4).toFixed(1)}" fill="#e2a15a" opacity="0.7"/>`);
-        else if (name.includes("moos")) teile.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(3 + rnd() * 3).toFixed(1)}" fill="none" stroke="#d9c9a3" stroke-width="2"/>`);
-        else teile.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(6 + rnd() * 6).toFixed(1)}" fill="#8a6d3b" opacity="0.25"/>`);
-      }
-    });
-    return `<svg viewBox="0 0 160 160" role="img" aria-label="Symbolbild der Tafel: ${zahl(flaeche)} % bewachsen">
-      <rect width="160" height="160" fill="#b9c0c4"/><circle cx="12" cy="12" r="4" fill="#7d878c"/>${teile.join("")}</svg>`;
+  // Fotos von Wikimedia Commons (data/fotos.json): je Organismus der erste Kandidat.
+  const FOTO_KEY = {
+    Seepocken: "seepocken", Miesmuscheln: "miesmuscheln", Dreikantmuscheln: "dreikantmuscheln",
+    Quaggamuscheln: "quaggamuscheln", Moostierchen: "moostierchen", Seescheiden: "seescheiden",
+    "Grünalgen": "gruenalgen", Algen: "algen", Biofilm: "biofilm",
+  };
+  let FOTOS = {};
+
+  function foto(key) {
+    const liste = FOTOS[key];
+    return liste && liste.length ? liste[0] : null;
   }
 
+  function nachweis(f) {
+    return `Foto: ${esc(f.autor)}, <a href="${esc(f.quelle_url)}" target="_blank" rel="noopener">${esc(f.lizenz)}</a>, Wikimedia Commons`;
+  }
+
+  // Eigenes Foto der Tafel, sonst ein Beispielfoto des häufigsten Organismus.
   function tafelBild(t) {
-    if (t.bild) return `<img src="${esc(t.bild.startsWith("data:") ? t.bild : "data/" + t.bild)}" alt="Foto der Tafel ${esc(t.tafel)} vom ${esc(datum(t.abgelesen))}">`;
-    return tafelSVG(t);
+    if (t.bild) {
+      const src = t.bild.startsWith("data:") ? t.bild : "data/" + t.bild;
+      return { html: `<img src="${esc(src)}" alt="Foto der Tafel ${esc(t.tafel)} vom ${esc(datum(t.abgelesen))}">`, text: "Foto der Tafel" };
+    }
+    const haupt = (t.organismen || []).slice().sort((a, b) => b.anteil_prozent - a.anteil_prozent)[0];
+    const f = haupt ? foto(FOTO_KEY[haupt.name]) : null;
+    if (!f) return null;
+    return { html: `<img src="data/${esc(f.datei)}" alt="Beispielfoto: ${esc(haupt.name)}" loading="lazy">`, text: `Beispielfoto ${esc(haupt.name)}. ${nachweis(f)}` };
   }
 
   function renderTafel(t, opts = {}) {
     const k = klasse(t.bedeckung_prozent);
-    return `<article class="tafel${opts.lokal ? " is-lokal" : ""}">
-      <div class="tafel-bild">${tafelBild(t)}</div>
+    const bild = tafelBild(t);
+    return `<article class="tafel${opts.lokal ? " is-lokal" : ""}${bild ? "" : " ohne-bild"}">
+      ${bild ? `<div class="tafel-bild">${bild.html}</div>` : ""}
       <div class="tafel-text">
         <div class="tafel-kopf"><b>${esc(datum(t.abgelesen))}</b> <span class="chip"><span class="dot druck-${k.stufe}"></span>${zahl(t.bedeckung_prozent)} % bewachsen</span></div>
         <div class="tafel-meta">Tafel ${esc(t.tafel)} · ${zahl(t.tiefe_m, 1)} m tief · ausgebracht ${esc(datum(t.ausgebracht))}</div>
         <div class="tafel-org">${esc(organismenText(t))}</div>
-        <div class="tafel-meta">Gemeldet von ${esc(t.melder)} · ${t.geprueft ? "geprüft" : "noch nicht geprüft"}${t.bild ? "" : " · Symbolbild aus den Angaben"}</div>
+        <div class="tafel-meta">Gemeldet von ${esc(t.melder)} · ${t.geprueft ? "geprüft" : "noch nicht geprüft"}</div>
+        ${bild ? `<div class="tafel-meta">${bild.text}</div>` : ""}
         ${t.bemerkung ? `<div class="tafel-meta">${esc(t.bemerkung)}</div>` : ""}
         ${opts.lokal ? `<div class="lokal-hinweis">Nur in diesem Browser gespeichert</div>` : ""}
       </div>
@@ -151,7 +148,16 @@
 
   function renderBeitrag(b, opts = {}) {
     const m = b.metadaten || {};
-    const bildSrc = b.bild && b.bild.datei ? (b.bild.datei.startsWith("data:") ? b.bild.datei : "data/" + b.bild.datei) : null;
+    let bildSrc = null;
+    let bildNachweis = "";
+    if (b.bild && b.bild.foto && foto(b.bild.foto)) {
+      const f = foto(b.bild.foto);
+      bildSrc = "data/" + f.datei;
+      bildNachweis = nachweis(f);
+    } else if (b.bild && b.bild.datei) {
+      bildSrc = b.bild.datei.startsWith("data:") ? b.bild.datei : "data/" + b.bild.datei;
+      bildNachweis = esc(b.bild.bildnachweis || "");
+    }
     const meta = [
       m.autor ? esc(m.autor) : "",
       m.datum ? esc(datum(m.datum)) : "",
@@ -166,7 +172,7 @@
         <p class="beitrag-meta">${meta}</p>
         ${tags ? `<div class="chips">${tags}</div>` : ""}
       </header>
-      ${bildSrc ? `<figure><img src="${esc(bildSrc)}" alt="${esc(b.bild.alt || "")}"><figcaption>${esc(b.bild.bildnachweis || "")}</figcaption></figure>` : ""}
+      ${bildSrc ? `<figure><img src="${esc(bildSrc)}" alt="${esc(b.bild.alt || "")}"><figcaption>${bildNachweis}</figcaption></figure>` : ""}
       <div class="beitrag-text">${absaetze(b.text) || "<p class=\"leer\">Erklärung</p>"}</div>
       ${b.status === "entwurf" ? `<div class="lokal-hinweis">Entwurf, nicht veröffentlicht</div>` : ""}
       ${opts.lokal ? `<div class="lokal-hinweis">Nur in diesem Browser gespeichert</div>` : ""}
@@ -176,6 +182,6 @@
   root.Atlasdaten = {
     WASSER, DRUCK, MONATE, ORGANISMEN, LIZENZEN,
     esc, zahl, datum, loadJSON, ladeAlles, lokal, lokalSpeichern,
-    klasse, intensitaet, organismenText, tafelSVG, renderTafel, renderBeitrag,
+    klasse, intensitaet, organismenText, foto, renderTafel, renderBeitrag,
   };
 })(window);
