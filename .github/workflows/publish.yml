@@ -38,6 +38,17 @@ jobs:
             echo "Zweig biozidatlas-modelle fehlt noch, Spracheingabe ohne Modell"
           fi
 
+      # Anleitungsvideo: Zweig biozidatlas-video (Workflow biozidatlas-video.yml).
+      - name: Add tutorial video for biozidatlas
+        run: |
+          if git fetch -q --depth 1 origin biozidatlas-video; then
+            mkdir -p _site/biozidatlas/video
+            git archive FETCH_HEAD | tar -x -C _site/biozidatlas/video
+            du -sh _site/biozidatlas/video
+          else
+            echo "Zweig biozidatlas-video fehlt noch"
+          fi
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

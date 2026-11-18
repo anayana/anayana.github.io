@@ -1,0 +1,69 @@
+name: Antifouling-Atlas - Anleitungsvideo
+
+# Records the tutorial video against the published site (real map tiles and
+# live data, which the sandbox cannot reach), speaks the script with Piper and
+# the free German voice "Thorsten" (CC0), and stores the result as a single
+# commit on the branch biozidatlas-video. The Pages build copies that branch
+# into biozidatlas/video, where anleitung.html plays it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ffmpeg fonts-dejavu-core
+          cd biozidatlas/tools/video
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+          pip install -q piper-tts==1.8.0
+      - name: Voice Thorsten (CC0)
+        run: |
+          mkdir -p "$RUNNER_TEMP/stimme"
+          for f in de_DE-thorsten-high.onnx de_DE-thorsten-high.onnx.json; do
+            curl -fsSL -o "$RUNNER_TEMP/stimme/$f" "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/high/$f"
+          done
+      - name: Speak, record, cut
+        env:
+          PIPER_MODELL: ${{ runner.temp }}/stimme/de_DE-thorsten-high.onnx
+          BASIS: https://anayana.github.io/biozidatlas/
+        run: |
+          cd biozidatlas/tools/video
+          W="$RUNNER_TEMP/video"
+          node video.mjs texte "$W-texte.json"
+          python3 sprechen.py "$W-texte.json" "$W-stimmen"
+          node video.mjs aufnahme "$W-stimmen/dauer.json" "$W-aufnahme"
+          python3 schnitt.py "$W-aufnahme" "$W-stimmen" "$W"
+          ls -la "$W"
+      - name: Store on branch biozidatlas-video
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/video"
+          printf '# Anleitungsvideo des Antifouling-Atlas\n\nErzeugt von .github/workflows/biozidatlas-video.yml aus biozidatlas/tools/video.\nStimme: Thorsten (Thorsten-Voice, CC0) mit Piper. Die Pages-Veröffentlichung kopiert diesen Zweig nach biozidatlas/video/.\n' > README.md
+          git init -q -b biozidatlas-video
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add anleitung.mp4 poster.jpg kapitel.json untertitel.vtt README.md
+          git commit -q -m "Antifouling-Atlas: Anleitungsvideo"
+          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" biozidatlas-video
+      - name: Republish the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run publish.yml --ref main

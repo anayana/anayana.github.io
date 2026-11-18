@@ -13,6 +13,7 @@
 
   let D = null;
   const anzeigeZuId = {};
+  const nameZuIds = {}; // kleingeschriebener Hafenname -> ids (für Eingabe nur des Namens)
   const bilder = { beitrag: null, tafel: null };
   let art = "beitrag";
 
@@ -28,6 +29,8 @@
       if (gesehen[a]) a += ` · ${h.id}`;
       gesehen[a] = true;
       anzeigeZuId[a] = h.id;
+      const n = h.name.toLowerCase();
+      (nameZuIds[n] = nameZuIds[n] || []).push(h.id);
       return `<option value="${esc(a)}"></option>`;
     });
     $("#hafenliste").innerHTML = opts.join("");
@@ -41,6 +44,11 @@
     const v = $(feld).value.trim();
     if (anzeigeZuId[v]) return anzeigeZuId[v];
     if (D.hafen[v]) return v;
+    // Nur der Name getippt, ohne aus der Liste zu wählen: gilt, wenn er eindeutig ist.
+    const ids = nameZuIds[v.toLowerCase()] || [];
+    const beispiel = ids.filter((id) => D.beispielhaefen.some((h) => h.id === id));
+    if (ids.length === 1) return ids[0];
+    if (beispiel.length === 1) return beispiel[0];
     return null;
   }
 

@@ -211,6 +211,7 @@
         ? { name: "Eingabe: Ablesung einer Bewuchstafel", rundgang: "eingabe-tafel", fragen: ["eingabe-tafel", "anteil-schaetzen", "bilder", "pflichtfelder", "speichern-einreichen"] }
         : { name: "Eingabe: Beitrag für eine Hafenseite", rundgang: "eingabe-beitrag", fragen: ["eingabe-beitrag", "bilder", "pflichtfelder", "speichern-einreichen", "freigeben"] };
     }
+    if (s.startsWith("anleitung")) return { name: "Anleitung", rundgang: "atlas", fragen: ["anleitung", "anmelden", "sprache", "herkunft", "beispieldaten"] };
     if (s.startsWith("datenbank")) return { name: "Datenbank", rundgang: "datenbank", fragen: ["datenbank", "freigeben", "beispieldaten"] };
     if (s.startsWith("hafen")) {
       return location.hash.length > 1
@@ -687,6 +688,7 @@ ${seitenstand().slice(0, 2500)}`;
       [/\b(hafenseite|hafenseiten|haefen|hafenliste)\b/, "hafen.html", "die Hafenseiten"],
       [/\b(eingabe|eingeben|formular)\b/, "eingabe.html", "die Eingabe"],
       [/\b(datenbank|tabelle|tabellen)\b/, "datenbank.html", "die Datenbank"],
+      [/\b(anleitung|video|tutorial)\b/, "anleitung.html", "die Anleitung"],
     ];
     for (const [re, ziel, name] of ziele) if (re.test(t)) return (txt) => { zeigen(txt); seiteOeffnen(ziel, name); };
     if (seite().startsWith("index") && $("#profil-freizeit")) {
@@ -871,7 +873,7 @@ ${seitenstand().slice(0, 2500)}`;
   async function start() {
     try {
       const [h, r] = await Promise.all([
-        fetch("data/hilfe.json?v=3").then((x) => x.json()),
+        fetch("data/hilfe.json?v=4").then((x) => x.json()),
         fetch("data/rundgaenge.json?v=2").then((x) => x.json()),
       ]);
       HILFE = h.eintraege;
