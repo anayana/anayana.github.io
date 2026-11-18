@@ -334,7 +334,7 @@
     "eingabe",
     "datenbank"
    ],
-   "antwort": "Atlas und Hafenseiten sind für alle offen. Eingabe und Datenbank sind nur für Wissenschaftlerinnen und Wissenschaftler; dafür oben rechts auf „Anmelden“ klicken. Im Prototyp ist das eine Demo-Anmeldung ohne echten Schutz; später meldet man sich mit dem Dienstkonto an."
+   "antwort": "Atlas und Hafenseiten sind für alle offen. Eingabe und Datenbank sind nur für Wissenschaftlerinnen und Wissenschaftler; dafür oben rechts auf „Anmelden“ klicken. Im Prototyp ist das eine Demo-Anmeldung ohne echten Schutz: Benutzername „wissenschaft“, Passwort „atlas“; später meldet man sich mit dem Dienstkonto an."
   },
   {
    "id": "eingabe-beitrag",
@@ -487,6 +487,23 @@
     "hören"
    ],
    "antwort": "Ja. Tippen Sie im Assistenten auf das Mikrofon und sprechen Sie Ihre Frage. Beim ersten Mal lädt der Browser die Spracherkennung, etwa 100 MB; sie läuft dann auf Ihrem Rechner, und nichts wird verschickt. Ich lese die Antwort vor und höre danach weiter zu, bis Sie „stopp“ sagen oder eine Weile nichts sagen. Im Rundgang: „weiter“, „zurück“, „wiederholen“, „beenden“. Außerdem verstehe ich zum Beispiel „Hafen Kiel“, „Hafenseiten“, „Atlas“, „Rundgang“ oder „Berufsschifffahrt“."
+  },
+  {
+   "id": "anleitung",
+   "rolle": "alle",
+   "frage": "Gibt es eine Anleitung als Video?",
+   "stichworte": [
+    "anleitung",
+    "video",
+    "tutorial",
+    "erklärvideo",
+    "erklärung",
+    "einführung",
+    "film",
+    "schritt",
+    "lernen"
+   ],
+   "antwort": "Ja. Oben unter „Anleitung“ zeigt ein Video von etwa acht Minuten den ganzen Atlas: Atlas, Hafenseiten, Assistent, Anmeldung, Eingabe und Datenbank, mit Kapiteln zum Springen. Dort stehen auch die Zugangsdaten für die Wissenschaft: Benutzername „wissenschaft“, Passwort „atlas“."
   }
  ]
 }

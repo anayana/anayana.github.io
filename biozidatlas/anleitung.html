@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Anleitung – Antifouling-Atlas</title>
+  <meta name="description" content="Prototyp: Anleitungsvideo zum Antifouling-Atlas mit Kapiteln und Demo-Zugang für die Wissenschaft.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css?v=13">
+  <script src="js/zugang.js?v=1"></script>
+</head>
+<body class="seite">
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <h1>Antifouling-Atlas</h1>
+        <p class="tagline">Anleitung</p>
+      </div>
+      <nav class="hauptnav no-print" aria-label="Bereiche">
+        <a href="index.html">Atlas</a>
+        <a href="hafen.html">Hafenseiten</a>
+        <a class="nur-wissenschaft" href="eingabe.html">Eingabe</a>
+        <a class="nur-wissenschaft" href="datenbank.html">Datenbank</a>
+        <a href="anleitung.html" aria-current="page">Anleitung</a>
+      </nav>
+      <p class="banner" role="note">
+        <strong>Prototyp mit Beispieldaten.</strong>
+        Das Video zeigt, wie der Atlas aufgebaut ist; Bewertungen, Kosten und Ablesungen darin sind ausgedacht.
+      </p>
+    </div>
+  </header>
+
+  <main class="seite-inhalt">
+    <h2 class="seite-titel">Anleitung</h2>
+    <div class="anleitung">
+      <section class="card anleitung-video">
+        <video id="video" controls preload="metadata" poster="video/poster.jpg" playsinline>
+          <source src="video/anleitung.mp4" type="video/mp4">
+          <track kind="subtitles" srclang="de" label="Deutsch" src="video/untertitel.vtt">
+        </video>
+        <p class="hint" id="video-hinweis">Das Video zeigt den ganzen Atlas<span id="video-dauer"></span>: Atlas, Hafenseiten, Assistent, Anmeldung, Eingabe und Datenbank. Gesprochen von der freien Stimme „Thorsten“ (CC0).</p>
+      </section>
+      <aside class="anleitung-seite">
+        <section class="card zugang-karte">
+          <h2>Zugang für Wissenschaft</h2>
+          <p>Eingabe und Datenbank erscheinen nach der Anmeldung oben rechts auf jeder Seite.</p>
+          <dl class="zugangsdaten">
+            <dt>Benutzername</dt><dd><code>wissenschaft</code></dd>
+            <dt>Passwort</dt><dd><code>atlas</code></dd>
+          </dl>
+          <p class="hint">Demo-Zugang des Prototyps; er schützt keine Daten. Im echten Betrieb meldet man sich mit dem Dienstkonto an.</p>
+        </section>
+        <section class="card">
+          <h2>Kapitel</h2>
+          <ol class="kapitel" id="kapitel"><li class="hint">Kapitel werden geladen …</li></ol>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const video = document.getElementById("video");
+      const liste = document.getElementById("kapitel");
+      const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+      fetch("video/kapitel.json", { cache: "no-cache" })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then((d) => {
+          document.getElementById("video-dauer").textContent = ` in etwa ${Math.round(d.laenge / 60)} Minuten`;
+          liste.innerHTML = d.kapitel.map((k) => `<li><button type="button" class="kapitel-knopf" data-zeit="${k.zeit}"><span class="kapitel-zeit">${mmss(k.zeit)}</span> ${esc(k.titel)}</button></li>`).join("");
+          liste.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+            video.currentTime = Number(b.dataset.zeit);
+            video.play().catch(() => {});
+          }));
+        })
+        .catch(() => {
+          liste.innerHTML = "";
+          document.getElementById("video-hinweis").textContent = "Das Video wird gerade erstellt und ist in wenigen Minuten hier.";
+        });
+    })();
+  </script>
+  <script src="js/sprache.js?v=2"></script>
+  <script src="js/assistent.js?v=7"></script>
+</body>
+</html>

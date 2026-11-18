@@ -39,6 +39,9 @@ biozidatlas/
   vendor/transformers/    transformers.js 4.3.1 (Apache-2.0)
   modelle/                Whisper Base und ONNX Runtime; nicht in main, siehe „Spracheingabe“
   tools/sprachmodell_holen.py  Holt Modell und Laufzeit für den Zweig biozidatlas-modelle
+  anleitung.html          Anleitungsvideo mit Kapiteln und Demo-Zugang
+  tools/video/            Drehbuch, Aufnahme, Stimme und Schnitt des Anleitungsvideos
+  video/                  Das fertige Video; nicht in main, siehe „Anleitungsvideo“
   js/daten.js             Gemeinsamer Code der Unterseiten: Laden, lokale Einträge, Darstellung
   js/hafenseite.js        Hafenseiten
   js/eingabe.js           Eingabe, Prüfung, Speichern und Einreichen
@@ -334,6 +337,32 @@ Hand). `publish.yml` kopiert sie beim Veröffentlichen nach
 Grenzen: Mikrofon braucht HTTPS oder localhost. Nach einem Seitenwechsel per
 Sprache verlangen die meisten Browser einen neuen Tipp aufs Mikrofon.
 Whisper Base irrt sich bei einzelnen Wörtern öfter als bei ganzen Sätzen.
+
+## Anleitungsvideo
+
+`anleitung.html` zeigt ein Video von etwa acht Minuten durch den ganzen Atlas
+(Atlas, Hafenseiten, Assistent, Anmeldung mit Demo-Zugang, Eingabe,
+Datenbank), mit Kapiteln zum Springen, Untertiteln und den Zugangsdaten für
+die Wissenschaft daneben.
+
+Das Video wird nicht von Hand geschnitten, sondern erzeugt
+(Workflow `biozidatlas-video.yml`, Aufruf von Hand):
+
+1. `tools/video/video.mjs texte` schreibt die Sprechtexte des Drehbuchs.
+2. `tools/video/sprechen.py` spricht sie mit Piper und der freien Stimme
+   „Thorsten“ (Thorsten-Voice, CC0); ohne Piper mit pico2wave.
+3. `tools/video/video.mjs aufnahme` bedient die veröffentlichte Seite mit
+   Playwright, Szene für Szene so lange wie der gesprochene Text, und nimmt
+   sie in Full HD auf. `tools/video/overlay.js` blendet Untertitel, einen
+   sichtbaren Mauszeiger, einen Rahmen um das erklärte Element und
+   Titelkarten ein.
+4. `tools/video/schnitt.py` setzt Bilder und Sprachspur zu `anleitung.mp4`
+   zusammen und schreibt Titelbild, Kapitel und Untertitel.
+
+Das Ergebnis liegt auf dem Zweig `biozidatlas-video`; `publish.yml` kopiert
+es nach `biozidatlas/video/`. Ändert sich der Atlas, genügt ein neuer Lauf
+des Workflows. Sprechtexte und Abläufe stehen in `SZENEN` in
+`tools/video/video.mjs`.
 
 ## Anmeldung und Rollen
 
