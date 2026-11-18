@@ -26,6 +26,18 @@ jobs:
       - name: Render
         run: quarto render
 
+      # Spracheingabe des Antifouling-Atlas: Modell und Laufzeit liegen auf dem
+      # Zweig biozidatlas-modelle (Workflow biozidatlas-sprachmodell.yml).
+      - name: Add speech model for biozidatlas
+        run: |
+          if git fetch -q --depth 1 origin biozidatlas-modelle; then
+            mkdir -p _site/biozidatlas/modelle
+            git archive FETCH_HEAD | tar -x -C _site/biozidatlas/modelle
+            du -sh _site/biozidatlas/modelle
+          else
+            echo "Zweig biozidatlas-modelle fehlt noch, Spracheingabe ohne Modell"
+          fi
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
