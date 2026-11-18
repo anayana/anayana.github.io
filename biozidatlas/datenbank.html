@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Datenbank – Antifouling-Atlas</title>
-  <meta name="description" content="Prototyp: alle Daten des Antifouling-Atlas als SQLite-Datenbank im Browser, mit Schema, Tabellen und Abfragen.">
+  <meta name="description" content="Prototyp: alle Daten des Antifouling-Atlas in Tabellen.">
   <meta name="robots" content="noindex">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,8 +33,7 @@
 
   <main class="seite-inhalt">
     <h2 class="seite-titel">Datenbank</h2>
-    <p class="einleitung">Alle Daten des Atlas in einer relationalen Datenbank (SQLite, läuft im Browser). Das Schema lässt sich so in PostgreSQL übernehmen.
-      Änderungen hier wirken nur bis zum Neuladen; neue Daten kommen über die <a href="eingabe.html">Eingabe</a> oder die automatischen Abrufe.</p>
+    <p class="einleitung">Alle Daten des Atlas in Tabellen. Neue Daten kommen über die <a href="eingabe.html">Eingabe</a> oder die automatischen Abrufe.</p>
 
     <section class="card">
       <h2>Woher die Daten kommen</h2>
@@ -64,25 +63,10 @@
       <div class="aktionen" id="blaettern"></div>
     </section>
 
-    <section class="card">
-      <h2>Abfrage (SQL)</h2>
-      <div class="presets" id="beispiele"></div>
-      <label for="sql" class="sr-only">SQL-Abfrage</label>
-      <textarea id="sql" rows="6" spellcheck="false"></textarea>
-      <div class="aktionen"><button type="button" class="btn" id="ausfuehren">Ausführen</button></div>
-      <p class="hint" id="sql-meldung" aria-live="polite"></p>
-      <div class="table-wrap"><table id="ergebnis"></table></div>
-    </section>
-
-    <section class="card">
-      <h2>Schema</h2>
-      <p class="hint">Datei <a href="data/schema.sql">data/schema.sql</a>; die Eingabeformulare haben genau diese Felder.</p>
-      <pre class="json" id="schema"></pre>
-    </section>
   </main>
 
   <script src="vendor/sql.js/sql-wasm.js"></script>
   <script src="js/daten.js?v=2"></script>
-  <script src="js/datenbank.js?v=2"></script>
+  <script src="js/datenbank.js?v=3"></script>
 </body>
 </html>

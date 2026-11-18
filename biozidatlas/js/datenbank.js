@@ -1,6 +1,5 @@
 /* Datenbank: baut aus den JSON-Dateien des Atlas eine SQLite-Datenbank im
-   Browser (sql.js) nach dem Schema in data/schema.sql und zeigt Tabellen,
-   Abfragen und das Schema. */
+   Browser (sql.js) nach dem Schema in data/schema.sql und zeigt ihre Tabellen. */
 (function () {
   "use strict";
 
@@ -23,47 +22,6 @@
     tafel_organismen: "Zusammensetzung des Bewuchses je Ablesung",
     beitraege: "Beiträge auf den Hafenseiten",
   };
-
-  const BEISPIELE = [
-    {
-      label: "Bewuchsintensität je Hafen",
-      sql: `SELECT h.name AS hafen, COUNT(*) AS ablesungen,
-       MAX(t.bedeckung_prozent) AS hoechste_bedeckung,
-       MAX(t.abgelesen) AS letzte_ablesung
-FROM bewuchstafeln t JOIN haefen h ON h.id = t.hafen_id
-GROUP BY h.name ORDER BY hoechste_bedeckung DESC;`,
-    },
-    {
-      label: "Häufigste Organismen",
-      sql: `SELECT organismus, COUNT(*) AS ablesungen, ROUND(AVG(anteil_prozent), 1) AS mittlerer_anteil
-FROM tafel_organismen GROUP BY organismus ORDER BY ablesungen DESC;`,
-    },
-    {
-      label: "Wärmste Küstenhäfen heute",
-      sql: `SELECT h.name, r.name AS revier, m.temp_c, m.salz_psu, m.chl_mg_m3
-FROM messwerte m JOIN haefen h ON h.id = m.hafen_id JOIN reviere r ON r.id = h.revier_id
-ORDER BY m.temp_c DESC LIMIT 15;`,
-    },
-    {
-      label: "Wirksamkeit bei hohem Bewuchsdruck",
-      sql: `SELECT o.name, o.kategorie, w.wert AS wirksamkeit
-FROM optionen o JOIN optionswerte w ON w.option_id = o.id
-WHERE w.feld = 'wirksamkeit' AND w.bewuchsdruck = 3
-ORDER BY w.wert DESC;`,
-    },
-    {
-      label: "Beiträge je Hafen",
-      sql: `SELECT h.name AS hafen, b.status, COUNT(*) AS beitraege
-FROM beitraege b JOIN haefen h ON h.id = b.hafen_id
-GROUP BY h.name, b.status ORDER BY h.name;`,
-    },
-    {
-      label: "Häfen je Revier und Quelle",
-      sql: `SELECT r.name AS revier, h.quelle, COUNT(*) AS haefen
-FROM haefen h JOIN reviere r ON r.id = h.revier_id
-GROUP BY r.name, h.quelle ORDER BY r.name, h.quelle;`,
-    },
-  ];
 
   let db = null;
   let aktiv = { tabelle: null, seite: 0, filter: "" };
@@ -132,7 +90,7 @@ GROUP BY r.name, h.quelle ORDER BY r.name, h.quelle;`,
   function tabelleHTML(res, max = Infinity) {
     if (!res) return "<tbody><tr><td>Keine Zeilen.</td></tr></tbody>";
     const zeilen = res.values.slice(0, max);
-    const zelle = (v) => (v === null ? '<span class="leer">NULL</span>' : typeof v === "number" ? `<span class="num-v">${esc(zahl(v, Number.isInteger(v) ? 0 : 2))}</span>` : esc(String(v).length > 140 ? String(v).slice(0, 140) + " …" : v));
+    const zelle = (v) => (v === null ? '<span class="leer">–</span>' : typeof v === "number" ? `<span class="num-v">${esc(zahl(v, Number.isInteger(v) ? 0 : 2))}</span>` : esc(String(v).length > 140 ? String(v).slice(0, 140) + " …" : v));
     return `<thead><tr>${res.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
       <tbody>${zeilen.map((z) => `<tr>${z.map((v) => `<td>${zelle(v)}</td>`).join("")}</tr>`).join("")}</tbody>`;
   }
@@ -179,22 +137,6 @@ GROUP BY r.name, h.quelle ORDER BY r.name, h.quelle;`,
     if (namen.includes(t)) $("#ansicht-card").scrollIntoView({ block: "start" });
   }
 
-  function ausfuehren() {
-    const sql = $("#sql").value;
-    try {
-      const t0 = performance.now();
-      const res = db.exec(sql);
-      const letzte = res[res.length - 1];
-      $("#ergebnis").innerHTML = letzte ? tabelleHTML(letzte, 500) : "";
-      $("#sql-meldung").textContent = letzte
-        ? `${zahl(letzte.values.length)} Zeilen in ${zahl(performance.now() - t0)} ms${letzte.values.length > 500 ? ", die ersten 500 angezeigt" : ""}.`
-        : "Ausgeführt, kein Ergebnis zum Anzeigen.";
-    } catch (e) {
-      $("#ergebnis").innerHTML = "";
-      $("#sql-meldung").textContent = "Fehler: " + e.message;
-    }
-  }
-
   async function init() {
     const [SQL, D, schema, kr, op, pk] = await Promise.all([
       initSqlJs({ locateFile: (f) => "vendor/sql.js/" + f }),
@@ -205,18 +147,12 @@ GROUP BY r.name, h.quelle ORDER BY r.name, h.quelle;`,
     db = new SQL.Database();
     db.run(schema);
     befuellen(D, kr, op, pk);
-    $("#schema").textContent = schema;
     const namen = tabellenUebersicht();
     const summe = namen.reduce((s, n) => s + db.exec(`SELECT COUNT(*) FROM ${n}`)[0].values[0][0], 0);
     $("#db-status").textContent = `${namen.length} Tabellen, ${zahl(summe)} Zeilen`;
     zeigeTabelle(namen);
     window.addEventListener("hashchange", () => zeigeTabelle(namen));
     $("#filter").addEventListener("input", (e) => { aktiv.filter = e.target.value.trim(); aktiv.seite = 0; ansicht(); });
-    $("#beispiele").innerHTML = BEISPIELE.map((b, i) => `<button type="button" class="btn-ghost" data-i="${i}">${esc(b.label)}</button>`).join("");
-    $("#beispiele").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { $("#sql").value = BEISPIELE[b.dataset.i].sql; ausfuehren(); }));
-    $("#sql").value = BEISPIELE[0].sql;
-    $("#ausfuehren").addEventListener("click", ausfuehren);
-    ausfuehren();
   }
 
   init().catch((e) => {
