@@ -1,0 +1,38 @@
+name: Antifouling-Atlas - Spracheingabe bereitstellen
+
+# The sandbox cannot reach Hugging Face; a runner can. This fetches the open
+# Whisper Base speech model (MIT, 8-bit ONNX) and the matching ONNX Runtime
+# WebAssembly files and stores them as a single commit on the branch
+# biozidatlas-modelle, so main stays small. The Pages build copies that branch
+# into biozidatlas/modelle; the browser then loads everything from this site
+# and no audio leaves the computer.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch speech model and runtime
+        run: python3 biozidatlas/tools/sprachmodell_holen.py "$RUNNER_TEMP/modelle"
+      - name: Store on branch biozidatlas-modelle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/modelle"
+          git init -q -b biozidatlas-modelle
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Antifouling-Atlas: Whisper Base und ONNX Runtime für die Spracheingabe"
+          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" biozidatlas-modelle
+      - name: Republish the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run publish.yml --ref main
