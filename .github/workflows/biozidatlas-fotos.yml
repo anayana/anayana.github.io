@@ -1,0 +1,33 @@
+name: Antifouling-Atlas - Fotos von Wikimedia Commons
+
+# The sandbox cannot reach Wikimedia Commons; a runner can. This searches
+# Commons for photographs of fouling organisms, keeps only public domain, CC0,
+# CC BY and CC BY-SA files, downloads them at 800 px with author and licence
+# read from the Commons API, and commits them. A human then picks which ones
+# the pages use.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ask Commons for the photographs and who made them
+        run: python3 biozidatlas/tools/commons_fotos.py
+      - name: Commit what came back
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add biozidatlas/data/fotos.json biozidatlas/data/bilder/fotos
+          git diff --cached --quiet && { echo "nothing new"; exit 0; }
+          git commit -m "Antifouling-Atlas: Fotos von Wikimedia Commons, mit Urheber und Lizenz
+
+          Geholt von biozidatlas/tools/commons_fotos.py. Lizenz und Urheber
+          stammen aus der Commons-API; nur PD, CC0, CC BY und CC BY-SA."
+          git pull --rebase --quiet
+          git push

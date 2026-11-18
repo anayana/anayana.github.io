@@ -1,5 +1,5 @@
 {
- "_hinweis": "Beispielbeiträge, ausgedacht für die Struktur. Jeder Beitrag gehört zu einem Hafen und hat immer dieselben Felder: ueberschrift, unterueberschrift, metadaten (autor, datum, quelle, lizenz, schlagworte), bild (datei unter data/bilder/, alt-Text, bildnachweis; oder null) und text (Absätze durch Leerzeile getrennt). status: veroeffentlicht oder entwurf; reihenfolge: Position auf der Hafenseite.",
+ "_hinweis": "Beispielbeiträge, ausgedacht für die Struktur. Jeder Beitrag gehört zu einem Hafen und hat immer dieselben Felder: ueberschrift, unterueberschrift, metadaten (autor, datum, quelle, lizenz, schlagworte), bild (datei unter data/bilder/, alt-Text, bildnachweis; oder null) und text (Absätze durch Leerzeile getrennt). status: veroeffentlicht oder entwurf; reihenfolge: Position auf der Hafenseite. vorgang: Nummer der GitHub-Einreichung, aus der der Beitrag übernommen wurde.",
  "beitraege": [
   {
    "id": "b001",
@@ -201,27 +201,8 @@
     ]
    },
    "text": "Seit Juni hängt am Hauptsteg eine Bewuchstafel. Bis September stieg der bewachsene Anteil auf knapp 80 Prozent, vor allem Seepocken und Miesmuscheln.\n\nDieser Beitrag ist eine Testeinreichung: Er zeigt, wie eine Eingabe über GitHub geprüft, freigegeben und automatisch auf die Hafenseite übernommen wird.",
-   "bild": null
-  },
-  {
-   "id": "b010",
-   "hafen_id": "heiligenhafen",
-   "reihenfolge": 2,
-   "ueberschrift": "Erste Saison mit Bewuchstafel",
-   "unterueberschrift": "Testeinreichung über das Eingabeformular",
-   "status": "veroeffentlicht",
-   "metadaten": {
-    "autor": "Hafenmeisterei (Beispiel)",
-    "datum": "2026-11-18",
-    "quelle": "Beispieltext",
-    "lizenz": "CC BY 4.0",
-    "schlagworte": [
-     "Bewuchstafel",
-     "Citizen Science"
-    ]
-   },
-   "text": "Seit Juni hängt am Hauptsteg eine Bewuchstafel. Bis September stieg der bewachsene Anteil auf knapp 80 Prozent, vor allem Seepocken und Miesmuscheln.\n\nDieser Beitrag ist eine Testeinreichung: Er zeigt, wie eine Eingabe über GitHub geprüft, freigegeben und automatisch auf die Hafenseite übernommen wird.",
-   "bild": null
+   "bild": null,
+   "vorgang": 13
   }
  ]
 }

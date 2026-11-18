@@ -159,6 +159,12 @@ def main():
            eingabe=f"Die Eingabe konnte nicht übernommen werden:\n\n{grund}\n\nBitte korrigieren und erneut freigeben.\n\n---\n_Automatisch erzeugt vom Workflow „Antifouling-Atlas - Eingabe übernehmen“_")
         sys.exit(grund)
 
+    for datei_, liste_ in (("beitraege.json", "beitraege"), ("bewuchstafeln.json", "tafeln")):
+        frueher = [e["id"] for e in laden(datei_)[liste_] if str(e.get("vorgang")) == str(nummer)]
+        if frueher:
+            print(f"Vorgang #{nummer} ist schon übernommen ({', '.join(frueher)}); nichts zu tun.")
+            return
+
     if "<!-- atlas-eingabe -->" not in body:
         abbrechen("Der Vorgang stammt nicht aus dem Eingabeformular.")
     block = re.search(r"```json\s*(\{.*?\})\s*```", body, re.S)
@@ -190,7 +196,7 @@ def main():
 
     inhalt = laden(datei)
     kennung = naechste_id(inhalt[liste], praefix)
-    eintrag = {"id": kennung, "hafen_id": d["hafen_id"], **eintrag}
+    eintrag = {"id": kennung, "hafen_id": d["hafen_id"], **eintrag, "vorgang": int(nummer)}
 
     hinweis = ""
     if (art == "beitrag" and eintrag["bild"]) or (art == "tafel" and eintrag["bild"]):
