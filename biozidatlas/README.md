@@ -235,9 +235,8 @@ seines Vorgangs (`vorgang`); ein Vorgang wird nur einmal übernommen.
 
 **Datenbank** (`datenbank.html`): baut beim Öffnen mit sql.js eine
 SQLite-Datenbank nach `data/schema.sql` und füllt sie aus allen JSON-Dateien
-(12 Tabellen, gut 2.000 Zeilen). Die Seite zeigt, woher die Daten kommen, alle
-Tabellen mit Filter und Blättern, das Schema und eine SQL-Abfrage mit
-Beispielen. Änderungen gelten nur bis zum Neuladen.
+(12 Tabellen, gut 2.000 Zeilen). Die Seite zeigt, woher die Daten kommen, und alle
+Tabellen mit Filter und Blättern.
 
 ## Meeresdaten von Copernicus
 
