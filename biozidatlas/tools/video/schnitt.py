@@ -64,7 +64,7 @@ def main():
         "-f", "s16le", "-ar", str(RATE), "-ac", "1", "-i", str(ziel / "ton.raw"),
         "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=white,fps=30,format=yuv420p",
         "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-tune", "stillimage",
-        "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "-t", f"{laenge:.3f}",
+        "-af", "alimiter=limit=0.89:level=false", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "-t", f"{laenge:.3f}",
         str(ziel / "anleitung.mp4"),
     ], check=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "3", "-i", str(ziel / "anleitung.mp4"), "-frames:v", "1",

@@ -166,7 +166,9 @@ const SZENEN = [
 
 if (process.argv[2] === "texte") {
   const ziel = process.argv[3] || "texte.json";
-  fs.writeFileSync(ziel, JSON.stringify(SZENEN.map((s) => ({ id: s.id, text: s.sprich || s.text })), null, 1));
+  // Aussprache: „Antifouling“ englisch, wie im Fach üblich.
+  const sprechbar = (t) => t.replace(/Antifouling/g, "Antifauling");
+  fs.writeFileSync(ziel, JSON.stringify(SZENEN.map((s) => ({ id: s.id, text: sprechbar(s.sprich || s.text) })), null, 1));
   console.log(`${SZENEN.length} Szenen -> ${ziel}`);
   process.exit(0);
 }
