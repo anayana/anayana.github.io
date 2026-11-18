@@ -182,6 +182,26 @@
    },
    "bild": null,
    "text": "Dieser Beitrag ist ein Entwurf. Er steht in der Datenbank, erscheint aber erst auf der Hafenseite, wenn die Redaktion ihn freigibt."
+  },
+  {
+   "id": "b009",
+   "hafen_id": "heiligenhafen",
+   "reihenfolge": 1,
+   "ueberschrift": "Erste Saison mit Bewuchstafel",
+   "unterueberschrift": "Testeinreichung über das Eingabeformular",
+   "status": "veroeffentlicht",
+   "metadaten": {
+    "autor": "Hafenmeisterei (Beispiel)",
+    "datum": "2026-11-18",
+    "quelle": "Beispieltext",
+    "lizenz": "CC BY 4.0",
+    "schlagworte": [
+     "Bewuchstafel",
+     "Citizen Science"
+    ]
+   },
+   "text": "Seit Juni hängt am Hauptsteg eine Bewuchstafel. Bis September stieg der bewachsene Anteil auf knapp 80 Prozent, vor allem Seepocken und Miesmuscheln.\n\nDieser Beitrag ist eine Testeinreichung: Er zeigt, wie eine Eingabe über GitHub geprüft, freigegeben und automatisch auf die Hafenseite übernommen wird.",
+   "bild": null
   }
  ]
 }
