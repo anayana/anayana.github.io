@@ -1,466 +1,136 @@
 {
- "_hinweis": "Fotos von Wikimedia Commons, nur Public Domain, CC0, CC BY und CC BY-SA. Je Organismus mehrere Kandidaten; genutzt wird der erste. Urheber und Lizenz werden unter jedem Bild genannt.",
+ "_hinweis": "Ausgewählte Fotos von Wikimedia Commons (Public Domain, CC0, CC BY, CC BY-SA) mit Urheber und Lizenz aus der Commons-API. Schlüssel = Organismus bzw. Motiv; die Seiten nennen den Nachweis unter jedem Bild. Neue Kandidaten holt der Workflow \"Fotos von Wikimedia Commons\" nach data/fotos-kandidaten.json.",
  "fotos": {
   "seepocken": [
    {
-    "datei": "bilder/fotos/seepocken-1.jpg",
-    "titel": "File:Acorn barnacle with operculum, Oregon Coast.jpg",
-    "beschreibung": "Acorn barnacle with operculum, Hobbit Beach, Oregon Coast",
-    "autor": "Bobjgalindo",
-    "lizenz": "CC BY-SA 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Acorn_barnacle_with_operculum,_Oregon_Coast.jpg",
-    "suchbegriff": "Semibalanus balanoides"
-   },
-   {
-    "datei": "bilder/fotos/seepocken-2.jpg",
+    "datei": "bilder/fotos/seepocken.jpg",
     "titel": "File:Northern Acorn Barnacle (Fjærerur) (Semibalanus balanoides) - Andøy, Norway 2023-07-12.jpg",
     "beschreibung": "Northern Acorn Barnacle (Semibalanus balanoides) in Andøy, Norway.",
     "autor": "Ryan Hodnett",
     "lizenz": "CC BY-SA 4.0",
     "lizenz_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Northern_Acorn_Barnacle_(Fj%C3%A6rerur)_(Semibalanus_balanoides)_-_And%C3%B8y,_Norway_2023-07-12.jpg",
-    "suchbegriff": "Semibalanus balanoides"
-   },
-   {
-    "datei": "bilder/fotos/seepocken-3.jpg",
-    "titel": "File:Northern Acorn Barnacles (Semibalanus balanoides) - Crow Head, Newfoundland 2019-08-15.jpg",
-    "beschreibung": "Northern Acorn Barnacles (Semibalanus balanoides) at Sleepy Cove in Crow Head, Newfoundland and Labrador, Canada.",
-    "autor": "Ryan Hodnett",
-    "lizenz": "CC BY-SA 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Northern_Acorn_Barnacles_(Semibalanus_balanoides)_-_Crow_Head,_Newfoundland_2019-08-15.jpg",
-    "suchbegriff": "Semibalanus balanoides"
-   },
-   {
-    "datei": "bilder/fotos/seepocken-4.jpg",
-    "titel": "File:Northern Acorn Barnacles (Semibalanus balanoides) - Mobile, Newfoundland 2019-08-12 (01).jpg",
-    "beschreibung": "Northern Acorn Barnacles (Semibalanus balanoides) in Mobile, Newfoundland and Labrador, Canada.",
-    "autor": "Ryan Hodnett",
-    "lizenz": "CC BY-SA 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Northern_Acorn_Barnacles_(Semibalanus_balanoides)_-_Mobile,_Newfoundland_2019-08-12_(01).jpg",
-    "suchbegriff": "Semibalanus balanoides"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Northern_Acorn_Barnacle_(Fj%C3%A6rerur)_(Semibalanus_balanoides)_-_And%C3%B8y,_Norway_2023-07-12.jpg"
    }
   ],
   "miesmuscheln": [
    {
-    "datei": "bilder/fotos/miesmuscheln-1.jpg",
+    "datei": "bilder/fotos/miesmuscheln.jpg",
     "titel": "File:Magallana gigas - Mytilus edulis - Centre Ostréicole - Leucate.jpg",
     "beschreibung": "Shells of Pacific oysters, Magallana gigas (Thunberg, 1793) (Syn. Crassostrea gigas), and Blue mussels, Mytilus edulis Linnaeus, 1758, oyster and mussel farming center, Grau de Leucate (Leucate lagoon outlet), Leucate, Département Aude, France.",
     "autor": "H. Zell",
     "lizenz": "CC BY-SA 3.0",
     "lizenz_url": "https://creativecommons.org/licenses/by-sa/3.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Magallana_gigas_-_Mytilus_edulis_-_Centre_Ostr%C3%A9icole_-_Leucate.jpg",
-    "suchbegriff": "Mytilus edulis"
-   },
-   {
-    "datei": "bilder/fotos/miesmuscheln-2.jpg",
-    "titel": "File:Miesmuscheln Mytilus 1.jpg",
-    "beschreibung": "Blue mussel",
-    "autor": "Benutzer:Darkone",
-    "lizenz": "CC BY-SA 2.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/2.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Miesmuscheln_Mytilus_1.jpg",
-    "suchbegriff": "Mytilus edulis"
-   },
-   {
-    "datei": "bilder/fotos/miesmuscheln-3.jpg",
-    "titel": "File:Miesmuscheln Mytilus 2.jpg",
-    "beschreibung": "Miesmuscheln - empty shell of blue mussel (Mytilus edulis) washed up on a beach",
-    "autor": "Benutzer:Darkone, 26. Oktober 2003",
-    "lizenz": "CC BY-SA 2.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/2.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Miesmuscheln_Mytilus_2.jpg",
-    "suchbegriff": "Mytilus edulis"
-   },
-   {
-    "datei": "bilder/fotos/miesmuscheln-4.jpg",
-    "titel": "File:Mytilus edulis 001.jpg",
-    "beschreibung": "Mytilus edulis (Linnaeus, 1758), Blue mussel, right valve; height 6.1 cm; Originating from Surville, Manche, France; Shell of own collection, therefore not geocoded.",
-    "autor": "H. Zell",
-    "lizenz": "CC BY-SA 3.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/3.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Mytilus_edulis_001.jpg",
-    "suchbegriff": "Mytilus edulis"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Magallana_gigas_-_Mytilus_edulis_-_Centre_Ostr%C3%A9icole_-_Leucate.jpg"
    }
   ],
   "dreikantmuscheln": [
    {
-    "datei": "bilder/fotos/dreikantmuscheln-1.jpg",
-    "titel": "File:Dreissena polymorpha (left).jpg",
-    "beschreibung": "left valve of a shell of Dreissena polymorpha",
-    "autor": "sabrina.vandevelde",
-    "lizenz": "CC BY 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Dreissena_polymorpha_(left).jpg",
-    "suchbegriff": "Dreissena polymorpha"
-   },
-   {
-    "datei": "bilder/fotos/dreikantmuscheln-2.jpg",
-    "titel": "File:Dreissena polymorpha (right).jpg",
-    "beschreibung": "right valve of a shell of Dreissena polymorpha",
-    "autor": "sabrina.vandevelde",
-    "lizenz": "CC BY 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Dreissena_polymorpha_(right).jpg",
-    "suchbegriff": "Dreissena polymorpha"
-   },
-   {
-    "datei": "bilder/fotos/dreikantmuscheln-3.jpg",
+    "datei": "bilder/fotos/dreikantmuscheln.jpg",
     "titel": "File:Dreissena polymorpha 01.jpg",
     "beschreibung": "Dreissena polymorpha (Pallas, 1771), Zebra mussel, right valve; height 2.6 cm; Originating from the Kleiner Bodensee, Neureut, Germany;  Shell of own collection, therefore not geocoded.",
     "autor": "H. Zell",
     "lizenz": "CC BY-SA 3.0",
     "lizenz_url": "https://creativecommons.org/licenses/by-sa/3.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Dreissena_polymorpha_01.jpg",
-    "suchbegriff": "Dreissena polymorpha"
-   },
-   {
-    "datei": "bilder/fotos/dreikantmuscheln-4.jpg",
-    "titel": "File:Dreissena polymorpha 02.jpg",
-    "beschreibung": "Dreissena polymorpha (Pallas, 1771), Zebra mussel, left valve; height 2.6 cm; Originating from the Kleiner Bodensee, Neureut, Germany;  Shell of own collection, therefore not geocoded.",
-    "autor": "H. Zell",
-    "lizenz": "CC BY-SA 3.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/3.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Dreissena_polymorpha_02.jpg",
-    "suchbegriff": "Dreissena polymorpha"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Dreissena_polymorpha_01.jpg"
    }
   ],
   "quaggamuscheln": [
    {
-    "datei": "bilder/fotos/quaggamuscheln-1.jpg",
+    "datei": "bilder/fotos/quaggamuscheln.jpg",
     "titel": "File:Culver 064 ByssalThreads QMussel Medium.jpg",
     "beschreibung": "Dreissena bugensis",
     "autor": "Aleksandre Gogaladze",
     "lizenz": "CC BY 4.0",
     "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Culver_064_ByssalThreads_QMussel_Medium.jpg",
-    "suchbegriff": "Dreissena bugensis"
-   },
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Culver_064_ByssalThreads_QMussel_Medium.jpg"
+   }
+  ],
+  "quagga_anlage": [
    {
-    "datei": "bilder/fotos/quaggamuscheln-2.jpg",
-    "titel": "File:Dreissena bugensis.jpg",
-    "beschreibung": "",
-    "autor": "unbekannt",
-    "lizenz": "Public domain",
-    "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Dreissena_bugensis.jpg",
-    "suchbegriff": "Dreissena bugensis"
-   },
-   {
-    "datei": "bilder/fotos/quaggamuscheln-3.jpg",
-    "titel": "File:Dreissena bugensis (Dreissenidae) (Quagga mussel) - (living animal), Arnhem, the Netherlands.jpg",
-    "beschreibung": "Dreissena bugensis (Dreissenidae) (Quagga mussel) - (living animal), Arnhem - Meinerswijk - Steenfabriek, the Netherlands",
-    "autor": "This image is created by user B. Schoenmakers at Waarneming.nl, a source of nature observations in the Netherlands.",
-    "lizenz": "CC BY 3.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/3.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Dreissena_bugensis_(Dreissenidae)_(Quagga_mussel)_-_(living_animal),_Arnhem,_the_Netherlands.jpg",
-    "suchbegriff": "Dreissena bugensis"
-   },
-   {
-    "datei": "bilder/fotos/quaggamuscheln-4.png",
+    "datei": "bilder/fotos/quagga_anlage.jpg",
     "titel": "File:Hoover Dam strainer basket quagga mussels.png",
     "beschreibung": "A strainer basket from the filtration system of the Hoover Dam in the United States littered with quagga mussels (Dreissena bugensis).",
     "autor": "U.S. Bureau of Reclamation",
     "lizenz": "Public domain",
     "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Hoover_Dam_strainer_basket_quagga_mussels.png",
-    "suchbegriff": "Dreissena bugensis"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Hoover_Dam_strainer_basket_quagga_mussels.png"
    }
   ],
   "gruenalgen": [
    {
-    "datei": "bilder/fotos/gruenalgen-1.jpg",
-    "titel": "File:Gutweed at low tide in Brofjorden 8.jpg",
-    "beschreibung": "Gutweed (Ulva intestinalis) at low tide in Brofjorden, Govik, Lysekil Municipality, Sweden. The tublar fronds are puffed up by oxygen from photosynthesis. This specimen is about 7 cm (2.8 in) high and it grows on a rusty boat ramp. In this region, the tidal range is about 20 cm (7.9 in).",
-    "autor": "W.carter",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Gutweed_at_low_tide_in_Brofjorden_8.jpg",
-    "suchbegriff": "Ulva intestinalis"
-   },
-   {
-    "datei": "bilder/fotos/gruenalgen-2.jpg",
+    "datei": "bilder/fotos/gruenalgen.jpg",
     "titel": "File:Ulva intestinalis-f.jpg",
     "beschreibung": "Tarmgrønske Ulva intestinalis består av to cellelag med hulrom mellom",
     "autor": "Magnefl",
     "lizenz": "CC BY-SA 3.0",
     "lizenz_url": "https://creativecommons.org/licenses/by-sa/3.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ulva_intestinalis-f.jpg",
-    "suchbegriff": "Ulva intestinalis"
-   },
-   {
-    "datei": "bilder/fotos/gruenalgen-3.jpg",
-    "titel": "File:Ulva intestinalis-k.jpg",
-    "beschreibung": "Tarmgrønske Ulva intestinalis består av to cellelag med hulrom mellom",
-    "autor": "Magnefl",
-    "lizenz": "CC BY-SA 3.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/3.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ulva_intestinalis-k.jpg",
-    "suchbegriff": "Ulva intestinalis"
-   },
-   {
-    "datei": "bilder/fotos/gruenalgen-4.jpg",
-    "titel": "File:Ulva intestinalis 306197153.jpg",
-    "beschreibung": "Gutweed (Ulva intestinalis) in Russia",
-    "autor": "Марина Садыкова",
-    "lizenz": "CC BY 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ulva_intestinalis_306197153.jpg",
-    "suchbegriff": "Ulva intestinalis"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ulva_intestinalis-f.jpg"
    }
   ],
   "algen": [
    {
-    "datei": "bilder/fotos/algen-1.jpg",
-    "titel": "File:Cladophora glomerata (L.) Kutz. (AM AK345180).jpg",
-    "beschreibung": "",
-    "autor": "Wilcox, Mike",
-    "lizenz": "CC BY 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Cladophora_glomerata_(L.)_Kutz._(AM_AK345180).jpg",
-    "suchbegriff": "Cladophora glomerata"
-   },
-   {
-    "datei": "bilder/fotos/algen-2.jpg",
+    "datei": "bilder/fotos/algen.jpg",
     "titel": "File:Cladophora glomerata in Malmön harbor.jpg",
     "beschreibung": "Cladophora glomerata and Pylaiella littoralis in Malmön harbor, Malmön, Sotenäs Municipality, Sweden.",
     "autor": "W.carter",
     "lizenz": "CC0",
     "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Cladophora_glomerata_in_Malm%C3%B6n_harbor.jpg",
-    "suchbegriff": "Cladophora glomerata"
-   },
-   {
-    "datei": "bilder/fotos/algen-3.jpg",
-    "titel": "File:Cladophora glomerata in a wave at Govik 1.jpg",
-    "beschreibung": "Cladophora glomerata moving in a wave. It grows on a rusty boat ramp in Govik, Lysekil Municipality, Sweden. In among the Cladophora glomerata are tufts of gutweed (Ulva intestinalis).",
-    "autor": "W.carter",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Cladophora_glomerata_in_a_wave_at_Govik_1.jpg",
-    "suchbegriff": "Cladophora glomerata"
-   },
-   {
-    "datei": "bilder/fotos/algen-4.jpg",
-    "titel": "File:Cladophora glomerata in a wave at Govik 2.jpg",
-    "beschreibung": "Cladophora glomerata moving in a wave. It grows on a rusty boat ramp in Govik, Lysekil Municipality, Sweden. In among the Cladophora glomerata are tufts of gutweed (Ulva intestinalis).",
-    "autor": "W.carter",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Cladophora_glomerata_in_a_wave_at_Govik_2.jpg",
-    "suchbegriff": "Cladophora glomerata"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Cladophora_glomerata_in_Malm%C3%B6n_harbor.jpg"
    }
   ],
   "moostierchen": [
    {
-    "datei": "bilder/fotos/moostierchen-1.jpg",
-    "titel": "File:Membranipora membranacea (YPM IZ 081335).jpeg",
-    "beschreibung": "PRESERVED_SPECIMEN; ; ; dry; Det. by: Eric A. Lazo-Wasem 2016; GM image; IZ number 81335; lot count 1; 2016-06-09T00:00:00Z",
-    "autor": "Eric A. Lazo-Wasem",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Membranipora_membranacea_(YPM_IZ_081335).jpeg",
-    "suchbegriff": "Membranipora membranacea"
-   },
-   {
-    "datei": "bilder/fotos/moostierchen-2.jpg",
-    "titel": "File:Membranipora membranacea (YPM IZ 089726).jpeg",
-    "beschreibung": "PRESERVED_SPECIMEN; ; ; microslide; Det. by: William C. Banta; IZ number 89726; lot count 1; Microslide 01, fragment; 1964-10-03T00:00:00Z",
-    "autor": "Alison M. Fortunato",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Membranipora_membranacea_(YPM_IZ_089726).jpeg",
-    "suchbegriff": "Membranipora membranacea"
-   },
-   {
-    "datei": "bilder/fotos/moostierchen-3.jpg",
-    "titel": "File:Membranipora membranacea (YPM IZ 089727).jpeg",
-    "beschreibung": "PRESERVED_SPECIMEN; ; ; microslide; Det. by: William C. Banta; IZ number 89727; lot count 1; Microslide 01, fragment; 1963-12-01T00:00:00Z",
-    "autor": "Alison M. Fortunato",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Membranipora_membranacea_(YPM_IZ_089727).jpeg",
-    "suchbegriff": "Membranipora membranacea"
-   },
-   {
-    "datei": "bilder/fotos/moostierchen-4.jpg",
+    "datei": "bilder/fotos/moostierchen.jpg",
     "titel": "File:Membranipore (Membranipora membranacea) sur une laminaire (Ifremer 00557-66859 - 43820).jpg",
     "beschreibung": "Large, thin encrusting plates, Membranipora membranacea is a white calcified bryozoan, colonizing the fronds of kelp. Their zooids are rectangular in shape, as seen in these images. Adult colonies can cover several square decimeters, similar to lace, with a rounded edge.",
     "autor": "Olivier Dugornay (Ifremer)",
     "lizenz": "CC BY 4.0",
     "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Membranipore_(Membranipora_membranacea)_sur_une_laminaire_(Ifremer_00557-66859_-_43820).jpg",
-    "suchbegriff": "Membranipora membranacea"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Membranipore_(Membranipora_membranacea)_sur_une_laminaire_(Ifremer_00557-66859_-_43820).jpg"
    }
   ],
   "seescheiden": [
    {
-    "datei": "bilder/fotos/seescheiden-1.jpg",
-    "titel": "File:Ciona intestinalis (Linnaeus, 1767) .jpg",
-    "beschreibung": "Ciona intestinalis (Linnaeus, 1767), Chromis chromis (juv.) (Linnaeus, 1758)",
-    "autor": "Parent Géry",
-    "lizenz": "Public domain",
-    "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ciona_intestinalis_(Linnaeus,_1767)_.jpg",
-    "suchbegriff": "Ciona intestinalis"
-   },
-   {
-    "datei": "bilder/fotos/seescheiden-2.jpg",
-    "titel": "File:Ciona intestinalis (YPM IZ 082346).jpeg",
-    "beschreibung": "PRESERVED_SPECIMEN; ; ; 10% form.->70% alc.; Det. by: Eric A. Lazo-Wasem 2016; GM image; IZ number 82346; lot count 1; 2016-06-20T00:00:00Z",
-    "autor": "Eric A. Lazo-Wasem",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ciona_intestinalis_(YPM_IZ_082346).jpeg",
-    "suchbegriff": "Ciona intestinalis"
-   },
-   {
-    "datei": "bilder/fotos/seescheiden-3.jpg",
+    "datei": "bilder/fotos/seescheiden.jpg",
     "titel": "File:Ciona intestinalis (YPM IZ 101854).jpeg",
     "beschreibung": "PRESERVED_SPECIMEN; ; ; 10% form.->70% alc.; Det. by: Leanne E. Elder 2017; Ginsburg; IZ number 101854; lot count 1; 2017-08-24T00:00:00Z",
     "autor": "Eric A. Lazo-Wasem",
     "lizenz": "CC0",
     "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ciona_intestinalis_(YPM_IZ_101854).jpeg",
-    "suchbegriff": "Ciona intestinalis"
-   },
-   {
-    "datei": "bilder/fotos/seescheiden-4.jpg",
-    "titel": "File:Ciona intestinalis - Station biologique de Roscoff - PXL 20240501 074626345.jpg",
-    "beschreibung": "Specimens of Ciona intestinalis held at Roscoff",
-    "autor": "Tadeusz Hare",
-    "lizenz": "CC BY-SA 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ciona_intestinalis_-_Station_biologique_de_Roscoff_-_PXL_20240501_074626345.jpg",
-    "suchbegriff": "Ciona intestinalis"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Ciona_intestinalis_(YPM_IZ_101854).jpeg"
    }
   ],
   "biofilm": [
    {
-    "datei": "bilder/fotos/biofilm-1.jpg",
+    "datei": "bilder/fotos/biofilm.jpg",
     "titel": "File:Biofouling sur une embarcation côtière (Ifremer 00555-66701 - 43688).jpg",
     "beschreibung": "These photographs show a small boat on a beach at low tide in Brest harbor, whose hull is affected by biofouling. Biofouling is a phenomenon that appears in an aqueous or humid environment on the surface of an object immersed in this environment frequently or permanently. This phenomenon is explaine",
     "autor": "Olivier Dugornay (Ifremer)",
     "lizenz": "CC BY 4.0",
     "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Biofouling_sur_une_embarcation_c%C3%B4ti%C3%A8re_(Ifremer_00555-66701_-_43688).jpg",
-    "suchbegriff": "biofouling"
-   },
-   {
-    "datei": "bilder/fotos/biofilm-2.jpg",
-    "titel": "File:Biofouling sur une embarcation côtière (Ifremer 00555-66701 - 43689).jpg",
-    "beschreibung": "These photographs show a small boat on a beach at low tide in Brest harbor, whose hull is affected by biofouling. Biofouling is a phenomenon that appears in an aqueous or humid environment on the surface of an object immersed in this environment frequently or permanently. This phenomenon is explaine",
-    "autor": "Olivier Dugornay (Ifremer)",
-    "lizenz": "CC BY 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Biofouling_sur_une_embarcation_c%C3%B4ti%C3%A8re_(Ifremer_00555-66701_-_43689).jpg",
-    "suchbegriff": "biofouling"
-   },
-   {
-    "datei": "bilder/fotos/biofilm-3.jpg",
-    "titel": "File:Biofouling sur une embarcation côtière (Ifremer 00555-66701 - 43691).jpg",
-    "beschreibung": "These photographs show a small boat on a beach at low tide in Brest harbor, whose hull is affected by biofouling. Biofouling is a phenomenon that appears in an aqueous or humid environment on the surface of an object immersed in this environment frequently or permanently. This phenomenon is explaine",
-    "autor": "Olivier Dugornay (Ifremer)",
-    "lizenz": "CC BY 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Biofouling_sur_une_embarcation_c%C3%B4ti%C3%A8re_(Ifremer_00555-66701_-_43691).jpg",
-    "suchbegriff": "biofouling"
-   },
-   {
-    "datei": "bilder/fotos/biofilm-4.jpg",
-    "titel": "File:Biofouling sur une embarcation côtière (Ifremer 00555-66701 - 43693).jpg",
-    "beschreibung": "These photographs show a small boat on a beach at low tide in Brest harbor, whose hull is affected by biofouling. Biofouling is a phenomenon that appears in an aqueous or humid environment on the surface of an object immersed in this environment frequently or permanently. This phenomenon is explaine",
-    "autor": "Olivier Dugornay (Ifremer)",
-    "lizenz": "CC BY 4.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Biofouling_sur_une_embarcation_c%C3%B4ti%C3%A8re_(Ifremer_00555-66701_-_43693).jpg",
-    "suchbegriff": "biofouling"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Biofouling_sur_une_embarcation_c%C3%B4ti%C3%A8re_(Ifremer_00555-66701_-_43688).jpg"
    }
   ],
-  "bewuchstafel": [
+  "rumpf_seepocken": [
    {
-    "datei": "bilder/fotos/bewuchstafel-1.jpg",
-    "titel": "File:Amathia verticillata (Delle Chiaje, 1822) (phylum Bryozoa, classe Gymnolaemata).jpg",
-    "beschreibung": "Amathia verticillata (Delle Chiaje, 1822) (phylum Bryozoa, class Gymnolaemata), the \"Spaghetti bryozoan\".",
-    "autor": "Smithsonian Environmental Research Center",
-    "lizenz": "CC0",
-    "lizenz_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Amathia_verticillata_(Delle_Chiaje,_1822)_(phylum_Bryozoa,_classe_Gymnolaemata).jpg",
-    "suchbegriff": "fouling panel"
-   },
-   {
-    "datei": "bilder/fotos/bewuchstafel-2.jpg",
-    "titel": "File:Bartholomaüs Bruyn the younger - Portrait of a Young Woman with a Pink - Walters 371847.jpg",
-    "beschreibung": "This young woman offers a pink (or dianthus, related to the carnation) to someone on her right, probably her betrothed. The sweet-smelling pink symbolized a young woman's hopes for marriage. At her waist is a gold girdle, or belt, from which hangs a pomander, a pierced container for sweet-smelling h",
-    "autor": "Barthel Bruyn the Younger",
-    "lizenz": "Public domain",
-    "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Bartholoma%C3%BCs_Bruyn_the_younger_-_Portrait_of_a_Young_Woman_with_a_Pink_-_Walters_371847.jpg",
-    "suchbegriff": "fouling panel"
-   },
-   {
-    "datei": "bilder/fotos/bewuchstafel-3.jpg",
-    "titel": "File:Bartholomaüs Bruyn the younger - Portrait of a Young Woman with a Pink - Walters 371847FXD.jpg",
-    "beschreibung": "This young woman offers a pink (or dianthus, related to the carnation) to someone on her right, probably her betrothed. The sweet-smelling pink symbolized a young woman's hopes for marriage. At her waist is a gold girdle, or belt, from which hangs a pomander, a pierced container for sweet-smelling h",
-    "autor": "Barthel Bruyn the Younger",
-    "lizenz": "Public domain",
-    "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Bartholoma%C3%BCs_Bruyn_the_younger_-_Portrait_of_a_Young_Woman_with_a_Pink_-_Walters_371847FXD.jpg",
-    "suchbegriff": "fouling panel"
-   },
-   {
-    "datei": "bilder/fotos/bewuchstafel-4.jpg",
-    "titel": "File:Between Confidence and Survival.jpg",
-    "beschreibung": "Survival Hair Gallery, 324  High Road, Tottenham, London N15 4BN\nConfidence Corporation, Money Transfer. 320 High Road. London N15 4BN\n____________________\nIn 2012 small businesses in High Road, Tottenham were trying to recover after the riot in August 2011, which damaged the confidence of customers",
-    "autor": "Alan Stanton",
-    "lizenz": "CC BY-SA 2.0",
-    "lizenz_url": "https://creativecommons.org/licenses/by-sa/2.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Between_Confidence_and_Survival.jpg",
-    "suchbegriff": "fouling panel"
-   }
-  ],
-  "rumpf": [
-   {
-    "datei": "bilder/fotos/rumpf-1.jpg",
-    "titel": "File:Court-Martial on the Officers of HMS Vanguard. - ILN-1875-0925-0001.jpg",
-    "beschreibung": "Court-Martial on the Officers of HMS Vanguard, held on board her Majesty's ship Royal Adelaide, the flag-ship at Devonport. Illustration for The Illustrated London News, 25 September 1875.\nThe loss of HMS Vanguard, 1 September 1875, rammed by HMS Iron Duke off Dublin.\nRead the ILN\n\nTHE LOSS OF THE V",
-    "autor": "Unidentified engraver",
-    "lizenz": "Public domain",
-    "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Court-Martial_on_the_Officers_of_HMS_Vanguard._-_ILN-1875-0925-0001.jpg",
-    "suchbegriff": "boat hull fouling"
-   },
-   {
-    "datei": "bilder/fotos/rumpf-2.png",
-    "titel": "File:Mary Celeste NYTimes 1873February26.png",
-    "beschreibung": "\"A Brig's Officers Believed to Have Been Murdered at Sea.\", New York Times, Wednesday, February 26, 1873, page 2, citing the Boston Post of February 24, 1873. Retrieved on June 19, 2008.\n\nFirst sentence: \"It is now believed that the fine brig Mary Celeste, of about 236 tons, commanded by Capt. Benja",
-    "autor": "Boston Post",
-    "lizenz": "Public domain",
-    "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Mary_Celeste_NYTimes_1873February26.png",
-    "suchbegriff": "boat hull fouling"
-   },
-   {
-    "datei": "bilder/fotos/rumpf-3.jpg",
-    "titel": "File:Operations at the Wreck of HMS Vanguard, towing the Foreyard adrift. - ILN-1875-0925-0008.jpg",
-    "beschreibung": "Operations at the Wreck of HMS Vanguard, towing the Foreyard adrift. Illustration for The Illustrated London News, 25 September 1875.\nThe loss of HMS Vanguard, 1 September 1875, rammed by HMS Iron Duke off Dublin.\n\nRead the ILN",
-    "autor": "Unidentified engraver",
-    "lizenz": "Public domain",
-    "lizenz_url": "",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Operations_at_the_Wreck_of_HMS_Vanguard,_towing_the_Foreyard_adrift._-_ILN-1875-0925-0008.jpg",
-    "suchbegriff": "boat hull fouling"
-   },
-   {
-    "datei": "bilder/fotos/rumpf-4.jpg",
+    "datei": "bilder/fotos/rumpf_seepocken.jpg",
     "titel": "File:Amphibalanus improvisus on a boat hull - Slät havstulpan 01.jpg",
     "beschreibung": "Bay barnacles (Amphibalanus improvisus) on a boat hull. This boat is normally sailing in the Baltic Sea, in the archipelago of Stockholm, Sweden.",
     "autor": "Sinikka Halme",
     "lizenz": "CC BY-SA 4.0",
     "lizenz_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "quelle_url": "https://commons.wikimedia.org/wiki/File:Amphibalanus_improvisus_on_a_boat_hull_-_Sl%C3%A4t_havstulpan_01.jpg",
-    "suchbegriff": "barnacles on boat hull"
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Amphibalanus_improvisus_on_a_boat_hull_-_Sl%C3%A4t_havstulpan_01.jpg"
+   }
+  ],
+  "rumpf_bewuchs": [
+   {
+    "datei": "bilder/fotos/rumpf_bewuchs.jpg",
+    "titel": "File:Biofouling sur une embarcation côtière (Ifremer 00555-66701 - 43693).jpg",
+    "beschreibung": "These photographs show a small boat on a beach at low tide in Brest harbor, whose hull is affected by biofouling. Biofouling is a phenomenon that appears in an aqueous or humid environment on the surface of an object immersed in this environment frequently or permanently. This phenomenon is explaine",
+    "autor": "Olivier Dugornay (Ifremer)",
+    "lizenz": "CC BY 4.0",
+    "lizenz_url": "https://creativecommons.org/licenses/by/4.0",
+    "quelle_url": "https://commons.wikimedia.org/wiki/File:Biofouling_sur_une_embarcation_c%C3%B4ti%C3%A8re_(Ifremer_00555-66701_-_43693).jpg"
    }
   ]
  }

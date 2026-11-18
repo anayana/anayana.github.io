@@ -202,17 +202,24 @@ Status `veroeffentlicht` erscheinen.
 
 **Bewuchstafeln** (Citizen Science): je Ablesung Tafel, Datum des Ausbringens
 und Ablesens, Tiefe, bewachsener Anteil und Zusammensetzung des Bewuchses.
-Ohne Foto zeigt die Seite ein aus den Angaben erzeugtes Symbolbild.
+Ohne eigenes Foto zeigt die Seite ein Beispielfoto des häufigsten Organismus
+von Wikimedia Commons, mit Urheber und Lizenz.
+
+**Fotos** (`data/fotos.json`, `data/bilder/fotos/`): ausgewählte Fotos von
+Wikimedia Commons, nur Public Domain, CC0, CC BY und CC BY-SA, Urheber und
+Lizenz aus der Commons-API. Neue Kandidaten holt der Workflow „Antifouling-Atlas
+- Fotos von Wikimedia Commons“ nach `data/fotos-kandidaten.json`; ausgewählt wird
+von Hand. Beiträge verweisen mit `bild.foto` auf ein Foto oder mit
+`bild.datei` auf ein eigenes Bild.
 
 **Eingabe** (`eingabe.html`): Formulare mit genau den Feldern der Tabellen
 `beitraege` und `bewuchstafeln`, Live-Vorschau, Prüfung der Pflichtfelder und
 Regeln, Bild-Upload (auf 900 px verkleinert). Speichern geht im Prototyp auf
-drei Wegen:
+zwei Wegen:
 
 1. **Im Browser speichern:** Der Eintrag erscheint gekennzeichnet auf der
    Hafenseite, aber nur im eigenen Browser (localStorage).
-2. **Als JSON herunterladen.**
-3. **Zur Prüfung einreichen:** öffnet einen vorausgefüllten Vorgang (Issue)
+2. **Zur Prüfung einreichen:** öffnet einen vorausgefüllten Vorgang (Issue)
    auf GitHub mit dem Datensatz als JSON; ein Bild wird dort hineingezogen.
    Gibt die Redaktion den Vorgang frei (Label `freigegeben` oder Workflow
    „Antifouling-Atlas - Eingabe übernehmen“ von Hand mit der Vorgangsnummer),
@@ -223,7 +230,8 @@ drei Wegen:
    am Repository; ohne Freigabe kommt nichts hinein.
 
 Später ersetzt eine Verwaltungsoberfläche mit Anmeldung (z. B. Directus) an
-der echten Datenbank die Wege 1 bis 3.
+der echten Datenbank beide Wege. Jeder übernommene Eintrag trägt die Nummer
+seines Vorgangs (`vorgang`); ein Vorgang wird nur einmal übernommen.
 
 **Datenbank** (`datenbank.html`): baut beim Öffnen mit sql.js eine
 SQLite-Datenbank nach `data/schema.sql` und füllt sie aus allen JSON-Dateien

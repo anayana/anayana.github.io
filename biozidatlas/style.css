@@ -356,10 +356,8 @@ select, input[type="number"] {
 .tafel-kurz { margin: 0; font-size: 0.88rem; }
 
 /* Kernfrage */
-.kernfrage { border-left: 4px solid var(--accent); }
-.kernfrage.ja { border-left-color: var(--gruen); }
-.kernfrage.teils { border-left-color: var(--gelb); }
-.kernfrage.nein { border-left-color: var(--rot); }
+.kf-head { display: flex; align-items: center; gap: 8px; }
+.kf-head .dot { width: 12px; height: 12px; }
 .kf-head { font-size: 1.1rem; font-weight: 600; }
 .kf-text { margin: 0; }
 
@@ -599,7 +597,8 @@ a.btn, a.btn-ghost { display: inline-block; text-decoration: none; }
   display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px;
 }
-.tafel-bild svg, .tafel-bild img { width: 120px; height: 120px; display: block; border-radius: 4px; object-fit: cover; }
+.tafel.ohne-bild { grid-template-columns: minmax(0, 1fr); }
+.tafel-bild img { width: 120px; height: 120px; display: block; border-radius: 4px; object-fit: cover; }
 .tafel-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.88rem; }
 .tafel-kopf { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tafel-meta { color: var(--muted); font-size: 0.8rem; }
