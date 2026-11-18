@@ -32,12 +32,15 @@ biozidatlas/
   js/mcda.js              Verfahren: gewichtete Summe, TOPSIS, PROMETHEE II, Borda-Konsens, Robustheit
   js/live.js              PEGELONLINE und Open-Meteo, nächste Messstelle, Faustregel zur Saison
   js/app.js               Karte, Regeln, Darstellung, Stand als Text für Druck und Chat
-  js/chat.js              Chatbot im Browser (WebLLM)
+  js/zugang.js            Anmeldung und Rollen (Demo)
+  js/assistent.js         Assistent: Fragen, Rundgänge, optional KI-Modell
   js/daten.js             Gemeinsamer Code der Unterseiten: Laden, lokale Einträge, Darstellung
   js/hafenseite.js        Hafenseiten
   js/eingabe.js           Eingabe, Prüfung, Speichern und Einreichen
   js/datenbank.js         Aufbau der Datenbank, Tabellen, Abfragen
   data/schema.sql         Datenbankschema (SQLite, nach PostgreSQL übertragbar)
+  data/hilfe.json         Hilfetexte des Assistenten
+  data/rundgaenge.json    Rundgänge des Assistenten
   data/bewuchstafeln.json Ablesungen von Bewuchstafeln (Beispieldaten)
   data/beitraege.json     Beiträge der Hafenseiten (Beispieldaten)
   data/bilder/            Bilder zu Beiträgen und Tafeln
@@ -255,16 +258,33 @@ Chlorophyll wird grob für Küstengewässer eingeordnet: unter 3 mg/m³ niedrig,
 bis 10 mittel, darüber hoch (Faustregel; nährstoffreiche Bodden liegen oft
 deutlich darüber).
 
-## Chatbot
+## Assistent und Rundgänge
 
-`js/chat.js` lädt beim Klick auf „Chat starten“ WebLLM und ein offenes Modell
-(Standard: Ministral 3 3B von Mistral; wählbar Gemma 2 2B, Llama 3.2 1B). Das
-Modell läuft per WebGPU im Browser, die Modelldateien kommen beim ersten Start
-von Hugging Face und bleiben im Browser-Cache. Bei jeder Frage bekommt das
-Modell den aktuellen Stand der Seite als Text (`window.Atlas.kontext()`) und
-feste Regeln: nur aus diesem Stand antworten, nichts erfinden, keine Marken,
-keine Rechtsberatung. Gerechnet wird nur in `js/app.js`. Braucht ein aktuelles
-Chrome oder Edge mit WebGPU und einige GB freien Grafikspeicher.
+Auf jeder Seite sitzt unten rechts ein Knopf mit Muschel und Fragezeichen.
+Der Assistent beantwortet Fragen aus den Hilfetexten in `data/hilfe.json`
+(Suche über Stichworte, ohne Download) und startet Rundgänge aus
+`data/rundgaenge.json`: Ein Rundgang hebt Schritt für Schritt ein Element der
+Seite hervor und erklärt es; liegt er auf einer anderen Seite, wechselt der
+Assistent dorthin. Rundgänge für alle: „Den Atlas kennenlernen“ und „Eine
+Hafenseite lesen“; für Wissenschaft zusätzlich „Daten eingeben“ (Beitrag und
+Ablesung, Feld für Feld) und „Die Datenbank“.
+
+Auf Wunsch lädt der Assistent ein offenes Sprachmodell im Browser (WebLLM;
+Ministral 3 3B von Mistral, Gemma 2 2B oder Llama 3.2 1B, je in 16- und
+32-Bit-Variante mit automatischem Ausweichen). Es antwortet dann frei, aber nur
+aus den passenden Hilfetexten und dem Stand der Seite (`window.Atlas.kontext()`
+im Atlas, sonst dem Text der Seite).
+
+## Anmeldung und Rollen
+
+Atlas und Hafenseiten sind für alle offen. Eingabe und Datenbank erscheinen
+erst nach der Anmeldung als Wissenschaftlerin oder Wissenschaftler
+(`js/zugang.js`); ohne Anmeldung zeigen diese Seiten einen Hinweis, und auf den
+Hafenseiten fehlen die Knöpfe zum Eingeben. Im Prototyp ist das eine
+Demo-Anmeldung (Benutzer `wissenschaft`, Passwort `atlas`), die sich die Rolle
+nur im Browser merkt. Sie schützt keine Daten: Die Dateien bleiben abrufbar.
+Im echten Betrieb gehört eine Anmeldung über das Dienstkonto mit Prüfung auf
+dem Server dazu.
 
 ## Live-Daten
 

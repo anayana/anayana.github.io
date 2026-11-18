@@ -324,6 +324,8 @@
     lokaleListe();
   }
 
+  if (window.Zugang && !window.Zugang.darf("wissenschaft")) return;
+
   A.ladeAlles()
     .then((d) => { D = d; init(); })
     .catch((e) => { document.querySelector(".seite-inhalt").insertAdjacentHTML("afterbegin", `<p class="load-error-inline">Die Daten konnten nicht geladen werden: ${esc(e.message)}</p>`); });
