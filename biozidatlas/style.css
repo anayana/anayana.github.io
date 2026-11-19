@@ -811,3 +811,5 @@ dialog.anmelden input { font: inherit; color: var(--ink); background: var(--surf
   border: 0; border-radius: var(--radius); padding: 6px 8px; cursor: pointer; }
 .kapitel-knopf:hover, .kapitel-knopf:focus-visible { background: var(--accent-soft); }
 .kapitel-zeit { font-family: var(--mono, "IBM Plex Mono", monospace); color: var(--accent); min-width: 3.2em; }
+.video-laden { margin: 12px 0 6px; }
+.video-laden .btn { display: inline-block; text-decoration: none; }
