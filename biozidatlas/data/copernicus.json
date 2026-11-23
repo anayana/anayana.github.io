@@ -1,33 +1,33 @@
 {
  "_hinweis": "Modellwerte von Copernicus Marine (E.U. Copernicus Marine Service Information): Meerestemperatur (°C), Salzgehalt (PSU) und Chlorophyll-a (mg/m³) an der Oberfläche, Tagesmittel am nächsten Gitterpunkt mit Wasser; km = größter Abstand dieses Punkts zum Hafen.",
- "stand": "2026-11-22",
+ "stand": "2026-11-23",
  "quellen": {
   "nordsee": {
    "temp": {
     "datensatz": "cmems_mod_nws_phy-tem_anfc_1.5km-3D_P1D-m",
-    "zeit": "2026-11-23"
+    "zeit": "2026-11-24"
    },
    "salz": {
     "datensatz": "cmems_mod_nws_phy-sal_anfc_1.5km-3D_P1D-m",
-    "zeit": "2026-11-23"
+    "zeit": "2026-11-24"
    },
    "chl": {
     "datensatz": "cmems_mod_nws_bgc-chl_anfc_7km-3D_P1D-m",
-    "zeit": "2026-11-23"
+    "zeit": "2026-11-24"
    }
   },
   "ostsee": {
    "temp": {
     "datensatz": "cmems_mod_bal_phy_anfc_P1D-m",
-    "zeit": "2026-11-23"
+    "zeit": "2026-11-24"
    },
    "salz": {
     "datensatz": "cmems_mod_bal_phy_anfc_P1D-m",
-    "zeit": "2026-11-23"
+    "zeit": "2026-11-24"
    },
    "chl": {
     "datensatz": "cmems_mod_bal_bgc_anfc_P1D-m",
-    "zeit": "2026-11-23"
+    "zeit": "2026-11-24"
    }
   }
  },
@@ -35,3556 +35,3556 @@
  "werte": {
   "list": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.8,
    "km": 1.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 28.9,
-   "chl": 6.1
+   "chl": 7.04
   },
   "husum": {
    "region": "nordsee",
-   "temp": 6.5,
+   "temp": 6.1,
    "km": 3.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 28.5
   },
   "buesum": {
    "region": "nordsee",
-   "temp": 6.6,
+   "temp": 6.0,
    "km": 2.2,
-   "zeit": "2026-11-23",
-   "salz": 21.9,
-   "chl": 7.09
+   "zeit": "2026-11-24",
+   "salz": 21.8,
+   "chl": 8.0
   },
   "helgoland": {
    "region": "nordsee",
-   "temp": 10.4,
+   "temp": 10.3,
    "km": 2.6,
-   "zeit": "2026-11-23",
-   "salz": 32.7,
-   "chl": 1.92
+   "zeit": "2026-11-24",
+   "salz": 32.6,
+   "chl": 1.79
   },
   "cuxhaven": {
    "region": "nordsee",
-   "temp": 5.9,
+   "temp": 4.9,
    "km": 4.7,
-   "zeit": "2026-11-23",
-   "salz": 16.8,
-   "chl": 3.22
+   "zeit": "2026-11-24",
+   "salz": 14.9,
+   "chl": 2.46
   },
   "wilhelmshaven": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.7,
    "km": 6.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6,
-   "chl": 7.41
+   "chl": 6.99
   },
   "norderney": {
    "region": "nordsee",
    "temp": 7.7,
    "km": 4.6,
-   "zeit": "2026-11-23",
-   "salz": 29.9,
-   "chl": 5.33
+   "zeit": "2026-11-24",
+   "salz": 30.1,
+   "chl": 3.52
   },
   "borkum": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.8,
    "km": 3.9,
-   "zeit": "2026-11-23",
-   "salz": 28.9,
-   "chl": 5.87
+   "zeit": "2026-11-24",
+   "salz": 28.8,
+   "chl": 5.16
   },
   "bremerhaven": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 11.5,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "brunsbuettel": {
    "region": "nordsee",
-   "temp": 7.6,
+   "temp": 7.0,
    "km": 2.0,
-   "zeit": "2026-11-23",
-   "salz": 6.7
+   "zeit": "2026-11-24",
+   "salz": 5.8
   },
   "emden": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 4.3,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-w243196859": {
    "region": "nordsee",
-   "temp": 6.7,
+   "temp": 6.2,
    "km": 12.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6
   },
   "osm-n2506185612": {
    "region": "nordsee",
-   "temp": 6.7,
+   "temp": 6.2,
    "km": 12.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6
   },
   "osm-w207364989": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 12.2,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n1423487205": {
    "region": "nordsee",
-   "temp": 7.6,
+   "temp": 7.0,
    "km": 1.9,
-   "zeit": "2026-11-23",
-   "salz": 6.7
+   "zeit": "2026-11-24",
+   "salz": 5.8
   },
   "osm-n3621211262": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.8,
    "km": 12.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 28.4
   },
   "osm-n1678126073": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.0,
    "km": 6.2,
-   "zeit": "2026-11-23",
-   "salz": 20.3,
-   "chl": 6.57
+   "zeit": "2026-11-24",
+   "salz": 20.4,
+   "chl": 6.24
   },
   "osm-n1380650602": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.0,
    "km": 4.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.9,
-   "chl": 6.57
+   "chl": 6.24
   },
   "osm-w669363998": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 8.2,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-n265716730": {
    "region": "nordsee",
-   "temp": 7.5,
+   "temp": 7.2,
    "km": 2.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 30.4,
-   "chl": 4.78
+   "chl": 3.7
   },
   "osm-n431044488": {
    "region": "nordsee",
-   "temp": 7.5,
+   "temp": 7.2,
    "km": 2.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 30.4,
-   "chl": 4.78
+   "chl": 3.7
   },
   "osm-w669363999": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 8.1,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-w206616101": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.7,
    "km": 8.8,
-   "zeit": "2026-11-23",
-   "salz": 27.6,
-   "chl": 4.49
+   "zeit": "2026-11-24",
+   "salz": 27.3,
+   "chl": 3.45
   },
   "osm-w490460605": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 13.8,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-n3854980641": {
    "region": "nordsee",
-   "temp": 6.4,
+   "temp": 6.0,
    "km": 5.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 28.9,
-   "chl": 4.21
+   "chl": 4.66
   },
   "osm-n745872920": {
    "region": "nordsee",
-   "temp": 2.9,
+   "temp": 2.3,
    "km": 5.6,
-   "zeit": "2026-11-23",
-   "salz": 7.7,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 7.6,
+   "chl": 6.03
   },
   "osm-n13844130010": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.7,
    "km": 2.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 21.1,
-   "chl": 7.09
+   "chl": 8.0
   },
   "osm-w1516110453": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.7,
    "km": 2.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 21.1,
-   "chl": 7.09
+   "chl": 8.0
   },
   "osm-w960157306": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 11.3,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n2125320186": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.5,
    "km": 7.1,
-   "zeit": "2026-11-23",
-   "salz": 21.9,
-   "chl": 4.21
+   "zeit": "2026-11-24",
+   "salz": 21.7,
+   "chl": 4.58
   },
   "osm-n1776937133": {
    "region": "nordsee",
-   "temp": 6.6,
+   "temp": 6.1,
    "km": 6.0,
-   "zeit": "2026-11-23",
-   "salz": 28.8,
-   "chl": 5.72
+   "zeit": "2026-11-24",
+   "salz": 28.9,
+   "chl": 6.94
   },
   "osm-w179431893": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 6.8,
    "km": 13.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.4,
-   "chl": 6.37
+   "chl": 5.08
   },
   "osm-w304906304": {
    "region": "nordsee",
-   "temp": 6.7,
+   "temp": 6.5,
    "km": 12.3,
-   "zeit": "2026-11-23",
-   "salz": 19.6,
-   "chl": 7.41
+   "zeit": "2026-11-24",
+   "salz": 19.7,
+   "chl": 6.99
   },
   "osm-n325135783": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.0,
    "km": 4.8,
-   "zeit": "2026-11-23",
-   "salz": 21.6,
-   "chl": 4.58
+   "zeit": "2026-11-24",
+   "salz": 19.9,
+   "chl": 4.76
   },
   "osm-n5026683029": {
    "region": "nordsee",
-   "temp": 7.4,
+   "temp": 7.0,
    "km": 3.7,
-   "zeit": "2026-11-23",
-   "salz": 30.2,
-   "chl": 4.57
+   "zeit": "2026-11-24",
+   "salz": 30.1,
+   "chl": 3.56
   },
   "osm-n604060461": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.5,
    "km": 7.2,
-   "zeit": "2026-11-23",
-   "salz": 21.9,
-   "chl": 4.21
+   "zeit": "2026-11-24",
+   "salz": 21.7,
+   "chl": 4.58
   },
   "osm-w201421983": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 5.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 20.6,
-   "chl": 4.96
+   "chl": 4.44
   },
   "osm-n1829901897": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.7,
    "km": 6.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6,
-   "chl": 7.41
+   "chl": 6.99
   },
   "osm-n2113985009": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 5.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 20.6,
-   "chl": 4.96
+   "chl": 4.44
   },
   "osm-n285989982": {
    "region": "nordsee",
-   "temp": 6.5,
+   "temp": 6.1,
    "km": 3.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 28.5
   },
   "osm-w32974675": {
    "region": "nordsee",
-   "temp": 5.9,
+   "temp": 4.9,
    "km": 4.7,
-   "zeit": "2026-11-23",
-   "salz": 16.8,
-   "chl": 3.22
+   "zeit": "2026-11-24",
+   "salz": 14.9,
+   "chl": 2.46
   },
   "osm-n569965471": {
    "region": "nordsee",
-   "temp": 6.7,
+   "temp": 6.5,
    "km": 12.3,
-   "zeit": "2026-11-23",
-   "salz": 19.6,
-   "chl": 7.41
+   "zeit": "2026-11-24",
+   "salz": 19.7,
+   "chl": 6.99
   },
   "osm-n13928742402": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.7,
    "km": 7.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6,
-   "chl": 7.41
+   "chl": 6.99
   },
   "osm-n2289584387": {
    "region": "nordsee",
-   "temp": 6.9,
+   "temp": 6.7,
    "km": 10.1,
-   "zeit": "2026-11-23",
-   "salz": 19.5,
-   "chl": 7.41
+   "zeit": "2026-11-24",
+   "salz": 19.6,
+   "chl": 6.99
   },
   "osm-n2301010083": {
    "region": "nordsee",
-   "temp": 5.6,
+   "temp": 4.4,
    "km": 4.0,
-   "zeit": "2026-11-23",
-   "salz": 15.5,
-   "chl": 3.22
+   "zeit": "2026-11-24",
+   "salz": 13.3,
+   "chl": 2.46
   },
   "osm-n1524470046": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 6.8,
    "km": 7.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.4,
-   "chl": 6.28
+   "chl": 5.0
   },
   "osm-w159653961": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 10.1,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n445876620": {
    "region": "nordsee",
-   "temp": 7.6,
+   "temp": 7.0,
    "km": 2.6,
-   "zeit": "2026-11-23",
-   "salz": 6.7
+   "zeit": "2026-11-24",
+   "salz": 5.8
   },
   "osm-n1829894894": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.7,
    "km": 7.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6,
-   "chl": 7.41
+   "chl": 6.99
   },
   "osm-r18210513": {
    "region": "nordsee",
-   "temp": 5.6,
+   "temp": 4.4,
    "km": 4.7,
-   "zeit": "2026-11-23",
-   "salz": 15.5,
-   "chl": 3.22
+   "zeit": "2026-11-24",
+   "salz": 13.3,
+   "chl": 2.46
   },
   "osm-w103453192": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 4.3,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-w129394080": {
    "region": "nordsee",
-   "temp": 6.6,
+   "temp": 5.3,
    "km": 2.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 16.4
   },
   "osm-n431047254": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 7.0,
    "km": 3.9,
-   "zeit": "2026-11-23",
-   "salz": 24.9,
-   "chl": 4.49
+   "zeit": "2026-11-24",
+   "salz": 24.6,
+   "chl": 3.45
   },
   "osm-w155415567": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.0,
    "km": 5.7,
-   "zeit": "2026-11-23",
-   "salz": 20.3,
-   "chl": 6.14
+   "zeit": "2026-11-24",
+   "salz": 20.4,
+   "chl": 6.0
   },
   "osm-w159492072": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 13.4,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n1372157881": {
    "region": "nordsee",
-   "temp": 7.1,
+   "temp": 6.9,
    "km": 4.8,
-   "zeit": "2026-11-23",
-   "salz": 19.7,
-   "chl": 7.41
+   "zeit": "2026-11-24",
+   "salz": 19.8,
+   "chl": 6.99
   },
   "osm-n334714699": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.9,
    "km": 3.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 21.0,
-   "chl": 7.18
+   "chl": 8.28
   },
   "osm-n14087924989": {
    "region": "nordsee",
-   "temp": 6.0,
+   "temp": 4.5,
    "km": 11.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 9.0,
-   "chl": 2.1
+   "chl": 1.19
   },
   "osm-n431070971": {
    "region": "nordsee",
-   "temp": 7.1,
+   "temp": 6.9,
    "km": 5.0,
-   "zeit": "2026-11-23",
-   "salz": 26.8,
-   "chl": 4.49
+   "zeit": "2026-11-24",
+   "salz": 26.7,
+   "chl": 3.45
   },
   "osm-n797667169": {
    "region": "nordsee",
-   "temp": 7.5,
+   "temp": 7.2,
    "km": 2.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 30.4,
-   "chl": 4.78
+   "chl": 3.7
   },
   "osm-n431070286": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 4.0,
-   "zeit": "2026-11-23",
-   "salz": 29.9,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 30.0,
+   "chl": 3.63
   },
   "osm-n1445830570": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 6.2,
    "km": 9.7,
-   "zeit": "2026-11-23",
-   "salz": 9.0,
-   "chl": 2.1
+   "zeit": "2026-11-24",
+   "salz": 6.9,
+   "chl": 1.19
   },
   "osm-n606200505": {
    "region": "nordsee",
-   "temp": 5.6,
+   "temp": 4.4,
    "km": 11.7,
-   "zeit": "2026-11-23",
-   "salz": 8.4,
-   "chl": 2.1
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 1.19
   },
   "osm-w562590247": {
    "region": "nordsee",
-   "temp": 10.3,
+   "temp": 10.2,
    "km": 1.9,
-   "zeit": "2026-11-23",
-   "salz": 32.6,
-   "chl": 1.92
+   "zeit": "2026-11-24",
+   "salz": 32.5,
+   "chl": 1.79
   },
   "osm-n431047416": {
    "region": "nordsee",
-   "temp": 7.5,
+   "temp": 7.2,
    "km": 5.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 30.3,
-   "chl": 4.78
+   "chl": 3.7
   },
   "osm-n3607506963": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 4.1,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-n2244771493": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.8,
    "km": 5.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.0,
-   "chl": 5.07
+   "chl": 6.43
   },
   "osm-w203793423": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 10.6,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n431044599": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.8,
    "km": 3.5,
-   "zeit": "2026-11-23",
-   "salz": 28.8,
-   "chl": 5.87
+   "zeit": "2026-11-24",
+   "salz": 28.7,
+   "chl": 5.16
   },
   "osm-n534423439": {
    "region": "nordsee",
-   "temp": 6.5,
+   "temp": 5.5,
    "km": 10.0,
-   "zeit": "2026-11-23",
-   "salz": 23.9,
-   "chl": 4.46
+   "zeit": "2026-11-24",
+   "salz": 23.7,
+   "chl": 5.6
   },
   "osm-n1578161678": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.9,
    "km": 3.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 21.0,
-   "chl": 7.18
+   "chl": 8.28
   },
   "osm-n2125229631": {
    "region": "nordsee",
-   "temp": 6.9,
+   "temp": 6.7,
    "km": 10.1,
-   "zeit": "2026-11-23",
-   "salz": 19.5,
-   "chl": 7.41
+   "zeit": "2026-11-24",
+   "salz": 19.6,
+   "chl": 6.99
   },
   "osm-w125436607": {
    "region": "nordsee",
-   "temp": 6.8,
+   "temp": 6.3,
    "km": 5.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.5,
-   "chl": 4.21
+   "chl": 4.66
   },
   "osm-n1380643592": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.0,
    "km": 5.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.9,
-   "chl": 6.57
+   "chl": 6.24
   },
   "osm-n2113985040": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 5.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 20.6,
-   "chl": 4.96
+   "chl": 4.44
   },
   "osm-n604060420": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.5,
    "km": 7.0,
-   "zeit": "2026-11-23",
-   "salz": 21.9,
-   "chl": 4.21
+   "zeit": "2026-11-24",
+   "salz": 21.7,
+   "chl": 4.58
   },
   "osm-w977804173": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 6.9,
    "km": 6.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.7,
-   "chl": 4.57
+   "chl": 3.56
   },
   "osm-n2073147214": {
    "region": "nordsee",
-   "temp": 5.5,
+   "temp": 3.6,
    "km": 4.6,
-   "zeit": "2026-11-23",
-   "salz": 10.9,
-   "chl": 2.1
+   "zeit": "2026-11-24",
+   "salz": 9.9,
+   "chl": 1.19
   },
   "osm-n431044439": {
    "region": "nordsee",
-   "temp": 7.4,
+   "temp": 7.0,
    "km": 3.6,
-   "zeit": "2026-11-23",
-   "salz": 30.2,
-   "chl": 4.7
+   "zeit": "2026-11-24",
+   "salz": 30.1,
+   "chl": 3.61
   },
   "osm-w202093561": {
    "region": "nordsee",
-   "temp": 6.8,
+   "temp": 5.2,
    "km": 3.9,
-   "zeit": "2026-11-23",
-   "salz": 19.9,
-   "chl": 4.34
+   "zeit": "2026-11-24",
+   "salz": 13.5,
+   "chl": 4.36
   },
   "osm-n4755592727": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 4.7,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-w106418586": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 12.2,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n1809363312": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.8,
    "km": 1.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 28.9,
-   "chl": 6.1
+   "chl": 7.04
   },
   "osm-n269191304": {
    "region": "nordsee",
-   "temp": 3.1,
+   "temp": 2.4,
    "km": 10.0,
-   "zeit": "2026-11-23",
-   "salz": 3.6
+   "zeit": "2026-11-24",
+   "salz": 4.6
   },
   "osm-r1410653": {
    "region": "nordsee",
-   "temp": 3.1,
+   "temp": 2.4,
    "km": 10.0,
-   "zeit": "2026-11-23",
-   "salz": 3.6
+   "zeit": "2026-11-24",
+   "salz": 4.6
   },
   "osm-n371688640": {
    "region": "nordsee",
-   "temp": 8.2,
+   "temp": 6.3,
    "km": 14.3,
-   "zeit": "2026-11-23",
-   "salz": 19.8
+   "zeit": "2026-11-24",
+   "salz": 18.6
   },
   "osm-w489381955": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 6.4,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-n546973201": {
    "region": "nordsee",
-   "temp": 6.7,
+   "temp": 6.2,
    "km": 12.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6
   },
   "osm-w88840450": {
    "region": "nordsee",
-   "temp": 6.3,
+   "temp": 5.8,
    "km": 11.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 28.4,
-   "chl": 5.72
+   "chl": 6.94
   },
   "osm-n5516680545": {
    "region": "nordsee",
-   "temp": 10.7,
+   "temp": 10.5,
    "km": 2.7,
-   "zeit": "2026-11-23",
-   "salz": 32.9,
-   "chl": 1.92
+   "zeit": "2026-11-24",
+   "salz": 32.7,
+   "chl": 1.79
   },
   "osm-n2113786391": {
    "region": "nordsee",
-   "temp": 6.6,
+   "temp": 6.3,
    "km": 14.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.5,
-   "chl": 7.41
+   "chl": 6.99
   },
   "osm-n2901227022": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 3.3,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-n2834272613": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 6.8,
    "km": 13.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.4,
-   "chl": 5.37
+   "chl": 3.63
   },
   "osm-w155415564": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.0,
    "km": 5.8,
-   "zeit": "2026-11-23",
-   "salz": 20.3,
-   "chl": 6.57
+   "zeit": "2026-11-24",
+   "salz": 20.4,
+   "chl": 6.24
   },
   "osm-n1575588430": {
    "region": "nordsee",
-   "temp": 6.9,
+   "temp": 6.7,
    "km": 14.4,
-   "zeit": "2026-11-23",
-   "salz": 19.5,
-   "chl": 6.57
+   "zeit": "2026-11-24",
+   "salz": 19.6,
+   "chl": 6.24
   },
   "osm-n2669699064": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 14.5,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n685541803": {
    "region": "nordsee",
-   "temp": 8.7,
+   "temp": 6.8,
    "km": 12.0,
-   "zeit": "2026-11-23",
-   "salz": 18.9
+   "zeit": "2026-11-24",
+   "salz": 17.9
   },
   "osm-w203627145": {
    "region": "nordsee",
-   "temp": 3.1,
+   "temp": 2.4,
    "km": 12.2,
-   "zeit": "2026-11-23",
-   "salz": 3.6
+   "zeit": "2026-11-24",
+   "salz": 4.6
   },
   "osm-n798564400": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 11.0,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n3415465614": {
    "region": "nordsee",
-   "temp": 6.7,
+   "temp": 6.2,
    "km": 12.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6
   },
   "osm-n1380558197": {
    "region": "nordsee",
-   "temp": 6.6,
+   "temp": 6.3,
    "km": 14.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.5,
-   "chl": 7.41
+   "chl": 6.99
   },
   "osm-w107943610": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 14.3,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n415133491": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 6.8,
    "km": 14.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.4
   },
   "osm-w154679373": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 3.7,
-   "zeit": "2026-11-23",
-   "salz": 20.2,
-   "chl": 6.14
+   "zeit": "2026-11-24",
+   "salz": 20.3,
+   "chl": 6.0
   },
   "osm-w153145818": {
    "region": "nordsee",
-   "temp": 4.6,
+   "temp": 3.5,
    "km": 11.9,
-   "zeit": "2026-11-23",
-   "salz": 4.2,
-   "chl": 5.44
+   "zeit": "2026-11-24",
+   "salz": 4.1,
+   "chl": 6.03
   },
   "osm-n1119367562": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.7,
    "km": 5.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6,
-   "chl": 7.41
+   "chl": 6.99
   },
   "osm-n2125320194": {
    "region": "nordsee",
-   "temp": 6.8,
+   "temp": 5.2,
    "km": 3.9,
-   "zeit": "2026-11-23",
-   "salz": 19.9,
-   "chl": 4.34
+   "zeit": "2026-11-24",
+   "salz": 13.5,
+   "chl": 4.36
   },
   "osm-n1962296495": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 7.0,
    "km": 3.8,
-   "zeit": "2026-11-23",
-   "salz": 24.9,
-   "chl": 4.49
+   "zeit": "2026-11-24",
+   "salz": 24.6,
+   "chl": 3.45
   },
   "osm-n476679718": {
    "region": "nordsee",
-   "temp": 8.4,
+   "temp": 7.1,
    "km": 14.6,
-   "zeit": "2026-11-23",
-   "salz": 15.5
+   "zeit": "2026-11-24",
+   "salz": 14.4
   },
   "osm-w116237592": {
    "region": "nordsee",
-   "temp": 6.5,
+   "temp": 6.1,
    "km": 5.7,
-   "zeit": "2026-11-23",
-   "salz": 28.1,
-   "chl": 6.54
+   "zeit": "2026-11-24",
+   "salz": 28.2,
+   "chl": 7.4
   },
   "osm-w576489885": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 4.0,
-   "zeit": "2026-11-23",
-   "salz": 29.9,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 30.0,
+   "chl": 3.63
   },
   "osm-n2112539233": {
    "region": "nordsee",
-   "temp": 8.5,
+   "temp": 6.8,
    "km": 12.7,
-   "zeit": "2026-11-23",
-   "salz": 17.4
+   "zeit": "2026-11-24",
+   "salz": 16.7
   },
   "osm-n1829898910": {
    "region": "nordsee",
-   "temp": 7.0,
+   "temp": 6.7,
    "km": 7.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 19.6,
-   "chl": 7.41
+   "chl": 6.99
   },
   "osm-n431047388": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 6.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 30.0,
-   "chl": 4.7
+   "chl": 3.61
   },
   "osm-n1524469851": {
    "region": "nordsee",
-   "temp": 7.2,
+   "temp": 6.8,
    "km": 7.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 29.4,
-   "chl": 6.28
+   "chl": 5.0
   },
   "osm-w56692140": {
    "region": "nordsee",
-   "temp": 8.5,
+   "temp": 6.8,
    "km": 11.1,
-   "zeit": "2026-11-23",
-   "salz": 17.4
+   "zeit": "2026-11-24",
+   "salz": 16.7
   },
   "osm-n2113985041": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 5.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 20.6,
-   "chl": 4.96
+   "chl": 4.44
   },
   "osm-w103453196": {
    "region": "nordsee",
-   "temp": 6.6,
+   "temp": 5.3,
    "km": 2.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 16.4
   },
   "osm-n2112539234": {
    "region": "nordsee",
-   "temp": 8.2,
+   "temp": 6.3,
    "km": 14.2,
-   "zeit": "2026-11-23",
-   "salz": 19.8
+   "zeit": "2026-11-24",
+   "salz": 18.6
   },
   "osm-n431070983": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 5.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 20.6,
-   "chl": 4.96
+   "chl": 4.44
   },
   "osm-w25628615": {
    "region": "nordsee",
-   "temp": 7.1,
+   "temp": 7.0,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 29.4,
-   "chl": 5.09
+   "zeit": "2026-11-24",
+   "salz": 29.6,
+   "chl": 3.25
   },
   "osm-n607137040": {
    "region": "nordsee",
-   "temp": 5.6,
+   "temp": 4.4,
    "km": 12.2,
-   "zeit": "2026-11-23",
-   "salz": 8.4,
-   "chl": 2.1
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 1.19
   },
   "osm-n3112838720": {
    "region": "nordsee",
-   "temp": 7.1,
+   "temp": 7.0,
    "km": 6.8,
-   "zeit": "2026-11-23",
-   "salz": 30.0,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 29.9,
+   "chl": 3.63
   },
   "osm-w25775946": {
    "region": "nordsee",
    "temp": 7.7,
    "km": 5.0,
-   "zeit": "2026-11-23",
-   "salz": 29.9,
-   "chl": 4.64
+   "zeit": "2026-11-24",
+   "salz": 30.1,
+   "chl": 2.57
   },
   "osm-w154678112": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.0,
    "km": 5.2,
-   "zeit": "2026-11-23",
-   "salz": 20.3,
-   "chl": 6.14
+   "zeit": "2026-11-24",
+   "salz": 20.4,
+   "chl": 6.0
   },
   "osm-n2105871917": {
    "region": "nordsee",
-   "temp": 7.3,
+   "temp": 7.1,
    "km": 4.3,
-   "zeit": "2026-11-23",
-   "salz": 29.9,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 30.0,
+   "chl": 3.63
   },
   "flensburg": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 3.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "kappeln": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 7.3,
    "km": 6.7,
-   "zeit": "2026-11-23",
-   "salz": 17.7,
-   "chl": 4.67
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.28
   },
   "eckernfoerde": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "kiel-schilksee": {
    "region": "ostsee",
    "temp": 7.0,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 16.1,
-   "chl": 5.05
+   "zeit": "2026-11-24",
+   "salz": 16.0,
+   "chl": 5.21
   },
   "laboe": {
    "region": "ostsee",
    "temp": 7.1,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 16.0,
+   "zeit": "2026-11-24",
+   "salz": 15.9,
    "chl": 4.84
   },
   "heiligenhafen": {
    "region": "ostsee",
    "temp": 6.1,
    "km": 0.2,
-   "zeit": "2026-11-23",
-   "salz": 16.3,
-   "chl": 4.83
+   "zeit": "2026-11-24",
+   "salz": 15.9,
+   "chl": 4.99
   },
   "fehmarn": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 6.8,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 15.6,
-   "chl": 5.85
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 5.75
   },
   "neustadt": {
    "region": "ostsee",
-   "temp": 10.5,
+   "temp": 10.2,
    "km": 3.1,
-   "zeit": "2026-11-23",
-   "salz": 15.8,
-   "chl": 5.16
+   "zeit": "2026-11-24",
+   "salz": 15.7,
+   "chl": 5.48
   },
   "travemuende": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 1.9,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "wismar": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.6,
    "km": 2.9,
-   "zeit": "2026-11-23",
-   "salz": 13.0,
-   "chl": 21.2
+   "zeit": "2026-11-24",
+   "salz": 12.9,
+   "chl": 24.55
   },
   "kuehlungsborn": {
    "region": "ostsee",
-   "temp": 8.2,
+   "temp": 7.9,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 13.0,
-   "chl": 5.12
+   "zeit": "2026-11-24",
+   "salz": 12.8,
+   "chl": 5.07
   },
   "warnemuende": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "rostock": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 11.0,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "stralsund": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.9,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 8.6,
-   "chl": 8.79
+   "zeit": "2026-11-24",
+   "salz": 8.7,
+   "chl": 9.52
   },
   "lauterbach": {
    "region": "ostsee",
-   "temp": 4.5,
+   "temp": 4.4,
    "km": 0.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.66
+   "chl": 5.44
   },
   "sassnitz": {
    "region": "ostsee",
-   "temp": 8.1,
+   "temp": 8.0,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 8.3,
-   "chl": 6.06
+   "zeit": "2026-11-24",
+   "salz": 8.4,
+   "chl": 6.07
   },
   "greifswald": {
    "region": "ostsee",
-   "temp": 4.9,
+   "temp": 4.6,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 6.3,
-   "chl": 18.6
+   "chl": 18.62
   },
   "kroeslin": {
    "region": "ostsee",
-   "temp": 6.1,
+   "temp": 5.7,
    "km": 1.1,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 7.13
+   "zeit": "2026-11-24",
+   "salz": 7.9,
+   "chl": 6.99
   },
   "ueckermuende": {
    "region": "ostsee",
-   "temp": 4.9,
+   "temp": 4.6,
    "km": 2.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.06
+   "chl": 3.08
   },
   "osm-n14130485473": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.3,
    "km": 1.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.4
+   "chl": 5.3
   },
   "osm-n2739632248": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.3,
    "km": 1.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.4
+   "chl": 5.3
   },
   "osm-n2154436765": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 10.7,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-n455030102": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 7.3,
    "km": 0.5,
-   "zeit": "2026-11-23",
-   "salz": 14.6,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.5,
+   "chl": 5.95
   },
   "osm-n2104044866": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.6,
    "km": 3.1,
-   "zeit": "2026-11-23",
-   "salz": 13.0,
-   "chl": 21.2
+   "zeit": "2026-11-24",
+   "salz": 12.9,
+   "chl": 24.55
   },
   "osm-n1764045904": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.7,
    "km": 0.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 8.65
+   "chl": 9.17
   },
   "osm-n431049909": {
    "region": "ostsee",
-   "temp": 10.5,
+   "temp": 10.2,
    "km": 2.1,
-   "zeit": "2026-11-23",
-   "salz": 15.8,
-   "chl": 5.16
+   "zeit": "2026-11-24",
+   "salz": 15.7,
+   "chl": 5.48
   },
   "osm-w35996575": {
    "region": "ostsee",
-   "temp": 10.1,
+   "temp": 9.9,
    "km": 2.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 15.8,
-   "chl": 6.2
+   "chl": 6.78
   },
   "osm-w116723699": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.6,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 8.5,
-   "chl": 8.63
+   "zeit": "2026-11-24",
+   "salz": 8.6,
+   "chl": 9.17
   },
   "osm-n3768701620": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.4,
    "km": 2.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.5,
-   "chl": 8.04
+   "chl": 9.1
   },
   "osm-w206312995": {
    "region": "ostsee",
-   "temp": 8.6,
+   "temp": 8.4,
    "km": 9.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 5.7
+   "chl": 5.27
   },
   "osm-w1471081863": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.6,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 8.2,
-   "chl": 9.3
+   "zeit": "2026-11-24",
+   "salz": 8.3,
+   "chl": 9.48
   },
   "osm-w29203530": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 0.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.5,
-   "chl": 7.68
+   "chl": 9.11
   },
   "osm-n431049949": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.9,
    "km": 1.6,
-   "zeit": "2026-11-23",
-   "salz": 8.6,
-   "chl": 8.79
+   "zeit": "2026-11-24",
+   "salz": 8.7,
+   "chl": 9.52
   },
   "osm-n13575953975": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 3.1,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n13575953978": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 3.1,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n2153331203": {
    "region": "ostsee",
-   "temp": 3.4,
+   "temp": 3.3,
    "km": 0.2,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 5.35
+   "zeit": "2026-11-24",
+   "salz": 8.3,
+   "chl": 6.85
   },
   "osm-n2082822959": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 7.3,
    "km": 6.8,
-   "zeit": "2026-11-23",
-   "salz": 17.7,
-   "chl": 4.67
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.28
   },
   "osm-n431059918": {
    "region": "ostsee",
    "temp": 3.6,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 3.8,
-   "chl": 6.61
+   "zeit": "2026-11-24",
+   "salz": 3.6,
+   "chl": 6.76
   },
   "osm-n2125229617": {
    "region": "ostsee",
    "temp": 3.6,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 3.8,
-   "chl": 6.61
+   "zeit": "2026-11-24",
+   "salz": 3.6,
+   "chl": 6.76
   },
   "osm-n2036489745": {
    "region": "ostsee",
    "temp": 3.8,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 3.5,
-   "chl": 6.81
+   "zeit": "2026-11-24",
+   "salz": 3.3,
+   "chl": 7.08
   },
   "osm-w242667785": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 6.2,
    "km": 1.7,
-   "zeit": "2026-11-23",
-   "salz": 16.0,
-   "chl": 7.24
+   "zeit": "2026-11-24",
+   "salz": 15.3,
+   "chl": 7.44
   },
   "osm-w97661231": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 10.7,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n1604093777": {
    "region": "ostsee",
-   "temp": 5.0,
+   "temp": 4.6,
    "km": 0.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.9,
-   "chl": 4.24
+   "chl": 4.22
   },
   "osm-w241781760": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 2.9,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-w1275763298": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n332728946": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.9,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 8.6,
-   "chl": 8.79
+   "zeit": "2026-11-24",
+   "salz": 8.7,
+   "chl": 9.52
   },
   "osm-n385969783": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 8.3,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-n2133121739": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 7.3,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-w610321965": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n968178372": {
    "region": "ostsee",
    "temp": 6.3,
    "km": 1.9,
-   "zeit": "2026-11-23",
-   "salz": 8.9,
-   "chl": 5.56
+   "zeit": "2026-11-24",
+   "salz": 9.1,
+   "chl": 5.24
   },
   "osm-n482745853": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.7,
    "km": 0.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 8.65
+   "chl": 9.17
   },
   "osm-w241781761": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 8.6,
    "km": 12.5,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 5.53
   },
   "osm-n292936210": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 6.0,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.5,
-   "chl": 3.46
+   "chl": 3.47
   },
   "osm-n2152029111": {
    "region": "ostsee",
-   "temp": 4.7,
+   "temp": 4.2,
    "km": 0.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.1,
-   "chl": 3.94
+   "chl": 3.97
   },
   "osm-n2103963330": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 2.4,
-   "zeit": "2026-11-23",
-   "salz": 13.4,
-   "chl": 11.3
+   "zeit": "2026-11-24",
+   "salz": 13.3,
+   "chl": 11.18
   },
   "osm-n2032032012": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 4.0,
    "km": 1.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.28
+   "chl": 3.71
   },
   "osm-n2103963331": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 2.3,
-   "zeit": "2026-11-23",
-   "salz": 13.4,
-   "chl": 11.3
+   "zeit": "2026-11-24",
+   "salz": 13.3,
+   "chl": 11.18
   },
   "osm-n2125133247": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.6,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 3.4,
-   "chl": 7.26
+   "zeit": "2026-11-24",
+   "salz": 3.2,
+   "chl": 7.75
   },
   "osm-w186071083": {
    "region": "ostsee",
    "temp": 6.3,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 16.4,
-   "chl": 7.35
+   "zeit": "2026-11-24",
+   "salz": 16.1,
+   "chl": 7.48
   },
   "osm-w268770027": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 5.8,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 6.75
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 6.93
   },
   "osm-n2153143864": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.2,
    "km": 1.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.49
+   "chl": 6.1
   },
   "osm-w1359636205": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 2.7,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n3906173460": {
    "region": "ostsee",
-   "temp": 7.9,
+   "temp": 7.8,
    "km": 0.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.4,
-   "chl": 5.62
+   "chl": 5.63
   },
   "osm-n2152029112": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 2.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-w330398806": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 4.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n2114252830": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.4,
    "km": 1.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.84
+   "chl": 5.73
   },
   "osm-n431076462": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 6.8,
    "km": 1.5,
-   "zeit": "2026-11-23",
-   "salz": 15.6,
-   "chl": 5.85
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 5.75
   },
   "osm-n2116349296": {
    "region": "ostsee",
-   "temp": 7.4,
+   "temp": 7.0,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 18.5,
-   "chl": 4.22
+   "zeit": "2026-11-24",
+   "salz": 18.4,
+   "chl": 4.28
   },
   "osm-w37036438": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 7.2,
    "km": 1.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 18.9,
-   "chl": 5.22
+   "chl": 5.15
   },
   "osm-n431042141": {
    "region": "ostsee",
-   "temp": 7.8,
+   "temp": 7.6,
    "km": 0.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.3,
-   "chl": 5.74
+   "chl": 5.8
   },
   "osm-n431042142": {
    "region": "ostsee",
-   "temp": 4.9,
+   "temp": 4.6,
    "km": 4.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 6.3,
-   "chl": 18.6
+   "chl": 18.62
   },
   "osm-n4267621715": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.6,
    "km": 1.6,
-   "zeit": "2026-11-23",
-   "salz": 3.8,
-   "chl": 5.47
+   "zeit": "2026-11-24",
+   "salz": 3.3,
+   "chl": 4.95
   },
   "osm-w312152981": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 8.0,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 16.9,
-   "chl": 5.08
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.07
   },
   "osm-n826107420": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 1.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 2.27
+   "chl": 2.55
   },
   "osm-n3109722045": {
    "region": "ostsee",
-   "temp": 4.2,
+   "temp": 4.0,
    "km": 1.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 4.47
+   "chl": 4.53
   },
   "osm-n431042122": {
    "region": "ostsee",
-   "temp": 5.7,
+   "temp": 5.1,
    "km": 1.1,
-   "zeit": "2026-11-23",
-   "salz": 8.9,
-   "chl": 5.53
+   "zeit": "2026-11-24",
+   "salz": 8.8,
+   "chl": 6.13
   },
   "osm-n289884907": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.6,
    "km": 2.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 3.8,
-   "chl": 6.24
+   "chl": 5.75
   },
   "osm-n2394811816": {
    "region": "ostsee",
-   "temp": 5.3,
+   "temp": 4.8,
    "km": 2.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 11.81
+   "chl": 13.07
   },
   "osm-w137391393": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.9,
    "km": 1.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.47
+   "chl": 3.19
   },
   "osm-n821956541": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.9,
    "km": 6.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.31
+   "chl": 3.22
   },
   "osm-n2066626455": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 11.4,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-w137437849": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.5,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 4.01
+   "chl": 3.4
   },
   "osm-n2102979803": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.3,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 9.1,
-   "chl": 7.96
+   "chl": 8.31
   },
   "osm-w1467107575": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.4,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 3.58
+   "chl": 3.52
   },
   "osm-n1840496375": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.4,
    "km": 1.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 3.57
+   "chl": 3.46
   },
   "osm-n431049789": {
    "region": "ostsee",
-   "temp": 4.7,
+   "temp": 4.0,
    "km": 0.3,
-   "zeit": "2026-11-23",
-   "salz": 8.8,
-   "chl": 6.67
+   "zeit": "2026-11-24",
+   "salz": 8.9,
+   "chl": 8.64
   },
   "osm-n1397529595": {
    "region": "ostsee",
    "temp": 3.5,
    "km": 1.1,
-   "zeit": "2026-11-23",
-   "salz": 6.0,
-   "chl": 8.88
+   "zeit": "2026-11-24",
+   "salz": 7.1,
+   "chl": 10.28
   },
   "osm-n2265778281": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 7.3,
    "km": 1.7,
-   "zeit": "2026-11-23",
-   "salz": 17.7,
-   "chl": 4.67
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.28
   },
   "osm-n431070790": {
    "region": "ostsee",
-   "temp": 5.8,
+   "temp": 5.6,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 14.5,
-   "chl": 6.33
+   "zeit": "2026-11-24",
+   "salz": 14.7,
+   "chl": 6.71
   },
   "osm-n331861186": {
    "region": "ostsee",
-   "temp": 3.4,
+   "temp": 3.2,
    "km": 2.4,
-   "zeit": "2026-11-23",
-   "salz": 7.9,
-   "chl": 5.17
+   "zeit": "2026-11-24",
+   "salz": 8.0,
+   "chl": 5.33
   },
   "osm-w1467967782": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.2,
    "km": 1.1,
-   "zeit": "2026-11-23",
-   "salz": 0.6,
-   "chl": 5.86
+   "zeit": "2026-11-24",
+   "salz": 0.8,
+   "chl": 5.5
   },
   "osm-n365099568": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 2.3,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-n2114252860": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.4,
    "km": 1.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.84
+   "chl": 5.73
   },
   "osm-w730689540": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.5,
    "km": 1.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 3.15
+   "chl": 3.05
   },
   "osm-w28841432": {
    "region": "ostsee",
-   "temp": 7.0,
+   "temp": 6.9,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 16.1,
-   "chl": 5.11
+   "zeit": "2026-11-24",
+   "salz": 16.2,
+   "chl": 5.33
   },
   "osm-n315061902": {
    "region": "ostsee",
-   "temp": 6.9,
+   "temp": 6.6,
    "km": 0.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 12.0,
-   "chl": 5.85
+   "chl": 5.56
   },
   "osm-n431060837": {
    "region": "ostsee",
-   "temp": 4.9,
+   "temp": 4.6,
    "km": 0.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 6.3,
-   "chl": 18.6
+   "chl": 18.62
   },
   "osm-n4781170571": {
    "region": "ostsee",
-   "temp": 5.5,
+   "temp": 5.2,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 7.0
+   "zeit": "2026-11-24",
+   "salz": 7.9,
+   "chl": 7.49
   },
   "osm-w1462668996": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.3,
    "km": 0.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 3.39
+   "chl": 3.31
   },
   "osm-n2105650911": {
    "region": "ostsee",
-   "temp": 4.0,
+   "temp": 3.7,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 6.2,
-   "chl": 4.76
+   "zeit": "2026-11-24",
+   "salz": 6.1,
+   "chl": 4.68
   },
   "osm-w1471668265": {
    "region": "ostsee",
-   "temp": 3.2,
+   "temp": 3.1,
    "km": 0.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 4.3,
-   "chl": 7.7
+   "chl": 7.57
   },
   "osm-w1467966172": {
    "region": "ostsee",
    "temp": 3.6,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 2.6,
-   "chl": 7.27
+   "zeit": "2026-11-24",
+   "salz": 3.9,
+   "chl": 8.03
   },
   "osm-w241781764": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 8.6,
    "km": 12.6,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 5.53
   },
   "osm-n2082822960": {
    "region": "ostsee",
-   "temp": 8.1,
+   "temp": 7.7,
    "km": 6.5,
-   "zeit": "2026-11-23",
-   "salz": 17.2,
-   "chl": 5.27
+   "zeit": "2026-11-24",
+   "salz": 16.8,
+   "chl": 5.57
   },
   "osm-n417286967": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 5.0,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-n431076439": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-w190437873": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 7.2,
    "km": 0.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 18.9,
-   "chl": 5.22
+   "chl": 5.15
   },
   "osm-n2036489746": {
    "region": "ostsee",
-   "temp": 8.6,
+   "temp": 8.4,
    "km": 8.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 5.7
+   "chl": 5.27
   },
   "osm-n431050028": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.3,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 0.2,
-   "chl": 6.39
+   "zeit": "2026-11-24",
+   "salz": 0.4,
+   "chl": 5.83
   },
   "osm-n844757157": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.1,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.7,
-   "chl": 7.95
+   "chl": 9.12
   },
   "osm-w274262953": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 4.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-w1471082291": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 8.5
+   "zeit": "2026-11-24",
+   "salz": 8.1,
+   "chl": 8.85
   },
   "osm-n431060833": {
    "region": "ostsee",
-   "temp": 5.6,
+   "temp": 5.3,
    "km": 1.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 6.39
+   "chl": 6.56
   },
   "osm-w205333417": {
    "region": "ostsee",
-   "temp": 8.7,
+   "temp": 8.0,
    "km": 2.1,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 6.53
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 6.72
   },
   "osm-n2153404539": {
    "region": "ostsee",
-   "temp": 9.2,
+   "temp": 8.6,
    "km": 1.8,
-   "zeit": "2026-11-23",
-   "salz": 15.1,
-   "chl": 5.15
+   "zeit": "2026-11-24",
+   "salz": 14.7,
+   "chl": 5.19
   },
   "osm-n431049796": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.3,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 9.1,
-   "chl": 7.96
+   "chl": 8.31
   },
   "osm-n2729058935": {
    "region": "ostsee",
-   "temp": 3.9,
+   "temp": 3.7,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 2.9,
-   "chl": 5.14
+   "zeit": "2026-11-24",
+   "salz": 2.8,
+   "chl": 4.88
   },
   "osm-n252276031": {
    "region": "ostsee",
    "temp": 4.6,
    "km": 1.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.12
+   "chl": 3.06
   },
   "osm-w507257080": {
    "region": "ostsee",
    "temp": 4.6,
    "km": 1.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.12
+   "chl": 3.06
   },
   "osm-n431045242": {
    "region": "ostsee",
    "temp": 3.7,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 3.3,
-   "chl": 7.88
+   "zeit": "2026-11-24",
+   "salz": 4.7,
+   "chl": 8.93
   },
   "osm-w427801158": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 5.7,
-   "chl": 6.93
+   "zeit": "2026-11-24",
+   "salz": 4.5,
+   "chl": 5.84
   },
   "osm-n288805437": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.3,
    "km": 1.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 6.7,
-   "chl": 6.67
+   "chl": 6.39
   },
   "osm-n3011988744": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 2.9,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n2066626461": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 1.8,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-w138305212": {
    "region": "ostsee",
-   "temp": 9.5,
+   "temp": 9.1,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 14.3,
-   "chl": 5.07
+   "zeit": "2026-11-24",
+   "salz": 14.1,
+   "chl": 5.42
   },
   "osm-w370791692": {
    "region": "ostsee",
-   "temp": 6.1,
+   "temp": 5.7,
    "km": 1.1,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 7.13
+   "zeit": "2026-11-24",
+   "salz": 7.9,
+   "chl": 6.99
   },
   "osm-n2154436767": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 10.7,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-w327281506": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.8,
    "km": 0.5,
-   "zeit": "2026-11-23",
-   "salz": 8.6,
-   "chl": 8.77
+   "zeit": "2026-11-24",
+   "salz": 8.7,
+   "chl": 9.55
   },
   "osm-w1359636162": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 3.0,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n296879886": {
    "region": "ostsee",
-   "temp": 5.8,
+   "temp": 6.2,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 13.3,
-   "chl": 5.01
+   "zeit": "2026-11-24",
+   "salz": 12.5,
+   "chl": 5.36
   },
   "osm-n489958643": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 9.2,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-n14130614004": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 10.1,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-n431042635": {
    "region": "ostsee",
-   "temp": 6.1,
+   "temp": 6.9,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 14.4,
-   "chl": 5.73
+   "zeit": "2026-11-24",
+   "salz": 14.6,
+   "chl": 6.05
   },
   "osm-w230063631": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 3.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n332271534": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.5,
    "km": 1.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.91
+   "chl": 5.79
   },
   "osm-w38279579": {
    "region": "ostsee",
-   "temp": 8.7,
+   "temp": 8.0,
    "km": 2.2,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 6.53
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 6.72
   },
   "osm-n2153404540": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 11.0,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-w758251760": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 5.4,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 12.4,
-   "chl": 6.68
+   "zeit": "2026-11-24",
+   "salz": 12.7,
+   "chl": 7.92
   },
   "osm-n1531084348": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 5.4,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 12.4,
-   "chl": 6.68
+   "zeit": "2026-11-24",
+   "salz": 12.7,
+   "chl": 7.92
   },
   "osm-n417268143": {
    "region": "ostsee",
-   "temp": 5.4,
+   "temp": 5.0,
    "km": 0.5,
-   "zeit": "2026-11-23",
-   "salz": 7.9,
-   "chl": 7.06
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 7.54
   },
   "osm-n7945590404": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 10.2,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-n336022224": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.3,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 0.2,
-   "chl": 6.39
+   "zeit": "2026-11-24",
+   "salz": 0.4,
+   "chl": 5.83
   },
   "osm-w98516161": {
    "region": "ostsee",
-   "temp": 6.1,
+   "temp": 5.7,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 7.13
+   "zeit": "2026-11-24",
+   "salz": 7.9,
+   "chl": 6.99
   },
   "osm-w231760305": {
    "region": "ostsee",
-   "temp": 6.1,
+   "temp": 5.7,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 7.13
+   "zeit": "2026-11-24",
+   "salz": 7.9,
+   "chl": 6.99
   },
   "osm-n1376983388": {
    "region": "ostsee",
-   "temp": 7.7,
+   "temp": 7.4,
    "km": 0.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 18.7,
-   "chl": 4.38
+   "chl": 4.45
   },
   "osm-n331952746": {
    "region": "ostsee",
-   "temp": 4.5,
+   "temp": 4.4,
    "km": 0.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.66
+   "chl": 5.44
   },
   "osm-w583486129": {
    "region": "ostsee",
-   "temp": 5.5,
+   "temp": 5.6,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 7.9,
+   "zeit": "2026-11-24",
+   "salz": 8.0,
    "chl": 6.88
   },
   "osm-n333066674": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.5,
-   "chl": 7.68
+   "chl": 9.11
   },
   "osm-n285328999": {
    "region": "ostsee",
-   "temp": 4.8,
+   "temp": 4.5,
    "km": 2.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 2.1,
-   "chl": 4.56
+   "chl": 4.47
   },
   "osm-w1362946967": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 10.0,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n408208807": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 2.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-w330400447": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 3.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n346302820": {
    "region": "ostsee",
-   "temp": 4.0,
+   "temp": 3.7,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 6.2,
-   "chl": 4.76
+   "zeit": "2026-11-24",
+   "salz": 6.1,
+   "chl": 4.68
   },
   "osm-w243102411": {
    "region": "ostsee",
    "temp": 6.2,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 15.7,
-   "chl": 5.31
+   "zeit": "2026-11-24",
+   "salz": 15.3,
+   "chl": 5.51
   },
   "osm-n2105650912": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.2,
    "km": 4.4,
-   "zeit": "2026-11-23",
-   "salz": 7.0,
-   "chl": 13.68
+   "zeit": "2026-11-24",
+   "salz": 6.8,
+   "chl": 13.59
   },
   "osm-w1361481373": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 11.2,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n599669636": {
    "region": "ostsee",
-   "temp": 8.1,
+   "temp": 7.7,
    "km": 3.0,
-   "zeit": "2026-11-23",
-   "salz": 17.2,
-   "chl": 5.27
+   "zeit": "2026-11-24",
+   "salz": 16.8,
+   "chl": 5.57
   },
   "osm-n2125229620": {
    "region": "ostsee",
    "temp": 3.6,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 3.8,
-   "chl": 6.61
+   "zeit": "2026-11-24",
+   "salz": 3.6,
+   "chl": 6.76
   },
   "osm-n988216479": {
    "region": "ostsee",
-   "temp": 4.6,
+   "temp": 4.4,
    "km": 1.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 2.1,
-   "chl": 4.56
+   "chl": 4.49
   },
   "osm-n276683828": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 10.1,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-n2082822961": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 7.3,
    "km": 7.0,
-   "zeit": "2026-11-23",
-   "salz": 17.7,
-   "chl": 4.67
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.28
   },
   "osm-n819023784": {
    "region": "ostsee",
-   "temp": 8.6,
+   "temp": 8.4,
    "km": 8.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 5.7
+   "chl": 5.27
   },
   "osm-w168923016": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 5.0,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-w112399383": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 3.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n314662122": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 11.0,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-w161724469": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 7.3,
    "km": 6.8,
-   "zeit": "2026-11-23",
-   "salz": 17.7,
-   "chl": 4.67
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.28
   },
   "osm-w338966365": {
    "region": "ostsee",
    "temp": 7.6,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 15.6,
-   "chl": 4.96
+   "zeit": "2026-11-24",
+   "salz": 15.7,
+   "chl": 4.91
   },
   "osm-w38285529": {
    "region": "ostsee",
-   "temp": 10.5,
+   "temp": 10.2,
    "km": 2.3,
-   "zeit": "2026-11-23",
-   "salz": 15.8,
-   "chl": 5.16
+   "zeit": "2026-11-24",
+   "salz": 15.7,
+   "chl": 5.48
   },
   "osm-n2153404543": {
    "region": "ostsee",
-   "temp": 9.2,
+   "temp": 8.6,
    "km": 1.8,
-   "zeit": "2026-11-23",
-   "salz": 15.1,
-   "chl": 5.15
+   "zeit": "2026-11-24",
+   "salz": 14.7,
+   "chl": 5.19
   },
   "osm-n2153331204": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.5,
    "km": 0.5,
-   "zeit": "2026-11-23",
-   "salz": 3.3,
-   "chl": 7.87
+   "zeit": "2026-11-24",
+   "salz": 3.9,
+   "chl": 7.89
   },
   "osm-n7369720615": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.5,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 4.01
+   "chl": 3.4
   },
   "osm-n2104422997": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 9.4,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-n13011280981": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.3,
    "km": 1.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.5,
    "chl": 5.47
   },
   "osm-w1089811716": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 8.6,
    "km": 13.2,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 5.53
   },
   "osm-w1089814001": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 8.6,
    "km": 13.1,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 5.53
   },
   "osm-w1469764256": {
    "region": "ostsee",
    "temp": 7.2,
    "km": 0.4,
-   "zeit": "2026-11-23",
-   "salz": 7.8,
-   "chl": 5.28
+   "zeit": "2026-11-24",
+   "salz": 7.5,
+   "chl": 4.97
   },
   "osm-w118876027": {
    "region": "ostsee",
    "temp": 7.0,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 16.1,
-   "chl": 5.05
+   "zeit": "2026-11-24",
+   "salz": 16.0,
+   "chl": 5.21
   },
   "osm-w29498228": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 1.6,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-w756584856": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 7.7,
    "km": 7.1,
-   "zeit": "2026-11-23",
-   "salz": 17.2,
-   "chl": 4.91
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.22
   },
   "osm-w1422299398": {
    "region": "ostsee",
-   "temp": 6.1,
+   "temp": 5.7,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 7.13
+   "zeit": "2026-11-24",
+   "salz": 7.9,
+   "chl": 6.99
   },
   "osm-w271734559": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 3.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-w241781762": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 8.6,
    "km": 12.7,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 5.53
   },
   "osm-n8946195963": {
    "region": "ostsee",
    "temp": 3.8,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 3.5,
-   "chl": 6.81
+   "zeit": "2026-11-24",
+   "salz": 3.3,
+   "chl": 7.08
   },
   "osm-n2154436820": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 10.8,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-n2732546632": {
    "region": "ostsee",
-   "temp": 3.4,
+   "temp": 3.3,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 8.6,
-   "chl": 11.69
+   "zeit": "2026-11-24",
+   "salz": 8.7,
+   "chl": 11.19
   },
   "osm-n431045438": {
    "region": "ostsee",
-   "temp": 5.3,
+   "temp": 4.8,
    "km": 1.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 11.81
+   "chl": 13.07
   },
   "osm-w1360084079": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 2.3,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-w1468800262": {
    "region": "ostsee",
-   "temp": 6.9,
+   "temp": 6.3,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 7.7,
-   "chl": 5.45
+   "zeit": "2026-11-24",
+   "salz": 7.9,
+   "chl": 6.61
   },
   "osm-n3285942512": {
    "region": "ostsee",
-   "temp": 3.4,
+   "temp": 3.2,
    "km": 1.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 9.0,
-   "chl": 6.04
+   "chl": 6.11
   },
   "osm-w156646737": {
    "region": "ostsee",
-   "temp": 5.4,
+   "temp": 5.0,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 7.9,
-   "chl": 7.06
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 7.54
   },
   "osm-w225188747": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 0.5,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-w1472253236": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.3,
    "km": 0.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 4.12
+   "chl": 4.05
   },
   "osm-n2154436822": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 10.8,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-n2152029142": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 0.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n2153404559": {
    "region": "ostsee",
-   "temp": 9.2,
+   "temp": 8.6,
    "km": 1.7,
-   "zeit": "2026-11-23",
-   "salz": 15.1,
-   "chl": 5.15
+   "zeit": "2026-11-24",
+   "salz": 14.7,
+   "chl": 5.19
   },
   "osm-w1230738316": {
    "region": "ostsee",
-   "temp": 7.7,
+   "temp": 7.5,
    "km": 11.8,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 4.58
+   "zeit": "2026-11-24",
+   "salz": 15.5,
+   "chl": 4.73
   },
   "osm-n2154436823": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 10.7,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-w242667786": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 7.2,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 17.9,
-   "chl": 5.12
+   "zeit": "2026-11-24",
+   "salz": 16.8,
+   "chl": 5.19
   },
   "osm-w188001410": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 11.5,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-w30193585": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 8.6,
    "km": 12.3,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 5.53
   },
   "osm-n489958661": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 9.0,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-n490056515": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 10.8,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-n819023564": {
    "region": "ostsee",
-   "temp": 8.6,
+   "temp": 8.4,
    "km": 6.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 5.7
+   "chl": 5.27
   },
   "osm-n817362795": {
    "region": "ostsee",
-   "temp": 4.9,
+   "temp": 4.6,
    "km": 2.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.06
+   "chl": 3.08
   },
   "osm-n274905288": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 2.4,
-   "zeit": "2026-11-23",
-   "salz": 13.4,
-   "chl": 11.3
+   "zeit": "2026-11-24",
+   "salz": 13.3,
+   "chl": 11.18
   },
   "osm-n1764060814": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.7,
    "km": 0.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 8.65
+   "chl": 9.17
   },
   "osm-n13604427101": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.4,
    "km": 1.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.84
+   "chl": 5.73
   },
   "osm-n1675559495": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 9.0,
    "km": 13.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 16.0,
-   "chl": 6.51
+   "chl": 6.7
   },
   "osm-w97661216": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 10.9,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n1140832688": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 11.1,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-w243102412": {
    "region": "ostsee",
    "temp": 6.1,
    "km": 0.4,
-   "zeit": "2026-11-23",
-   "salz": 16.3,
-   "chl": 4.83
+   "zeit": "2026-11-24",
+   "salz": 15.9,
+   "chl": 4.99
   },
   "osm-n2105651039": {
    "region": "ostsee",
-   "temp": 4.2,
+   "temp": 4.0,
    "km": 1.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 9.4,
-   "chl": 83.73
+   "chl": 81.9
   },
   "osm-n2112454004": {
    "region": "ostsee",
-   "temp": 4.7,
+   "temp": 4.5,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 14.7,
-   "chl": 5.37
+   "chl": 5.51
   },
   "osm-w867229820": {
    "region": "ostsee",
    "temp": 6.3,
    "km": 7.2,
-   "zeit": "2026-11-23",
-   "salz": 16.4,
-   "chl": 7.35
+   "zeit": "2026-11-24",
+   "salz": 16.1,
+   "chl": 7.48
   },
   "osm-w112557220": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 1.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-w292987650": {
    "region": "ostsee",
-   "temp": 4.3,
+   "temp": 4.0,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 6.5,
-   "chl": 12.32
+   "zeit": "2026-11-24",
+   "salz": 6.6,
+   "chl": 12.39
   },
   "osm-n1314963277": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.6,
    "km": 1.6,
-   "zeit": "2026-11-23",
-   "salz": 8.5,
-   "chl": 8.63
+   "zeit": "2026-11-24",
+   "salz": 8.6,
+   "chl": 9.17
   },
   "osm-n2114253119": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.4,
    "km": 2.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.84
+   "chl": 5.73
   },
   "osm-n2153331244": {
    "region": "ostsee",
-   "temp": 5.0,
+   "temp": 4.5,
    "km": 1.1,
-   "zeit": "2026-11-23",
-   "salz": 7.8,
-   "chl": 7.76
+   "zeit": "2026-11-24",
+   "salz": 7.3,
+   "chl": 7.7
   },
   "osm-w222104680": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 9.6,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-n431046927": {
    "region": "ostsee",
-   "temp": 8.2,
+   "temp": 7.9,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 13.0,
-   "chl": 5.12
+   "zeit": "2026-11-24",
+   "salz": 12.8,
+   "chl": 5.07
   },
   "osm-n388502265": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 12.5,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-w1467262160": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.4,
    "km": 1.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 3.43
+   "chl": 3.45
   },
   "osm-w26612378": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 7.2,
    "km": 3.1,
-   "zeit": "2026-11-23",
-   "salz": 17.9,
-   "chl": 5.12
+   "zeit": "2026-11-24",
+   "salz": 16.8,
+   "chl": 5.19
   },
   "osm-w293878719": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.9,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.7,
-   "chl": 8.93
+   "chl": 9.44
   },
   "osm-w242667788": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 6.2,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 16.0,
-   "chl": 7.24
+   "zeit": "2026-11-24",
+   "salz": 15.3,
+   "chl": 7.44
   },
   "osm-w1467108837": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.3,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 3.39
+   "chl": 3.31
   },
   "osm-n1738439814": {
    "region": "ostsee",
-   "temp": 4.3,
+   "temp": 3.9,
    "km": 0.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.48
+   "chl": 3.82
   },
   "osm-w1467328466": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.4,
    "km": 1.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 3.57
+   "chl": 3.46
   },
   "osm-w29171158": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.5,
-   "chl": 7.68
+   "chl": 9.11
   },
   "osm-w573219185": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 5.8,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 6.75
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 6.93
   },
   "osm-n2329447258": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.4,
    "km": 2.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.84
+   "chl": 5.73
   },
   "osm-w118757839": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 2.5,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-w144949009": {
    "region": "ostsee",
-   "temp": 6.9,
+   "temp": 6.6,
    "km": 3.1,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 7.02
+   "zeit": "2026-11-24",
+   "salz": 14.6,
+   "chl": 7.34
   },
   "osm-w25799105": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 2.2,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-w118757831": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 2.8,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-w34058636": {
    "region": "ostsee",
-   "temp": 6.9,
+   "temp": 6.6,
    "km": 3.5,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 7.02
+   "zeit": "2026-11-24",
+   "salz": 14.6,
+   "chl": 7.34
   },
   "osm-w118757852": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 3.4,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-w1105834650": {
    "region": "ostsee",
-   "temp": 6.9,
+   "temp": 6.6,
    "km": 3.2,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 7.02
+   "zeit": "2026-11-24",
+   "salz": 14.6,
+   "chl": 7.34
   },
   "osm-w118757828": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 6.2,
    "km": 1.2,
-   "zeit": "2026-11-23",
-   "salz": 16.0,
-   "chl": 7.24
+   "zeit": "2026-11-24",
+   "salz": 15.3,
+   "chl": 7.44
   },
   "osm-w149879548": {
    "region": "ostsee",
-   "temp": 6.9,
+   "temp": 6.6,
    "km": 3.3,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 7.02
+   "zeit": "2026-11-24",
+   "salz": 14.6,
+   "chl": 7.34
   },
   "osm-w118876032": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-n8946294326": {
    "region": "ostsee",
    "temp": 3.6,
    "km": 0.5,
-   "zeit": "2026-11-23",
-   "salz": 3.8,
-   "chl": 6.61
+   "zeit": "2026-11-24",
+   "salz": 3.6,
+   "chl": 6.76
   },
   "osm-n8946294327": {
    "region": "ostsee",
    "temp": 3.6,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 3.8,
-   "chl": 6.61
+   "zeit": "2026-11-24",
+   "salz": 3.6,
+   "chl": 6.76
   },
   "osm-w330398808": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 3.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-w330398807": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 4.2,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n282723467": {
    "region": "ostsee",
-   "temp": 5.3,
+   "temp": 4.8,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 11.81
+   "chl": 13.07
   },
   "osm-n490142438": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.6,
    "km": 11.0,
-   "zeit": "2026-11-23",
-   "salz": 11.8,
-   "chl": 6.22
+   "zeit": "2026-11-24",
+   "salz": 11.9,
+   "chl": 6.5
   },
   "osm-n2153331245": {
    "region": "ostsee",
-   "temp": 8.1,
+   "temp": 8.0,
    "km": 0.7,
-   "zeit": "2026-11-23",
-   "salz": 8.3,
-   "chl": 6.06
+   "zeit": "2026-11-24",
+   "salz": 8.4,
+   "chl": 6.07
   },
   "osm-w1429253770": {
    "region": "ostsee",
-   "temp": 5.4,
+   "temp": 5.0,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 7.9,
-   "chl": 7.06
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 7.54
   },
   "osm-n2082823018": {
    "region": "ostsee",
-   "temp": 8.1,
+   "temp": 7.7,
    "km": 6.3,
-   "zeit": "2026-11-23",
-   "salz": 17.2,
-   "chl": 5.27
+   "zeit": "2026-11-24",
+   "salz": 16.8,
+   "chl": 5.57
   },
   "osm-n968184752": {
    "region": "ostsee",
-   "temp": 4.0,
+   "temp": 3.7,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 6.0,
-   "chl": 4.8
+   "chl": 4.73
   },
   "osm-w241781763": {
    "region": "ostsee",
-   "temp": 9.3,
+   "temp": 8.6,
    "km": 12.1,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 5.37
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 5.53
   },
   "osm-w1360881859": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n431050057": {
    "region": "ostsee",
-   "temp": 4.9,
+   "temp": 4.6,
    "km": 1.8,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.06
+   "chl": 3.08
   },
   "osm-n818793462": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 2.9,
-   "zeit": "2026-11-23",
-   "salz": 0.8,
-   "chl": 6.01
+   "zeit": "2026-11-24",
+   "salz": 1.4,
+   "chl": 6.13
   },
   "osm-n289733967": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.2,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 6.9,
-   "chl": 7.71
+   "zeit": "2026-11-24",
+   "salz": 5.5,
+   "chl": 6.22
   },
   "osm-w1362946927": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 9.8,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n2154436824": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 6.2,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-w903364427": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.9,
    "km": 1.6,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.7,
-   "chl": 8.93
+   "chl": 9.44
   },
   "osm-n2104285607": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 1.5,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-n276684039": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 11.8,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-w1472253242": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.3,
    "km": 1.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.3,
-   "chl": 4.12
+   "chl": 4.05
   },
   "osm-w26647839": {
    "region": "ostsee",
    "temp": 7.5,
    "km": 7.2,
-   "zeit": "2026-11-23",
-   "salz": 17.4,
-   "chl": 4.75
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.27
   },
   "osm-n3285340599": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.6,
    "km": 1.6,
-   "zeit": "2026-11-23",
-   "salz": 8.5,
-   "chl": 8.63
+   "zeit": "2026-11-24",
+   "salz": 8.6,
+   "chl": 9.17
   },
   "osm-w225894885": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 9.8,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-w827563171": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 3.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n2104423017": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.7,
    "km": 1.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 8.65
+   "chl": 9.17
   },
   "osm-w242667789": {
    "region": "ostsee",
-   "temp": 8.7,
+   "temp": 8.0,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 6.53
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 6.72
   },
   "osm-n765307586": {
    "region": "ostsee",
-   "temp": 5.6,
+   "temp": 5.3,
    "km": 1.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 6.39
+   "chl": 6.56
   },
   "osm-w143689731": {
    "region": "ostsee",
-   "temp": 8.6,
+   "temp": 8.4,
    "km": 9.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 5.7
+   "chl": 5.27
   },
   "osm-n318300819": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.6,
    "km": 2.9,
-   "zeit": "2026-11-23",
-   "salz": 13.0,
-   "chl": 21.2
+   "zeit": "2026-11-24",
+   "salz": 12.9,
+   "chl": 24.55
   },
   "osm-n358083776": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.3,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.2,
-   "chl": 4.2
+   "chl": 4.0
   },
   "osm-n2420666006": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.3,
    "km": 0.2,
-   "zeit": "2026-11-23",
-   "salz": 0.2,
-   "chl": 6.39
+   "zeit": "2026-11-24",
+   "salz": 0.4,
+   "chl": 5.83
   },
   "osm-n827507548": {
    "region": "ostsee",
-   "temp": 8.6,
+   "temp": 8.4,
    "km": 13.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 5.7
+   "chl": 5.27
   },
   "osm-n408467415": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.3,
    "km": 2.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.4,
-   "chl": 5.2
+   "chl": 5.1
   },
   "osm-w1471083948": {
    "region": "ostsee",
-   "temp": 4.9,
+   "temp": 4.4,
    "km": 1.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.7,
-   "chl": 6.72
+   "chl": 7.67
   },
   "osm-n431083099": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 6.2,
    "km": 1.5,
-   "zeit": "2026-11-23",
-   "salz": 16.0,
-   "chl": 7.24
+   "zeit": "2026-11-24",
+   "salz": 15.3,
+   "chl": 7.44
   },
   "osm-n318300818": {
    "region": "ostsee",
-   "temp": 3.8,
+   "temp": 3.6,
    "km": 3.2,
-   "zeit": "2026-11-23",
-   "salz": 13.0,
-   "chl": 21.2
+   "zeit": "2026-11-24",
+   "salz": 12.9,
+   "chl": 24.55
   },
   "osm-n332455209": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.6,
    "km": 2.5,
-   "zeit": "2026-11-23",
-   "salz": 13.5,
-   "chl": 17.85
+   "zeit": "2026-11-24",
+   "salz": 13.1,
+   "chl": 22.14
   },
   "osm-w38237154": {
    "region": "ostsee",
-   "temp": 7.5,
+   "temp": 8.0,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 16.9,
-   "chl": 5.08
+   "zeit": "2026-11-24",
+   "salz": 16.7,
+   "chl": 5.07
   },
   "osm-w118876019": {
    "region": "ostsee",
-   "temp": 7.1,
+   "temp": 6.8,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 15.3,
-   "chl": 7.64
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 8.08
   },
   "osm-n827624186": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.3,
    "km": 1.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.1,
-   "chl": 5.67
+   "chl": 5.79
   },
   "osm-w97661230": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 11.0,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n1764045897": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.7,
    "km": 0.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 8.65
+   "chl": 9.17
   },
   "osm-w88940058": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.7,
    "km": 0.4,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 8.65
+   "chl": 9.17
   },
   "osm-n2154436825": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 9.7,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-n1467046972": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.6,
    "km": 1.8,
-   "zeit": "2026-11-23",
-   "salz": 13.5,
-   "chl": 17.85
+   "zeit": "2026-11-24",
+   "salz": 13.1,
+   "chl": 22.14
   },
   "osm-n2152029113": {
    "region": "ostsee",
-   "temp": 5.6,
+   "temp": 5.3,
    "km": 2.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 6.39
+   "chl": 6.56
   },
   "osm-w515407765": {
    "region": "ostsee",
-   "temp": 5.6,
+   "temp": 5.3,
    "km": 2.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.6,
-   "chl": 6.39
+   "chl": 6.56
   },
   "osm-w171345657": {
    "region": "ostsee",
    "temp": 7.1,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 16.0,
+   "zeit": "2026-11-24",
+   "salz": 15.9,
    "chl": 4.84
   },
   "osm-n331855509": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.3,
    "km": 1.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.5,
    "chl": 5.47
   },
   "osm-n3655825013": {
    "region": "ostsee",
-   "temp": 3.7,
+   "temp": 3.4,
    "km": 2.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 7.9,
-   "chl": 5.84
+   "chl": 5.73
   },
   "osm-w243102413": {
    "region": "ostsee",
    "temp": 6.2,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 15.7,
-   "chl": 5.31
+   "zeit": "2026-11-24",
+   "salz": 15.3,
+   "chl": 5.51
   },
   "osm-n2153078797": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 6.8,
    "km": 1.4,
-   "zeit": "2026-11-23",
-   "salz": 15.6,
-   "chl": 5.85
+   "zeit": "2026-11-24",
+   "salz": 15.0,
+   "chl": 5.75
   },
   "osm-n1368372643": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 7.4,
    "km": 0.8,
-   "zeit": "2026-11-23",
-   "salz": 15.2,
-   "chl": 5.91
+   "zeit": "2026-11-24",
+   "salz": 14.5,
+   "chl": 5.77
   },
   "osm-w225188748": {
    "region": "ostsee",
-   "temp": 7.3,
+   "temp": 6.7,
    "km": 0.3,
-   "zeit": "2026-11-23",
-   "salz": 19.3,
-   "chl": 6.1
+   "zeit": "2026-11-24",
+   "salz": 18.0,
+   "chl": 5.47
   },
   "osm-w205229588": {
    "region": "ostsee",
-   "temp": 4.1,
+   "temp": 3.6,
    "km": 0.9,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.0,
-   "chl": 4.2
+   "chl": 4.21
   },
   "osm-n304484613": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.2,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 2.2,
-   "chl": 4.75
+   "chl": 4.66
   },
   "osm-w205333421": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 6.0,
    "km": 0.7,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 17.5,
-   "chl": 3.46
+   "chl": 3.47
   },
   "osm-w495242077": {
    "region": "ostsee",
-   "temp": 9.1,
+   "temp": 8.2,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 15.5,
-   "chl": 5.34
+   "zeit": "2026-11-24",
+   "salz": 14.7,
+   "chl": 5.59
   },
   "osm-w243102414": {
    "region": "ostsee",
    "temp": 6.1,
    "km": 0.3,
-   "zeit": "2026-11-23",
-   "salz": 16.3,
-   "chl": 4.83
+   "zeit": "2026-11-24",
+   "salz": 15.9,
+   "chl": 4.99
   },
   "osm-n285061557": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 1.1,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-w1422491343": {
    "region": "ostsee",
-   "temp": 5.8,
+   "temp": 5.5,
    "km": 1.3,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.0,
-   "chl": 7.22
+   "chl": 7.31
   },
   "osm-w962849248": {
    "region": "ostsee",
-   "temp": 8.7,
+   "temp": 8.0,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 6.53
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 6.72
   },
   "osm-w171345679": {
    "region": "ostsee",
    "temp": 7.1,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 16.0,
+   "zeit": "2026-11-24",
+   "salz": 15.9,
    "chl": 4.84
   },
   "osm-n431042146": {
    "region": "ostsee",
-   "temp": 8.4,
+   "temp": 8.2,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 8.1,
-   "chl": 4.65
+   "zeit": "2026-11-24",
+   "salz": 8.0,
+   "chl": 4.64
   },
   "osm-w166546814": {
    "region": "ostsee",
    "temp": 7.6,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 15.6,
-   "chl": 4.96
+   "zeit": "2026-11-24",
+   "salz": 15.7,
+   "chl": 4.91
   },
   "osm-n305410608": {
    "region": "ostsee",
-   "temp": 7.2,
+   "temp": 6.7,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 11.9,
-   "chl": 6.05
+   "zeit": "2026-11-24",
+   "salz": 12.1,
+   "chl": 6.32
   },
   "osm-w186071085": {
    "region": "ostsee",
-   "temp": 6.9,
+   "temp": 6.6,
    "km": 0.6,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 7.02
+   "zeit": "2026-11-24",
+   "salz": 14.6,
+   "chl": 7.34
   },
   "osm-n412357367": {
    "region": "ostsee",
-   "temp": 4.3,
+   "temp": 3.9,
    "km": 1.1,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 0.0,
-   "chl": 3.48
+   "chl": 3.82
   },
   "osm-w1422488507": {
    "region": "ostsee",
-   "temp": 6.5,
+   "temp": 5.9,
    "km": 1.5,
-   "zeit": "2026-11-23",
-   "salz": 8.0,
-   "chl": 6.3
+   "zeit": "2026-11-24",
+   "salz": 7.8,
+   "chl": 6.75
   },
   "osm-n345583286": {
    "region": "ostsee",
-   "temp": 4.7,
+   "temp": 4.4,
    "km": 1.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.8,
-   "chl": 9.13
+   "chl": 9.78
   },
   "osm-w1359636191": {
    "region": "ostsee",
-   "temp": 10.4,
+   "temp": 9.7,
    "km": 2.4,
-   "zeit": "2026-11-23",
-   "salz": 14.7,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.4,
+   "chl": 6.27
   },
   "osm-n288333022": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 0.9,
-   "zeit": "2026-11-23",
-   "salz": 8.2,
-   "chl": 5.68
+   "zeit": "2026-11-24",
+   "salz": 8.5,
+   "chl": 7.9
   },
   "osm-n269575030": {
    "region": "ostsee",
-   "temp": 4.4,
+   "temp": 4.3,
    "km": 1.0,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 9.1,
-   "chl": 7.96
+   "chl": 8.31
   },
   "osm-w74725809": {
    "region": "ostsee",
-   "temp": 8.7,
+   "temp": 8.0,
    "km": 2.3,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 6.53
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 6.72
   },
   "osm-w1462665225": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.3,
    "km": 1.0,
-   "zeit": "2026-11-23",
-   "salz": 0.3,
-   "chl": 3.32
+   "zeit": "2026-11-24",
+   "salz": 0.5,
+   "chl": 3.8
   },
   "osm-n2116466192": {
    "region": "ostsee",
-   "temp": 6.3,
+   "temp": 7.3,
    "km": 0.5,
-   "zeit": "2026-11-23",
-   "salz": 14.6,
-   "chl": 5.69
+   "zeit": "2026-11-24",
+   "salz": 14.5,
+   "chl": 5.95
   },
   "osm-n2132320955": {
    "region": "ostsee",
-   "temp": 3.5,
+   "temp": 3.4,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 0.7,
-   "chl": 4.27
+   "zeit": "2026-11-24",
+   "salz": 0.9,
+   "chl": 4.87
   },
   "osm-n431049925": {
    "region": "ostsee",
-   "temp": 8.7,
+   "temp": 8.0,
    "km": 1.3,
-   "zeit": "2026-11-23",
-   "salz": 15.0,
-   "chl": 6.53
+   "zeit": "2026-11-24",
+   "salz": 14.8,
+   "chl": 6.72
   },
   "osm-n766843777": {
    "region": "ostsee",
-   "temp": 3.6,
+   "temp": 3.4,
    "km": 2.5,
-   "zeit": "2026-11-23",
+   "zeit": "2026-11-24",
    "salz": 8.5,
-   "chl": 8.04
+   "chl": 9.1
   }
  }
 }
